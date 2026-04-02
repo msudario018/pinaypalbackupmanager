@@ -19,7 +19,7 @@ All notable changes to this project are documented in this file.
 - (none)
 
 ### Changed
-- Reorganized Settings layout order: App Updates → Backup Health Dashboard → System Configuration → System Information → Credentials & Paths → User Management.
+- Reorganized Settings layout order: App Updates -&gt; Backup Health Dashboard -&gt; System Configuration -&gt; System Information -&gt; Credentials &amp; Paths -&gt; User Management.
 
 ### Fixed
 - (none)
