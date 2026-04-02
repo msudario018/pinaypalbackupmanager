@@ -27,6 +27,8 @@ All notable changes to this project are documented in this file.
 ### Fixed
 - Fixed installation folder structure to create PinayPal/PinayPal Backup Manager instead of nested folders.
 - Fixed shortcut name to display "PinayPal Backup Manager" instead of executable name.
+- Fixed SQL credentials to use same host as FTP (removed redundant host field).
+- Ensured SQL password field is properly masked with PasswordChar.
 
 ## 2026-04-03 - v2.4.1
 

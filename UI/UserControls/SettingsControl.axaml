@@ -39,7 +39,7 @@
                     <TextBox Name="TxtFtpPassword" Watermark="FTP Password" PasswordChar="●"/>
                     <TextBox Name="TxtFtpPort" Watermark="FTP Port (default 21)"/>
 
-                    <TextBlock Text="SQL" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
+                    <TextBlock Text="SQL (uses same host as FTP)" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtSqlUser" Watermark="SQL User"/>
                     <TextBox Name="TxtSqlPassword" Watermark="SQL Password" PasswordChar="●"/>
                     <TextBox Name="TxtSqlRemotePath" Watermark="SQL Remote Path"/>
