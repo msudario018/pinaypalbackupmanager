@@ -10,6 +10,11 @@
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <VelopackId>PinayPal.PinayPalBackupManager</VelopackId>
+    <VelopackShortcutName>PinayPal Backup Manager</VelopackShortcutName>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.1.5" />
     <PackageReference Include="Avalonia.Desktop" Version="11.1.5" />

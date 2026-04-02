@@ -20,14 +20,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Configuration -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
-                </StackPanel>
-            </Border>
-
+            <!-- Credentials & Paths (moved to top) -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="CREDENTIALS &amp; PATHS" FontWeight="Bold" Foreground="#89DCEB" Margin="0,0,0,10"/>
@@ -60,6 +53,14 @@
                 </StackPanel>
             </Border>
 
+            <!-- Configuration -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
+                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
+                </StackPanel>
+            </Border>
+
             <!-- App Updates -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
@@ -69,7 +70,16 @@
                 </StackPanel>
             </Border>
 
-            <!-- User Management (Admin only) -->
+            <!-- Health Dashboard -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
+                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+
+            <!-- User Management (moved to bottom) -->
             <Border Name="AdminPanel" Background="#1E1E2E" CornerRadius="12" Padding="20" IsVisible="False">
                 <StackPanel Spacing="10">
                     <TextBlock Text="USER MANAGEMENT" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,0,10"/>
@@ -82,10 +92,18 @@
                     <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontWeight="Bold"/>
                     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,4">
                         <TextBox Grid.Column="0" Name="TxtInviteCode" IsReadOnly="True" Watermark="No invite code" FontFamily="Consolas" FontSize="14"/>
-                        <Button Grid.Column="1" Name="BtnRotateCode" Content="ROTATE" Background="#F38BA8" Foreground="#0B0F17" FontWeight="Bold" 
+                        <Button Grid.Column="1" Name="BtnCopyCode" Content="COPY" Background="#89B4FA" Foreground="#0B0F17" FontWeight="Bold" 
                                 Padding="14,8" CornerRadius="8" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
-                    <TextBlock Text="Share this code with co-devs so they can register." Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8" Margin="0,0,0,8">
+                        <TextBlock Text="Auto-rotates every 5 minutes" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+                        <Viewbox Width="16" Height="16" Name="TimerIndicator">
+                            <Canvas Width="16" Height="16">
+                                <Ellipse Stroke="#6C7086" StrokeThickness="2" Fill="Transparent" Width="16" Height="16"/>
+                                <Path Stroke="#89B4FA" StrokeThickness="2" Fill="Transparent" Name="TimerArc"/>
+                            </Canvas>
+                        </Viewbox>
+                    </StackPanel>
 
                     <TextBlock Text="Registered Users" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,10,0,0"/>
                     <StackPanel Name="UserListPanel" Spacing="6"/>
@@ -93,15 +111,6 @@
 
                     <Button Name="BtnLogout" Content="LOGOUT" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                             Background="#45475A" Foreground="White" FontWeight="Bold" Padding="10" CornerRadius="8" Margin="0,10,0,0"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Health Dashboard -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
-                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
         </StackPanel>

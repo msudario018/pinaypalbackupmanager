@@ -5,13 +5,17 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
-- (none)
+- Auto-rotating invite codes every 5 minutes with circular timer indicator.
+- Copy to clipboard button for invite codes (replaces manual rotate button).
 
 ### Changed
-- (none)
+- Invite codes now automatically rotate instead of requiring manual rotation.
+- Reorganized Settings layout: Credentials moved to top, User Management moved to bottom.
+- Velopack configuration updated for proper installation folder (PinayPal/PinayPal Backup Manager) and shortcut name.
 
 ### Fixed
-- (none)
+- Fixed installation folder structure to create PinayPal/PinayPal Backup Manager instead of nested folders.
+- Fixed shortcut name to display "PinayPal Backup Manager" instead of executable name.
 
 ## 2026-04-03 - v2.4.1
 
