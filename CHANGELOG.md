@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- (none)
+
+### Changed
+- (none)
+
+### Fixed
+- (none)
+
+## 2026-04-03 - v2.4.5
+
+### Added
 - Auto-rotating invite codes every 5 minutes with circular timer indicator.
 - Copy to clipboard button for invite codes (replaces manual rotate button).
 
