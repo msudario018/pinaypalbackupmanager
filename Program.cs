@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Velopack;
@@ -9,16 +10,31 @@ namespace PinayPalBackupManager
 {
     class Program
     {
+        [DllImport("kernel32.dll")]
+        static extern bool AllocConsole();
         [STAThread]
         public static void Main(string[] args)
         {
+            // Allocate console for debugging
+            AllocConsole();
+            Console.WriteLine($"[{DateTime.Now}] Application starting with args: {string.Join(", ", args)}");
+            
+            // Initialize logging BEFORE ANYTHING ELSE
+            var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
             try
             {
-                // Initialize logging FIRST
-                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
                 File.AppendAllText(logPath, $"[{DateTime.Now}] Application starting with args: {string.Join(", ", args)}\n");
+                Console.WriteLine($"[{DateTime.Now}] Log initialized at: {logPath}");
+            }
+            catch
+            {
+                Console.WriteLine($"[{DateTime.Now}] Failed to initialize logging");
+                // If logging fails, we can't do much
+            }
 
+            try
+            {
                 // Handle Velopack updates
                 File.AppendAllText(logPath, $"[{DateTime.Now}] Initializing Velopack...\n");
                 var vp = VelopackApp.Build();
@@ -49,10 +65,10 @@ namespace PinayPalBackupManager
             catch (Exception ex)
             {
                 // Log error
-                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
                 File.AppendAllText(logPath, $"[{DateTime.Now}] FATAL ERROR: {ex}\n{ex.StackTrace}\n");
                 File.AppendAllText(logPath, $"[{DateTime.Now}] Log file location: {logPath}\n");
+                Console.WriteLine($"[{DateTime.Now}] FATAL ERROR: {ex.Message}");
                 throw; // Re-throw to let the exception show in the console
             }
         }
