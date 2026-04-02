@@ -7,7 +7,7 @@
         CanResize="False"
         Background="#0B0F17"
         Foreground="#CDD6F4"
-        Icon="file:///c:/Users/Wesley/Documents/trae_projects/PinayPal Backup Manager/pinaypalbackupmanager/bin/Debug/net8.0/logo.ico">
+        Icon="/Assets/logo.ico">
 
     <Grid RowDefinitions="Auto, *">
         <!-- Header -->

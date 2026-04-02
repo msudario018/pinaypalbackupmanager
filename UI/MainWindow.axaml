@@ -6,13 +6,13 @@
         WindowStartupLocation="CenterScreen"
         Background="#0B0F17"
         Foreground="#CDD6F4"
-        Icon="file:///c:/Users/Wesley/Documents/trae_projects/PinayPal Backup Manager/pinaypalbackupmanager/bin/Debug/net8.0/logo.ico">
+        Icon="/Assets/logo.ico">
     
     <Grid ColumnDefinitions="70, *">
         <!-- Sidebar -->
         <Border Grid.Column="0" Background="#11111B" BorderBrush="#313244" BorderThickness="0,0,1,0">
             <StackPanel Name="Sidebar" Spacing="10" Margin="0,20">
-                <Image Source="file:///c:/Users/Wesley/Documents/trae_projects/PinayPal Backup Manager/pinaypalbackupmanager/bin/Debug/net8.0/logo.ico" 
+                <Image Source="/Assets/logo.ico" 
                        Width="40" Height="40" Margin="0,0,0,20" HorizontalAlignment="Center"/>
                 <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
                     <PathIcon Data="{StaticResource CloudIcon}" Foreground="#CBA6F7"/>
