@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.Sqlite;
@@ -22,8 +23,8 @@ namespace PinayPalBackupManager.Services
             _dbPath = Path.Combine(appDataDir, "users.db");
             EnsureDatabase();
             
-            // Initialize Firebase service
-            FirebaseInviteService.Initialize();
+            // Firebase will be initialized on-demand to avoid blocking
+            Console.WriteLine("[AuthService] Firebase ready for on-demand initialization");
         }
 
         private static string ConnectionString => $"Data Source={_dbPath}";
@@ -62,7 +63,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Register the very first user as Admin (auto-active). Subsequent users need a valid invite code.
         /// </summary>
-        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
+        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
@@ -77,31 +78,9 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(inviteCode))
                     return (false, "Invite code is required.");
 
-                // Try Firebase validation first
-                bool isValid = false;
-                try
-                {
-                    isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode.Trim());
-                    if (isValid)
-                    {
-                        Console.WriteLine("[AuthService] Invite code validated via Firebase");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[AuthService] Firebase validation failed: {ex.Message}");
-                }
-                
-                // Fallback to local validation
-                if (!isValid)
-                {
-                    var storedCode = GetInviteCode();
-                    isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
-                    if (isValid)
-                    {
-                        Console.WriteLine("[AuthService] Invite code validated via local database");
-                    }
-                }
+                // Local validation only (avoid UI thread blocking)
+                var storedCode = GetInviteCode();
+                bool isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
                 
                 if (!isValid)
                     return (false, "Invalid invite code.");
@@ -121,30 +100,44 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
                 cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
-                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Active"); // invite code = auto-active
+                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Active");
                 cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
 
                 if (isFirstUser)
                 {
-                    // Generate the first invite code
                     RotateInviteCode();
+                }
+
+                // Sync new user to Firebase (fire-and-forget, don't block UI)
+                var newUser = GetUserByUsername(username.Trim());
+                if (newUser != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await FirebaseUserService.SyncUserAsync(newUser);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[AuthService] Failed to sync new user to Firebase: {ex.Message}");
+                        }
+                    });
                 }
 
                 return (true, isFirstUser ? "Admin account created." : "Registration successful!");
             }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == 19) // UNIQUE constraint
+            catch (SqliteException ex)
             {
-                return (false, "Username already exists.");
+                if (ex.SqliteErrorCode == 19)
+                    return (false, "Username already exists.");
+                return (false, $"Database error: {ex.Message}");
             }
-        }
-        
-        /// <summary>
-        /// Synchronous version for compatibility
-        /// </summary>
-        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
-        {
-            return RegisterAsync(username, password, inviteCode).Result;
+            catch (Exception ex)
+            {
+                return (false, $"An unexpected error occurred: {ex.Message}");
+            }
         }
 
         public static (bool success, string message) Login(string username, string password)
@@ -191,7 +184,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<string> GetInviteCodeAsync()
         {
-            // Try Firebase first (online), then config file, then hardcoded
+            // Try Firebase first (online), then fallback to local
             try
             {
                 var firebaseCode = await FirebaseInviteService.GetInviteCodeAsync();
@@ -214,23 +207,10 @@ namespace PinayPalBackupManager.Services
             
             return effectiveCode;
         }
-        
+
         public static string GetInviteCode()
         {
-            // Synchronous version for compatibility
-            try
-            {
-                var firebaseCode = FirebaseInviteService.GetInviteCodeAsync().Result;
-                if (!string.IsNullOrEmpty(firebaseCode))
-                {
-                    return firebaseCode;
-                }
-            }
-            catch
-            {
-                // Firebase not available, continue with local
-            }
-            
+            // Local only - avoid async deadlock on UI thread
             var configCode = GetInviteCodeFromConfig();
             var hardcodedCode = "PINAYPAL2024";
             var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
@@ -243,7 +223,6 @@ namespace PinayPalBackupManager.Services
             
             if (result == null)
             {
-                // Use effective code as default if none exists
                 cmd.CommandText = @"INSERT INTO AppConfig (Key, Value) VALUES ('InviteCode', @v)";
                 cmd.Parameters.AddWithValue("@v", effectiveCode);
                 cmd.ExecuteNonQuery();
@@ -251,16 +230,12 @@ namespace PinayPalBackupManager.Services
             }
             
             var storedCode = result.ToString() ?? string.Empty;
-            
-            // Always accept the effective code regardless of what's stored
             if (string.Equals(storedCode, effectiveCode, StringComparison.Ordinal))
             {
                 return storedCode;
             }
             
-            // If stored code is different, update it to the effective code
             cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
-            cmd.Parameters.Clear();
             cmd.Parameters.AddWithValue("@v", effectiveCode);
             cmd.ExecuteNonQuery();
             
@@ -288,21 +263,79 @@ namespace PinayPalBackupManager.Services
             return string.Empty;
         }
 
-        public static string RotateInviteCode()
+        public static async Task<string> RotateInviteCodeAsync()
         {
-            // Use the same logic as GetInviteCode for consistency
-            var configCode = GetInviteCodeFromConfig();
-            var hardcodedCode = "PINAYPAL2024";
-            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
+            // Generate a new random invite code
+            var newCode = GenerateInviteCode();
             
+            // Update Firebase first (if available)
+            try
+            {
+                var success = await FirebaseInviteService.SetInviteCodeAsync(newCode);
+                if (success)
+                {
+                    Console.WriteLine($"[AuthService] Firebase invite code updated: {newCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Firebase update failed: {ex.Message}");
+            }
+            
+            // Update local database
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
-            cmd.Parameters.AddWithValue("@v", effectiveCode);
+            cmd.Parameters.AddWithValue("@v", newCode);
             cmd.ExecuteNonQuery();
             
-            return effectiveCode;
+            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
+            return newCode;
+        }
+
+        public static string RotateInviteCode()
+        {
+            var newCode = GenerateInviteCode();
+            
+            // Update local database only (sync version)
+            using var conn = new SqliteConnection(ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+            cmd.Parameters.AddWithValue("@v", newCode);
+            cmd.ExecuteNonQuery();
+            
+            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
+            
+            // Fire-and-forget Firebase update (don't block UI)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await FirebaseInviteService.SetInviteCodeAsync(newCode);
+                    Console.WriteLine($"[AuthService] Firebase invite code updated: {newCode}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AuthService] Firebase update failed: {ex.Message}");
+                }
+            });
+            
+            return newCode;
+        }
+
+        public static AppUser? GetUserByUsername(string username)
+        {
+            using var conn = new SqliteConnection(ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u COLLATE NOCASE";
+            cmd.Parameters.AddWithValue("@u", username);
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+                return ReadUser(reader);
+            return null;
         }
 
         // ── User Management (Admin) ──
@@ -324,23 +357,136 @@ namespace PinayPalBackupManager.Services
 
         public static bool SetUserStatus(int userId, string status)
         {
+            // Get username first for Firebase sync
+            var user = GetUserById(userId);
+            
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id AND Role != 'Admin'";
             cmd.Parameters.AddWithValue("@s", status);
             cmd.Parameters.AddWithValue("@id", userId);
-            return cmd.ExecuteNonQuery() > 0;
+            var result = cmd.ExecuteNonQuery() > 0;
+            
+            // Sync status change to Firebase (fire-and-forget)
+            if (result && user != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await FirebaseUserService.UpdateUserStatusAsync(user.Username, status);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AuthService] Failed to sync status change: {ex.Message}");
+                    }
+                });
+            }
+            
+            return result;
         }
 
         public static bool DeleteUser(int userId)
         {
+            // Get username first for Firebase sync
+            var user = GetUserById(userId);
+            
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM Users WHERE Id = @id AND Role != 'Admin'";
             cmd.Parameters.AddWithValue("@id", userId);
-            return cmd.ExecuteNonQuery() > 0;
+            var result = cmd.ExecuteNonQuery() > 0;
+            
+            // Sync deletion to Firebase (fire-and-forget)
+            if (result && user != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await FirebaseUserService.RemoveUserAsync(user.Username);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AuthService] Failed to sync user deletion: {ex.Message}");
+                    }
+                });
+            }
+            
+            return result;
+        }
+
+        public static AppUser? GetUserById(int userId)
+        {
+            using var conn = new SqliteConnection(ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@id", userId);
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+                return ReadUser(reader);
+            return null;
+        }
+
+        /// <summary>
+        /// Sync remote users from Firebase to local database
+        /// Call this periodically or when admin opens user management
+        /// </summary>
+        public static async Task SyncRemoteUsersAsync()
+        {
+            try
+            {
+                var remoteUsers = await FirebaseUserService.GetAllUsersAsync();
+                var localUsers = GetAllUsers();
+                var localUsernames = new HashSet<string>(localUsers.Select(u => u.Username.ToLower()));
+                
+                foreach (var remoteUser in remoteUsers)
+                {
+                    // Skip if user already exists locally
+                    if (localUsernames.Contains(remoteUser.Username.ToLower()))
+                    {
+                        // Update status if different
+                        var localUser = localUsers.First(u => u.Username.Equals(remoteUser.Username, StringComparison.OrdinalIgnoreCase));
+                        if (localUser.Status != remoteUser.Status)
+                        {
+                            SetUserStatus(localUser.Id, remoteUser.Status);
+                            Console.WriteLine($"[AuthService] Updated user status from remote: {remoteUser.Username} -> {remoteUser.Status}");
+                        }
+                        continue;
+                    }
+                    
+                    // Add remote user to local database (without password - they'll need to reset)
+                    using var conn = new SqliteConnection(ConnectionString);
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
+                                        VALUES (@u, @h, @s, @r, @st, @c)";
+                    cmd.Parameters.AddWithValue("@u", remoteUser.Username);
+                    cmd.Parameters.AddWithValue("@h", "REMOTE_USER"); // Placeholder - user needs to set password
+                    cmd.Parameters.AddWithValue("@s", "REMOTE_USER");
+                    cmd.Parameters.AddWithValue("@r", remoteUser.Role);
+                    cmd.Parameters.AddWithValue("@st", remoteUser.Status);
+                    cmd.Parameters.AddWithValue("@c", remoteUser.CreatedAt.ToString("o"));
+                    
+                    try
+                    {
+                        cmd.ExecuteNonQuery();
+                        Console.WriteLine($"[AuthService] Added remote user: {remoteUser.Username}");
+                    }
+                    catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+                    {
+                        // User already exists (race condition)
+                        Console.WriteLine($"[AuthService] Remote user already exists: {remoteUser.Username}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Failed to sync remote users: {ex.Message}");
+            }
         }
 
         // ── Helpers ──

@@ -33,23 +33,13 @@
                 
                 <!-- Profile Section -->
                 <Border Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="0,1,0,0" Padding="10" Margin="0,0,0,0">
-                    <StackPanel Spacing="8">
-                        <!-- Avatar and Name -->
-                        <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="0">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Ellipse Name="AvatarImage" Width="32" Height="32" Fill="#45475A">
-                                    <Ellipse.Effect>
-                                        <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
-                                    </Ellipse.Effect>
-                                </Ellipse>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Name="TxtUsername" Text="User" FontSize="10" FontWeight="Bold" Foreground="#CDD6F4"/>
-                                    <TextBlock Name="TxtUserRole" Text="Role" FontSize="8" Foreground="#6C7086"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Button>
-                        
-                    </StackPanel>
+                    <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Center">
+                        <Ellipse Name="AvatarImage" Width="32" Height="32" Fill="#45475A">
+                            <Ellipse.Effect>
+                                <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                    </Button>
                 </Border>
             </Grid>
         </Border>

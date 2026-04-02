@@ -203,13 +203,16 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private void RefreshUserList()
+        private async void RefreshUserList()
         {
             var userListPanel = this.FindControl<StackPanel>("UserListPanel");
             var txtNoUsers = this.FindControl<TextBlock>("TxtNoUsers");
             if (userListPanel == null) return;
 
             userListPanel.Children.Clear();
+
+            // Sync remote users from Firebase (non-blocking)
+            await AuthService.SyncRemoteUsersAsync();
 
             var users = AuthService.GetAllUsers();
             var otherUsers = users.Where(u => u.Id != (AuthService.CurrentUser?.Id ?? -1)).ToList();

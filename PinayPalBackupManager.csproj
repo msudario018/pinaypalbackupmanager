@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Version>2.6.0-alpha</Version>
+    <Version>2.6.1</Version>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -35,6 +35,7 @@
     <Folder Include="UI\Styles\" />
   </ItemGroup>
 
+  
   <ItemGroup>
     <None Update="ANIMATION_EXAMPLES.xaml">
       <Generator>MSBuild:Compile</Generator>
