@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- (none)
+
+### Changed
+- (none)
+
+### Fixed
+- (none)
+
+## 2026-04-03 - v2.4.1
+
+### Added
 - Multi-user login system with local SQLite user store.
 - Invite code registration: admins generate/share codes for co-devs.
 - Admin panel in Settings: manage users, rotate invite codes, disable/delete accounts.
