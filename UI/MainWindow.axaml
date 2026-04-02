@@ -49,43 +49,6 @@
                             </StackPanel>
                         </Button>
                         
-                        <!-- Profile Menu (Hidden by default) -->
-                        <StackPanel Name="ProfileMenu" Spacing="4" IsVisible="False">
-                            <!-- Admin Options -->
-                            <StackPanel Name="AdminMenuItems" Spacing="4" IsVisible="False">
-                                <Button Classes="ProfileMenuItem" Name="BtnUserManagement" Content="User Management">
-                                    <Button.Tag>
-                                        <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="14" Height="14"/>
-                                    </Button.Tag>
-                                </Button>
-                            </StackPanel>
-                            
-                            <!-- User Options -->
-                            <StackPanel Name="UserMenuItems" Spacing="4">
-                                <Button Classes="ProfileMenuItem" Name="BtnChangePassword" Content="Change Password">
-                                    <Button.Tag>
-                                        <PathIcon Data="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" Width="14" Height="14"/>
-                                    </Button.Tag>
-                                </Button>
-                                <Button Classes="ProfileMenuItem" Name="BtnChangeUsername" Content="Change Username">
-                                    <Button.Tag>
-                                        <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="14" Height="14"/>
-                                    </Button.Tag>
-                                </Button>
-                                <Button Classes="ProfileMenuItem" Name="BtnUploadAvatar" Content="Upload Avatar">
-                                    <Button.Tag>
-                                        <PathIcon Data="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" Width="14" Height="14"/>
-                                    </Button.Tag>
-                                </Button>
-                            </StackPanel>
-                            
-                            <!-- Logout -->
-                            <Button Classes="ProfileMenuItem LogoutBtn" Name="BtnLogout" Content="Logout">
-                                <Button.Tag>
-                                    <PathIcon Data="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z" Width="14" Height="14"/>
-                                </Button.Tag>
-                            </Button>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -306,6 +269,71 @@
                     <DoubleTransition Property="Opacity" Duration="0:0:0.5"/>
                 </Transitions>
             </Setter>
+        </Style>
+
+        <!-- Profile Control Button Styles -->
+        <Style Selector="Button.PrimaryBtn">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.PrimaryBtn:pointerover">
+            <Setter Property="Background" Value="#74A6F0"/>
+        </Style>
+        <Style Selector="Button.PrimaryBtn:pressed">
+            <Setter Property="Background" Value="#5E8FD8"/>
+        </Style>
+
+        <Style Selector="Button.SecondaryBtn">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.25"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.SecondaryBtn:pointerover">
+            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="BorderBrush" Value="#585B70"/>
+        </Style>
+        <Style Selector="Button.SecondaryBtn:pressed">
+            <Setter Property="Background" Value="#585B70"/>
+        </Style>
+
+        <Style Selector="Button.DangerBtn">
+            <Setter Property="Background" Value="#F38BA8"/>
+            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.DangerBtn:pointerover">
+            <Setter Property="Background" Value="#E5748E"/>
+        </Style>
+        <Style Selector="Button.DangerBtn:pressed">
+            <Setter Property="Background" Value="#D95A76"/>
         </Style>
     </Window.Styles>
 
