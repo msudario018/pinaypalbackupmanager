@@ -52,8 +52,13 @@ namespace PinayPalBackupManager.UI
                     // Production machine - create default admin automatically
                     try
                     {
-                        AuthService.Register("admin", "admin123");
-                        Console.WriteLine("[LoginWindow] Created default admin account automatically");
+                        var (success, message) = AuthService.Register("admin", "admin123");
+                        Console.WriteLine($"[LoginWindow] Admin creation result: {success}, {message}");
+                        if (!success)
+                        {
+                            Console.WriteLine($"[LoginWindow] Failed to create admin: {message}");
+                            throw new Exception($"Failed to create admin: {message}");
+                        }
                         
                         // Show login panel since admin is created
                         ShowLoginPanel();
