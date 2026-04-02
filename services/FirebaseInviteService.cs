@@ -8,7 +8,9 @@ namespace PinayPalBackupManager.Services
         private static readonly string FirebaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
         private static readonly string InviteCodePath = "inviteCodes/current";
         
-        private static bool _initialized = false;
+        private static bool _isInitialized = false;
+        private static bool _initAttempted = false;
+        private static readonly object _initLock = new object();
         
         public static void Initialize()
         {
@@ -18,7 +20,15 @@ namespace PinayPalBackupManager.Services
         
         private static async Task<bool> EnsureInitializedAsync()
         {
-            if (_initialized) return true;
+            // Fast path - if already initialized, return immediately without any async/await overhead
+            if (_isInitialized) return true;
+            if (_initAttempted) return false; // Already tried and failed, don't keep trying
+            
+            lock (_initLock)
+            {
+                if (_isInitialized || _initAttempted) return _isInitialized;
+                _initAttempted = true; // Mark that we attempted initialization
+            }
             
             try
             {
@@ -26,13 +36,13 @@ namespace PinayPalBackupManager.Services
                 
                 // Use HttpClient directly instead of FirebaseClient to avoid blocking
                 using var httpClient = new System.Net.Http.HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                httpClient.Timeout = TimeSpan.FromSeconds(3); // Reduced timeout
                 
                 // Test connection with a simple GET request
                 var response = await httpClient.GetAsync($"{FirebaseUrl}.json");
                 if (response.IsSuccessStatusCode)
                 {
-                    _initialized = true;
+                    _isInitialized = true;
                     Console.WriteLine("[Firebase] Lazy initialization successful");
                     return true;
                 }

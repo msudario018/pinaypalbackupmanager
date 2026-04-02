@@ -211,8 +211,18 @@ namespace PinayPalBackupManager.UI.UserControls
 
             userListPanel.Children.Clear();
 
-            // Sync remote users from Firebase (non-blocking)
-            await AuthService.SyncRemoteUsersAsync();
+            // Sync remote users from Firebase (fire-and-forget, don't block UI)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await AuthService.SyncRemoteUsersAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Settings] Failed to sync remote users: {ex.Message}");
+                }
+            });
 
             var users = AuthService.GetAllUsers();
             var otherUsers = users.Where(u => u.Id != (AuthService.CurrentUser?.Id ?? -1)).ToList();

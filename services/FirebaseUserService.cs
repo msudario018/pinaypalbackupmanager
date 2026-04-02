@@ -13,18 +13,28 @@ namespace PinayPalBackupManager.Services
         private static readonly string FirebaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
         private static readonly string UsersPath = "users";
         
-        private static bool _initialized = false;
-        private static HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        private static bool _isInitialized = false;
+        private static bool _initAttempted = false;
+        private static readonly object _initLock = new object();
+        private static HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         
         private static async Task<bool> EnsureInitializedAsync()
         {
-            if (_initialized) return true;
+            // Fast path - return immediately if already initialized or attempted
+            if (_isInitialized) return true;
+            if (_initAttempted) return false;
+            
+            lock (_initLock)
+            {
+                if (_isInitialized || _initAttempted) return _isInitialized;
+                _initAttempted = true;
+            }
             
             try
             {
                 var response = await _httpClient.GetAsync($"{FirebaseUrl}.json");
-                _initialized = response.IsSuccessStatusCode;
-                return _initialized;
+                _isInitialized = response.IsSuccessStatusCode;
+                return _isInitialized;
             }
             catch
             {
