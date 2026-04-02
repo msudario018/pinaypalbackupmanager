@@ -3,11 +3,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Version>2.3.0</Version>
+    <Version>2.3.1</Version>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <ApplicationIcon>bin\Debug\net8.0\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
