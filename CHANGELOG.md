@@ -69,12 +69,12 @@ All notable changes to this project are documented in this file.
 ## 2026-04-03 - v2.4.0
 
 ### Added
-- In-app Settings form to edit credentials and paths and save them to `appsettings.local.json`.
+- In-app Settings form to edit credentials and paths and save them to appsettings.local.json.
 - Startup config guard: disables non-Settings tabs until required config is provided.
-- Auto-load of `appsettings.json` + `appsettings.local.json` at startup via `ConfigService`.
+- Auto-load of appsettings.json + appsettings.local.json at startup via ConfigService.
 
 ### Changed
-- System Information popup now summarizes changelog into `Added / Changed / Fixed` (prefers `Unreleased`, otherwise latest release).
+- System Information popup now summarizes changelog into Added / Changed / Fixed (prefers Unreleased, otherwise latest release).
 - Increased default application window height to reduce Settings scrolling.
 
 ### Fixed
