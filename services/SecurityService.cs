@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Linq;
 using PinayPalBackupManager.Models;
+using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.Services
 {
@@ -10,12 +11,12 @@ namespace PinayPalBackupManager.Services
     {
         public static string GetDecryptedFtpPassword()
         {
-            return DecryptPowerShellString(BackupConfig.FtpEncryptedPass, BackupConfig.FtpSecretKey, BackupConfig.FtpLogFile);
+            return ConfigService.Current.Ftp.Password;
         }
 
         public static string GetDecryptedSqlPassword()
         {
-            return DecryptPowerShellString(BackupConfig.SqlEncryptedPass, BackupConfig.FtpSecretKey, BackupConfig.SqlLogFile);
+            return ConfigService.Current.Sql.Password;
         }
 
         private static string DecryptPowerShellString(string encryptedStr, byte[] key, string logFile)

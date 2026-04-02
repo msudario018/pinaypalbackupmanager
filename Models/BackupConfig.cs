@@ -1,4 +1,5 @@
 using System.IO;
+using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.Models
 {
@@ -8,39 +9,51 @@ namespace PinayPalBackupManager.Models
         public const string CreatorName = "Wesley";
 
         // Folder & Log Definitions
-        public static string FtpLocalFolder { get; set; } = "";
-        public static string MailchimpFolder { get; set; } = "";
-        public static string SqlLocalFolder { get; set; } = "";
+        public static string FtpLocalFolder
+        {
+            get => ConfigService.Current.Paths.FtpLocalFolder;
+            set => ConfigService.Current.Paths.FtpLocalFolder = value;
+        }
+
+        public static string MailchimpFolder
+        {
+            get => ConfigService.Current.Paths.MailchimpFolder;
+            set => ConfigService.Current.Paths.MailchimpFolder = value;
+        }
+
+        public static string SqlLocalFolder
+        {
+            get => ConfigService.Current.Paths.SqlLocalFolder;
+            set => ConfigService.Current.Paths.SqlLocalFolder = value;
+        }
 
         public static string FtpLogFile => Path.Combine(FtpLocalFolder, "backup_log.txt");
         public static string McLogFile => Path.Combine(MailchimpFolder, "backup_log.txt");
         public static string SqlLogFile => Path.Combine(SqlLocalFolder, "backup_log.txt");
 
         // FTP Credentials (Website)
-        public const string FtpHost = "";
-        public const string FtpUser = "";
-        public const string FtpEncryptedPass = "";
-        public const string FtpTlsFingerprint = "";
-        public static readonly byte[] FtpSecretKey = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        public static string FtpHost => ConfigService.Current.Ftp.Host;
+        public static string FtpUser => ConfigService.Current.Ftp.User;
+        public static string FtpTlsFingerprint => ConfigService.Current.Ftp.TlsFingerprint;
+        public static int FtpPort => ConfigService.Current.Ftp.Port;
 
         // SQL Credentials
-        public const string SqlUser = "";
-        public const string SqlEncryptedPass = "";
-        public const string SqlRemotePath = "";
-        public const string SqlTlsFingerprint = "";
+        public static string SqlUser => ConfigService.Current.Sql.User;
+        public static string SqlRemotePath => ConfigService.Current.Sql.RemotePath;
+        public static string SqlTlsFingerprint => ConfigService.Current.Sql.TlsFingerprint;
 
         // Mailchimp Config
-        public const string McApiKey = "";
-        public const string McAudienceId = "";
+        public static string McApiKey => ConfigService.Current.Mailchimp.ApiKey;
+        public static string McAudienceId => ConfigService.Current.Mailchimp.AudienceId;
 
         // Intervals (Minutes)
-        public const int FtpDailySyncHourMnl = 22;
-        public const int FtpDailySyncMinuteMnl = 0;
+        public static int FtpDailySyncHourMnl => ConfigService.Current.Schedule.FtpDailySyncHourMnl;
+        public static int FtpDailySyncMinuteMnl => ConfigService.Current.Schedule.FtpDailySyncMinuteMnl;
 
-        public const int MailchimpDailySyncHourMnl = 18;
-        public const int MailchimpDailySyncMinuteMnl = 0;
+        public static int MailchimpDailySyncHourMnl => ConfigService.Current.Schedule.MailchimpDailySyncHourMnl;
+        public static int MailchimpDailySyncMinuteMnl => ConfigService.Current.Schedule.MailchimpDailySyncMinuteMnl;
 
-        public const int SqlDailySyncHourMnl = 17;
-        public const int SqlDailySyncMinuteMnl = 0;
+        public static int SqlDailySyncHourMnl => ConfigService.Current.Schedule.SqlDailySyncHourMnl;
+        public static int SqlDailySyncMinuteMnl => ConfigService.Current.Schedule.SqlDailySyncMinuteMnl;
     }
 }

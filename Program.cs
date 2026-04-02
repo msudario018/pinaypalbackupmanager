@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Velopack;
+using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager
 {
@@ -11,6 +12,8 @@ namespace PinayPalBackupManager
         public static void Main(string[] args)
         {
             VelopackApp.Build().Run();
+
+            ConfigService.Load();
 
             // Setup DI
             var services = new ServiceCollection();

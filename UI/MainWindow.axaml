@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="PinayPalBackupManager.UI.MainWindow"
         Title="PinayPal Backup Manager"
-        Width="1000" Height="700"
+        Width="1000" Height="780"
         WindowStartupLocation="CenterScreen"
         Background="#0B0F17"
         Foreground="#CDD6F4"

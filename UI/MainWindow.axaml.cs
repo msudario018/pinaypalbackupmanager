@@ -9,6 +9,7 @@ using PinayPalBackupManager.Services;
 using PinayPalBackupManager.Models;
 using PinayPalBackupManager.UI.UserControls;
 using Avalonia.Threading;
+using System.Text;
 
 namespace PinayPalBackupManager.UI
 {
@@ -23,6 +24,7 @@ namespace PinayPalBackupManager.UI
         private DispatcherTimer? _toastTimer;
         private IBrush _activeTabAccentBrush = Brush.Parse("#A6E3A1");
         private bool _startupHealthPending = true;
+        private bool _configRequired;
 
         public MainWindow()
         {
@@ -38,6 +40,7 @@ namespace PinayPalBackupManager.UI
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
+            _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
@@ -61,6 +64,12 @@ namespace PinayPalBackupManager.UI
             SetStartupBusy(true);
             NotificationService.ShowBackupToast("Startup", "Running health scan...", "Info");
 
+            if (!ConfigService.IsConfigured())
+            {
+                NotificationService.ShowBackupToast("Config", "Missing appsettings.local.json values. Backups may fail until configured.", "Warning");
+                SetConfigRequiredMode(true);
+            }
+
             _backupManager.Start();
             ShowControl(_ftpControl);
             UpdateSidebarSelection("FTP");
@@ -71,6 +80,29 @@ namespace PinayPalBackupManager.UI
                 {
                     await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
                 });
+            }
+        }
+
+        private void SetConfigRequiredMode(bool required)
+        {
+            _configRequired = required;
+
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar != null)
+            {
+                foreach (var child in sidebar.Children)
+                {
+                    if (child is Button b && b.Tag is string tag)
+                    {
+                        b.IsEnabled = !required || string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+            }
+
+            if (required)
+            {
+                ShowControl(_settingsControl);
+                UpdateSidebarSelection("Settings");
             }
         }
 
@@ -98,7 +130,8 @@ namespace PinayPalBackupManager.UI
                 var changelogPath = System.IO.Path.Combine(baseDir, "CHANGELOG.md");
                 if (System.IO.File.Exists(changelogPath))
                 {
-                    changelog = System.IO.File.ReadAllText(changelogPath);
+                    var md = System.IO.File.ReadAllText(changelogPath);
+                    changelog = BuildChangelogSummary(md);
                 }
             }
             catch { /* ignore file read errors and fall back to inline changelog */ }
@@ -124,10 +157,147 @@ namespace PinayPalBackupManager.UI
             await NotificationService.ShowMessageBoxAsync(message, "System Information", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Info);
         }
 
+        private static string BuildChangelogSummary(string markdown)
+        {
+            if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
+
+            var normalized = markdown.Replace("\r\n", "\n").Trim();
+            if (normalized.Length == 0) return string.Empty;
+
+            var section = ExtractSection(normalized, "## Unreleased");
+            if (string.IsNullOrWhiteSpace(section))
+            {
+                section = ExtractFirstReleaseSection(normalized);
+            }
+
+            if (string.IsNullOrWhiteSpace(section)) return string.Empty;
+
+            var added = ExtractSubSectionBullets(section, "### Added");
+            var changed = ExtractSubSectionBullets(section, "### Changed");
+            var fixedItems = ExtractSubSectionBullets(section, "### Fixed");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("CHANGELOG SUMMARY:");
+            sb.AppendLine();
+
+            AppendBulletBlock(sb, "ADDED", added);
+            AppendBulletBlock(sb, "CHANGED", changed);
+            AppendBulletBlock(sb, "FIXED", fixedItems);
+
+            return sb.ToString().TrimEnd();
+        }
+
+        private static void AppendBulletBlock(StringBuilder sb, string title, string[] items)
+        {
+            sb.AppendLine(title + ":");
+            if (items.Length == 0)
+            {
+                sb.AppendLine("- (none)");
+            }
+            else
+            {
+                foreach (var item in items)
+                {
+                    sb.AppendLine("- " + item);
+                }
+            }
+            sb.AppendLine();
+        }
+
+        private static string ExtractSection(string markdown, string headerStartsWith)
+        {
+            var lines = markdown.Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith(headerStartsWith, StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i;
+                    break;
+                }
+            }
+
+            if (start < 0) return string.Empty;
+
+            var sb = new StringBuilder();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i];
+                if (i != start && l.StartsWith("## ")) break;
+                sb.AppendLine(l);
+            }
+            return sb.ToString();
+        }
+
+        private static string ExtractFirstReleaseSection(string markdown)
+        {
+            var lines = markdown.Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith("## ") && !l.StartsWith("## Unreleased", StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i;
+                    break;
+                }
+            }
+
+            if (start < 0) return string.Empty;
+
+            var sb = new StringBuilder();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i];
+                if (i != start && l.StartsWith("## ")) break;
+                sb.AppendLine(l);
+            }
+            return sb.ToString();
+        }
+
+        private static string[] ExtractSubSectionBullets(string sectionMarkdown, string subHeader)
+        {
+            var lines = sectionMarkdown.Replace("\r\n", "\n").Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith(subHeader, StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i + 1;
+                    break;
+                }
+            }
+
+            if (start < 0) return [];
+
+            var list = new List<string>();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i].Trim();
+                if (l.StartsWith("### ") || l.StartsWith("## ")) break;
+                if (l.StartsWith("- "))
+                {
+                    list.Add(l.Substring(2).Trim());
+                }
+            }
+
+            return list.ToArray();
+        }
+
         private void SidebarButton_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string tag)
             {
+                if (_configRequired && !string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase))
+                {
+                    NotificationService.ShowBackupToast("Config", "Please complete Settings first.", "Warning");
+                    ShowControl(_settingsControl);
+                    UpdateSidebarSelection("Settings");
+                    return;
+                }
+
                 UpdateSidebarSelection(tag);
                 switch (tag)
                 {
@@ -278,7 +448,7 @@ namespace PinayPalBackupManager.UI
 
                     txtHealth.Inlines ??= [];
 
-                    txtHealth.Inlines.Add(new Run(allOk ? "HEALTH: ALL SYSTEMS OK" : "HEALTH: ATTENTION REQUIRED")
+                    txtHealth.Inlines.Add(new Run(allOk ? "HEALTH: ALL BACKUPS IS UPDATED" : "HEALTH: ATTENTION REQUIRED")
                     {
                         Foreground = healthBrush
                     });

@@ -5,13 +5,16 @@ All notable changes to this project are documented in this file.
 ## Unreleased -
 
 ### Added
-- (none)
+- In-app Settings form to edit credentials and paths and save them to `appsettings.local.json`.
+- Startup config guard: disables non-Settings tabs until required config is provided.
+- Auto-load of `appsettings.json` + `appsettings.local.json` at startup via `ConfigService`.
 
 ### Changed
-- (none)
+- System Information popup now summarizes changelog into `Added / Changed / Fixed` (prefers `Unreleased`, otherwise latest release).
+- Increased default application window height to reduce Settings scrolling.
 
 ### Fixed
-- (none)
+- Masked sensitive Settings inputs (FTP/SQL passwords and Mailchimp API key) using password-style text fields.
 
 ### UI / Animations
 - (none)

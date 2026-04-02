@@ -195,7 +195,7 @@ namespace PinayPalBackupManager.Services
                     {
                         using var ftp = new FtpService();
                         string decryptedPass = SecurityService.GetDecryptedFtpPassword();
-                        ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint);
+                        ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
 
                         if (await ftp.ConnectAsync())
                         {

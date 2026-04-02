@@ -110,7 +110,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
 
                     string decryptedPass = SecurityService.GetDecryptedFtpPassword();
-                    ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint);
+                    ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
 
                     LogService.WriteLiveLog("CONNECTING: Starting FTP Sync...", BackupConfig.FtpLogFile, "Information", trigger);
                     if (await ftp.ConnectAsync())
@@ -283,7 +283,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     using var ftp = new FtpService();
                     string decryptedPass = SecurityService.GetDecryptedFtpPassword();
-                    ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint);
+                    ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
 
                     LogService.WriteLiveLog("SYNC CHECK: Comparing local vs remote latest backup...", BackupConfig.FtpLogFile, "Information", "MANUAL");
 
@@ -417,7 +417,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             using var ftp = new FtpService();
             string decryptedPass = SecurityService.GetDecryptedFtpPassword();
-            ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint);
+            ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
             
             if (await ftp.ConnectAsync())
             {
