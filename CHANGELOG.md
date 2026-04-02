@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file.
 - (none)
 
 ### Changed
-- (none)
+- Reorganized Settings layout: Health Dashboard and App Updates moved to top, Credentials & Paths placed before User Management.
 
 ### Fixed
 - (none)

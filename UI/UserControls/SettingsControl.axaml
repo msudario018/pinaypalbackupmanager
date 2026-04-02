@@ -20,7 +20,25 @@
                 </StackPanel>
             </Border>
 
-            <!-- Credentials & Paths (moved to top) -->
+            <!-- Health Dashboard (moved to top) -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
+                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+
+            <!-- App Updates (moved to top) -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
+                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
+                    <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Credentials & Paths -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="CREDENTIALS &amp; PATHS" FontWeight="Bold" Foreground="#89DCEB" Margin="0,0,0,10"/>
@@ -58,24 +76,6 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
-                </StackPanel>
-            </Border>
-
-            <!-- App Updates -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
-                    <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Health Dashboard -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
-                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
 
