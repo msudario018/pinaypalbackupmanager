@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased -
+## 2026-04-03 - v2.4.0
 
 ### Added
 - In-app Settings form to edit credentials and paths and save them to `appsettings.local.json`.
