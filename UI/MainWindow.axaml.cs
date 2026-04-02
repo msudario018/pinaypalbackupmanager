@@ -719,81 +719,20 @@ namespace PinayPalBackupManager.UI
 
         private async Task ShowChangePasswordDialog()
         {
-            var dialog = new ChangePasswordDialog();
-            var window = new Window
-            {
-                Title = "Change Password",
-                Content = dialog,
-                Width = 400,
-                Height = 300,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false,
-                ShowInTaskbar = false,
-                Background = Avalonia.Media.Brushes.Transparent
-            };
-
-            dialog.OnPasswordChanged += (sender, e) =>
-            {
-                window.Close();
-                NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
-            };
-
-            dialog.OnCancel += (sender, e) => window.Close();
-
-            await window.ShowDialog(this);
+            // TODO: Implement change password dialog
+            NotificationService.ShowBackupToast("Profile", "Password change feature coming soon!", "Info");
         }
 
         private async Task ShowChangeUsernameDialog()
         {
-            var dialog = new ChangeUsernameDialog();
-            var window = new Window
-            {
-                Title = "Change Username",
-                Content = dialog,
-                Width = 400,
-                Height = 250,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false,
-                ShowInTaskbar = false,
-                Background = Avalonia.Media.Brushes.Transparent
-            };
-
-            dialog.OnUsernameChanged += (sender, e) =>
-            {
-                window.Close();
-                NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
-            };
-
-            dialog.OnCancel += (sender, e) => window.Close();
-
-            await window.ShowDialog(this);
+            // TODO: Implement change username dialog
+            NotificationService.ShowBackupToast("Profile", "Username change feature coming soon!", "Info");
         }
 
         private async Task UploadAvatar()
         {
-            var dialog = new UploadAvatarDialog();
-            var window = new Window
-            {
-                Title = "Upload Avatar",
-                Content = dialog,
-                Width = 400,
-                Height = 280,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false,
-                ShowInTaskbar = false,
-                Background = Avalonia.Media.Brushes.Transparent
-            };
-
-            dialog.OnAvatarUploaded += (sender, filePath) =>
-            {
-                window.Close();
-                NotificationService.ShowBackupToast("Profile", $"Avatar uploaded: {Path.GetFileName(filePath)}", "Success");
-                // TODO: Update avatar display in profile
-            };
-
-            dialog.OnCancel += (sender, e) => window.Close();
-
-            await window.ShowDialog(this);
+            // TODO: Implement avatar upload
+            NotificationService.ShowBackupToast("Profile", "Avatar upload feature coming soon!", "Info");
         }
 
         #endregion
