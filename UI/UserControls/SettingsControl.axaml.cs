@@ -17,6 +17,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public event Func<System.Threading.Tasks.Task>? OnShowSystemInfo;
         public event Func<System.Threading.Tasks.Task>? OnCheckUpdates;
         public event Action? OnConfigSaved;
+        public event Action? OnLogout;
 
         public SettingsControl() : this(null) { }
         public SettingsControl(BackupManager? manager)
@@ -71,6 +72,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            InitAdminPanel();
+
             this.FindControl<Button>("BtnDiagnostics")!.Click += async (s, e) => {
                 var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus")!;
                 txtStatus.Text = "Status: Running System Scan...";
@@ -101,6 +104,110 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("Diagnostics", txtStatus.Text.Replace("Status: ", ""), outdated.Length == 0 ? "Info" : "Warning");
                 }
             };
+        }
+
+        private void InitAdminPanel()
+        {
+            var adminPanel = this.FindControl<Border>("AdminPanel");
+            if (adminPanel == null) return;
+
+            var isAdmin = AuthService.IsAdmin;
+            adminPanel.IsVisible = true; // visible for all logged-in users
+
+            var txtLoggedIn = this.FindControl<TextBlock>("TxtLoggedInUser");
+            if (txtLoggedIn != null && AuthService.CurrentUser != null)
+                txtLoggedIn.Text = $"{AuthService.CurrentUser.Username} ({AuthService.CurrentUser.Role})";
+
+            // Invite code + rotate (admin only)
+            var txtInviteCode = this.FindControl<TextBox>("TxtInviteCode");
+            var btnRotate = this.FindControl<Button>("BtnRotateCode");
+
+            if (isAdmin)
+            {
+                var code = AuthService.GetInviteCode();
+                if (txtInviteCode != null) txtInviteCode.Text = string.IsNullOrEmpty(code) ? "(none)" : code;
+                if (btnRotate != null)
+                {
+                    btnRotate.IsVisible = true;
+                    btnRotate.Click += (_, _) =>
+                    {
+                        var newCode = AuthService.RotateInviteCode();
+                        if (txtInviteCode != null) txtInviteCode.Text = newCode;
+                        NotificationService.ShowBackupToast("Users", "Invite code rotated.", "Info");
+                    };
+                }
+            }
+            else
+            {
+                if (txtInviteCode != null) { txtInviteCode.Text = "(admin only)"; txtInviteCode.IsEnabled = false; }
+                if (btnRotate != null) btnRotate.IsVisible = false;
+            }
+
+            RefreshUserList();
+
+            var btnLogout = this.FindControl<Button>("BtnLogout");
+            if (btnLogout != null)
+            {
+                btnLogout.Click += (_, _) =>
+                {
+                    AuthService.Logout();
+                    OnLogout?.Invoke();
+                };
+            }
+        }
+
+        private void RefreshUserList()
+        {
+            var userListPanel = this.FindControl<StackPanel>("UserListPanel");
+            var txtNoUsers = this.FindControl<TextBlock>("TxtNoUsers");
+            if (userListPanel == null) return;
+
+            userListPanel.Children.Clear();
+
+            var users = AuthService.GetAllUsers();
+            var otherUsers = users.Where(u => u.Id != (AuthService.CurrentUser?.Id ?? -1)).ToList();
+
+            if (txtNoUsers != null) txtNoUsers.IsVisible = otherUsers.Count == 0;
+
+            foreach (var user in otherUsers)
+            {
+                var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
+
+                var statusColor = user.Status == "Active" ? "#A6E3A1" : user.Status == "Disabled" ? "#F38BA8" : "#F9E2AF";
+                row.Children.Add(new TextBlock
+                {
+                    Text = $"{user.Username} — {user.Role} — {user.Status}",
+                    Foreground = Avalonia.Media.Brush.Parse(statusColor),
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                    FontSize = 12,
+                    Width = 240
+                });
+
+                if (AuthService.IsAdmin)
+                {
+                    if (user.Status == "Active")
+                    {
+                        var btnDisable = new Button { Content = "Disable", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#F9E2AF"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
+                        var uid = user.Id;
+                        btnDisable.Click += (_, _) => { AuthService.SetUserStatus(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
+                        row.Children.Add(btnDisable);
+                    }
+                    else if (user.Status == "Disabled")
+                    {
+                        var btnEnable = new Button { Content = "Enable", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#A6E3A1"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
+                        var uid = user.Id;
+                        btnEnable.Click += (_, _) => { AuthService.SetUserStatus(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
+                        row.Children.Add(btnEnable);
+                    }
+
+                    var btnDelete = new Button { Content = "Delete", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#F38BA8"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
+                    var deleteId = user.Id;
+                    btnDelete.Click += (_, _) => { AuthService.DeleteUser(deleteId); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User deleted.", "Warning"); };
+                    row.Children.Add(btnDelete);
+                }
+
+                userListPanel.Children.Add(row);
+            }
         }
 
         private static bool IsStartupEnabled()

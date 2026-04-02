@@ -25,6 +25,7 @@ namespace PinayPalBackupManager.UI
         private IBrush _activeTabAccentBrush = Brush.Parse("#A6E3A1");
         private bool _startupHealthPending = true;
         private bool _configRequired;
+        public event Action? OnLogoutRequested;
 
         public MainWindow()
         {
@@ -41,6 +42,11 @@ namespace PinayPalBackupManager.UI
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
+            _settingsControl.OnLogout += () =>
+            {
+                _allowClose = true;
+                OnLogoutRequested?.Invoke();
+            };
 
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])

@@ -5,10 +5,17 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- Multi-user login system with local SQLite user store.
+- Invite code registration: admins generate/share codes for co-devs.
+- Admin panel in Settings: manage users, rotate invite codes, disable/delete accounts.
+- Login/Register UI with Fluent dark theme, password masking, Enter-key support.
+- Secure password hashing with PBKDF2+SHA256+salt.
+- Logout support: returns to login screen.
 - Shared TLS fingerprint field: single input used for both FTP and SQL connections.
 
 ### Changed
 - Version badge and Settings version now read dynamically from assembly (no more hardcoded version strings).
+- App now starts with LoginWindow; MainWindow opens only after successful authentication.
 
 ### Fixed
 - Tab locking: app now correctly forces Settings tab and disables all other content when credentials are missing.

@@ -1,5 +1,6 @@
 # Local-only secrets (do not commit)
 appsettings.local.json
+users.db
 
 # IDE / OS
 .vs/

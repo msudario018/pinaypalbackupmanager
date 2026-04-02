@@ -69,6 +69,33 @@
                 </StackPanel>
             </Border>
 
+            <!-- User Management (Admin only) -->
+            <Border Name="AdminPanel" Background="#1E1E2E" CornerRadius="12" Padding="20" IsVisible="False">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="USER MANAGEMENT" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,0,10"/>
+
+                    <Grid ColumnDefinitions="Auto, *" Margin="0,0,0,6">
+                        <TextBlock Text="Logged in as:" Foreground="#A6ADC8" Width="120"/>
+                        <TextBlock Grid.Column="1" Name="TxtLoggedInUser" Text="—" FontWeight="Bold" Foreground="#A6E3A1"/>
+                    </Grid>
+
+                    <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontWeight="Bold"/>
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,4">
+                        <TextBox Grid.Column="0" Name="TxtInviteCode" IsReadOnly="True" Watermark="No invite code" FontFamily="Consolas" FontSize="14"/>
+                        <Button Grid.Column="1" Name="BtnRotateCode" Content="ROTATE" Background="#F38BA8" Foreground="#0B0F17" FontWeight="Bold" 
+                                Padding="14,8" CornerRadius="8" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+                    <TextBlock Text="Share this code with co-devs so they can register." Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+
+                    <TextBlock Text="Registered Users" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <StackPanel Name="UserListPanel" Spacing="6"/>
+                    <TextBlock Name="TxtNoUsers" Text="No other users registered." Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+
+                    <Button Name="BtnLogout" Content="LOGOUT" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Background="#45475A" Foreground="White" FontWeight="Bold" Padding="10" CornerRadius="8" Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
+
             <!-- Health Dashboard -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">

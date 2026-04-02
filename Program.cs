@@ -14,6 +14,7 @@ namespace PinayPalBackupManager
             VelopackApp.Build().Run();
 
             ConfigService.Load();
+            AuthService.Initialize();
 
             // Setup DI
             var services = new ServiceCollection();

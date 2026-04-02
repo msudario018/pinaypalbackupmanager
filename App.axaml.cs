@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using PinayPalBackupManager.Services;
 using PinayPalBackupManager.UI;
 
 namespace PinayPalBackupManager
@@ -16,20 +17,36 @@ namespace PinayPalBackupManager
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // Create services and view models for DI
-                var backupManager = new Services.BackupManager();
-
-                // Create main window and inject services
-                var mainWindow = new MainWindow
-                {
-                    // Provide backupManager to main window via property for now
-                    DataContext = new UI.ViewModels.FtpViewModel(backupManager)
-                };
-
-                desktop.MainWindow = mainWindow;
+                ShowLogin(desktop);
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        private void ShowLogin(IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var loginWindow = new LoginWindow();
+            loginWindow.OnLoginSuccess += () =>
+            {
+                var backupManager = new Services.BackupManager();
+                var mainWindow = new MainWindow
+                {
+                    DataContext = new UI.ViewModels.FtpViewModel(backupManager)
+                };
+
+                mainWindow.OnLogoutRequested += () =>
+                {
+                    mainWindow.Close();
+                    ShowLogin(desktop);
+                };
+
+                desktop.MainWindow = mainWindow;
+                mainWindow.Show();
+                loginWindow.Close();
+            };
+
+            desktop.MainWindow = loginWindow;
+            loginWindow.Show();
         }
     }
 }
