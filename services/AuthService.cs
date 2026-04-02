@@ -182,32 +182,6 @@ namespace PinayPalBackupManager.Services
 
         // ── Invite Code ──
 
-        public static async Task<string> GetInviteCodeAsync()
-        {
-            // Try Firebase first (online), then fallback to local
-            try
-            {
-                var firebaseCode = await FirebaseInviteService.GetInviteCodeAsync();
-                if (!string.IsNullOrEmpty(firebaseCode))
-                {
-                    Console.WriteLine("[AuthService] Using Firebase invite code");
-                    return firebaseCode;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Firebase failed: {ex.Message}");
-            }
-            
-            // Fallback to local methods
-            var configCode = GetInviteCodeFromConfig();
-            var hardcodedCode = "PINAYPAL2024";
-            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
-            Console.WriteLine("[AuthService] Using local invite code");
-            
-            return effectiveCode;
-        }
-
         public static string GetInviteCode()
         {
             // Local only - avoid async deadlock on UI thread
@@ -263,24 +237,9 @@ namespace PinayPalBackupManager.Services
             return string.Empty;
         }
 
-        public static async Task<string> RotateInviteCodeAsync()
+        public static string RotateInviteCode()
         {
-            // Generate a new random invite code
             var newCode = GenerateInviteCode();
-            
-            // Update Firebase first (if available)
-            try
-            {
-                var success = await FirebaseInviteService.SetInviteCodeAsync(newCode);
-                if (success)
-                {
-                    Console.WriteLine($"[AuthService] Firebase invite code updated: {newCode}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Firebase update failed: {ex.Message}");
-            }
             
             // Update local database
             using var conn = new SqliteConnection(ConnectionString);
@@ -290,25 +249,7 @@ namespace PinayPalBackupManager.Services
             cmd.Parameters.AddWithValue("@v", newCode);
             cmd.ExecuteNonQuery();
             
-            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
-            return newCode;
-        }
-
-        public static string RotateInviteCode()
-        {
-            var newCode = GenerateInviteCode();
-            
-            // Update local database only (sync version)
-            using var conn = new SqliteConnection(ConnectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
-            cmd.Parameters.AddWithValue("@v", newCode);
-            cmd.ExecuteNonQuery();
-            
-            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
-            
-            // Fire-and-forget Firebase update (don't block UI)
+            // Sync to Firebase (fire-and-forget, don't block UI)
             _ = Task.Run(async () =>
             {
                 try
@@ -318,10 +259,11 @@ namespace PinayPalBackupManager.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AuthService] Firebase update failed: {ex.Message}");
+                    Console.WriteLine($"[AuthService] Failed to sync invite code to Firebase: {ex.Message}");
                 }
             });
             
+            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
             return newCode;
         }
 

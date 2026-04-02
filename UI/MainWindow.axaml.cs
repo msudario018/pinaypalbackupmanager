@@ -649,19 +649,8 @@ namespace PinayPalBackupManager.UI
 
         private void UpdateProfileDisplay()
         {
-            var txtUsername = this.FindControl<TextBlock>("TxtUsername");
-            var txtUserRole = this.FindControl<TextBlock>("TxtUserRole");
-
-            if (AuthService.CurrentUser != null)
-            {
-                txtUsername!.Text = AuthService.CurrentUser.Username;
-                txtUserRole!.Text = AuthService.CurrentUser.Role;
-            }
-            else
-            {
-                txtUsername!.Text = "Guest";
-                txtUserRole!.Text = "Not logged in";
-            }
+            // Profile display simplified - only avatar shown in sidebar
+            // Username and role now shown in ProfileControl page
         }
 
         private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
