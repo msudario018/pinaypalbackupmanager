@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PinayPalBackupManager.Services;
@@ -8,6 +9,19 @@ namespace PinayPalBackupManager.UI
     public partial class LoginWindow : Window
     {
         public event Action? OnLoginSuccess;
+
+        private static bool IsDevelopmentMachine()
+        {
+            // Check if running from a development directory
+            var currentDir = Directory.GetCurrentDirectory();
+            var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            
+            // Development indicators
+            return currentDir.Contains("pinaypalbackupmanager") && 
+                   (currentDir.Contains("Debug") || currentDir.Contains("bin") || 
+                    File.Exists(Path.Combine(baseDir, "..", "..", "PinayPalBackupManager.csproj")) ||
+                    File.Exists(Path.Combine(currentDir, "PinayPalBackupManager.csproj")));
+        }
 
         public LoginWindow()
         {
@@ -25,10 +39,36 @@ namespace PinayPalBackupManager.UI
                 System.Diagnostics.Debug.WriteLine($"[LoginWindow] Error checking users: {ex}");
             }
 
-            // If no users exist, show register panel for first-time admin setup
+            // If no users exist, check if this is development machine
             if (!hasUsers)
             {
-                ShowRegisterPanel(isFirstUser: true);
+                if (IsDevelopmentMachine())
+                {
+                    // Development machine - show admin setup
+                    ShowRegisterPanel(isFirstUser: true);
+                }
+                else
+                {
+                    // Production machine - create default admin automatically
+                    try
+                    {
+                        AuthService.Register("admin", "admin123");
+                        Console.WriteLine("[LoginWindow] Created default admin account automatically");
+                        
+                        // Show login panel since admin is created
+                        ShowLoginPanel();
+                        
+                        // Update subtitle to show default credentials
+                        var subtitle = this.FindControl<TextBlock>("TxtSubtitle")!;
+                        subtitle.Text = "Default admin created (admin/admin123)";
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[LoginWindow] Failed to create default admin: {ex.Message}");
+                        // Fallback to admin setup
+                        ShowRegisterPanel(isFirstUser: true);
+                    }
+                }
             }
 
             // Wire buttons

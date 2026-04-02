@@ -118,7 +118,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (adminPanel == null) return;
 
             var isAdmin = AuthService.IsAdmin;
-            adminPanel.IsVisible = true; // visible for all logged-in users
+            adminPanel.IsVisible = isAdmin; // only visible to admins
 
             var txtLoggedIn = this.FindControl<TextBlock>("TxtLoggedInUser");
             if (txtLoggedIn != null && AuthService.CurrentUser != null)
