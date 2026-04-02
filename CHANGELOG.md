@@ -8,6 +8,17 @@ All notable changes to this project are documented in this file.
 - (none)
 
 ### Changed
+- (none)
+
+### Fixed
+- (none)
+
+## 2026-04-03 - v2.4.7
+
+### Added
+- (none)
+
+### Changed
 - Reorganized Settings layout order: App Updates → Backup Health Dashboard → System Configuration → System Information → Credentials & Paths → User Management.
 
 ### Fixed
