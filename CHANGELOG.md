@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+- Shared TLS fingerprint field: single input used for both FTP and SQL connections.
+
+### Changed
+- Version badge and Settings version now read dynamically from assembly (no more hardcoded version strings).
+
+### Fixed
+- Tab locking: app now correctly forces Settings tab and disables all other content when credentials are missing.
+- Version display on top bar was stuck at "v2.3 Unified"; now shows actual assembly version.
+
+### UI / Animations
+- (none)
+
+### Performance
+- (none)
+
 ## 2026-04-03 - v2.4.0
 
 ### Added

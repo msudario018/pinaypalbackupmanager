@@ -66,13 +66,23 @@ namespace PinayPalBackupManager.UI
 
             if (!ConfigService.IsConfigured())
             {
-                NotificationService.ShowBackupToast("Config", "Missing appsettings.local.json values. Backups may fail until configured.", "Warning");
+                NotificationService.ShowBackupToast("Config", "Missing appsettings.local.json values. Please configure credentials first.", "Warning");
                 SetConfigRequiredMode(true);
+            }
+            else
+            {
+                ShowControl(_ftpControl);
+                UpdateSidebarSelection("FTP");
             }
 
             _backupManager.Start();
-            ShowControl(_ftpControl);
-            UpdateSidebarSelection("FTP");
+
+            // Set version dynamically from assembly
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            var ver = asm.GetName().Version;
+            var versionStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v?.?.?";
+            var txtVer = this.FindControl<TextBlock>("TxtVersionBadge");
+            if (txtVer != null) txtVer.Text = versionStr;
 
             if (UpdatePreferences.LoadAutoCheckOnStartup())
             {
@@ -99,10 +109,14 @@ namespace PinayPalBackupManager.UI
                 }
             }
 
+            var mainContent = this.FindControl<ContentControl>("MainContent");
+            if (mainContent != null) mainContent.IsEnabled = !required;
+
             if (required)
             {
                 ShowControl(_settingsControl);
                 UpdateSidebarSelection("Settings");
+                if (mainContent != null) mainContent.IsEnabled = true; // keep Settings itself usable
             }
         }
 
@@ -138,7 +152,7 @@ namespace PinayPalBackupManager.UI
 
             if (string.IsNullOrWhiteSpace(changelog))
             {
-                changelog = "v2.3 Unified\n\n" +
+                changelog = BackupConfig.AppVersion + "\n\n" +
                            "UI:\n" +
                            "- Modernized Fluent-dark look and unified button styles\n" +
                            "- Accent Primary buttons per service (FTP/Mailchimp/SQL/Settings)\n" +

@@ -9,7 +9,7 @@
                     <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="#CBA6F7" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Text="App Version:" Foreground="#A6ADC8" Width="120"/>
-                        <TextBlock Grid.Column="1" Name="TxtVersion" Text="v2.3 Unified" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Name="TxtVersion" Text="v..." FontWeight="Bold"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Text="Created By:" Foreground="#A6ADC8" Width="120"/>
@@ -32,7 +32,10 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="CREDENTIALS &amp; PATHS" FontWeight="Bold" Foreground="#89DCEB" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Local Paths" Foreground="#A6ADC8" FontWeight="Bold"/>
+                    <TextBlock Text="Shared TLS Fingerprint" Foreground="#A6ADC8" FontWeight="Bold"/>
+                    <TextBox Name="TxtSharedTls" Watermark="TLS/SSH Host Key Fingerprint (used for FTP &amp; SQL)"/>
+
+                    <TextBlock Text="Local Paths" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtFtpLocalFolder" Watermark="FTP Local Folder"/>
                     <TextBox Name="TxtMailchimpFolder" Watermark="Mailchimp Folder"/>
                     <TextBox Name="TxtSqlLocalFolder" Watermark="SQL Local Folder"/>
@@ -41,14 +44,12 @@
                     <TextBox Name="TxtFtpHost" Watermark="FTP Host"/>
                     <TextBox Name="TxtFtpUser" Watermark="FTP User"/>
                     <TextBox Name="TxtFtpPassword" Watermark="FTP Password" PasswordChar="●"/>
-                    <TextBox Name="TxtFtpTls" Watermark="FTP TLS Fingerprint"/>
                     <TextBox Name="TxtFtpPort" Watermark="FTP Port (default 21)"/>
 
                     <TextBlock Text="SQL" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtSqlUser" Watermark="SQL User"/>
                     <TextBox Name="TxtSqlPassword" Watermark="SQL Password" PasswordChar="●"/>
                     <TextBox Name="TxtSqlRemotePath" Watermark="SQL Remote Path"/>
-                    <TextBox Name="TxtSqlTls" Watermark="SQL TLS Fingerprint"/>
 
                     <TextBlock Text="Mailchimp" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtMcApiKey" Watermark="Mailchimp API Key" PasswordChar="●"/>

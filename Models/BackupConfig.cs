@@ -5,7 +5,14 @@ namespace PinayPalBackupManager.Models
 {
     public static class BackupConfig
     {
-        public const string AppVersion = "v2.3 Unified";
+        public static string AppVersion
+        {
+            get
+            {
+                var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                return ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v?.?.?";
+            }
+        }
         public const string CreatorName = "Wesley";
 
         // Folder & Log Definitions

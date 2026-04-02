@@ -56,6 +56,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Set version dynamically
+            var txtVersion = this.FindControl<TextBlock>("TxtVersion");
+            if (txtVersion != null) txtVersion.Text = BackupConfig.AppVersion;
+
             LoadConfigEditor();
 
             var btnSaveConfig = this.FindControl<Button>("BtnSaveConfig");
@@ -113,16 +117,18 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<TextBox>("TxtMailchimpFolder")!.Text = s.Paths.MailchimpFolder;
             this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = s.Paths.SqlLocalFolder;
 
+            // Shared TLS fingerprint (prefer FTP value, fall back to SQL)
+            var sharedTls = !string.IsNullOrWhiteSpace(s.Ftp.TlsFingerprint) ? s.Ftp.TlsFingerprint : s.Sql.TlsFingerprint;
+            this.FindControl<TextBox>("TxtSharedTls")!.Text = sharedTls;
+
             this.FindControl<TextBox>("TxtFtpHost")!.Text = s.Ftp.Host;
             this.FindControl<TextBox>("TxtFtpUser")!.Text = s.Ftp.User;
             this.FindControl<TextBox>("TxtFtpPassword")!.Text = s.Ftp.Password;
-            this.FindControl<TextBox>("TxtFtpTls")!.Text = s.Ftp.TlsFingerprint;
             this.FindControl<TextBox>("TxtFtpPort")!.Text = s.Ftp.Port.ToString();
 
             this.FindControl<TextBox>("TxtSqlUser")!.Text = s.Sql.User;
             this.FindControl<TextBox>("TxtSqlPassword")!.Text = s.Sql.Password;
             this.FindControl<TextBox>("TxtSqlRemotePath")!.Text = s.Sql.RemotePath;
-            this.FindControl<TextBox>("TxtSqlTls")!.Text = s.Sql.TlsFingerprint;
 
             this.FindControl<TextBox>("TxtMcApiKey")!.Text = s.Mailchimp.ApiKey;
             this.FindControl<TextBox>("TxtMcAudienceId")!.Text = s.Mailchimp.AudienceId;
@@ -146,7 +152,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Host = this.FindControl<TextBox>("TxtFtpHost")!.Text ?? string.Empty,
                     User = this.FindControl<TextBox>("TxtFtpUser")!.Text ?? string.Empty,
                     Password = this.FindControl<TextBox>("TxtFtpPassword")!.Text ?? string.Empty,
-                    TlsFingerprint = this.FindControl<TextBox>("TxtFtpTls")!.Text ?? string.Empty,
+                    TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
                     Port = int.TryParse(this.FindControl<TextBox>("TxtFtpPort")!.Text, out var p) ? p : 21
                 },
                 Sql = new SqlSettings
@@ -154,7 +160,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     User = this.FindControl<TextBox>("TxtSqlUser")!.Text ?? string.Empty,
                     Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? string.Empty,
                     RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")!.Text ?? string.Empty,
-                    TlsFingerprint = this.FindControl<TextBox>("TxtSqlTls")!.Text ?? string.Empty,
+                    TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
                 },
                 Mailchimp = new MailchimpSettings
                 {

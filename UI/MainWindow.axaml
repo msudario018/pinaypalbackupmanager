@@ -68,7 +68,7 @@
                             </Button>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="VERSION" Foreground="#A6ADC8" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
-                                <TextBlock Text="v2.3 Unified" FontSize="11" FontWeight="Heavy" Foreground="White"/>
+                                <TextBlock Name="TxtVersionBadge" Text="v..." FontSize="11" FontWeight="Heavy" Foreground="White"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
