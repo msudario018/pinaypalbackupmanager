@@ -48,20 +48,12 @@ namespace PinayPalBackupManager
             }
             catch (Exception ex)
             {
-                // Log error and show message
+                // Log error
                 var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
                 File.AppendAllText(logPath, $"[{DateTime.Now}] FATAL ERROR: {ex}\n{ex.StackTrace}\n");
-                
-                try
-                {
-                    System.Windows.Forms.MessageBox.Show($"Application failed to start: {ex.Message}\n\nLog file: {logPath}", "Startup Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
-                }
-                catch
-                {
-                    // If even MessageBox fails, just write to log
-                    File.AppendAllText(logPath, $"[{DateTime.Now}] Failed to show error dialog\n");
-                }
+                File.AppendAllText(logPath, $"[{DateTime.Now}] Log file location: {logPath}\n");
+                throw; // Re-throw to let the exception show in the console
             }
         }
 
