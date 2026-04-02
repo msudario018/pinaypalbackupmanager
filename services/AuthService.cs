@@ -15,8 +15,9 @@ namespace PinayPalBackupManager.Services
 
         public static void Initialize()
         {
-            var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            _dbPath = Path.Combine(baseDir, "users.db");
+            var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+            Directory.CreateDirectory(appDataDir);
+            _dbPath = Path.Combine(appDataDir, "users.db");
             EnsureDatabase();
         }
 

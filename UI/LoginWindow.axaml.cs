@@ -13,7 +13,17 @@ namespace PinayPalBackupManager.UI
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
 
-            var hasUsers = AuthService.HasAnyUsers();
+            bool hasUsers = false;
+            try
+            {
+                hasUsers = AuthService.HasAnyUsers();
+            }
+            catch (Exception ex)
+            {
+                // If database check fails, assume no users (fresh install)
+                Console.WriteLine($"[LoginWindow] Error checking users: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[LoginWindow] Error checking users: {ex}");
+            }
 
             // If no users exist, show register panel for first-time admin setup
             if (!hasUsers)

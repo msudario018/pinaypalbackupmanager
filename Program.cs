@@ -35,18 +35,33 @@ namespace PinayPalBackupManager
 
             try
             {
-                // Handle Velopack updates
-                File.AppendAllText(logPath, $"[{DateTime.Now}] Initializing Velopack...\n");
+                // Check for Velopack operations FIRST
+                if (args.Length > 0)
+                {
+                    File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack args detected: {string.Join(", ", args)}\n");
+                    Console.WriteLine($"[{DateTime.Now}] Velopack args: {string.Join(", ", args)}");
+                    
+                    if (args[0].StartsWith("--velo"))
+                    {
+                        File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack operation detected, initializing Velopack only\n");
+                        Console.WriteLine($"[{DateTime.Now}] Velopack operation, initializing only");
+                        
+                        var vpApp = VelopackApp.Build();
+                        vpApp.Run();
+                        File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack operation completed\n");
+                        Console.WriteLine($"[{DateTime.Now}] Velopack operation completed");
+                        return;
+                    }
+                }
+                
+                // Normal app startup
+                File.AppendAllText(logPath, $"[{DateTime.Now}] Normal app startup, initializing Velopack...\n");
+                Console.WriteLine($"[{DateTime.Now}] Normal app startup, initializing Velopack...");
+                
                 var vp = VelopackApp.Build();
                 vp.Run();
                 File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack initialized successfully\n");
-
-                // Check if this is just an update operation
-                if (args.Length > 0 && args[0] == "--velo")
-                {
-                    File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack update operation detected, exiting\n");
-                    return;
-                }
+                Console.WriteLine($"[{DateTime.Now}] Velopack.Run() completed");
 
                 ConfigService.Load();
                 AuthService.Initialize();
