@@ -12,10 +12,7 @@
 
   <PropertyGroup>
     <VelopackId>PinayPal.PinayPalBackupManager</VelopackId>
-    <VelopackShortcutName>PinayPalBackupManager</VelopackShortcutName>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>false</PublishSingleFile>
+    <VelopackShortcutName>PinayPal Backup Manager</VelopackShortcutName>
   </PropertyGroup>
 
   <ItemGroup>
