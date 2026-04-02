@@ -14,12 +14,23 @@ namespace PinayPalBackupManager
         {
             try
             {
-                // Log startup
+                // Initialize logging FIRST
                 var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-                File.AppendAllText(logPath, $"[{DateTime.Now}] Application starting...\n");
+                File.AppendAllText(logPath, $"[{DateTime.Now}] Application starting with args: {string.Join(", ", args)}\n");
 
-                VelopackApp.Build().Run();
+                // Handle Velopack updates
+                File.AppendAllText(logPath, $"[{DateTime.Now}] Initializing Velopack...\n");
+                var vp = VelopackApp.Build();
+                vp.Run();
+                File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack initialized successfully\n");
+
+                // Check if this is just an update operation
+                if (args.Length > 0 && args[0] == "--velo")
+                {
+                    File.AppendAllText(logPath, $"[{DateTime.Now}] Velopack update operation detected, exiting\n");
+                    return;
+                }
 
                 ConfigService.Load();
                 AuthService.Initialize();
@@ -40,9 +51,17 @@ namespace PinayPalBackupManager
                 // Log error and show message
                 var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-                File.AppendAllText(logPath, $"[{DateTime.Now}] FATAL ERROR: {ex}\n");
+                File.AppendAllText(logPath, $"[{DateTime.Now}] FATAL ERROR: {ex}\n{ex.StackTrace}\n");
                 
-                System.Windows.Forms.MessageBox.Show($"Application failed to start: {ex.Message}\n\nLog file: {logPath}", "Startup Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                try
+                {
+                    System.Windows.Forms.MessageBox.Show($"Application failed to start: {ex.Message}\n\nLog file: {logPath}", "Startup Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                }
+                catch
+                {
+                    // If even MessageBox fails, just write to log
+                    File.AppendAllText(logPath, $"[{DateTime.Now}] Failed to show error dialog\n");
+                }
             }
         }
 
