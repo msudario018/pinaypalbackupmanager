@@ -1,0 +1,12 @@
+# Local-only secrets (do not commit)
+appsettings.local.json
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Build outputs
+bin/
+obj/
