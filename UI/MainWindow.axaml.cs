@@ -37,6 +37,7 @@ namespace PinayPalBackupManager.UI
             _sqlControl = new SqlControl(_backupManager);
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
+            _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
 
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
@@ -63,6 +64,14 @@ namespace PinayPalBackupManager.UI
             _backupManager.Start();
             ShowControl(_ftpControl);
             UpdateSidebarSelection("FTP");
+
+            if (UpdatePreferences.LoadAutoCheckOnStartup())
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
+                });
+            }
         }
 
         private void SetStartupBusy(bool busy)

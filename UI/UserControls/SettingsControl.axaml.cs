@@ -13,6 +13,7 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         private readonly BackupManager? _manager;
         public event Func<System.Threading.Tasks.Task>? OnShowSystemInfo;
+        public event Func<System.Threading.Tasks.Task>? OnCheckUpdates;
 
         public SettingsControl() : this(null) { }
         public SettingsControl(BackupManager? manager)
@@ -29,6 +30,26 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnShowInfo.Click += async (s, e) => {
                     if (OnShowSystemInfo != null) await OnShowSystemInfo.Invoke();
+                };
+            }
+
+            var chkAutoUpdate = this.FindControl<CheckBox>("ChkAutoUpdate");
+            if (chkAutoUpdate != null)
+            {
+                chkAutoUpdate.IsChecked = UpdatePreferences.LoadAutoCheckOnStartup();
+                chkAutoUpdate.IsCheckedChanged += (s, e) =>
+                {
+                    UpdatePreferences.SaveAutoCheckOnStartup(chkAutoUpdate.IsChecked == true);
+                    NotificationService.ShowBackupToast("Updates", chkAutoUpdate.IsChecked == true ? "Auto-check enabled." : "Auto-check disabled.", "Info");
+                };
+            }
+
+            var btnCheckUpdates = this.FindControl<Button>("BtnCheckUpdates");
+            if (btnCheckUpdates != null)
+            {
+                btnCheckUpdates.Click += async (s, e) =>
+                {
+                    if (OnCheckUpdates != null) await OnCheckUpdates.Invoke();
                 };
             }
 

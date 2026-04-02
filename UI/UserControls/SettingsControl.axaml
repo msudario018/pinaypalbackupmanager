@@ -28,6 +28,15 @@
                 </StackPanel>
             </Border>
 
+            <!-- App Updates -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
+                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
+                    <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
             <!-- Health Dashboard -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
