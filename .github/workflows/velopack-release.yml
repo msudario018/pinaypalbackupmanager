@@ -3,6 +3,8 @@ name: Deploy to GitHub Releases
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
