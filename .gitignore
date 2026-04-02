@@ -10,3 +10,6 @@ appsettings.local.json
 # Build outputs
 bin/
 obj/
+
+# Local publish output
+publish/
