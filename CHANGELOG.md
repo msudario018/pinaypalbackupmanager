@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file.
 - (none)
 
 ### Changed
-- Reorganized Settings layout: Health Dashboard and App Updates moved to top, Credentials & Paths placed before User Management.
+- Reorganized Settings layout order: App Updates → Backup Health Dashboard → System Configuration → System Information → Credentials & Paths → User Management.
 
 ### Fixed
 - (none)

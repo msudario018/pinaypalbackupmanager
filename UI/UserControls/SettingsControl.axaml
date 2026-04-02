@@ -3,7 +3,33 @@
              x:Class="PinayPalBackupManager.UI.UserControls.SettingsControl">
     <ScrollViewer>
         <StackPanel Spacing="20">
-            <!-- System Info -->
+            <!-- App Updates (1st) -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
+                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
+                    <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Backup Health Dashboard (2nd) -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
+                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+
+            <!-- System Configuration (3rd) -->
+            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
+                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
+                </StackPanel>
+            </Border>
+
+            <!-- System Information (4th) -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="#CBA6F7" Margin="0,0,0,10"/>
@@ -20,25 +46,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Health Dashboard (moved to top) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
-                    <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-            </Border>
-
-            <!-- App Updates (moved to top) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
-                    <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Credentials & Paths -->
+            <!-- Credentials & Paths (5th) -->
             <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="CREDENTIALS &amp; PATHS" FontWeight="Bold" Foreground="#89DCEB" Margin="0,0,0,10"/>
@@ -68,14 +76,6 @@
 
                     <Button Name="BtnSaveConfig" Classes="Primary Settings" Content="SAVE CONFIG" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,10,0,0"/>
                     <TextBlock Name="TxtConfigStatus" Text="" Foreground="#A6ADC8" FontStyle="Italic" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Configuration -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
                 </StackPanel>
             </Border>
 
