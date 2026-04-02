@@ -5,6 +5,7 @@ using Avalonia.Media;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using PinayPalBackupManager.Services;
 using PinayPalBackupManager.Models;
 using PinayPalBackupManager.UI.UserControls;
@@ -66,6 +67,9 @@ namespace PinayPalBackupManager.UI
                     await ShowSystemInfoAsync();
                 };
             }
+
+            // Initialize profile section
+            InitializeProfileSection();
 
             SetStartupBusy(true);
             NotificationService.ShowBackupToast("Startup", "Running health scan...", "Info");
@@ -612,5 +616,124 @@ namespace PinayPalBackupManager.UI
                 _toastTimer.Start();
             });
         }
+
+        #region Profile Management
+
+        private void InitializeProfileSection()
+        {
+            // Update user info display
+            UpdateProfileDisplay();
+
+            // Setup profile button click
+            var btnProfile = this.FindControl<Button>("BtnProfile");
+            if (btnProfile != null)
+            {
+                btnProfile.Click += ToggleProfileMenu;
+            }
+
+            // Setup profile menu buttons
+            SetupProfileMenuButtons();
+
+            // Listen for auth changes
+            AuthService.OnUserChanged += (user) => UpdateProfileDisplay();
+        }
+
+        private void UpdateProfileDisplay()
+        {
+            var txtUsername = this.FindControl<TextBlock>("TxtUsername");
+            var txtUserRole = this.FindControl<TextBlock>("TxtUserRole");
+            var adminMenuItems = this.FindControl<StackPanel>("AdminMenuItems");
+            var userMenuItems = this.FindControl<StackPanel>("UserMenuItems");
+
+            if (AuthService.CurrentUser != null)
+            {
+                txtUsername!.Text = AuthService.CurrentUser.Username;
+                txtUserRole!.Text = AuthService.CurrentUser.Role;
+
+                // Show/hide admin menu items
+                adminMenuItems!.IsVisible = AuthService.IsAdmin;
+            }
+            else
+            {
+                txtUsername!.Text = "Guest";
+                txtUserRole!.Text = "Not logged in";
+                adminMenuItems!.IsVisible = false;
+            }
+        }
+
+        private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
+        {
+            var profileMenu = this.FindControl<StackPanel>("ProfileMenu");
+            if (profileMenu != null)
+            {
+                profileMenu.IsVisible = !profileMenu.IsVisible;
+            }
+        }
+
+        private void SetupProfileMenuButtons()
+        {
+            // User Management (Admin only)
+            var btnUserManagement = this.FindControl<Button>("BtnUserManagement");
+            if (btnUserManagement != null)
+            {
+                btnUserManagement.Click += (s, e) =>
+                {
+                    ShowControl(_settingsControl);
+                    ToggleProfileMenu(null, null!);
+                };
+            }
+
+            // Change Password
+            var btnChangePassword = this.FindControl<Button>("BtnChangePassword");
+            if (btnChangePassword != null)
+            {
+                btnChangePassword.Click += async (s, e) => await ShowChangePasswordDialog();
+            }
+
+            // Change Username
+            var btnChangeUsername = this.FindControl<Button>("BtnChangeUsername");
+            if (btnChangeUsername != null)
+            {
+                btnChangeUsername.Click += async (s, e) => await ShowChangeUsernameDialog();
+            }
+
+            // Upload Avatar
+            var btnUploadAvatar = this.FindControl<Button>("BtnUploadAvatar");
+            if (btnUploadAvatar != null)
+            {
+                btnUploadAvatar.Click += async (s, e) => await UploadAvatar();
+            }
+
+            // Logout
+            var btnLogout = this.FindControl<Button>("BtnLogout");
+            if (btnLogout != null)
+            {
+                btnLogout.Click += (s, e) =>
+                {
+                    _allowClose = true;
+                    OnLogoutRequested?.Invoke();
+                };
+            }
+        }
+
+        private async Task ShowChangePasswordDialog()
+        {
+            // TODO: Implement change password dialog
+            NotificationService.ShowBackupToast("Profile", "Password change feature coming soon!", "Info");
+        }
+
+        private async Task ShowChangeUsernameDialog()
+        {
+            // TODO: Implement change username dialog
+            NotificationService.ShowBackupToast("Profile", "Username change feature coming soon!", "Info");
+        }
+
+        private async Task UploadAvatar()
+        {
+            // TODO: Implement avatar upload
+            NotificationService.ShowBackupToast("Profile", "Avatar upload feature coming soon!", "Info");
+        }
+
+        #endregion
     }
 }

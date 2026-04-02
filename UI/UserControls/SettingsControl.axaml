@@ -90,10 +90,12 @@
                     </Grid>
 
                     <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontWeight="Bold"/>
-                    <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,4">
+                    <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,0,0,4">
                         <TextBox Grid.Column="0" Name="TxtInviteCode" IsReadOnly="True" Watermark="No invite code" FontFamily="Consolas" FontSize="14"/>
                         <Button Grid.Column="1" Name="BtnCopyCode" Content="COPY" Background="#89B4FA" Foreground="#0B0F17" FontWeight="Bold" 
-                                Padding="14,8" CornerRadius="8" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                Padding="14,8" CornerRadius="8" Margin="8,0,4,0" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" Name="BtnRegenerateCode" Content="↻" Background="#A6E3A1" Foreground="#0B0F17" FontWeight="Bold" 
+                                Padding="10,8" CornerRadius="8" Margin="4,0,0,0" VerticalAlignment="Center" ToolTip.Tip="Regenerate new invite code"/>
                     </Grid>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8" Margin="0,0,0,8">
                         <TextBlock Text="Auto-rotates every 5 minutes" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>

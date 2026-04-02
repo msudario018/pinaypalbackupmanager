@@ -127,6 +127,7 @@ namespace PinayPalBackupManager.UI.UserControls
             // Invite code with auto-rotation (admin only)
             var txtInviteCode = this.FindControl<TextBox>("TxtInviteCode");
             var btnCopy = this.FindControl<Button>("BtnCopyCode");
+            var btnRegenerate = this.FindControl<Button>("BtnRegenerateCode");
 
             if (isAdmin)
             {
@@ -146,6 +147,19 @@ namespace PinayPalBackupManager.UI.UserControls
                                 await clipboard.SetTextAsync(txtInviteCode.Text);
                             NotificationService.ShowBackupToast("Users", "Invite code copied to clipboard.", "Info");
                         }
+                    };
+                }
+                
+                // Setup regenerate button
+                if (btnRegenerate != null)
+                {
+                    btnRegenerate.IsVisible = true;
+                    btnRegenerate.Click += (_, _) =>
+                    {
+                        var newCode = AuthService.RotateInviteCode();
+                        if (txtInviteCode != null) txtInviteCode.Text = newCode;
+                        _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
+                        NotificationService.ShowBackupToast("Users", "Invite code regenerated!", "Success");
                     };
                 }
 

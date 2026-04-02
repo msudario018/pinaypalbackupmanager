@@ -12,6 +12,7 @@ namespace PinayPalBackupManager.Services
     {
         private static string _dbPath = string.Empty;
         public static AppUser? CurrentUser { get; private set; }
+        public static event Action<AppUser?>? OnUserChanged;
 
         public static void Initialize()
         {
@@ -137,12 +138,14 @@ namespace PinayPalBackupManager.Services
                 return (false, "Invalid username or password.");
 
             CurrentUser = user;
+            OnUserChanged?.Invoke(user);
             return (true, $"Welcome, {user.Username}!");
         }
 
         public static void Logout()
         {
             CurrentUser = null;
+            OnUserChanged?.Invoke(null);
         }
 
         public static bool IsAdmin => CurrentUser?.Role == "Admin";

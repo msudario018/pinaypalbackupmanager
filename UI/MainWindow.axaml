@@ -11,23 +11,84 @@
     <Grid ColumnDefinitions="70, *">
         <!-- Sidebar -->
         <Border Grid.Column="0" Background="#11111B" BorderBrush="#313244" BorderThickness="0,0,1,0">
-            <StackPanel Name="Sidebar" Spacing="10" Margin="0,20">
-                <Image Source="/Assets/logo.ico" 
-                       Width="40" Height="40" Margin="0,0,0,20" HorizontalAlignment="Center"/>
-                <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
-                    <PathIcon Data="{StaticResource CloudIcon}" Foreground="#CBA6F7"/>
-                </Button>
-                <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp">
-                    <PathIcon Data="{StaticResource MailIcon}" Foreground="#CBA6F7"/>
-                </Button>
-                <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup">
-                    <PathIcon Data="{StaticResource DatabaseIcon}" Foreground="#CBA6F7"/>
-                </Button>
-                <Rectangle Height="20"/>
-                <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings">
-                    <PathIcon Data="{StaticResource SettingsIcon}" Foreground="#CBA6F7"/>
-                </Button>
-            </StackPanel>
+            <Grid RowDefinitions="*, Auto">
+                <!-- Navigation Buttons -->
+                <StackPanel Name="Sidebar" Spacing="10" Margin="0,20">
+                    <Image Source="/Assets/logo.ico" 
+                           Width="40" Height="40" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+                    <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
+                        <PathIcon Data="{StaticResource CloudIcon}" Foreground="#CBA6F7"/>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp">
+                        <PathIcon Data="{StaticResource MailIcon}" Foreground="#CBA6F7"/>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup">
+                        <PathIcon Data="{StaticResource DatabaseIcon}" Foreground="#CBA6F7"/>
+                    </Button>
+                    <Rectangle Height="20"/>
+                    <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings">
+                        <PathIcon Data="{StaticResource SettingsIcon}" Foreground="#CBA6F7"/>
+                    </Button>
+                </StackPanel>
+                
+                <!-- Profile Section -->
+                <Border Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="0,1,0,0" Padding="10" Margin="0,0,0,0">
+                    <StackPanel Spacing="8">
+                        <!-- Avatar and Name -->
+                        <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Ellipse Name="AvatarImage" Width="32" Height="32" Fill="#45475A">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Name="TxtUsername" Text="User" FontSize="10" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                    <TextBlock Name="TxtUserRole" Text="Role" FontSize="8" Foreground="#6C7086"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+                        
+                        <!-- Profile Menu (Hidden by default) -->
+                        <StackPanel Name="ProfileMenu" Spacing="4" IsVisible="False">
+                            <!-- Admin Options -->
+                            <StackPanel Name="AdminMenuItems" Spacing="4" IsVisible="False">
+                                <Button Classes="ProfileMenuItem" Name="BtnUserManagement" Content="User Management">
+                                    <Button.Tag>
+                                        <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="14" Height="14"/>
+                                    </Button.Tag>
+                                </Button>
+                            </StackPanel>
+                            
+                            <!-- User Options -->
+                            <StackPanel Name="UserMenuItems" Spacing="4">
+                                <Button Classes="ProfileMenuItem" Name="BtnChangePassword" Content="Change Password">
+                                    <Button.Tag>
+                                        <PathIcon Data="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" Width="14" Height="14"/>
+                                    </Button.Tag>
+                                </Button>
+                                <Button Classes="ProfileMenuItem" Name="BtnChangeUsername" Content="Change Username">
+                                    <Button.Tag>
+                                        <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="14" Height="14"/>
+                                    </Button.Tag>
+                                </Button>
+                                <Button Classes="ProfileMenuItem" Name="BtnUploadAvatar" Content="Upload Avatar">
+                                    <Button.Tag>
+                                        <PathIcon Data="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" Width="14" Height="14"/>
+                                    </Button.Tag>
+                                </Button>
+                            </StackPanel>
+                            
+                            <!-- Logout -->
+                            <Button Classes="ProfileMenuItem LogoutBtn" Name="BtnLogout" Content="Logout">
+                                <Button.Tag>
+                                    <PathIcon Data="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z" Width="14" Height="14"/>
+                                </Button.Tag>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
 
         <!-- Main Content Area -->
@@ -157,6 +218,43 @@
         </Style>
         <Style Selector="Button.SideBtn:pointerover PathIcon">
             <Setter Property="Foreground" Value="#89B4FA"/>
+        </Style>
+
+        <!-- Profile Menu Styles -->
+        <Style Selector="Button.ProfileMenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" 
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ContentPresenter Content="{TemplateBinding Tag}" Margin="0,0,4,0"/>
+                            <ContentPresenter Content="{TemplateBinding Content}"/>
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ProfileMenuItem:pointerover">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+        </Style>
+        <Style Selector="Button.ProfileMenuItem:pressed">
+            <Setter Property="Background" Value="#45475A"/>
+        </Style>
+        <Style Selector="Button.LogoutBtn">
+            <Setter Property="Foreground" Value="#F38BA8"/>
+        </Style>
+        <Style Selector="Button.LogoutBtn:pointerover">
+            <Setter Property="Background" Value="#F38BA8"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
         </Style>
 
         <!-- Content Control Fade-in Animation -->
