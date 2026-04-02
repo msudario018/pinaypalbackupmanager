@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using System.Threading.Tasks;
 using PinayPalBackupManager.Models;
 
 namespace PinayPalBackupManager.Services
@@ -20,6 +21,9 @@ namespace PinayPalBackupManager.Services
             Directory.CreateDirectory(appDataDir);
             _dbPath = Path.Combine(appDataDir, "users.db");
             EnsureDatabase();
+            
+            // Initialize Firebase service
+            FirebaseInviteService.Initialize();
         }
 
         private static string ConnectionString => $"Data Source={_dbPath}";
@@ -58,7 +62,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Register the very first user as Admin (auto-active). Subsequent users need a valid invite code.
         /// </summary>
-        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
+        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
@@ -73,8 +77,33 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(inviteCode))
                     return (false, "Invite code is required.");
 
-                var storedCode = GetInviteCode();
-                if (!string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal))
+                // Try Firebase validation first
+                bool isValid = false;
+                try
+                {
+                    isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode.Trim());
+                    if (isValid)
+                    {
+                        Console.WriteLine("[AuthService] Invite code validated via Firebase");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AuthService] Firebase validation failed: {ex.Message}");
+                }
+                
+                // Fallback to local validation
+                if (!isValid)
+                {
+                    var storedCode = GetInviteCode();
+                    isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
+                    if (isValid)
+                    {
+                        Console.WriteLine("[AuthService] Invite code validated via local database");
+                    }
+                }
+                
+                if (!isValid)
                     return (false, "Invalid invite code.");
             }
 
@@ -102,12 +131,20 @@ namespace PinayPalBackupManager.Services
                     RotateInviteCode();
                 }
 
-                return (true, isFirstUser ? "Admin account created." : "Account registered successfully.");
+                return (true, isFirstUser ? "Admin account created." : "Registration successful!");
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode == 19) // UNIQUE constraint
             {
                 return (false, "Username already exists.");
             }
+        }
+        
+        /// <summary>
+        /// Synchronous version for compatibility
+        /// </summary>
+        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
+        {
+            return RegisterAsync(username, password, inviteCode).Result;
         }
 
         public static (bool success, string message) Login(string username, string password)
@@ -152,8 +189,52 @@ namespace PinayPalBackupManager.Services
 
         // ── Invite Code ──
 
+        public static async Task<string> GetInviteCodeAsync()
+        {
+            // Try Firebase first (online), then config file, then hardcoded
+            try
+            {
+                var firebaseCode = await FirebaseInviteService.GetInviteCodeAsync();
+                if (!string.IsNullOrEmpty(firebaseCode))
+                {
+                    Console.WriteLine("[AuthService] Using Firebase invite code");
+                    return firebaseCode;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Firebase failed: {ex.Message}");
+            }
+            
+            // Fallback to local methods
+            var configCode = GetInviteCodeFromConfig();
+            var hardcodedCode = "PINAYPAL2024";
+            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
+            Console.WriteLine("[AuthService] Using local invite code");
+            
+            return effectiveCode;
+        }
+        
         public static string GetInviteCode()
         {
+            // Synchronous version for compatibility
+            try
+            {
+                var firebaseCode = FirebaseInviteService.GetInviteCodeAsync().Result;
+                if (!string.IsNullOrEmpty(firebaseCode))
+                {
+                    return firebaseCode;
+                }
+            }
+            catch
+            {
+                // Firebase not available, continue with local
+            }
+            
+            var configCode = GetInviteCodeFromConfig();
+            var hardcodedCode = "PINAYPAL2024";
+            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
+            
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -162,28 +243,66 @@ namespace PinayPalBackupManager.Services
             
             if (result == null)
             {
-                // Generate an invite code if none exists
-                var code = GenerateInviteCode();
+                // Use effective code as default if none exists
                 cmd.CommandText = @"INSERT INTO AppConfig (Key, Value) VALUES ('InviteCode', @v)";
-                cmd.Parameters.AddWithValue("@v", code);
+                cmd.Parameters.AddWithValue("@v", effectiveCode);
                 cmd.ExecuteNonQuery();
-                return code;
+                return effectiveCode;
             }
             
-            return result.ToString() ?? string.Empty;
+            var storedCode = result.ToString() ?? string.Empty;
+            
+            // Always accept the effective code regardless of what's stored
+            if (string.Equals(storedCode, effectiveCode, StringComparison.Ordinal))
+            {
+                return storedCode;
+            }
+            
+            // If stored code is different, update it to the effective code
+            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+            cmd.Parameters.Clear();
+            cmd.Parameters.AddWithValue("@v", effectiveCode);
+            cmd.ExecuteNonQuery();
+            
+            return effectiveCode;
+        }
+
+        private static string GetInviteCodeFromConfig()
+        {
+            try
+            {
+                var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                var configPath = Path.Combine(appDataDir, "invite.txt");
+                
+                if (File.Exists(configPath))
+                {
+                    var code = File.ReadAllText(configPath).Trim();
+                    return !string.IsNullOrEmpty(code) ? code : string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Error reading invite code from config: {ex.Message}");
+            }
+            
+            return string.Empty;
         }
 
         public static string RotateInviteCode()
         {
-            var code = GenerateInviteCode();
+            // Use the same logic as GetInviteCode for consistency
+            var configCode = GetInviteCodeFromConfig();
+            var hardcodedCode = "PINAYPAL2024";
+            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
+            
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT INTO AppConfig (Key, Value) VALUES ('InviteCode', @v)
-                                ON CONFLICT(Key) DO UPDATE SET Value = @v";
-            cmd.Parameters.AddWithValue("@v", code);
+            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+            cmd.Parameters.AddWithValue("@v", effectiveCode);
             cmd.ExecuteNonQuery();
-            return code;
+            
+            return effectiveCode;
         }
 
         // ── User Management (Admin) ──
