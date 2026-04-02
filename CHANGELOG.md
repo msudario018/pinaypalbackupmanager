@@ -11,7 +11,7 @@ All notable changes to this project are documented in this file.
 - (none)
 
 ### Fixed
-- (none)
+- Added startup error logging and exception handling to diagnose installation issues.
 
 ## 2026-04-03 - v2.4.7
 
