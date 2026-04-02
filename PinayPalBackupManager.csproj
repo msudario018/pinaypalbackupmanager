@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Version>2.4.9</Version>
+    <Version>2.5.0</Version>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -12,7 +12,10 @@
 
   <PropertyGroup>
     <VelopackId>PinayPal.PinayPalBackupManager</VelopackId>
-    <VelopackShortcutName>PinayPal Backup Manager</VelopackShortcutName>
+    <VelopackShortcutName>PinayPalBackupManager</VelopackShortcutName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
