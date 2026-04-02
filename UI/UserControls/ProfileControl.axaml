@@ -12,7 +12,7 @@
         </Border>
         
         <!-- Content -->
-        <ScrollViewer Grid.Row="1" Padding="30" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="1" Padding="30,30,30,60" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="30">
                 <!-- User Info Card -->
                 <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#313244" BorderThickness="1">

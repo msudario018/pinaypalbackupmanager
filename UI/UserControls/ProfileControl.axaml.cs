@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PinayPalBackupManager.Services;
 using System;
+using System.Threading.Tasks;
 
 namespace PinayPalBackupManager.UI.UserControls
 {
@@ -84,7 +85,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnLogout = this.FindControl<Button>("BtnLogout");
             if (btnLogout != null)
             {
-                btnLogout.Click += (s, e) => OnLogoutRequested?.Invoke();
+                btnLogout.Click += async (s, e) => await ShowLogoutConfirmation();
             }
         }
 
@@ -159,6 +160,36 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             // TODO: Implement avatar upload
             NotificationService.ShowBackupToast("Profile", "Avatar upload feature coming soon!", "Info");
+        }
+
+        private async Task ShowLogoutConfirmation()
+        {
+            var dialog = new LogoutConfirmationDialog();
+            var window = new Window
+            {
+                Title = "Confirm Logout",
+                Content = dialog,
+                Width = 400,
+                Height = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Background = Avalonia.Media.Brushes.Transparent
+            };
+
+            dialog.OnLogoutConfirmed += (sender, e) =>
+            {
+                window.Close();
+                OnLogoutRequested?.Invoke();
+            };
+
+            dialog.OnCancel += (sender, e) => window.Close();
+
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+            if (parentWindow != null)
+            {
+                await window.ShowDialog(parentWindow);
+            }
         }
     }
 }

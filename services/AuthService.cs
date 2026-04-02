@@ -159,7 +159,18 @@ namespace PinayPalBackupManager.Services
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Value FROM AppConfig WHERE Key = 'InviteCode'";
             var result = cmd.ExecuteScalar();
-            return result?.ToString() ?? string.Empty;
+            
+            if (result == null)
+            {
+                // Generate an invite code if none exists
+                var code = GenerateInviteCode();
+                cmd.CommandText = @"INSERT INTO AppConfig (Key, Value) VALUES ('InviteCode', @v)";
+                cmd.Parameters.AddWithValue("@v", code);
+                cmd.ExecuteNonQuery();
+                return code;
+            }
+            
+            return result.ToString() ?? string.Empty;
         }
 
         public static string RotateInviteCode()

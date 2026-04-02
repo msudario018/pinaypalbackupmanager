@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.LogoutConfirmationDialog"
+             Width="400" Height="200">
+    
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
+        <Grid RowDefinitions="Auto, *, Auto">
+            <!-- Header -->
+            <StackPanel Grid.Row="0" Spacing="8">
+                <TextBlock Text="Confirm Logout" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                <TextBlock Text="Are you sure you want to logout?" FontSize="12" Foreground="#6C7086"/>
+            </StackPanel>
+            
+            <!-- Content -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
+                <TextBlock Text="You will need to login again to access your account." FontSize="14" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                <TextBlock Text="Any unsaved changes will be lost." FontSize="12" Foreground="#F9E2AF" FontStyle="Italic"/>
+            </StackPanel>
+            
+            <!-- Buttons -->
+            <Grid Grid.Row="2" ColumnDefinitions="*, *" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Grid.Column="0" x:Name="BtnCancel" Content="Cancel" Background="#45475A" Foreground="#CDD6F4"
+                        Padding="20,8" CornerRadius="8" Margin="0,0,8,0"/>
+                <Button Grid.Column="1" x:Name="BtnLogout" Content="Logout" Background="#F38BA8" Foreground="#0B0F17"
+                        Padding="20,8" CornerRadius="8" FontWeight="Bold"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
