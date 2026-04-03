@@ -681,8 +681,8 @@ namespace PinayPalBackupManager.UI
         {
             try
             {
-                var appDataDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-                var avatarPath = System.IO.Path.Combine(appDataDir, "avatar.png");
+                AppDataPaths.MigrateFile("avatar.png");
+                var avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
                 
                 var imgAvatar = this.FindControl<Image>("AvatarImage");
                 var ellipseBg = this.FindControl<Ellipse>("AvatarImageBg");

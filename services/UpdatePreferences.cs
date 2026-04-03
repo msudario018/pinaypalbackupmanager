@@ -9,9 +9,8 @@ namespace PinayPalBackupManager.Services
         {
             get
             {
-                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-                Directory.CreateDirectory(dir);
-                return Path.Combine(dir, "update_prefs.txt");
+                AppDataPaths.MigrateFile("update_prefs.txt");
+                return AppDataPaths.GetPath("update_prefs.txt");
             }
         }
 

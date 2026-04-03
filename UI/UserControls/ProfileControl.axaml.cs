@@ -135,7 +135,7 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             try
             {
-                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                var logDir = AppDataPaths.CurrentDirectory;
                 if (Directory.Exists(logDir))
                 {
                     Process.Start(new ProcessStartInfo
@@ -277,9 +277,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     var localPath = file.Path.LocalPath;
                     
                     // Copy to app data directory
-                    var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-                    Directory.CreateDirectory(appDataDir);
-                    var avatarPath = Path.Combine(appDataDir, "avatar.png");
+                    var avatarPath = AppDataPaths.GetPath("avatar.png");
                     File.Copy(localPath, avatarPath, true);
                     
                     // Load the avatar image
@@ -301,8 +299,8 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             try
             {
-                var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-                var avatarPath = Path.Combine(appDataDir, "avatar.png");
+                AppDataPaths.MigrateFile("avatar.png");
+                var avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
                 
                 if (File.Exists(avatarPath))
                 {

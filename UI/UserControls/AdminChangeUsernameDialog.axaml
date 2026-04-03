@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.AdminChangeUsernameDialog"
+             Width="400" Height="280">
+    
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
+        <StackPanel Spacing="15">
+            <TextBlock Text="Change Username" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4" HorizontalAlignment="Center"/>
+            
+            <TextBlock Name="TxtCurrent" Text="" Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center"/>
+            
+            <TextBlock Text="New Username" Foreground="#A6ADC8" FontSize="12"/>
+            <TextBox Name="TxtNewUsername" Background="#313244" Foreground="#CDD6F4" CornerRadius="8" Padding="10"/>
+            
+            <TextBlock Name="TxtError" Text="" Foreground="#F38BA8" FontSize="11" TextWrapping="Wrap"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,10,0,0">
+                <Button Name="BtnCancel" Content="Cancel" Background="#45475A" Foreground="#CDD6F4" Padding="15,8" CornerRadius="8"/>
+                <Button Name="BtnChange" Content="Change Username" Background="#89DCEB" Foreground="#1E1E2E" Padding="15,8" CornerRadius="8" FontWeight="Bold"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

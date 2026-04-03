@@ -5,11 +5,14 @@ namespace PinayPalBackupManager.Services
 {
     public static class FirebaseConfig
     {
-        private static readonly string ConfigPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "PinayPalBackupManager",
-            "firebase_config.txt"
-        );
+        private static string ConfigPath
+        {
+            get
+            {
+                AppDataPaths.MigrateFile("firebase_config.txt");
+                return AppDataPaths.GetPath("firebase_config.txt");
+            }
+        }
 
         public static bool IsFirebaseEnabled
         {

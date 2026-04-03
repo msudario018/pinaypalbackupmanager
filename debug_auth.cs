@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Microsoft.Data.Sqlite;
+using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager
 {
@@ -8,8 +9,8 @@ namespace PinayPalBackupManager
     {
         public static void CheckDatabase()
         {
-            var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-            var dbPath = Path.Combine(appDataDir, "users.db");
+            AppDataPaths.MigrateFile("users.db");
+            var dbPath = AppDataPaths.GetExistingOrCurrentPath("users.db");
             
             Console.WriteLine($"Database path: {dbPath}");
             Console.WriteLine($"Database exists: {File.Exists(dbPath)}");
@@ -51,8 +52,8 @@ namespace PinayPalBackupManager
         
         public static void ResetDatabase()
         {
-            var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-            var dbPath = Path.Combine(appDataDir, "users.db");
+            AppDataPaths.MigrateFile("users.db");
+            var dbPath = AppDataPaths.GetExistingOrCurrentPath("users.db");
             
             if (File.Exists(dbPath))
             {

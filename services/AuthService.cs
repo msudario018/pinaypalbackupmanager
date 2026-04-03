@@ -18,9 +18,8 @@ namespace PinayPalBackupManager.Services
 
         public static void Initialize()
         {
-            var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-            Directory.CreateDirectory(appDataDir);
-            _dbPath = Path.Combine(appDataDir, "users.db");
+            AppDataPaths.MigrateKnownFiles();
+            _dbPath = AppDataPaths.GetPath("users.db");
             EnsureDatabase();
             
             // Firebase will be initialized on-demand to avoid blocking
@@ -276,8 +275,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
-                var configPath = Path.Combine(appDataDir, "invite.txt");
+                var configPath = AppDataPaths.GetExistingOrCurrentPath("invite.txt");
                 
                 if (File.Exists(configPath))
                 {

@@ -126,6 +126,18 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
+                    // Change Password button
+                    var btnChangePassword = new Button { Content = "Change Password", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var targetUserId = user.Id;
+                    var targetUsername = user.Username;
+                    btnChangePassword.Click += async (_, _) => await ShowAdminChangePasswordDialog(targetUserId, targetUsername);
+                    buttonPanel.Children.Add(btnChangePassword);
+
+                    // Change Username button
+                    var btnChangeUsername = new Button { Content = "Change Username", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    btnChangeUsername.Click += async (_, _) => await ShowAdminChangeUsernameDialog(targetUserId, targetUsername);
+                    buttonPanel.Children.Add(btnChangeUsername);
+
                     if (user.Status == "Pending")
                     {
                         var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
@@ -167,6 +179,105 @@ namespace PinayPalBackupManager.UI.UserControls
                 row.Children.Add(buttonPanel);
                 userCard.Child = row;
                 userListPanel.Children.Add(userCard);
+            }
+        }
+
+        private async Task ShowAdminChangePasswordDialog(int userId, string username)
+        {
+            const string dialogKey = "admin_change_password";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new AdminChangePasswordDialog(username);
+                var window = new Window
+                {
+                    Title = "Change User Password",
+                    Content = dialog,
+                    Width = 400,
+                    Height = 320,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnPasswordChanged += (sender, newPassword) =>
+                {
+                    var changed = AuthService.ChangePassword(userId, newPassword);
+                    if (changed)
+                    {
+                        window.Close();
+                        NotificationService.ShowBackupToast("Users", $"Password changed for {username}", "Success");
+                    }
+                    else
+                    {
+                        NotificationService.ShowBackupToast("Users", "Failed to change password", "Error");
+                    }
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async Task ShowAdminChangeUsernameDialog(int userId, string currentUsername)
+        {
+            const string dialogKey = "admin_change_username";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new AdminChangeUsernameDialog(currentUsername);
+                var window = new Window
+                {
+                    Title = "Change Username",
+                    Content = dialog,
+                    Width = 400,
+                    Height = 280,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnUsernameChanged += (sender, newUsername) =>
+                {
+                    var changed = AuthService.ChangeUsername(userId, newUsername);
+                    if (changed)
+                    {
+                        window.Close();
+                        RefreshUserList();
+                        NotificationService.ShowBackupToast("Users", $"Username changed to {newUsername}", "Success");
+                    }
+                    else
+                    {
+                        NotificationService.ShowBackupToast("Users", "Failed to change username", "Error");
+                    }
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
     }

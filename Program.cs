@@ -20,7 +20,8 @@ namespace PinayPalBackupManager
             Console.WriteLine($"[{DateTime.Now}] Application starting with args: {string.Join(", ", args)}");
             
             // Initialize logging BEFORE ANYTHING ELSE
-            var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "startup.log");
+            AppDataPaths.MigrateKnownFiles();
+            var logPath = AppDataPaths.GetPath("startup.log");
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
