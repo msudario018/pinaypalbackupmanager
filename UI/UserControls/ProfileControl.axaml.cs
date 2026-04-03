@@ -11,6 +11,7 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class ProfileControl : UserControl
     {
+        public event Action? OnAvatarChanged;
         public event Action? OnUserManagementRequested;
         public event Action? OnLogoutRequested;
 
@@ -35,7 +36,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnUserManagement = this.FindControl<Button>("BtnUserManagement");
             if (btnUserManagement != null)
             {
-                btnUserManagement.Click += (s, e) => OnUserManagementRequested?.Invoke();
+                btnUserManagement.Click += async (s, e) => await ShowUserManagementDialog();
             }
             
             var btnSystemInfo = this.FindControl<Button>("BtnSystemInfo");
@@ -47,7 +48,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnInviteCodes = this.FindControl<Button>("BtnInviteCodes");
             if (btnInviteCodes != null)
             {
-                btnInviteCodes.Click += (s, e) => ShowInviteCodes();
+                btnInviteCodes.Click += async (s, e) => await ShowInviteCodesDialog();
             }
             
             var btnLogs = this.FindControl<Button>("BtnLogs");
@@ -127,9 +128,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void ShowInviteCodes()
         {
-            // Show invite code in settings
-            OnUserManagementRequested?.Invoke();
-            NotificationService.ShowBackupToast("Profile", "Invite codes available in Settings tab", "Info");
+            // Show invite code popup (deprecated - now using ShowInviteCodesDialog)
+            _ = ShowInviteCodesDialog();
         }
 
         private void ShowLogs()
@@ -286,6 +286,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     // Load the avatar image
                     LoadAvatarImage();
                     
+                    // Notify that avatar changed (so sidebar updates)
+                    OnAvatarChanged?.Invoke();
+                    
                     NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
                 }
             }
@@ -317,6 +320,88 @@ namespace PinayPalBackupManager.UI.UserControls
             catch (Exception ex)
             {
                 Console.WriteLine($"[ProfileControl] Failed to load avatar: {ex.Message}");
+            }
+        }
+
+        private async Task ShowUserManagementDialog()
+        {
+            const string dialogKey = "user_management";
+            
+            if (NotificationService.IsDialogOpen(dialogKey))
+            {
+                Console.WriteLine("[ProfileControl] User Management dialog already open, skipping");
+                return;
+            }
+            
+            NotificationService.RegisterDialog(dialogKey);
+            
+            try
+            {
+                var dialog = new UserManagementDialog();
+                var window = new Window
+                {
+                    Title = "User Management",
+                    Content = dialog,
+                    Width = 500,
+                    Height = 450,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnClose += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async Task ShowInviteCodesDialog()
+        {
+            const string dialogKey = "invite_codes";
+            
+            if (NotificationService.IsDialogOpen(dialogKey))
+            {
+                Console.WriteLine("[ProfileControl] Invite Codes dialog already open, skipping");
+                return;
+            }
+            
+            NotificationService.RegisterDialog(dialogKey);
+            
+            try
+            {
+                var dialog = new InviteCodesDialog();
+                var window = new Window
+                {
+                    Title = "Invite Codes",
+                    Content = dialog,
+                    Width = 450,
+                    Height = 300,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnClose += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
 

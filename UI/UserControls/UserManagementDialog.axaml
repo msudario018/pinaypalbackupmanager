@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.UserManagementDialog"
+             Width="500" Height="450">
+    
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="25">
+        <Grid RowDefinitions="Auto, Auto, *, Auto">
+            <!-- Header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,15">
+                <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" 
+                        Width="28" Height="28" Foreground="#89B4FA"/>
+                <TextBlock Text="User Management" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+            </StackPanel>
+            
+            <!-- Refresh Button -->
+            <Button Grid.Row="1" Name="BtnRefresh" Content="Refresh" Classes="SecondaryBtn" HorizontalAlignment="Right" Margin="0,0,0,10"/>
+            
+            <!-- User List -->
+            <Border Grid.Row="2" Background="#11111B" CornerRadius="8" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Name="UserListPanel" Spacing="8">
+                        <!-- Users will be added here dynamically -->
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            
+            <!-- No Users Message -->
+            <TextBlock Grid.Row="2" Name="TxtNoUsers" Text="No users found" FontSize="12" Foreground="#6C7086" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False"/>
+            
+            <!-- Close Button -->
+            <Button Grid.Row="3" Name="BtnClose" Content="Close" Classes="SecondaryBtn" HorizontalAlignment="Center" Margin="0,20,0,0" Padding="40,10"/>
+        </Grid>
+    </Border>
+</UserControl>
