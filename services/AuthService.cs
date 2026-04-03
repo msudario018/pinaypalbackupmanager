@@ -184,11 +184,27 @@ namespace PinayPalBackupManager.Services
 
         public static string GetInviteCode()
         {
-            // Local only - avoid async deadlock on UI thread
-            var configCode = GetInviteCodeFromConfig();
-            var hardcodedCode = "PINAYPAL2024";
-            var effectiveCode = !string.IsNullOrEmpty(configCode) ? configCode : hardcodedCode;
+            // Try to get from Firebase first (with timeout to avoid blocking)
+            string? firebaseCode = null;
+            try
+            {
+                var task = Task.Run(async () => await FirebaseInviteService.GetInviteCodeAsync());
+                if (task.Wait(TimeSpan.FromSeconds(2)))
+                {
+                    firebaseCode = task.Result;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Failed to get Firebase invite code: {ex.Message}");
+            }
             
+            // Use Firebase code if available, otherwise fallback to local
+            var effectiveCode = !string.IsNullOrEmpty(firebaseCode) ? firebaseCode : GetInviteCodeFromConfig();
+            var hardcodedCode = "PINAYPAL2024";
+            effectiveCode = !string.IsNullOrEmpty(effectiveCode) ? effectiveCode : hardcodedCode;
+            
+            // Update local database with the effective code
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -204,16 +220,18 @@ namespace PinayPalBackupManager.Services
             }
             
             var storedCode = result.ToString() ?? string.Empty;
-            if (string.Equals(storedCode, effectiveCode, StringComparison.Ordinal))
+            
+            // If Firebase has a different code, update local to match
+            if (!string.IsNullOrEmpty(firebaseCode) && !string.Equals(storedCode, firebaseCode, StringComparison.Ordinal))
             {
-                return storedCode;
+                cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+                cmd.Parameters.AddWithValue("@v", firebaseCode);
+                cmd.ExecuteNonQuery();
+                Console.WriteLine($"[AuthService] Updated local invite code from Firebase: {firebaseCode}");
+                return firebaseCode;
             }
             
-            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
-            cmd.Parameters.AddWithValue("@v", effectiveCode);
-            cmd.ExecuteNonQuery();
-            
-            return effectiveCode;
+            return storedCode;
         }
 
         private static string GetInviteCodeFromConfig()
