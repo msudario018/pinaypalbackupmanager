@@ -27,12 +27,40 @@ jobs:
         shell: bash
         run: echo "version=$(grep -oE '<Version>[^<]+' PinayPalBackupManager.csproj | sed 's/<Version>//')" >> $GITHUB_OUTPUT
 
+      - name: Get Changelog
+        id: get-changelog
+        shell: bash
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          # Extract changelog for current version
+          NOTES=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | head -n -1 | sed '1d')
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v$VERSION"
+          fi
+          # Escape for GitHub Actions
+          NOTES="${NOTES//'%'/'%25'}"
+          NOTES="${NOTES//$'\n'/'%0A'}"
+          NOTES="${NOTES//$'\r'/'%0D'}"
+          echo "notes=$NOTES" >> $GITHUB_OUTPUT
+
       - name: Publish Application
         run: dotnet publish PinayPalBackupManager.csproj -c Release -o publish -r win-x64 --self-contained true
 
       - name: Create Velopack Release
+        env:
+          SIGN_CERT: ${{ secrets.SIGN_CERTIFICATE }}
+          SIGN_PASS: ${{ secrets.SIGN_PASSWORD }}
         run: |
           dotnet tool install -g vpk
           vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
-          vpk pack -u PinayPal.PinayPalBackupManager -v ${{ steps.get-version.outputs.version }} -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --token ${{ secrets.GITHUB_TOKEN }}
+          
+          # Build signing args if secrets exist
+          SIGN_ARGS=""
+          if [ -n "$SIGN_CERT" ] && [ -n "$SIGN_PASS" ]; then
+            echo "$SIGN_CERT" | base64 -d > cert.pfx
+            SIGN_ARGS="--signCert cert.pfx --signPassword $SIGN_PASS"
+            echo "Code signing enabled"
+          fi
+          
+          vpk pack -u PinayPal.PinayPalBackupManager -v ${{ steps.get-version.outputs.version }} -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico $SIGN_ARGS
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --token ${{ secrets.GITHUB_TOKEN }} --releaseNotes "${{ steps.get-changelog.outputs.notes }}"
