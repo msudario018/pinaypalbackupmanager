@@ -11,12 +11,35 @@ namespace PinayPalBackupManager.Services
     {
         public static string GetDecryptedFtpPassword()
         {
-            return ConfigService.Current.Ftp.Password;
+            var password = ConfigService.Current.Ftp.Password;
+            // If password appears to be encrypted, decrypt it
+            if (password.Length > 32 && password.Contains("|"))
+            {
+                var key = GetOrCreateEncryptionKey();
+                return DecryptPowerShellString(password, key, BackupConfig.FtpLogFile);
+            }
+            return password;
         }
 
         public static string GetDecryptedSqlPassword()
         {
-            return ConfigService.Current.Sql.Password;
+            var password = ConfigService.Current.Sql.Password;
+            // If password appears to be encrypted, decrypt it
+            if (password.Length > 32 && password.Contains("|"))
+            {
+                var key = GetOrCreateEncryptionKey();
+                return DecryptPowerShellString(password, key, BackupConfig.SqlLogFile);
+            }
+            return password;
+        }
+
+        private static byte[] GetOrCreateEncryptionKey()
+        {
+            // Use a fixed key for consistency - derived from machine info
+            var machineName = Environment.MachineName ?? "DEFAULT";
+            var userName = Environment.UserName ?? "USER";
+            var keyString = $"PinayPalBackupManager_{machineName}_{userName}_2024";
+            return System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(keyString));
         }
 
         private static string DecryptPowerShellString(string encryptedStr, byte[] key, string logFile)
@@ -130,5 +153,41 @@ namespace PinayPalBackupManager.Services
 
         [System.Text.RegularExpressions.GeneratedRegex("^[a-fA-F0-9]+$")]
         private static partial System.Text.RegularExpressions.Regex MyRegex();
+
+        public static string EncryptPowerShellString(string plainText, byte[] key)
+        {
+            try
+            {
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.GenerateIV();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+
+                // Convert plain text to bytes (Unicode for PowerShell compatibility)
+                byte[] plainBytes = Encoding.Unicode.GetBytes(plainText);
+
+                // Encrypt
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                byte[] encryptedBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+
+                // Create PowerShell SecureString format: 2|IV|Base64Payload
+                string ivHex = string.Concat(aes.IV.Select(b => b.ToString("x2")));
+                string base64Payload = Convert.ToBase64String(encryptedBytes);
+                string secureStringFormat = $"2|{ivHex}|{base64Payload}";
+
+                // Convert to bytes and then to Base64 for storage
+                byte[] secureBytes = Encoding.Unicode.GetBytes(secureStringFormat);
+                string finalBase64 = Convert.ToBase64String(secureBytes);
+
+                // Prepend IV hex (32 chars) for compatibility with existing decryption
+                return ivHex + finalBase64;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"ENCRYPTION ERROR: {ex.Message}", "", "Error", "SYSTEM");
+                return string.Empty;
+            }
+        }
     }
 }
