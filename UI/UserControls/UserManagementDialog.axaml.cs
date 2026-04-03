@@ -128,6 +128,15 @@ namespace PinayPalBackupManager.UI.UserControls
                 // Action buttons
                 var buttonPanel = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
 
+                // View Details button - available for all users when admin
+                if (AuthService.IsAdmin)
+                {
+                    var viewUser = user;
+                    var btnView = new Button { Content = "View Details", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    btnView.Click += async (_, _) => await ShowUserDetailsDialog(viewUser);
+                    buttonPanel.Children.Add(btnView);
+                }
+
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
                     // Change Password button
@@ -184,6 +193,108 @@ namespace PinayPalBackupManager.UI.UserControls
                 row.Children.Add(buttonPanel);
                 userCard.Child = row;
                 userListPanel.Children.Add(userCard);
+            }
+        }
+
+        private async Task ShowUserDetailsDialog(PinayPalBackupManager.Models.AppUser user)
+        {
+            const string dialogKey = "user_details";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var statusColor = user.Status switch
+                {
+                    "Active"   => "#A6E3A1",
+                    "Pending"  => "#F9E2AF",
+                    "Disabled" => "#F38BA8",
+                    _          => "#A6ADC8"
+                };
+
+                var content = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+
+                // Header
+                var header = new Border
+                {
+                    Background = Brush.Parse("#313244"),
+                    Padding = new Thickness(24, 16),
+                    Child = new TextBlock
+                    {
+                        Text = "User Details",
+                        Foreground = Brush.Parse("#CDD6F4"),
+                        FontSize = 16,
+                        FontWeight = FontWeight.Bold,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    }
+                };
+                content.Children.Add(header);
+
+                // Details body
+                var body = new StackPanel { Spacing = 12, Margin = new Thickness(24, 20) };
+
+                void AddRow(string label, string value, string valueColor = "#CDD6F4")
+                {
+                    var row = new Grid();
+                    row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));
+                    row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+                    var lbl = new TextBlock { Text = label, Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+                    var val = new TextBlock { Text = value, Foreground = Brush.Parse(valueColor), FontSize = 12, TextWrapping = Avalonia.Media.TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+
+                    Grid.SetColumn(lbl, 0);
+                    Grid.SetColumn(val, 1);
+                    row.Children.Add(lbl);
+                    row.Children.Add(val);
+                    body.Children.Add(row);
+
+                    body.Children.Add(new Border { Height = 1, Background = Brush.Parse("#313244"), Margin = new Thickness(0, 4) });
+                }
+
+                AddRow("User ID:",       $"#{user.Id}");
+                AddRow("Username:",      user.Username);
+                AddRow("Role:",          user.Role, user.Role == "Admin" ? "#CBA6F7" : "#89B4FA");
+                AddRow("Status:",        user.Status, statusColor);
+                AddRow("Member Since:",  user.CreatedAt.ToString("MMM dd, yyyy  hh:mm tt") + " UTC");
+                AddRow("Password:",      "••••••••  (secured — cannot be displayed)", "#6C7086");
+
+                content.Children.Add(body);
+
+                // Close button
+                var btnClose = new Button
+                {
+                    Content = "Close",
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 20),
+                    Padding = new Thickness(40, 10),
+                    Background = Brush.Parse("#45475A"),
+                    Foreground = Brush.Parse("#CDD6F4"),
+                    CornerRadius = new CornerRadius(8),
+                    FontWeight = FontWeight.SemiBold
+                };
+
+                content.Children.Add(btnClose);
+
+                var window = new Window
+                {
+                    Title = $"Details — {user.Username}",
+                    Content = content,
+                    Width = 440,
+                    Height = 380,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Brush.Parse("#1E1E2E")
+                };
+
+                btnClose.Click += (_, _) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                    await window.ShowDialog(parentWindow);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
 

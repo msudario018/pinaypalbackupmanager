@@ -548,6 +548,8 @@ namespace PinayPalBackupManager.Services
             var user = GetUserById(userId);
             if (user == null) return false;
 
+            var oldUsername = user.Username;
+
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -564,7 +566,22 @@ namespace PinayPalBackupManager.Services
                     CurrentUser.Username = newUsername;
                     OnUserChanged?.Invoke(CurrentUser);
                 }
-                Console.WriteLine($"[AuthService] Username changed for user ID {userId} to {newUsername}");
+
+                // Sync to Firebase: remove old entry, add new entry
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await FirebaseUserService.RemoveUserAsync(oldUsername);
+                        var updatedUser = GetUserById(userId);
+                        if (updatedUser != null)
+                            await FirebaseUserService.SyncUserAsync(updatedUser);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AuthService] Failed to sync username change to Firebase: {ex.Message}");
+                    }
+                });
             }
 
             return result;

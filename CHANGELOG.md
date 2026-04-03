@@ -2,25 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.28] - 2026-04-03
+
+### Added
+- User Management: View Details button per user shows a popup with User ID, Username, Role, Status, Member Since date, and password indicator
+
+### Fixed
+- Credentials (appsettings.local.json) no longer lost after app update — config now saved to AppData which survives Velopack installs
+- Admin renaming a user's username no longer creates a duplicate — old Firebase entry is removed and new one synced
+- Duplicate constructor errors in CredentialsDialog and PathsDialog removed
+- debug_auth.cs missing using statement fixed
+
 ## [2.6.25] - 2026-04-03
 
 ### Fixed
-- User Management dialog window size corrected (was 600×500, now 900×850 and resizable) — content no longer cut off
+- User Management dialog window size corrected (was 600x500, now 900x850 and resizable) - content no longer cut off
 - User Management user card layout changed from StackPanel to Grid so username/role/status is always visible alongside action buttons
 - Profile avatar button no longer clickable during app startup health scan
-- FTP and SQL cancel no longer shows "Authentication Error" — abort flag checked immediately after ConnectAsync
+- FTP and SQL cancel no longer shows Authentication Error - abort flag checked immediately after ConnectAsync
 - FTP BtnStart and BtnCancel state now fully controlled by SetBusy; removed conflicting ViewModel bindings
-- Mailchimp specific task buttons (Members, Campaigns, Reports, Merge Fields, Tags, Sync Check) now properly disabled while a backup is running
-- Mailchimp StartSpecificTaskAsync: added abort flag reset, double-start guard, and proper try/catch/finally error handling
-- Live logs no longer show "Log file not found" at bottom on first load — returns empty list instead
-- Login page no longer shows "Your account has been approved" when user is just typing credentials
+- Mailchimp specific task buttons now properly disabled while a backup is running
+- Mailchimp StartSpecificTaskAsync: added abort flag reset, double-start guard, and proper error handling
+- Live logs no longer show Log file not found at bottom on first load
+- Login page no longer shows Your account has been approved when user is just typing credentials
 - InviteCodesDialog layout and sizing fixed to prevent Close button overflow
 
 ### Changed
 - Removed debug console window (AllocConsole removed from Program.cs)
-- Removed all Console.WriteLine debug output from startup — errors now silently log to startup.log
+- Removed all Console.WriteLine debug output from startup - errors now silently log to startup.log
 - Cleaned up Program.cs: removed orphaned FtpViewModel DI registration and BackupManager duplicate
-- Removed dead ViewModel check block from FtpControl constructor
 
 ## [2.6.21] - 2025-04-03
 

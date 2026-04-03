@@ -17,19 +17,16 @@ namespace PinayPalBackupManager.Services
 
         public static string GetConfigDirectory()
         {
-            var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            var (sharedPath, _) = FindConfigPaths(baseDir);
-            if (!string.IsNullOrWhiteSpace(sharedPath))
-            {
-                return Path.GetDirectoryName(sharedPath) ?? baseDir;
-            }
-
-            return baseDir;
+            // Always return AppData directory - survives Velopack updates
+            return AppDataPaths.CurrentDirectory;
         }
 
         public static void Load()
         {
             var settings = new AppSettings();
+
+            // Migrate appsettings.local.json from install dir to AppData if needed
+            MigrateLocalConfigToAppData();
 
             var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
             var (sharedPath, localPath) = FindConfigPaths(baseDir);
@@ -39,12 +36,44 @@ namespace PinayPalBackupManager.Services
                 MergeInto(settings, ReadFile(sharedPath));
             }
 
-            if (!string.IsNullOrEmpty(localPath))
+            // Always prefer AppData local config over install-dir local config
+            var appDataLocalPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+            if (File.Exists(appDataLocalPath))
+            {
+                MergeInto(settings, ReadFile(appDataLocalPath));
+            }
+            else if (!string.IsNullOrEmpty(localPath))
             {
                 MergeInto(settings, ReadFile(localPath));
             }
 
             Current = settings;
+        }
+
+        private static void MigrateLocalConfigToAppData()
+        {
+            try
+            {
+                var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+                if (File.Exists(appDataPath)) return; // Already migrated
+
+                // Search install dir and up to 3 parents for appsettings.local.json
+                var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+                var dir = new DirectoryInfo(baseDir);
+                for (int i = 0; i < 3 && dir != null; i++)
+                {
+                    var candidate = Path.Combine(dir.FullName, "appsettings.local.json");
+                    if (File.Exists(candidate))
+                    {
+                        Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                        File.Copy(candidate, appDataPath, false);
+                        Console.WriteLine($"[ConfigService] Migrated appsettings.local.json to AppData");
+                        break;
+                    }
+                    dir = dir.Parent;
+                }
+            }
+            catch { }
         }
 
         public static bool IsConfigured()
