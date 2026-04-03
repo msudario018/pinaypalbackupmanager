@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.19] - 2025-04-03
+
+### Added
+- Admin can now change other users' passwords from User Management dialog
+- Admin can now change other users' usernames from User Management dialog
+
+### Fixed
+- Change Password dialog - increased height so Save/Cancel buttons are visible
+
 ## [2.6.18] - 2025-04-03
 
 ### Changed
