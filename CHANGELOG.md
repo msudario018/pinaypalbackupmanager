@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.18] - 2025-04-03
+
+### Changed
+- Minor version bump for release
+
 ## [2.6.17] - 2025-04-03
 
 ### Added
