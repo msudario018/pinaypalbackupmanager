@@ -10,8 +10,9 @@
         <Style Selector="Button">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -20,19 +21,28 @@
         <Style Selector="Button.SideBtn">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
+        </Style>
+        <Style Selector="Button.SideBtn:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.08) translateY(-1px)"/>
+        </Style>
+        <Style Selector="Button.SideBtn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+        <Style Selector="Button.SideBtn.Selected">
+            <Setter Property="RenderTransform" Value="scale(1.0)"/>
         </Style>
 
         <!-- Border Animations (for smooth color transitions) -->
         <Style Selector="Border">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -41,7 +51,7 @@
         <Style Selector="TextBlock">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.18" Easing="SineEaseInOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -50,8 +60,8 @@
         <Style Selector="ListBoxItem">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -60,8 +70,8 @@
         <Style Selector="DataGridRow">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -70,7 +80,19 @@
         <Style Selector="ContentControl">
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseInOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- ProgressBar smooth value transition and style -->
+        <Style Selector="ProgressBar">
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Value" Duration="0:0:0.35" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -100,11 +122,11 @@
         </Style>
         <Style Selector="Button.Primary:pointerover">
             <Setter Property="Background" Value="#A6C8FF"/>
-            <Setter Property="RenderTransform" Value="scale(1.01)"/>
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
         </Style>
         <Style Selector="Button.Primary:pressed">
             <Setter Property="Background" Value="#6F9FEA"/>
-            <Setter Property="RenderTransform" Value="scale(0.99)"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
         <Style Selector="Button.Secondary">
@@ -116,9 +138,11 @@
         </Style>
         <Style Selector="Button.Secondary:pointerover">
             <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.Secondary:pressed">
             <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
         <Style Selector="Button.Danger">
@@ -130,9 +154,11 @@
         </Style>
         <Style Selector="Button.Danger:pointerover">
             <Setter Property="Background" Value="#FFB3C7"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.Danger:pressed">
             <Setter Property="Background" Value="#E37A92"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
         <Style Selector="Button.Ghost">
@@ -144,9 +170,11 @@
         </Style>
         <Style Selector="Button.Ghost:pointerover">
             <Setter Property="Background" Value="#232334"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.Ghost:pressed">
             <Setter Property="Background" Value="#2B2B3E"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
     </Application.Styles>

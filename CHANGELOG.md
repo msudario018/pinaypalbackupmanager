@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.30] - 2026-04-04
+
+### Changed
+- All transitions now use easing curves (SineEaseInOut, CubicEaseOut, CubicEaseInOut) for fluid animations
+- Button hover scale increased to 1.03 / press to 0.97 for a satisfying click feel
+- Secondary, Danger, Ghost buttons now have scale animations on hover and press
+- Sidebar buttons now lift with scale(1.08) + translateY(-1px) on hover
+- ProgressBar value changes animate smoothly with CubicEaseOut (0.35s) instead of jumping
+- ContentControl tab fade now uses CubicEaseInOut for smoother page transitions
+
 ## [2.6.28] - 2026-04-03
 
 ### Added
