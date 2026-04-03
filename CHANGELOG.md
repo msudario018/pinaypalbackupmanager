@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.16] - 2025-04-03
+
+### Fixed
+- Update Available dialog - centered, non-draggable popup with proper changelog display
+- Profile avatars - now circular using Clip geometry
+- Sidebar avatar - shows uploaded avatar on profile tab
+
+## [2.6.15] - 2025-04-03
+
+### Fixed
+- Custom update dialog with changelog display
+- Fixed avatar clipping in profile and sidebar
+
 ## [2.6.14] - 2025-04-03
 
 ### Fixed
