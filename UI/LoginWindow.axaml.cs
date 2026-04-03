@@ -209,8 +209,12 @@ namespace PinayPalBackupManager.UI
             var (success, message) = AuthService.Login(username, password);
             if (success)
             {
-                // Stop the status listener
                 _statusListenerCts?.Cancel();
+                var rememberMe = this.FindControl<CheckBox>("ChkRememberMe")?.IsChecked == true;
+                if (rememberMe && AuthService.CurrentUser != null)
+                    SessionService.SaveSession(AuthService.CurrentUser.Id);
+                else
+                    SessionService.ClearSession();
                 OnLoginSuccess?.Invoke();
             }
             else

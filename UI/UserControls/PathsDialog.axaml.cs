@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using System;
+using System.Threading.Tasks;
 using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.UI.UserControls
@@ -16,23 +18,58 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
 
-            var txtFtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder");
-            var txtMailchimpFolder = this.FindControl<TextBox>("TxtMailchimpFolder");
-            var txtSqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder");
-            var btnCancel = this.FindControl<Button>("BtnCancel");
-            var btnSave = this.FindControl<Button>("BtnSave");
+            var txtFtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!;
+            var txtMailchimpFolder = this.FindControl<TextBox>("TxtMailchimpFolder")!;
+            var txtSqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!;
 
-            // Load values
-            txtFtpLocalFolder!.Text = settings.Paths.FtpLocalFolder;
-            txtMailchimpFolder!.Text = settings.Paths.MailchimpFolder;
-            txtSqlLocalFolder!.Text = settings.Paths.SqlLocalFolder;
+            // Load current values
+            txtFtpLocalFolder.Text = settings.Paths.FtpLocalFolder;
+            txtMailchimpFolder.Text = settings.Paths.MailchimpFolder;
+            txtSqlLocalFolder.Text = settings.Paths.SqlLocalFolder;
 
-            btnCancel!.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
-            
-            btnSave!.Click += (s, e) =>
+            // Browse buttons
+            this.FindControl<Button>("BtnBrowseFtp")!.Click += async (s, e) =>
+                await BrowseFolderAsync(txtFtpLocalFolder, "Select FTP Backup Folder");
+
+            this.FindControl<Button>("BtnBrowseMailchimp")!.Click += async (s, e) =>
+                await BrowseFolderAsync(txtMailchimpFolder, "Select Mailchimp Backup Folder");
+
+            this.FindControl<Button>("BtnBrowseSql")!.Click += async (s, e) =>
+                await BrowseFolderAsync(txtSqlLocalFolder, "Select SQL Backup Folder");
+
+            this.FindControl<Button>("BtnCancel")!.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
+            this.FindControl<Button>("BtnSave")!.Click += (s, e) => OnSave?.Invoke(this, EventArgs.Empty);
+        }
+
+        private async Task BrowseFolderAsync(TextBox target, string title)
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+
+            var options = new FolderPickerOpenOptions
             {
-                OnSave?.Invoke(this, EventArgs.Empty);
+                Title = title,
+                AllowMultiple = false
             };
+
+            // Pre-open to current value if it exists
+            if (!string.IsNullOrWhiteSpace(target.Text))
+            {
+                try
+                {
+                    var existing = await topLevel.StorageProvider.TryGetFolderFromPathAsync(target.Text);
+                    if (existing != null) options.SuggestedStartLocation = existing;
+                }
+                catch { }
+            }
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(options);
+            if (folders.Count > 0)
+            {
+                var path = folders[0].TryGetLocalPath();
+                if (!string.IsNullOrWhiteSpace(path))
+                    target.Text = path;
+            }
         }
 
         public AppSettings GetSettings()

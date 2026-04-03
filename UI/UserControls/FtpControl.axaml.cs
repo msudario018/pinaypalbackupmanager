@@ -394,7 +394,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 bool syncNow = await NotificationService.ConfirmAsync("Remote backup is newer than local. Do you want to sync now?", "Sync Now?");
                 if (syncNow)
                 {
+                    SetBusy(false);
                     _ = StartBackupAsync("AUTO-SYNC");
+                    return;
                 }
             }
 
@@ -433,6 +435,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
+        public Task TriggerSyncCheckAsync() => SyncCheckAsync();
 
         public void RequestCancelFromShell()
         {

@@ -85,6 +85,7 @@ namespace PinayPalBackupManager.Services
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
+                Topmost = true,
                 Background = Avalonia.Media.Brushes.Transparent
             };
 

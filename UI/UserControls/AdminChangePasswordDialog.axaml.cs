@@ -35,18 +35,21 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (string.IsNullOrWhiteSpace(newPass))
                 {
                     txtError!.Text = "Please enter a new password.";
+                    txtError.IsVisible = true;
                     return;
                 }
 
                 if (newPass != confirm)
                 {
                     txtError!.Text = "Passwords do not match.";
+                    txtError.IsVisible = true;
                     return;
                 }
 
                 if (newPass.Length < 4)
                 {
                     txtError!.Text = "Password must be at least 4 characters.";
+                    txtError.IsVisible = true;
                     return;
                 }
 

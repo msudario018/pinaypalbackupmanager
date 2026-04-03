@@ -32,12 +32,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (string.IsNullOrWhiteSpace(newUsername))
                 {
                     txtError!.Text = "Please enter a new username.";
+                    txtError.IsVisible = true;
                     return;
                 }
 
                 if (newUsername.Length < 3)
                 {
                     txtError!.Text = "Username must be at least 3 characters.";
+                    txtError.IsVisible = true;
                     return;
                 }
 

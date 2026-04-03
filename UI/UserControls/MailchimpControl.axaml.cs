@@ -223,6 +223,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
+        public Task TriggerSyncCheckAsync() => SyncCheckAsync();
 
         public void RequestCancelFromShell()
         {
@@ -334,7 +335,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 bool syncNow = await NotificationService.ConfirmAsync("Mailchimp data is outdated or missing. Do you want to run a full backup now?", "Sync Now?");
                 if (syncNow)
                 {
+                    SetBusy(false);
                     _ = StartFullBackupAsync("AUTO-SYNC");
+                    return;
                 }
             }
 

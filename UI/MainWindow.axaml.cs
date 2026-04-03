@@ -27,6 +27,7 @@ namespace PinayPalBackupManager.UI
     public partial class MainWindow : Window
     {
         private readonly BackupManager _backupManager;
+        private readonly HomeControl _homeControl;
         private readonly FtpControl _ftpControl;
         private readonly MailchimpControl _mailchimpControl;
         private readonly SqlControl _sqlControl;
@@ -47,6 +48,11 @@ namespace PinayPalBackupManager.UI
             _backupManager.OnHealthUpdate += UpdateHealthStatus;
             NotificationService.OnToast += HandleToast;
 
+            _homeControl = new HomeControl(_backupManager);
+            _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl); UpdateSidebarSelection("FTP"); };
+            _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl); UpdateSidebarSelection("Mailchimp"); };
+            _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl); UpdateSidebarSelection("SQL"); };
+            _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
             _ftpControl = new FtpControl(_backupManager);
             _mailchimpControl = new MailchimpControl(_backupManager);
             _sqlControl = new SqlControl(_backupManager);
@@ -94,8 +100,8 @@ namespace PinayPalBackupManager.UI
             }
             else
             {
-                ShowControl(_ftpControl);
-                UpdateSidebarSelection("FTP");
+                ShowControl(_homeControl);
+                UpdateSidebarSelection("Home");
             }
 
             _backupManager.Start();
@@ -203,6 +209,7 @@ namespace PinayPalBackupManager.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
+                Topmost = true,
                 Background = Avalonia.Media.Brushes.Transparent
             };
 
@@ -363,6 +370,9 @@ namespace PinayPalBackupManager.UI
                 UpdateSidebarSelection(tag);
                 switch (tag)
                 {
+                    case "Home":
+                        ShowControl(_homeControl);
+                        break;
                     case "FTP":
                         NotificationService.ShowBackupToast("Tab", "Switched to FTP", "Info");
                         ShowControl(_ftpControl);
@@ -409,8 +419,18 @@ namespace PinayPalBackupManager.UI
             _activeTabAccentBrush = GetAccentBrushForControl(control);
         }
 
+        private async Task RunAllChecksAsync()
+        {
+            NotificationService.ShowBackupToast("Dashboard", "Running sync check on all services...", "Info");
+            if (!_ftpControl.IsBusy) await _ftpControl.TriggerSyncCheckAsync();
+            if (!_mailchimpControl.IsBusy) await _mailchimpControl.TriggerSyncCheckAsync();
+            if (!_sqlControl.IsBusy) await _sqlControl.TriggerSyncCheckAsync();
+            NotificationService.ShowBackupToast("Dashboard", "All checks complete.", "Info");
+        }
+
         private static IBrush GetAccentBrushForControl(UserControl control)
         {
+            if (control is HomeControl) return Brush.Parse("#CBA6F7");
             if (control is FtpControl) return Brush.Parse("#A6E3A1");
             if (control is MailchimpControl) return Brush.Parse("#89DCEB");
             if (control is SqlControl) return Brush.Parse("#F9E2AF");
@@ -441,7 +461,7 @@ namespace PinayPalBackupManager.UI
                 DateTime activeNextDailyMnl = nextDaily;
 
                 var contentControl = this.FindControl<ContentControl>("MainContent");
-                if (contentControl?.Content is UserControl activeControl)
+                if (contentControl?.Content is UserControl activeControl && activeControl is not HomeControl)
                 {
                     if (activeControl is FtpControl)
                     {

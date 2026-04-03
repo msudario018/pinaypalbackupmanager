@@ -1,0 +1,264 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.HomeControl">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,8,24">
+
+            <!-- Header -->
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Name="TxtGreeting" Text="Dashboard" FontSize="22" FontWeight="Bold" Foreground="#CDD6F4"/>
+                    <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="#6C7086"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Border Name="DashHealthBadge" Background="#1E1E2E" CornerRadius="20" Padding="14,8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Name="DashHealthDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                            <TextBlock Name="DashHealthText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                       Foreground="#6C7086" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Name="BtnRunAllChecks" Content="Run All Checks" Background="#2D2346" Foreground="#CBA6F7"
+                            BorderThickness="0" CornerRadius="20" Padding="14,8" FontSize="11"
+                            FontWeight="SemiBold" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Alert Banner -->
+            <Border Name="AlertBanner" IsVisible="False" Background="#2D1515" BorderBrush="#5C2020"
+                    BorderThickness="1" CornerRadius="10" Padding="16,12">
+                <Grid ColumnDefinitions="Auto, *">
+                    <PathIcon Grid.Column="0" Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
+                              Width="16" Height="16" Foreground="#F38BA8" VerticalAlignment="Center"
+                              Margin="0,0,12,0"/>
+                    <TextBlock Grid.Column="1" Name="AlertText" Text="" Foreground="#F38BA8" FontSize="12"
+                               FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </Grid>
+            </Border>
+
+            <!-- Quick Stats Row -->
+            <Grid ColumnDefinitions="*, *, *">
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="TOTAL FILES" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatTotalFiles" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="across all backups" FontSize="10" Foreground="#45475A"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Margin="4,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="STORAGE USED" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatStorage" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="total backup size" FontSize="10" Foreground="#45475A"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Margin="8,0,0,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="SERVICES OK" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatServicesOk" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="out of 3 services" FontSize="10" Foreground="#45475A"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Service Cards -->
+            <Grid ColumnDefinitions="*, *, *">
+
+                <!-- FTP Card -->
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#1A2E1A" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                                <PathIcon Data="M6,20C3.24,20 1,17.76 1,15C1,12.56 2.78,10.53 5.12,10.12C6.04,7.18 8.77,5 12,5C15.4,5 18.25,7.44 18.88,10.68C21.22,10.9 23,12.85 23,15.25C23,17.87 20.87,20 18.25,20H6Z"
+                                          Width="16" Height="16" Foreground="#A6E3A1"/>
+                            </Border>
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="FTP SYNC" FontSize="12" FontWeight="Bold" Foreground="#A6E3A1"/>
+                                <TextBlock Text="Website backup" FontSize="10" Foreground="#45475A"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Name="FtpStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <TextBlock Name="FtpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="FtpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="FtpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <Button Name="BtnGoFtp" Content="Open FTP Tab →" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="#1A2E1A" Foreground="#A6E3A1"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mailchimp Card -->
+                <Border Grid.Column="1" Margin="4,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#0F2028" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                                <PathIcon Data="M20,4H4C2.9,4 2,4.9 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.9 21.1,4 20,4M20,18H4V8L12,13L20,8V18M12,11L4,6H20L12,11Z"
+                                          Width="16" Height="16" Foreground="#89DCEB"/>
+                            </Border>
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="MAILCHIMP" FontSize="12" FontWeight="Bold" Foreground="#89DCEB"/>
+                                <TextBlock Text="Email backup" FontSize="10" Foreground="#45475A"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Name="MailchimpStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <TextBlock Name="MailchimpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab →" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="#0F2028" Foreground="#89DCEB"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- SQL Card -->
+                <Border Grid.Column="2" Margin="8,0,0,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#2A2510" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                                <PathIcon Data="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"
+                                          Width="16" Height="16" Foreground="#F9E2AF"/>
+                            </Border>
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="SQL BACKUP" FontSize="12" FontWeight="Bold" Foreground="#F9E2AF"/>
+                                <TextBlock Text="Database backup" FontSize="10" Foreground="#45475A"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Name="SqlStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <TextBlock Name="SqlStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="SqlLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="70, *">
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
+                                <TextBlock Grid.Column="1" Name="SqlNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <Button Name="BtnGoSql" Content="Open SQL Tab →" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="#2A2510" Foreground="#F9E2AF"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Storage Usage + Daily Schedule Row -->
+            <Grid ColumnDefinitions="*, *">
+
+                <!-- Storage Usage -->
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="STORAGE USAGE" FontSize="11" FontWeight="Bold" Foreground="#A6ADC8" LetterSpacing="0.5"/>
+
+                        <StackPanel Spacing="10">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Grid.Column="0" Text="FTP / Website" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="1" Name="StorageFtp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#A6E3A1"/>
+                                </Grid>
+                                <ProgressBar Name="StorageFtpBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#A6E3A1"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Grid.Column="0" Text="Mailchimp" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="1" Name="StorageMailchimp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#89DCEB"/>
+                                </Grid>
+                                <ProgressBar Name="StorageMailchimpBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#89DCEB"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Grid.Column="0" Text="SQL / Database" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="1" Name="StorageSql" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#F9E2AF"/>
+                                </Grid>
+                                <ProgressBar Name="StorageSqlBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#F9E2AF"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Daily Schedule -->
+                <Border Grid.Column="1" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="DAILY SCHEDULE" FontSize="11" FontWeight="Bold" Foreground="#A6ADC8" LetterSpacing="0.5"/>
+
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#A6E3A1" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="FTP / Website" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="SchedFtp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#A6E3A1" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#89DCEB" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="SchedMailchimp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#89DCEB" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F9E2AF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="SQL / Database" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="SchedSql" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#F9E2AF" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Recent Activity -->
+            <Border Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Grid.Column="0" Text="RECENT ACTIVITY" FontSize="11" FontWeight="Bold"
+                                   Foreground="#A6ADC8" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="BtnRefreshActivity" Content="↻ Refresh"
+                                Background="#313244" Foreground="#A6ADC8" BorderThickness="0"
+                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                    </Grid>
+                    <StackPanel Name="ActivityList" Spacing="4"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

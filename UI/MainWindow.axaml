@@ -8,37 +8,46 @@
         Foreground="#CDD6F4"
         Icon="/Assets/logo.ico">
     
-    <Grid ColumnDefinitions="70, *">
+    <Grid ColumnDefinitions="72, *">
         <!-- Sidebar -->
-        <Border Grid.Column="0" Background="#11111B" BorderBrush="#313244" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="*, Auto">
+        <Border Grid.Column="0" Background="#11111B" BorderBrush="#1E1E2E" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto, *, Auto">
+
+                <!-- Logo Area -->
+                <Border Grid.Row="0" Padding="0,18,0,14" BorderBrush="#1E1E2E" BorderThickness="0,0,0,1">
+                    <Image Source="/Assets/logo.ico" Width="34" Height="34" HorizontalAlignment="Center"/>
+                </Border>
+
                 <!-- Navigation Buttons -->
-                <StackPanel Name="Sidebar" Spacing="10" Margin="0,20">
-                    <Image Source="/Assets/logo.ico" 
-                           Width="40" Height="40" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+                <StackPanel Name="Sidebar" Grid.Row="1" Spacing="2" Margin="10,12,10,0" VerticalAlignment="Top">
+                    <Button Classes="SideBtn" Tag="Home" ToolTip.Tip="Dashboard">
+                        <PathIcon Data="{StaticResource HomeIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                    </Button>
+                    <Rectangle Height="1" Fill="#1E1E2E" Margin="4,4"/>
                     <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
-                        <PathIcon Data="{StaticResource CloudIcon}" Foreground="#CBA6F7"/>
+                        <PathIcon Data="{StaticResource CloudIcon}" Width="18" Height="18" Foreground="#585B70"/>
                     </Button>
                     <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp">
-                        <PathIcon Data="{StaticResource MailIcon}" Foreground="#CBA6F7"/>
+                        <PathIcon Data="{StaticResource MailIcon}" Width="18" Height="18" Foreground="#585B70"/>
                     </Button>
                     <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup">
-                        <PathIcon Data="{StaticResource DatabaseIcon}" Foreground="#CBA6F7"/>
+                        <PathIcon Data="{StaticResource DatabaseIcon}" Width="18" Height="18" Foreground="#585B70"/>
                     </Button>
-                    <Rectangle Height="20"/>
+                    <Rectangle Height="1" Fill="#1E1E2E" Margin="4,8"/>
                     <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings">
-                        <PathIcon Data="{StaticResource SettingsIcon}" Foreground="#CBA6F7"/>
+                        <PathIcon Data="{StaticResource SettingsIcon}" Width="18" Height="18" Foreground="#585B70"/>
                     </Button>
                 </StackPanel>
-                
+
                 <!-- Profile Section -->
-                <Border Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="0,1,0,0" Padding="10" Margin="0,0,0,0">
-                    <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Center">
-                        <Grid Width="32" Height="32">
-                            <Ellipse Name="AvatarImageBg" Width="32" Height="32" Fill="#45475A"/>
-                            <Image Name="AvatarImage" Width="32" Height="32" Stretch="UniformToFill" IsVisible="False">
+                <Border Grid.Row="2" Padding="0,10" BorderBrush="#1E1E2E" BorderThickness="0,1,0,0">
+                    <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center"
+                            CornerRadius="12" ToolTip.Tip="Profile" Cursor="Hand">
+                        <Grid Width="36" Height="36">
+                            <Ellipse Name="AvatarImageBg" Width="36" Height="36" Fill="#313244"/>
+                            <Image Name="AvatarImage" Width="36" Height="36" Stretch="UniformToFill" IsVisible="False">
                                 <Image.Clip>
-                                    <EllipseGeometry Rect="0,0,32,32"/>
+                                    <EllipseGeometry Rect="0,0,36,36"/>
                                 </Image.Clip>
                             </Image>
                         </Grid>
@@ -138,42 +147,45 @@
     <Window.Styles>
         <!-- Sidebar Button Animations -->
         <Style Selector="Button.SideBtn">
-            <Setter Property="Width" Value="50"/>
-            <Setter Property="Height" Value="50"/>
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover">
-            <Setter Property="Background" Value="#3B4261"/>
-            <Setter Property="RenderTransform" Value="scale(1.08)"/>
+            <Setter Property="Background" Value="#1E1E2E"/>
+            <Setter Property="RenderTransform" Value="scale(1.06)"/>
         </Style>
         <Style Selector="Button.SideBtn.Selected">
-            <Setter Property="Background" Value="#232334"/>
+            <Setter Property="Background" Value="#2D2346"/>
         </Style>
         <Style Selector="Button.SideBtn:pressed">
-            <Setter Property="Background" Value="#4B5271"/>
-            <Setter Property="RenderTransform" Value="scale(0.92)"/>
+            <Setter Property="Background" Value="#2D2346"/>
+            <Setter Property="RenderTransform" Value="scale(0.93)"/>
         </Style>
 
         <!-- Sidebar Button Icons -->
         <Style Selector="Button.SideBtn PathIcon">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.25"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.18"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover PathIcon">
-            <Setter Property="Foreground" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#CBA6F7"/>
+        </Style>
+        <Style Selector="Button.SideBtn.Selected PathIcon">
+            <Setter Property="Foreground" Value="#CBA6F7"/>
         </Style>
 
         <!-- Profile Menu Styles -->
@@ -331,6 +343,7 @@
     </Window.Styles>
 
     <Window.Resources>
+        <StreamGeometry x:Key="HomeIcon">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</StreamGeometry>
         <StreamGeometry x:Key="CloudIcon">M6,20C3.24,20 1,17.76 1,15C1,12.56 2.78,10.53 5.12,10.12C6.04,7.18 8.77,5 12,5C15.4,5 18.25,7.44 18.88,10.68C21.22,10.9 23,12.85 23,15.25C23,17.87 20.87,20 18.25,20H6M12,7C9.5,7 7.4,8.5 6.4,10.7L6.1,11.3L5.4,11.3C3.9,11.5 2.8,12.7 2.8,14.2C2.8,15.8 4.1,17.2 5.7,17.2H17.2C18.8,17.2 20.2,15.8 20.2,14.2C20.2,12.6 18.8,11.2 17.2,11.2H16.2L16,10.2C15.5,8.1 13.7,6.6 11.5,6.6L12,7Z</StreamGeometry>
         <StreamGeometry x:Key="MailIcon">M20,4H4C2.9,4 2,4.9 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.9 21.1,4 20,4M20,18H4V8L12,13L20,8V18M12,11L4,6H20L12,11Z</StreamGeometry>
         <StreamGeometry x:Key="DatabaseIcon">M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z</StreamGeometry>

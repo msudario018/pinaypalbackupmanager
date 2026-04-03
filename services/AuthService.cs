@@ -212,6 +212,15 @@ namespace PinayPalBackupManager.Services
             return (true, $"Welcome, {user.Username}!");
         }
 
+        public static bool LoginById(int userId)
+        {
+            var user = GetUserById(userId);
+            if (user == null || user.Status != "Active") return false;
+            CurrentUser = user;
+            OnUserChanged?.Invoke(user);
+            return true;
+        }
+
         public static void Logout()
         {
             CurrentUser = null;

@@ -138,6 +138,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
 
@@ -179,6 +180,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
 

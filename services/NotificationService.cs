@@ -31,10 +31,7 @@ namespace PinayPalBackupManager.Services
             lock (_dialogLock)
             {
                 if (_openDialogs.Contains(dialogKey))
-                {
-                    Console.WriteLine($"[NotificationService] Dialog '{title}' already open, skipping");
                     return;
-                }
                 _openDialogs.Add(dialogKey);
             }
             
@@ -42,7 +39,15 @@ namespace PinayPalBackupManager.Services
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    var box = MessageBoxManager.GetMessageBoxStandard(title, message, buttons, icon);
+                    var box = MessageBoxManager.GetMessageBoxStandard(new MessageBoxStandardParams
+                    {
+                        ContentTitle = title,
+                        ContentMessage = message,
+                        ButtonDefinitions = buttons,
+                        Icon = icon,
+                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                        Topmost = true
+                    });
                     await box.ShowAsync();
                 });
             }
@@ -62,10 +67,7 @@ namespace PinayPalBackupManager.Services
             lock (_dialogLock)
             {
                 if (_openDialogs.Contains(dialogKey))
-                {
-                    Console.WriteLine($"[NotificationService] Confirm dialog '{title}' already open, skipping");
                     return false;
-                }
                 _openDialogs.Add(dialogKey);
             }
             
@@ -73,7 +75,15 @@ namespace PinayPalBackupManager.Services
             {
                 return await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    var box = MessageBoxManager.GetMessageBoxStandard(title, message, ButtonEnum.YesNo, icon);
+                    var box = MessageBoxManager.GetMessageBoxStandard(new MessageBoxStandardParams
+                    {
+                        ContentTitle = title,
+                        ContentMessage = message,
+                        ButtonDefinitions = ButtonEnum.YesNo,
+                        Icon = icon,
+                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                        Topmost = true
+                    });
                     var result = await box.ShowAsync();
                     return result == ButtonResult.Yes;
                 });

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2026-04-04
+
+### Added
+- **Home/Dashboard tab**: Central overview with service health cards, quick stats, storage usage, daily schedule, and recent activity feed
+- **Alerts banner**: Prominent warning when any service needs sync, with actionable message
+- **Quick stats row**: Total files, storage used, and services OK counters
+- **Run All Checks button**: Triggers sync check on all 3 services sequentially from the dashboard
+- **Storage usage mini-cards**: Per-service folder sizes with proportional progress bars
+- **Daily schedule panel**: Countdown to next scheduled daily sync for each service (Manila time)
+- **Recent activity feed**: Last 10 log entries across all services with color-coded badges and timestamps
+- **Folder browse buttons**: Native folder picker in Settings → Edit Paths for easier path selection
+
+### Fixed
+- Double logout call removed (AuthService.Logout was called twice)
+- Alert banner now shows friendly names (FTP/SQL) instead of internal (Website/Database)
+- Storage scan no longer runs on every health update (performance)
+- File count excludes backup_log.txt files
+- MainWindow.UpdateTime skips FindControl when HomeControl is active (no-op reduction)
+
 ## [2.6.30] - 2026-04-04
 
 ### Changed

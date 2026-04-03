@@ -278,11 +278,12 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     Title = $"Details — {user.Username}",
                     Content = content,
-                    Width = 440,
-                    Height = 380,
+                    Width = 460,
+                    Height = 440,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    Topmost = true,
                     Background = Brush.Parse("#1E1E2E")
                 };
 
@@ -302,26 +303,72 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             const string dialogKey = "admin_change_password";
             if (NotificationService.IsDialogOpen(dialogKey)) return;
-            
             NotificationService.RegisterDialog(dialogKey);
             try
             {
-                var dialog = new AdminChangePasswordDialog(username);
-                var window = new Window
+                Window? window = null;
+
+                var root = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+
+                // Header
+                root.Children.Add(new Border
+                {
+                    Background = Brush.Parse("#313244"),
+                    Padding = new Thickness(24, 18),
+                    Child = new StackPanel { Spacing = 4, Children =
+                    {
+                        new TextBlock { Text = "Change Password", Foreground = Brush.Parse("#CDD6F4"), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+                        new TextBlock { Text = $"for user: {username}", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
+                    }}
+                });
+
+                // Body
+                var body = new StackPanel { Spacing = 8, Margin = new Thickness(28, 20, 28, 24) };
+
+                body.Children.Add(new TextBlock { Text = "New Password", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12 });
+                var txtNew = new TextBox { PasswordChar = '●', Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtNew);
+
+                body.Children.Add(new TextBlock { Text = "Confirm New Password", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var txtConfirm = new TextBox { PasswordChar = '●', Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtConfirm);
+
+                var txtError = new TextBlock { Foreground = Brush.Parse("#F38BA8"), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
+                body.Children.Add(txtError);
+
+                // Buttons
+                var btnCancel = new Button { Content = "Cancel", Background = Brush.Parse("#45475A"), Foreground = Brush.Parse("#CDD6F4"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
+                var btnChange = new Button { Content = "Change Password", Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#1E1E2E"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
+                var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+                btnRow.Children.Add(btnCancel);
+                btnRow.Children.Add(btnChange);
+                body.Children.Add(btnRow);
+
+                root.Children.Add(body);
+
+                window = new Window
                 {
                     Title = "Change User Password",
-                    Content = dialog,
-                    Width = 400,
-                    Height = 320,
+                    Content = root,
+                    Width = 420,
+                    SizeToContent = SizeToContent.Height,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    Topmost = true,
+                    Background = Brush.Parse("#1E1E2E")
                 };
 
-                dialog.OnPasswordChanged += (sender, newPassword) =>
+                btnCancel.Click += (_, _) => window.Close();
+                btnChange.Click += (_, _) =>
                 {
-                    var changed = AuthService.ChangePassword(userId, newPassword);
+                    var newPass = txtNew.Text ?? "";
+                    var confirm = txtConfirm.Text ?? "";
+                    if (string.IsNullOrWhiteSpace(newPass)) { txtError.Text = "Please enter a new password."; txtError.IsVisible = true; return; }
+                    if (newPass != confirm) { txtError.Text = "Passwords do not match."; txtError.IsVisible = true; return; }
+                    if (newPass.Length < 4) { txtError.Text = "Password must be at least 4 characters."; txtError.IsVisible = true; return; }
+
+                    var changed = AuthService.ChangePassword(userId, newPass);
                     if (changed)
                     {
                         window.Close();
@@ -329,17 +376,14 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                     else
                     {
-                        NotificationService.ShowBackupToast("Users", "Failed to change password", "Error");
+                        txtError.Text = "Failed to change password.";
+                        txtError.IsVisible = true;
                     }
                 };
 
-                dialog.OnCancel += (sender, e) => window.Close();
-
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
                 if (parentWindow != null)
-                {
                     await window.ShowDialog(parentWindow);
-                }
             }
             finally
             {
@@ -351,25 +395,65 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             const string dialogKey = "admin_change_username";
             if (NotificationService.IsDialogOpen(dialogKey)) return;
-            
             NotificationService.RegisterDialog(dialogKey);
             try
             {
-                var dialog = new AdminChangeUsernameDialog(currentUsername);
-                var window = new Window
+                Window? window = null;
+
+                var root = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+
+                // Header
+                root.Children.Add(new Border
+                {
+                    Background = Brush.Parse("#313244"),
+                    Padding = new Thickness(24, 18),
+                    Child = new StackPanel { Spacing = 4, Children =
+                    {
+                        new TextBlock { Text = "Change Username", Foreground = Brush.Parse("#CDD6F4"), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+                        new TextBlock { Text = $"Current: {currentUsername}", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
+                    }}
+                });
+
+                // Body
+                var body = new StackPanel { Spacing = 8, Margin = new Thickness(28, 20, 28, 24) };
+
+                body.Children.Add(new TextBlock { Text = "New Username", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12 });
+                var txtNew = new TextBox { Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtNew);
+
+                var txtError = new TextBlock { Foreground = Brush.Parse("#F38BA8"), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
+                body.Children.Add(txtError);
+
+                // Buttons
+                var btnCancel = new Button { Content = "Cancel", Background = Brush.Parse("#45475A"), Foreground = Brush.Parse("#CDD6F4"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
+                var btnChange = new Button { Content = "Change Username", Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#1E1E2E"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
+                var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+                btnRow.Children.Add(btnCancel);
+                btnRow.Children.Add(btnChange);
+                body.Children.Add(btnRow);
+
+                root.Children.Add(body);
+
+                window = new Window
                 {
                     Title = "Change Username",
-                    Content = dialog,
-                    Width = 400,
-                    Height = 280,
+                    Content = root,
+                    Width = 420,
+                    SizeToContent = SizeToContent.Height,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    Topmost = true,
+                    Background = Brush.Parse("#1E1E2E")
                 };
 
-                dialog.OnUsernameChanged += (sender, newUsername) =>
+                btnCancel.Click += (_, _) => window.Close();
+                btnChange.Click += (_, _) =>
                 {
+                    var newUsername = (txtNew.Text ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(newUsername)) { txtError.Text = "Please enter a new username."; txtError.IsVisible = true; return; }
+                    if (newUsername.Length < 3) { txtError.Text = "Username must be at least 3 characters."; txtError.IsVisible = true; return; }
+
                     var changed = AuthService.ChangeUsername(userId, newUsername);
                     if (changed)
                     {
@@ -379,17 +463,14 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                     else
                     {
-                        NotificationService.ShowBackupToast("Users", "Failed to change username", "Error");
+                        txtError.Text = "Failed to change username.";
+                        txtError.IsVisible = true;
                     }
                 };
 
-                dialog.OnCancel += (sender, e) => window.Close();
-
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
                 if (parentWindow != null)
-                {
                     await window.ShowDialog(parentWindow);
-                }
             }
             finally
             {

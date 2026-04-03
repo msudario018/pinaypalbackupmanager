@@ -25,26 +25,38 @@ namespace PinayPalBackupManager
 
         private void ShowLogin(IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var loginWindow = new LoginWindow();
-            loginWindow.OnLoginSuccess += () =>
+            // Auto-login if a valid saved session exists
+            var savedUserId = SessionService.LoadSession();
+            if (savedUserId.HasValue)
             {
-                var mainWindow = new MainWindow();
-
-                mainWindow.OnLogoutRequested += () =>
+                var savedUser = AuthService.GetUserById(savedUserId.Value);
+                if (savedUser != null && savedUser.Status == "Active" && AuthService.LoginById(savedUserId.Value))
                 {
-                    AuthService.Logout();
-                    // Show login first, then close main to prevent app shutdown
-                    ShowLogin(desktop);
-                    mainWindow.Close();
-                };
+                    ShowMainWindow(desktop, null);
+                    return;
+                }
+                // Session invalid or user disabled — clear it
+                SessionService.ClearSession();
+            }
 
-                desktop.MainWindow = mainWindow;
-                mainWindow.Show();
-                loginWindow.Close();
-            };
-
+            var loginWindow = new LoginWindow();
+            loginWindow.OnLoginSuccess += () => ShowMainWindow(desktop, loginWindow);
             desktop.MainWindow = loginWindow;
             loginWindow.Show();
+        }
+
+        private void ShowMainWindow(IClassicDesktopStyleApplicationLifetime desktop, LoginWindow? loginWindow)
+        {
+            var mainWindow = new MainWindow();
+            mainWindow.OnLogoutRequested += () =>
+            {
+                SessionService.ClearSession();
+                ShowLogin(desktop);
+                mainWindow.Close();
+            };
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            loginWindow?.Close();
         }
     }
 }
