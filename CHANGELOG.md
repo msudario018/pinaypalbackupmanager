@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.13] - 2025-04-03
+
+### Added
+- Change Password dialog - users can now change their password from profile
+- Change Username dialog - users can now change their username from profile
+- Upload Avatar - users can now upload a profile picture
+- System Info button - opens system information dialog
+- Invite Codes button - navigates to settings to view invite code
+- View Logs button - opens logs folder in File Explorer
+- Dialog tracking to prevent multiple popups from opening simultaneously
+
 ## [2.6.12] - 2025-04-03
 
 ### Fixed

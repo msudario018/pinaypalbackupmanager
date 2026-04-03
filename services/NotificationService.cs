@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -11,6 +12,10 @@ namespace PinayPalBackupManager.Services
     public static class NotificationService
     {
         public static event Action<string, string, string>? OnToast;
+        
+        // Track currently open dialogs to prevent multiple popups
+        private static readonly HashSet<string> _openDialogs = new();
+        private static readonly object _dialogLock = new();
 
         public static void ShowBackupToast(string title, string message, string type = "Info")
         {
@@ -21,21 +26,92 @@ namespace PinayPalBackupManager.Services
 
         public static async Task ShowMessageBoxAsync(string message, string title, ButtonEnum buttons = ButtonEnum.Ok, Icon icon = Icon.Info)
         {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            var dialogKey = $"msgbox_{title}";
+            
+            lock (_dialogLock)
             {
-                var box = MessageBoxManager.GetMessageBoxStandard(title, message, buttons, icon);
-                await box.ShowAsync();
-            });
+                if (_openDialogs.Contains(dialogKey))
+                {
+                    Console.WriteLine($"[NotificationService] Dialog '{title}' already open, skipping");
+                    return;
+                }
+                _openDialogs.Add(dialogKey);
+            }
+            
+            try
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    var box = MessageBoxManager.GetMessageBoxStandard(title, message, buttons, icon);
+                    await box.ShowAsync();
+                });
+            }
+            finally
+            {
+                lock (_dialogLock)
+                {
+                    _openDialogs.Remove(dialogKey);
+                }
+            }
         }
 
         public static async Task<bool> ConfirmAsync(string message, string title, Icon icon = Icon.Question)
         {
-            return await Dispatcher.UIThread.InvokeAsync(async () =>
+            var dialogKey = $"confirm_{title}";
+            
+            lock (_dialogLock)
             {
-                var box = MessageBoxManager.GetMessageBoxStandard(title, message, ButtonEnum.YesNo, icon);
-                var result = await box.ShowAsync();
-                return result == ButtonResult.Yes;
-            });
+                if (_openDialogs.Contains(dialogKey))
+                {
+                    Console.WriteLine($"[NotificationService] Confirm dialog '{title}' already open, skipping");
+                    return false;
+                }
+                _openDialogs.Add(dialogKey);
+            }
+            
+            try
+            {
+                return await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    var box = MessageBoxManager.GetMessageBoxStandard(title, message, ButtonEnum.YesNo, icon);
+                    var result = await box.ShowAsync();
+                    return result == ButtonResult.Yes;
+                });
+            }
+            finally
+            {
+                lock (_dialogLock)
+                {
+                    _openDialogs.Remove(dialogKey);
+                }
+            }
+        }
+        
+        // Helper to check if any dialog is open (for custom dialogs)
+        public static bool IsDialogOpen(string dialogKey)
+        {
+            lock (_dialogLock)
+            {
+                return _openDialogs.Contains(dialogKey);
+            }
+        }
+        
+        // Helper to register custom dialogs
+        public static void RegisterDialog(string dialogKey)
+        {
+            lock (_dialogLock)
+            {
+                _openDialogs.Add(dialogKey);
+            }
+        }
+        
+        // Helper to unregister custom dialogs
+        public static void UnregisterDialog(string dialogKey)
+        {
+            lock (_dialogLock)
+            {
+                _openDialogs.Remove(dialogKey);
+            }
         }
     }
 }

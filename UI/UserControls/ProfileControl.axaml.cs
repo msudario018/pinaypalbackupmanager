@@ -1,7 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using PinayPalBackupManager.Services;
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace PinayPalBackupManager.UI.UserControls
@@ -128,67 +131,221 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async System.Threading.Tasks.Task ShowSystemInfo()
         {
-            // TODO: Implement system info dialog
-            NotificationService.ShowBackupToast("Profile", "System info feature coming soon!", "Info");
+            await MainWindow.ShowSystemInfoAsync();
         }
 
         private void ShowInviteCodes()
         {
-            // TODO: Navigate to invite codes section
-            NotificationService.ShowBackupToast("Profile", "Invite codes feature coming soon!", "Info");
+            // Show invite code in settings
+            OnUserManagementRequested?.Invoke();
+            NotificationService.ShowBackupToast("Profile", "Invite codes available in Settings tab", "Info");
         }
 
         private void ShowLogs()
         {
-            // TODO: Open logs directory or show logs viewer
-            NotificationService.ShowBackupToast("Profile", "Logs feature coming soon!", "Info");
+            try
+            {
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                if (Directory.Exists(logDir))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = logDir,
+                        UseShellExecute = true
+                    });
+                    NotificationService.ShowBackupToast("Profile", "Logs folder opened", "Info");
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("Profile", "No logs directory found", "Warning");
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("Profile", $"Failed to open logs: {ex.Message}", "Error");
+            }
         }
 
         private async System.Threading.Tasks.Task ShowChangePasswordDialog()
         {
-            // TODO: Implement change password dialog
-            NotificationService.ShowBackupToast("Profile", "Password change feature coming soon!", "Info");
+            const string dialogKey = "change_password";
+            if (NotificationService.IsDialogOpen(dialogKey))
+            {
+                return;
+            }
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new ChangePasswordDialog();
+                var window = new Window
+                {
+                    Title = "Change Password",
+                    Content = dialog,
+                    Width = 400,
+                    Height = 350,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnPasswordChanged += (sender, e) =>
+                {
+                    window.Close();
+                    NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
         }
 
         private async System.Threading.Tasks.Task ShowChangeUsernameDialog()
         {
-            // TODO: Implement change username dialog
-            NotificationService.ShowBackupToast("Profile", "Username change feature coming soon!", "Info");
+            const string dialogKey = "change_username";
+            if (NotificationService.IsDialogOpen(dialogKey))
+            {
+                return;
+            }
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new ChangeUsernameDialog();
+                var window = new Window
+                {
+                    Title = "Change Username",
+                    Content = dialog,
+                    Width = 400,
+                    Height = 280,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnUsernameChanged += (sender, e) =>
+                {
+                    window.Close();
+                    UpdateProfileDisplay();
+                    NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
         }
 
         private async System.Threading.Tasks.Task UploadAvatar()
         {
-            // TODO: Implement avatar upload
-            NotificationService.ShowBackupToast("Profile", "Avatar upload feature coming soon!", "Info");
+            try
+            {
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null)
+                {
+                    NotificationService.ShowBackupToast("Profile", "Storage provider not available", "Error");
+                    return;
+                }
+
+                var options = new FilePickerOpenOptions
+                {
+                    Title = "Select Avatar Image",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("Image Files")
+                        {
+                            Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp" }
+                        }
+                    }
+                };
+
+                var files = await storageProvider.OpenFilePickerAsync(options);
+                if (files.Count > 0)
+                {
+                    var file = files[0];
+                    var localPath = file.Path.LocalPath;
+                    
+                    // Copy to app data directory
+                    var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                    Directory.CreateDirectory(appDataDir);
+                    var avatarPath = Path.Combine(appDataDir, "avatar.png");
+                    File.Copy(localPath, avatarPath, true);
+                    
+                    NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("Profile", $"Failed to upload avatar: {ex.Message}", "Error");
+            }
         }
 
         private async Task ShowLogoutConfirmation()
         {
-            var dialog = new LogoutConfirmationDialog();
-            var window = new Window
+            const string dialogKey = "logout_confirmation";
+            
+            // Check if dialog already open
+            if (NotificationService.IsDialogOpen(dialogKey))
             {
-                Title = "Confirm Logout",
-                Content = dialog,
-                Width = 400,
-                Height = 200,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false,
-                ShowInTaskbar = false,
-                Background = Avalonia.Media.Brushes.Transparent
-            };
-
-            dialog.OnLogoutConfirmed += (sender, e) =>
+                Console.WriteLine("[ProfileControl] Logout dialog already open, skipping");
+                return;
+            }
+            
+            NotificationService.RegisterDialog(dialogKey);
+            
+            try
             {
-                window.Close();
-                OnLogoutRequested?.Invoke();
-            };
+                var dialog = new LogoutConfirmationDialog();
+                var window = new Window
+                {
+                    Title = "Confirm Logout",
+                    Content = dialog,
+                    Width = 400,
+                    Height = 200,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
 
-            dialog.OnCancel += (sender, e) => window.Close();
+                dialog.OnLogoutConfirmed += (sender, e) =>
+                {
+                    window.Close();
+                    OnLogoutRequested?.Invoke();
+                };
 
-            var parentWindow = TopLevel.GetTopLevel(this) as Window;
-            if (parentWindow != null)
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
             {
-                await window.ShowDialog(parentWindow);
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
     }

@@ -74,8 +74,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get changelog from file and update release body
+          # Get changelog from file and decode URL encoding
           NOTES=$(cat release_notes.txt)
+          
+          # Decode URL encoding (reverse of the encoding done earlier)
+          NOTES=$(echo "$NOTES" | sed 's/%0A/\n/g; s/%0D//g; s/%25/%/g')
           
           # Update release body using gh CLI
           gh release edit v${{ steps.get-version.outputs.version }} --notes "$NOTES" || echo "Failed to update release notes"

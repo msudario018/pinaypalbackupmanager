@@ -504,6 +504,58 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        public static bool ChangePassword(int userId, string newPassword)
+        {
+            var user = GetUserById(userId);
+            if (user == null) return false;
+
+            var salt = GenerateSalt();
+            var hash = HashPassword(newPassword, salt);
+
+            using var conn = new SqliteConnection(ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Users SET PasswordHash = @h, Salt = @s WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@h", hash);
+            cmd.Parameters.AddWithValue("@s", salt);
+            cmd.Parameters.AddWithValue("@id", userId);
+            var result = cmd.ExecuteNonQuery() > 0;
+
+            if (result)
+            {
+                Console.WriteLine($"[AuthService] Password changed for user ID {userId}");
+            }
+
+            return result;
+        }
+
+        public static bool ChangeUsername(int userId, string newUsername)
+        {
+            var user = GetUserById(userId);
+            if (user == null) return false;
+
+            using var conn = new SqliteConnection(ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Users SET Username = @u WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@u", newUsername);
+            cmd.Parameters.AddWithValue("@id", userId);
+            var result = cmd.ExecuteNonQuery() > 0;
+
+            if (result)
+            {
+                // Update current user if it's the same user
+                if (CurrentUser != null && CurrentUser.Id == userId)
+                {
+                    CurrentUser.Username = newUsername;
+                    OnUserChanged?.Invoke(CurrentUser);
+                }
+                Console.WriteLine($"[AuthService] Username changed for user ID {userId} to {newUsername}");
+            }
+
+            return result;
+        }
+
         // ── Helpers ──
 
         private static AppUser ReadUser(SqliteDataReader reader)
