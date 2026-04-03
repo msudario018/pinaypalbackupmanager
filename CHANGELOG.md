@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.17] - 2025-04-03
+
+### Added
+- User Management dialog as popup in Profile → Administrator Options
+- Invite Codes dialog as popup in Profile → Administrator Options
+
+### Fixed
+- Sidebar avatar now updates in real-time when profile picture changes
+- Profile avatars now properly circular using Clip geometry
+- XAML warnings for SystemInfoDialog and UpdateAvailableDialog
+
 ## [2.6.16] - 2025-04-03
 
 ### Fixed
