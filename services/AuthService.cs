@@ -315,7 +315,7 @@ namespace PinayPalBackupManager.Services
             return users;
         }
 
-        public static bool SetUserStatus(int userId, string status)
+        public static async Task<bool> SetUserStatusAsync(int userId, string status)
         {
             // Get username first for Firebase sync
             var user = GetUserById(userId);
@@ -328,23 +328,27 @@ namespace PinayPalBackupManager.Services
             cmd.Parameters.AddWithValue("@id", userId);
             var result = cmd.ExecuteNonQuery() > 0;
             
-            // Sync status change to Firebase (fire-and-forget)
+            // Sync status change to Firebase and wait for completion
             if (result && user != null)
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await FirebaseUserService.UpdateUserStatusAsync(user.Username, status);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AuthService] Failed to sync status change: {ex.Message}");
-                    }
-                });
+                    await FirebaseUserService.UpdateUserStatusAsync(user.Username, status);
+                    Console.WriteLine($"[AuthService] Status synced to Firebase: {user.Username} -> {status}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AuthService] Failed to sync status change: {ex.Message}");
+                }
             }
             
             return result;
+        }
+
+        [Obsolete("Use SetUserStatusAsync instead")]
+        public static bool SetUserStatus(int userId, string status)
+        {
+            return SetUserStatusAsync(userId, status).GetAwaiter().GetResult();
         }
 
         public static bool DeleteUser(int userId)
@@ -408,12 +412,25 @@ namespace PinayPalBackupManager.Services
                     // Skip if user already exists locally
                     if (localUsernames.Contains(remoteUser.Username.ToLower()))
                     {
-                        // Update status if different
+                        // Update status if different - compare timestamps to use most recent
                         var localUser = localUsers.First(u => u.Username.Equals(remoteUser.Username, StringComparison.OrdinalIgnoreCase));
                         if (localUser.Status != remoteUser.Status)
                         {
-                            SetUserStatus(localUser.Id, remoteUser.Status);
-                            Console.WriteLine($"[AuthService] Updated user status from remote: {remoteUser.Username} -> {remoteUser.Status}");
+                            // Simple conflict resolution: prefer "Active" over "Pending"
+                            // This prevents approved users from being reverted to pending
+                            bool shouldUpdateRemote = true;
+                            if (localUser.Status == "Active" && remoteUser.Status == "Pending")
+                            {
+                                // Local has Active, remote still has Pending - don't downgrade
+                                shouldUpdateRemote = false;
+                                Console.WriteLine($"[AuthService] Keeping local Active status for {remoteUser.Username}");
+                            }
+                            
+                            if (shouldUpdateRemote)
+                            {
+                                await SetUserStatusAsync(localUser.Id, remoteUser.Status);
+                                Console.WriteLine($"[AuthService] Updated user status from remote: {remoteUser.Username} -> {remoteUser.Status}");
+                            }
                         }
                         continue;
                     }

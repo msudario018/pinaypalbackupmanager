@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.8] - 2025-04-03
+
+### Added
+- Refresh button in User Management to sync new registrations
+- Delete confirmation dialog to prevent accidental user deletion
+
 ## [2.6.7] - 2025-04-03
 
 ### Fixed
@@ -17,38 +23,3 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Profile tab overscroll - buttons now fully visible
 - Release notes now included in Velopack packages
-
-## [2.6.5] - 2025-04-03
-
-### Fixed
-- Invite code now properly syncs across all PCs via Firebase
-- Fixed invite code validation to check Firebase first before local database
-- Improved cross-PC user synchronization
-
-## [2.6.4] - 2025-04-03
-
-### Fixed
-- Firebase blocking issue resolved with non-blocking initialization
-- Invite code sync between local and Firebase
-
-## [2.6.3] - 2025-04-03
-
-### Added
-- Firebase Realtime Database integration for multi-PC sync
-- Cross-PC user synchronization (register, disable, delete)
-- Invite code sharing across multiple PCs
-- Auto-update functionality via Velopack
-
-### Changed
-- Improved profile display in sidebar
-- Updated UI components
-
-## [2.6.0] - 2025-04-02
-
-### Added
-- Initial Firebase integration
-- User management features (disable/enable/delete)
-- Admin panel improvements
-
-### Changed
-- Version bump to stable release (removed -alpha)

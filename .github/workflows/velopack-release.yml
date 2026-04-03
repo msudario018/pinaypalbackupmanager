@@ -68,3 +68,14 @@ jobs:
           
           vpk pack -u PinayPal.PinayPalBackupManager -v ${{ steps.get-version.outputs.version }} -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico $SIGN_ARGS
           vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --token ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Release Notes
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get changelog from file and update release body
+          NOTES=$(cat release_notes.txt)
+          
+          # Update release body using gh CLI
+          gh release edit v${{ steps.get-version.outputs.version }} --notes "$NOTES" || echo "Failed to update release notes"

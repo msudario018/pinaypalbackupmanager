@@ -205,6 +205,17 @@ namespace PinayPalBackupManager.UI.UserControls
 
             RefreshUserList();
 
+            // Setup refresh button
+            var btnRefreshUsers = this.FindControl<Button>("BtnRefreshUsers");
+            if (btnRefreshUsers != null)
+            {
+                btnRefreshUsers.Click += (_, _) =>
+                {
+                    RefreshUserList();
+                    NotificationService.ShowBackupToast("Users", "User list refreshed!", "Info");
+                };
+            }
+
             var btnLogout = this.FindControl<Button>("BtnLogout");
             if (btnLogout != null)
             {
@@ -277,27 +288,37 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         var btnApprove = new Button { Content = "Approve", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#89B4FA"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
                         var uid = user.Id;
-                        btnApprove.Click += (_, _) => { AuthService.SetUserStatus(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
+                        btnApprove.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
                         row.Children.Add(btnApprove);
                     }
                     else if (user.Status == "Active")
                     {
                         var btnDisable = new Button { Content = "Disable", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#F9E2AF"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
                         var uid = user.Id;
-                        btnDisable.Click += (_, _) => { AuthService.SetUserStatus(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
+                        btnDisable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
                         row.Children.Add(btnDisable);
                     }
                     else if (user.Status == "Disabled")
                     {
                         var btnEnable = new Button { Content = "Enable", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#A6E3A1"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
                         var uid = user.Id;
-                        btnEnable.Click += (_, _) => { AuthService.SetUserStatus(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
+                        btnEnable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
                         row.Children.Add(btnEnable);
                     }
 
                     var btnDelete = new Button { Content = "Delete", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#F38BA8"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
                     var deleteId = user.Id;
-                    btnDelete.Click += (_, _) => { AuthService.DeleteUser(deleteId); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User deleted.", "Warning"); };
+                    var deleteUsername = user.Username;
+                    btnDelete.Click += async (_, _) => 
+                    { 
+                        var confirmed = await NotificationService.ConfirmAsync($"Are you sure you want to delete user '{deleteUsername}'?", "Confirm Delete");
+                        if (confirmed)
+                        {
+                            AuthService.DeleteUser(deleteId); 
+                            RefreshUserList(); 
+                            NotificationService.ShowBackupToast("Users", "User deleted.", "Warning"); 
+                        }
+                    };
                     row.Children.Add(btnDelete);
                 }
 

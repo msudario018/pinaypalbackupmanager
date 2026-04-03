@@ -109,7 +109,10 @@
                         </Viewbox>
                     </StackPanel>
 
-                    <TextBlock Text="Registered Users" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,10,0,0">
+                        <TextBlock Text="Registered Users" Foreground="#A6ADC8" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="BtnRefreshUsers" Content="↻ Refresh" FontSize="10" Padding="8,4" Background="#313244" Foreground="#89B4FA" CornerRadius="6"/>
+                    </Grid>
                     <StackPanel Name="UserListPanel" Spacing="6"/>
                     <TextBlock Name="TxtNoUsers" Text="No users registered yet." Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
 
