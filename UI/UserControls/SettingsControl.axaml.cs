@@ -56,6 +56,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnCheckUpdates.Click += async (s, e) =>
                 {
+                    NotificationService.ShowBackupToast("Updates", "Checking for updates...", "Info");
                     if (OnCheckUpdates != null) await OnCheckUpdates.Invoke();
                 };
             }
@@ -148,34 +149,40 @@ namespace PinayPalBackupManager.UI.UserControls
             var status = this.FindControl<TextBlock>("TxtConfigStatus");
             if (status != null) status.Text = "Saving...";
 
+            var current = ConfigService.Current;
+
+            // Helper to get text or preserve current value if empty
+            string GetOrPreserve(TextBox? tb, string currentVal) =>
+                string.IsNullOrWhiteSpace(tb?.Text) ? currentVal : tb.Text;
+
             var config = new AppSettings
             {
                 Paths = new PathsSettings
                 {
-                    FtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text ?? string.Empty,
-                    MailchimpFolder = this.FindControl<TextBox>("TxtMailchimpFolder")!.Text ?? string.Empty,
-                    SqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text ?? string.Empty,
+                    FtpLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtFtpLocalFolder"), current.Paths.FtpLocalFolder),
+                    MailchimpFolder = GetOrPreserve(this.FindControl<TextBox>("TxtMailchimpFolder"), current.Paths.MailchimpFolder),
+                    SqlLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtSqlLocalFolder"), current.Paths.SqlLocalFolder),
                 },
                 Ftp = new FtpSettings
                 {
-                    Host = this.FindControl<TextBox>("TxtSharedHost")!.Text ?? string.Empty,
-                    User = this.FindControl<TextBox>("TxtFtpUser")!.Text ?? string.Empty,
-                    Password = this.FindControl<TextBox>("TxtFtpPassword")!.Text ?? string.Empty,
-                    TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
-                    Port = int.TryParse(this.FindControl<TextBox>("TxtFtpPort")!.Text, out var p) ? p : 21
+                    Host = GetOrPreserve(this.FindControl<TextBox>("TxtSharedHost"), current.Ftp.Host),
+                    User = GetOrPreserve(this.FindControl<TextBox>("TxtFtpUser"), current.Ftp.User),
+                    Password = GetOrPreserve(this.FindControl<TextBox>("TxtFtpPassword"), current.Ftp.Password),
+                    TlsFingerprint = GetOrPreserve(this.FindControl<TextBox>("TxtSharedTls"), current.Ftp.TlsFingerprint),
+                    Port = int.TryParse(this.FindControl<TextBox>("TxtFtpPort")?.Text, out var p) ? p : current.Ftp.Port
                 },
                 Sql = new SqlSettings
                 {
-                    Host = this.FindControl<TextBox>("TxtSharedHost")!.Text ?? string.Empty,
-                    User = this.FindControl<TextBox>("TxtSqlUser")!.Text ?? string.Empty,
-                    Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? string.Empty,
+                    Host = GetOrPreserve(this.FindControl<TextBox>("TxtSharedHost"), current.Sql.Host),
+                    User = GetOrPreserve(this.FindControl<TextBox>("TxtSqlUser"), current.Sql.User),
+                    Password = GetOrPreserve(this.FindControl<TextBox>("TxtSqlPassword"), current.Sql.Password),
                     RemotePath = "/public_html/mysql_staged",
-                    TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
+                    TlsFingerprint = GetOrPreserve(this.FindControl<TextBox>("TxtSharedTls"), current.Sql.TlsFingerprint),
                 },
                 Mailchimp = new MailchimpSettings
                 {
-                    ApiKey = this.FindControl<TextBox>("TxtMcApiKey")!.Text ?? string.Empty,
-                    AudienceId = this.FindControl<TextBox>("TxtMcAudienceId")!.Text ?? string.Empty,
+                    ApiKey = GetOrPreserve(this.FindControl<TextBox>("TxtMcApiKey"), current.Mailchimp.ApiKey),
+                    AudienceId = GetOrPreserve(this.FindControl<TextBox>("TxtMcAudienceId"), current.Mailchimp.AudienceId),
                 },
                 Schedule = ConfigService.Current.Schedule
             };

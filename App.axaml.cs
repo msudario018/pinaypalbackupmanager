@@ -36,8 +36,10 @@ namespace PinayPalBackupManager
 
                 mainWindow.OnLogoutRequested += () =>
                 {
-                    mainWindow.Close();
+                    AuthService.Logout();
+                    // Show login first, then close main to prevent app shutdown
                     ShowLogin(desktop);
+                    mainWindow.Close();
                 };
 
                 desktop.MainWindow = mainWindow;

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.21] - 2025-04-03
+
+### Fixed
+- User Management dialog height increased to prevent content overflow
+- Logout now properly returns to login panel instead of exiting application
+- Config save now preserves existing credentials when fields are left empty
+
 ## [2.6.20] - 2025-04-03
 
 ### Fixed

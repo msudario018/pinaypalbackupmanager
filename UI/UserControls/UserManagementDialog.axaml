@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.UserManagementDialog"
-             Width="750" Height="550">
+             Width="750" Height="650">
     
     <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
         <Grid RowDefinitions="Auto, Auto, *, Auto">
