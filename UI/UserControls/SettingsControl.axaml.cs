@@ -80,7 +80,19 @@ namespace PinayPalBackupManager.UI.UserControls
 
             InitAdminPanel();
 
-            this.FindControl<Button>("BtnDiagnostics")!.Click += async (s, e) => {
+            // Refresh user list when auth state changes (login/logout)
+            AuthService.OnUserChanged += (_) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    InitAdminPanel();
+                });
+            };
+
+            var btnDiagnostics = this.FindControl<Button>("BtnDiagnostics");
+            if (btnDiagnostics != null)
+            {
+                btnDiagnostics.Click += async (s, e) => {
                 var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus")!;
                 txtStatus.Text = "Status: Running System Scan...";
                 NotificationService.ShowBackupToast("Diagnostics", "Running system scan...", "Info");
@@ -110,6 +122,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("Diagnostics", txtStatus.Text.Replace("Status: ", ""), outdated.Length == 0 ? "Info" : "Warning");
                 }
             };
+            }
         }
 
         private void InitAdminPanel()
@@ -217,6 +230,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     await AuthService.SyncRemoteUsersAsync();
+                    // Refresh UI after sync
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => RefreshUserListUI());
                 }
                 catch (Exception ex)
                 {
@@ -224,26 +239,39 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             });
 
+            RefreshUserListUI();
+        }
+
+        private void RefreshUserListUI()
+        {
+            var userListPanel = this.FindControl<StackPanel>("UserListPanel");
+            var txtNoUsers = this.FindControl<TextBlock>("TxtNoUsers");
+            if (userListPanel == null) return;
+
+            userListPanel.Children.Clear();
+
             var users = AuthService.GetAllUsers();
-            var otherUsers = users.Where(u => u.Id != (AuthService.CurrentUser?.Id ?? -1)).ToList();
+            var currentUser = AuthService.CurrentUser;
 
-            if (txtNoUsers != null) txtNoUsers.IsVisible = otherUsers.Count == 0;
+            if (txtNoUsers != null) txtNoUsers.IsVisible = users.Count == 0;
 
-            foreach (var user in otherUsers)
+            foreach (var user in users)
             {
+                var isCurrentUser = currentUser != null && user.Id == currentUser.Id;
                 var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
 
                 var statusColor = user.Status == "Active" ? "#A6E3A1" : user.Status == "Disabled" ? "#F38BA8" : "#F9E2AF";
+                var youMarker = isCurrentUser ? " (You)" : "";
                 row.Children.Add(new TextBlock
                 {
-                    Text = $"{user.Username} — {user.Role} — {user.Status}",
+                    Text = $"{user.Username}{youMarker} — {user.Role} — {user.Status}",
                     Foreground = Avalonia.Media.Brush.Parse(statusColor),
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                     FontSize = 12,
                     Width = 240
                 });
 
-                if (AuthService.IsAdmin)
+                if (AuthService.IsAdmin && !isCurrentUser)
                 {
                     if (user.Status == "Active")
                     {
@@ -288,7 +316,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var sharedTls = !string.IsNullOrWhiteSpace(s.Ftp.TlsFingerprint) ? s.Ftp.TlsFingerprint : s.Sql.TlsFingerprint;
             this.FindControl<TextBox>("TxtSharedTls")!.Text = sharedTls;
 
-            this.FindControl<TextBox>("TxtFtpHost")!.Text = s.Ftp.Host;
+            this.FindControl<TextBox>("TxtSharedHost")!.Text = s.Ftp.Host;
             this.FindControl<TextBox>("TxtFtpUser")!.Text = s.Ftp.User;
             this.FindControl<TextBox>("TxtFtpPassword")!.Text = s.Ftp.Password;
             this.FindControl<TextBox>("TxtFtpPort")!.Text = s.Ftp.Port.ToString();
@@ -316,7 +344,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 },
                 Ftp = new FtpSettings
                 {
-                    Host = this.FindControl<TextBox>("TxtFtpHost")!.Text ?? string.Empty,
+                    Host = this.FindControl<TextBox>("TxtSharedHost")!.Text ?? string.Empty,
                     User = this.FindControl<TextBox>("TxtFtpUser")!.Text ?? string.Empty,
                     Password = this.FindControl<TextBox>("TxtFtpPassword")!.Text ?? string.Empty,
                     TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
