@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.SystemInfoDialog"
+             Width="500" Height="400">
+    
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
+        <Grid RowDefinitions="Auto, *, Auto">
+            <!-- Header -->
+            <TextBlock Grid.Row="0" Text="System Information" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+            
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="15">
+                    <TextBlock Name="TxtBuildInfo" Text="" Foreground="#A6ADC8" FontSize="12"/>
+                    
+                    <Border Background="#11111B" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="CHANGELOG" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"/>
+                            <TextBlock Name="TxtChangelog" Text="" Foreground="#CDD6F4" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            
+            <!-- Button -->
+            <Button Grid.Row="2" Name="BtnOk" Content="OK" Background="#89B4FA" Foreground="#1E1E2E" Padding="30,10" CornerRadius="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+        </Grid>
+    </Border>
+</UserControl>

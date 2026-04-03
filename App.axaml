@@ -1,0 +1,194 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- GLOBAL ANIMATIONS & TRANSITIONS -->
+        <!-- Global Button Animations -->
+        <Style Selector="Button">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Sidebar Button Animations -->
+        <Style Selector="Button.SideBtn">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.SideBtn:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.08) translateY(-1px)"/>
+        </Style>
+        <Style Selector="Button.SideBtn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+        <Style Selector="Button.SideBtn.Selected">
+            <Setter Property="RenderTransform" Value="scale(1.0)"/>
+        </Style>
+
+        <!-- Border Animations (for smooth color transitions) -->
+        <Style Selector="Border">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- TextBlock Animations -->
+        <Style Selector="TextBlock">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.18" Easing="SineEaseInOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- ListBox Item Animations -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- DataGridRow Animations -->
+        <Style Selector="DataGridRow">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Content Control Fade-in -->
+        <Style Selector="ContentControl">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseInOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- ProgressBar smooth value transition and style -->
+        <Style Selector="ProgressBar">
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Value" Duration="0:0:0.35" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="18,10"/>
+        </Style>
+
+        <Style Selector="Button.Primary.Ftp">
+            <Setter Property="Background" Value="#A6E3A1"/>
+        </Style>
+        <Style Selector="Button.Primary.Mailchimp">
+            <Setter Property="Background" Value="#89DCEB"/>
+        </Style>
+        <Style Selector="Button.Primary.Sql">
+            <Setter Property="Background" Value="#F9E2AF"/>
+        </Style>
+        <Style Selector="Button.Primary.Settings">
+            <Setter Property="Background" Value="#89B4FA"/>
+        </Style>
+        <Style Selector="Button.Primary.Website">
+            <Setter Property="Background" Value="#CBA6F7"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background" Value="#A6C8FF"/>
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+        </Style>
+        <Style Selector="Button.Primary:pressed">
+            <Setter Property="Background" Value="#6F9FEA"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,9"/>
+        </Style>
+        <Style Selector="Button.Secondary:pointerover">
+            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.Secondary:pressed">
+            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+
+        <Style Selector="Button.Danger">
+            <Setter Property="Background" Value="#F38BA8"/>
+            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,9"/>
+        </Style>
+        <Style Selector="Button.Danger:pointerover">
+            <Setter Property="Background" Value="#FFB3C7"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.Danger:pressed">
+            <Setter Property="Background" Value="#E37A92"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+
+        <Style Selector="Button.Ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="Button.Ghost:pointerover">
+            <Setter Property="Background" Value="#232334"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.Ghost:pressed">
+            <Setter Property="Background" Value="#2B2B3E"/>
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+
+    </Application.Styles>
+
+    <Application.Resources>
+        <Color x:Key="ColorBg">#0B0F17</Color>
+        <Color x:Key="ColorSurface">#11111B</Color>
+        <Color x:Key="ColorSurface2">#1A1B26</Color>
+        <Color x:Key="ColorBorder">#313244</Color>
+        <Color x:Key="ColorText">#CDD6F4</Color>
+        <Color x:Key="ColorMuted">#A6ADC8</Color>
+        <Color x:Key="AccentFtp">#A6E3A1</Color>
+        <Color x:Key="AccentMailchimp">#89DCEB</Color>
+        <Color x:Key="AccentSql">#F9E2AF</Color>
+        <Color x:Key="AccentWebsite">#CBA6F7</Color>
+    </Application.Resources>
+</Application>

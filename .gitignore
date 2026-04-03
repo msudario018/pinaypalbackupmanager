@@ -1,0 +1,16 @@
+# Local-only secrets (do not commit)
+appsettings.local.json
+users.db
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Build outputs
+bin/
+obj/
+
+# Local publish output
+publish/

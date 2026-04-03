@@ -1,0 +1,190 @@
+<!-- EXAMPLE ANIMATIONS FOR YOUR USER CONTROLS -->
+<!-- Use these as templates for FtpControl.axaml, MailchimpControl.axaml, and SqlControl.axaml -->
+
+<!-- ============================================ -->
+<!-- EXAMPLE 1: Fade-in Animation for Root Grid -->
+<!-- ============================================ -->
+<Grid Name="RootGrid">
+    <Grid.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseOut"/>
+        </Transitions>
+    </Grid.Transitions>
+    <!-- Your content here -->
+</Grid>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 2: Button with Hover Scale Effect  -->
+<!-- ============================================ -->
+<Button Name="StartBackupBtn" Content="Start Backup" Background="#A6ADC8" Padding="20,10">
+    <Button.Transitions>
+        <Transitions>
+            <BrushTransition Property="Background" Duration="0:0:0.2"/>
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+        </Transitions>
+    </Button.Transitions>
+</Button>
+
+<Window.Styles>
+    <Style Selector="Button#StartBackupBtn:pointerover">
+        <Setter Property="Background" Value="#CBA6F7"/>
+        <Setter Property="RenderTransform" Value="scale(1.05)"/>
+    </Style>
+    <Style Selector="Button#StartBackupBtn:pressed">
+        <Setter Property="Background" Value="#89B4FA"/>
+        <Setter Property="RenderTransform" Value="scale(0.95)"/>
+    </Style>
+</Window.Styles>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 3: Status Message with Color Fade  -->
+<!-- ============================================ -->
+<Border Name="StatusBorder" Background="#1E1E2E" CornerRadius="8" Padding="15" Margin="0,10,0,0">
+    <Border.Transitions>
+        <Transitions>
+            <BrushTransition Property="Background" Duration="0:0:0.3"/>
+            <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+        </Transitions>
+    </Border.Transitions>
+    <StackPanel Spacing="8">
+        <TextBlock Name="StatusIcon" FontSize="16">📊</TextBlock>
+        <TextBlock Name="StatusText" Text="Ready to backup..." Foreground="#A6ADC8" FontSize="12"/>
+    </StackPanel>
+</Border>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 4: Progress Bar with Smooth Value Change -->
+<!-- ============================================ -->
+<ProgressBar Name="BackupProgress" Height="4" Margin="0,15,0,0">
+    <ProgressBar.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Value" Duration="0:0:0.5" Easing="CubicEaseOut"/>
+        </Transitions>
+    </ProgressBar.Transitions>
+</ProgressBar>
+<TextBlock Name="ProgressText" Text="0%" FontSize="10" Foreground="#A6ADC8"/>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 5: List Item Hover Animation -->
+<!-- ============================================ -->
+<ListBox Name="BackupHistoryList">
+    <!-- Set ItemTemplate with animations -->
+    <ListBox.ItemTemplate>
+        <DataTemplate>
+            <Border Background="#11111B" CornerRadius="6" Padding="10" Margin="0,5">
+                <Border.Transitions>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    </Transitions>
+                </Border.Transitions>
+                <TextBlock Text="{Binding Name}" Foreground="#A6ADC8"/>
+            </Border>
+        </DataTemplate>
+    </ListBox.ItemTemplate>
+</ListBox>
+
+<!-- Add to Window.Styles: -->
+<Style Selector="Border:pointerover">
+    <Setter Property="Background" Value="#1E1E2E"/>
+</Style>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 6: Slide-in Notification Toast -->
+<!-- ============================================ -->
+<Border Name="NotificationToast" 
+        Background="#2D2A1E" 
+        BorderBrush="#F9E2AF" 
+        BorderThickness="1"
+        CornerRadius="8" 
+        Padding="12"
+        Margin="0,0,20,10"
+        IsVisible="False"
+        RenderTransform="translateX(300px)">
+    <Border.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+        </Transitions>
+    </Border.Transitions>
+    <TextBlock Name="NotificationText" Text="Backup completed!" Foreground="#F9E2AF"/>
+</Border>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 7: Health Indicator Pulse -->
+<!-- ============================================ -->
+<StackPanel Orientation="Horizontal" Spacing="8">
+    <Ellipse Name="HealthDot" Width="8" Height="8" Fill="#A6E3A1">
+        <Ellipse.Transitions>
+            <Transitions>
+                <BrushTransition Property="Fill" Duration="0:0:0.5"/>
+            </Transitions>
+        </Ellipse.Transitions>
+    </Ellipse>
+    <TextBlock Text="System Healthy" VerticalAlignment="Center" Foreground="#A6E3A1"/>
+</StackPanel>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 8: Expandable Section Animation -->
+<!-- ============================================ -->
+<Expander Header="Advanced Options">
+    <StackPanel Background="#11111B" Padding="15">
+        <StackPanel.Transitions>
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+            </Transitions>
+        </StackPanel.Transitions>
+        <!-- Expandable content -->
+    </StackPanel>
+</Expander>
+
+<!-- ============================================ -->
+<!-- EXAMPLE 9: Loading Spinner Text Animation -->
+<!-- ============================================ -->
+<TextBlock Name="LoadingText" Text="⏳ Backing up" Foreground="#A6ADC8" FontSize="12">
+    <TextBlock.Transitions>
+        <Transitions>
+            <BrushTransition Property="Foreground" Duration="0:0:0.5"/>
+        </Transitions>
+    </TextBlock.Transitions>
+</TextBlock>
+
+<!-- C# Code-Behind to animate the text: -->
+<!--
+private async Task AnimateLoadingIndicator()
+{
+    var loadingText = this.FindControl<TextBlock>("LoadingText");
+    if (loadingText == null) return;
+
+    string[] frames = { "⏳ Backing up", "⏳ Backing up.", "⏳ Backing up..", "⏳ Backing up..." };
+    int frameIndex = 0;
+
+    while (IsBackingUp)
+    {
+        loadingText.Text = frames[frameIndex % frames.Length];
+        frameIndex++;
+        await Task.Delay(500);
+    }
+}
+-->
+
+<!-- ============================================ -->
+<!-- EXAMPLE 10: Data Grid Row Selection Animation -->
+<!-- ============================================ -->
+<DataGrid Name="BackupsGrid" AutoGenerateColumns="False">
+    <DataGrid.Styles>
+        <Style Selector="DataGridRow">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="DataGridRow:pointerover">
+            <Setter Property="Background" Value="#2D2D44"/>
+        </Style>
+        <Style Selector="DataGridRow:selected">
+            <Setter Property="Background" Value="#3B4261"/>
+        </Style>
+    </DataGrid.Styles>
+    <!-- Your columns here -->
+</DataGrid>
