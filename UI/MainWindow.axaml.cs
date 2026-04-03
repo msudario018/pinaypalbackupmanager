@@ -54,10 +54,6 @@ namespace PinayPalBackupManager.UI
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _profileControl = new ProfileControl();
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
-            _profileControl.OnUserManagementRequested += () => {
-                ShowControl(_settingsControl);
-                UpdateSidebarSelection("Settings");
-            };
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;
                 AuthService.Logout();

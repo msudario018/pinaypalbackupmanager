@@ -12,7 +12,6 @@ namespace PinayPalBackupManager.UI.UserControls
     public partial class ProfileControl : UserControl
     {
         public event Action? OnAvatarChanged;
-        public event Action? OnUserManagementRequested;
         public event Action? OnLogoutRequested;
 
         public ProfileControl()

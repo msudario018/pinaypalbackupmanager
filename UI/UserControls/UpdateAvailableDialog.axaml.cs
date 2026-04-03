@@ -9,6 +9,10 @@ namespace PinayPalBackupManager.UI.UserControls
         public event EventHandler? OnYes;
         public event EventHandler? OnNo;
 
+        public UpdateAvailableDialog() : this("", "")
+        {
+        }
+
         public UpdateAvailableDialog(string version, string changelog)
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);

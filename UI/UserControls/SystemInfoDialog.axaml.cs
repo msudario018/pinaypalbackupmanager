@@ -8,6 +8,10 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         public event EventHandler? OnOk;
 
+        public SystemInfoDialog() : this("", "")
+        {
+        }
+
         public SystemInfoDialog(string buildInfo, string changelog)
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
