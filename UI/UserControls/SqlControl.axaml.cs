@@ -99,7 +99,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     sql.Initialize(BackupConfig.FtpHost, BackupConfig.SqlUser, decryptedPass, BackupConfig.SqlTlsFingerprint);
 
                     LogService.WriteLiveLog("CONNECTING TO HOST...", BackupConfig.SqlLogFile, "Information", trigger);
-                    if (await sql.ConnectAsync())
+                    bool connected = await sql.ConnectAsync();
+                    if (_abortRequested) throw new OperationCanceledException();
+                    if (connected)
                     {
                         if (_abortRequested) throw new OperationCanceledException();
                         // --- 7-DAY CLEANUP LOGIC ---

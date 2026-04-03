@@ -1,12 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:PinayPalBackupManager.UI.ViewModels;assembly=PinayPalBackupManager"
-             xmlns:conv="clr-namespace:PinayPalBackupManager.UI.Converters"
-             x:Class="PinayPalBackupManager.UI.UserControls.FtpControl"
-             x:DataType="vm:FtpViewModel">
-    <UserControl.Resources>
-        <conv:InverseBooleanConverter x:Key="InvBool" />
-    </UserControl.Resources>
+             x:Class="PinayPalBackupManager.UI.UserControls.FtpControl">
     <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
         <!-- Header -->
         <Border Grid.Row="0" Background="#1E1E2E" Padding="20" CornerRadius="12" Margin="0,0,0,15" ClipToBounds="True">
@@ -31,10 +25,8 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                    <Button Name="BtnStart" Classes="Primary Ftp" Content="START SYNC"
-                            Command="{Binding StartSyncCommand}" IsEnabled="{Binding IsBusy, Converter={StaticResource InvBool}}"/>
-                    <Button Name="BtnCancel" Classes="Danger" Content="CANCEL"
-                            Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+                    <Button Name="BtnStart" Classes="Primary Ftp" Content="START SYNC"/>
+                    <Button Name="BtnCancel" Classes="Danger" Content="CANCEL" IsEnabled="False"/>
                 </StackPanel>
             </Grid>
         </Border>

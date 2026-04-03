@@ -1,12 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.UserManagementDialog"
-             Width="750" Height="650">
+             Width="900" Height="850">
     
-    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="25">
         <Grid RowDefinitions="Auto, Auto, *, Auto">
             <!-- Header -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,25">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,20">
                 <PathIcon Data="M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z" 
                         Width="32" Height="32" Foreground="#89B4FA"/>
                 <TextBlock Text="User Management" FontSize="22" FontWeight="Bold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
@@ -37,7 +37,7 @@
             
             <!-- Close Button -->
             <Button Grid.Row="3" Name="BtnClose" Content="Close" Background="#45475A" Foreground="#CDD6F4" 
-                    HorizontalAlignment="Center" Margin="0,25,0,0" Padding="50,12" CornerRadius="8" FontWeight="SemiBold"/>
+                    HorizontalAlignment="Center" Margin="0,20,0,0" Padding="50,12" CornerRadius="8" FontWeight="SemiBold"/>
         </Grid>
     </Border>
 </UserControl>

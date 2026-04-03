@@ -28,11 +28,7 @@ namespace PinayPalBackupManager
             var loginWindow = new LoginWindow();
             loginWindow.OnLoginSuccess += () =>
             {
-                var backupManager = new Services.BackupManager();
-                var mainWindow = new MainWindow
-                {
-                    DataContext = new UI.ViewModels.FtpViewModel(backupManager)
-                };
+                var mainWindow = new MainWindow();
 
                 mainWindow.OnLogoutRequested += () =>
                 {

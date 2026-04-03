@@ -65,15 +65,17 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtVersion = this.FindControl<TextBlock>("TxtVersion");
             if (txtVersion != null) txtVersion.Text = BackupConfig.AppVersion;
 
-            LoadConfigEditor();
-
-            var btnSaveConfig = this.FindControl<Button>("BtnSaveConfig");
-            if (btnSaveConfig != null)
+            // Dialog buttons for credentials and paths
+            var btnEditCredentials = this.FindControl<Button>("BtnEditCredentials");
+            if (btnEditCredentials != null)
             {
-                btnSaveConfig.Click += async (s, e) =>
-                {
-                    await SaveConfigEditorAsync();
-                };
+                btnEditCredentials.Click += async (s, e) => await ShowCredentialsDialogAsync();
+            }
+
+            var btnEditPaths = this.FindControl<Button>("BtnEditPaths");
+            if (btnEditPaths != null)
+            {
+                btnEditPaths.Click += async (s, e) => await ShowPathsDialogAsync();
             }
 
             var btnDiagnostics = this.FindControl<Button>("BtnDiagnostics");
@@ -118,84 +120,102 @@ namespace PinayPalBackupManager.UI.UserControls
             return CheckRegistryStartup;
         }
 
-        private void LoadConfigEditor()
+        private async System.Threading.Tasks.Task ShowCredentialsDialogAsync()
         {
-            var s = ConfigService.Current;
+            const string dialogKey = "credentials_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new CredentialsDialog();
+                var window = new Window
+                {
+                    Title = "Edit Credentials",
+                    Content = dialog,
+                    Width = 500,
+                    Height = 600,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
 
-            this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text = s.Paths.FtpLocalFolder;
-            this.FindControl<TextBox>("TxtMailchimpFolder")!.Text = s.Paths.MailchimpFolder;
-            this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = s.Paths.SqlLocalFolder;
+                dialog.OnSave += async (sender, e) =>
+                {
+                    await SaveSettingsAsync(dialog.GetSettings(), "Credentials saved.");
+                    window.Close();
+                };
 
-            // Shared TLS fingerprint (prefer FTP value, fall back to SQL)
-            var sharedTls = !string.IsNullOrWhiteSpace(s.Ftp.TlsFingerprint) ? s.Ftp.TlsFingerprint : s.Sql.TlsFingerprint;
-            this.FindControl<TextBox>("TxtSharedTls")!.Text = sharedTls;
+                dialog.OnCancel += (sender, e) => window.Close();
 
-            // Shared Host (prefer FTP value, fall back to SQL)
-            var sharedHost = !string.IsNullOrWhiteSpace(s.Ftp.Host) ? s.Ftp.Host : s.Sql.Host;
-            this.FindControl<TextBox>("TxtSharedHost")!.Text = sharedHost;
-            this.FindControl<TextBox>("TxtFtpUser")!.Text = s.Ftp.User;
-            this.FindControl<TextBox>("TxtFtpPassword")!.Text = s.Ftp.Password;
-            this.FindControl<TextBox>("TxtFtpPort")!.Text = s.Ftp.Port.ToString();
-
-            this.FindControl<TextBox>("TxtSqlUser")!.Text = s.Sql.User;
-            this.FindControl<TextBox>("TxtSqlPassword")!.Text = s.Sql.Password;
-
-            this.FindControl<TextBox>("TxtMcApiKey")!.Text = s.Mailchimp.ApiKey;
-            this.FindControl<TextBox>("TxtMcAudienceId")!.Text = s.Mailchimp.AudienceId;
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
         }
 
-        private async System.Threading.Tasks.Task SaveConfigEditorAsync()
+        private async System.Threading.Tasks.Task ShowPathsDialogAsync()
+        {
+            const string dialogKey = "paths_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new PathsDialog();
+                var window = new Window
+                {
+                    Title = "Edit Backup Paths",
+                    Content = dialog,
+                    Width = 500,
+                    Height = 450,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                dialog.OnSave += async (sender, e) =>
+                {
+                    await SaveSettingsAsync(dialog.GetSettings(), "Paths saved.");
+                    window.Close();
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                if (parentWindow != null)
+                {
+                    await window.ShowDialog(parentWindow);
+                }
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task SaveSettingsAsync(AppSettings config, string successMessage)
         {
             var status = this.FindControl<TextBlock>("TxtConfigStatus");
             if (status != null) status.Text = "Saving...";
 
-            var current = ConfigService.Current;
-
-            // Helper to get text or preserve current value if empty
-            string GetOrPreserve(TextBox? tb, string currentVal) =>
-                string.IsNullOrWhiteSpace(tb?.Text) ? currentVal : tb.Text;
-
-            var config = new AppSettings
-            {
-                Paths = new PathsSettings
-                {
-                    FtpLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtFtpLocalFolder"), current.Paths.FtpLocalFolder),
-                    MailchimpFolder = GetOrPreserve(this.FindControl<TextBox>("TxtMailchimpFolder"), current.Paths.MailchimpFolder),
-                    SqlLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtSqlLocalFolder"), current.Paths.SqlLocalFolder),
-                },
-                Ftp = new FtpSettings
-                {
-                    Host = GetOrPreserve(this.FindControl<TextBox>("TxtSharedHost"), current.Ftp.Host),
-                    User = GetOrPreserve(this.FindControl<TextBox>("TxtFtpUser"), current.Ftp.User),
-                    Password = GetOrPreserve(this.FindControl<TextBox>("TxtFtpPassword"), current.Ftp.Password),
-                    TlsFingerprint = GetOrPreserve(this.FindControl<TextBox>("TxtSharedTls"), current.Ftp.TlsFingerprint),
-                    Port = int.TryParse(this.FindControl<TextBox>("TxtFtpPort")?.Text, out var p) ? p : current.Ftp.Port
-                },
-                Sql = new SqlSettings
-                {
-                    Host = GetOrPreserve(this.FindControl<TextBox>("TxtSharedHost"), current.Sql.Host),
-                    User = GetOrPreserve(this.FindControl<TextBox>("TxtSqlUser"), current.Sql.User),
-                    Password = GetOrPreserve(this.FindControl<TextBox>("TxtSqlPassword"), current.Sql.Password),
-                    RemotePath = "/public_html/mysql_staged",
-                    TlsFingerprint = GetOrPreserve(this.FindControl<TextBox>("TxtSharedTls"), current.Sql.TlsFingerprint),
-                },
-                Mailchimp = new MailchimpSettings
-                {
-                    ApiKey = GetOrPreserve(this.FindControl<TextBox>("TxtMcApiKey"), current.Mailchimp.ApiKey),
-                    AudienceId = GetOrPreserve(this.FindControl<TextBox>("TxtMcAudienceId"), current.Mailchimp.AudienceId),
-                },
-                Schedule = ConfigService.Current.Schedule
-            };
-
             try
             {
                 var dir = ConfigService.GetConfigDirectory();
-                var path = Path.Combine(dir, "appsettings.local.json");
+                var path = System.IO.Path.Combine(dir, "appsettings.local.json");
                 var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(path, json);
 
                 ConfigService.Load();
-                NotificationService.ShowBackupToast("Config", "Saved appsettings.local.json", "Info");
+                NotificationService.ShowBackupToast("Config", successMessage, "Info");
                 if (status != null) status.Text = "Saved.";
                 OnConfigSaved?.Invoke();
             }

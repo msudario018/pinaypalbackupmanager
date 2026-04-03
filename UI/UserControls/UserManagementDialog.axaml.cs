@@ -68,6 +68,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
             foreach (var user in users)
             {
+                // Skip deleted users
+                if (user.Status == "Deleted")
+                    continue;
+                    
                 var isCurrentUser = currentUser != null && user.Id == currentUser.Id;
                 
                 // Create card-style container for each user
@@ -80,10 +84,12 @@ namespace PinayPalBackupManager.UI.UserControls
                     BorderThickness = new Thickness(1)
                 };
 
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+                var row = new Grid();
+                row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+                row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
                 // User info section
-                var userInfo = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+                var userInfo = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
                 
                 var nameText = new TextBlock
                 {
@@ -116,13 +122,11 @@ namespace PinayPalBackupManager.UI.UserControls
                 detailsRow.Children.Add(statusText);
                 
                 userInfo.Children.Add(detailsRow);
+                Grid.SetColumn(userInfo, 0);
                 row.Children.Add(userInfo);
 
-                // Spacer
-                row.Children.Add(new Border { Width = 1, MinWidth = 50 });
-
-                // Action buttons - use WrapPanel for better layout with many buttons
-                var buttonPanel = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                // Action buttons
+                var buttonPanel = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
 
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
@@ -168,7 +172,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         var confirmed = await NotificationService.ConfirmAsync($"Are you sure you want to delete user '{deleteUsername}'?", "Confirm Delete");
                         if (confirmed)
                         {
-                            AuthService.DeleteUser(deleteId);
+                            await AuthService.DeleteUserAsync(deleteId);
                             RefreshUserList();
                             NotificationService.ShowBackupToast("Users", "User deleted.", "Warning");
                         }
@@ -176,6 +180,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     buttonPanel.Children.Add(btnDelete);
                 }
 
+                Grid.SetColumn(buttonPanel, 1);
                 row.Children.Add(buttonPanel);
                 userCard.Child = row;
                 userListPanel.Children.Add(userCard);

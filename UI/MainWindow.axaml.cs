@@ -153,6 +153,9 @@ namespace PinayPalBackupManager.UI
 
             var mainContent = this.FindControl<ContentControl>("MainContent");
             if (mainContent != null) mainContent.IsEnabled = !busy;
+
+            var btnProfile = this.FindControl<Button>("BtnProfile");
+            if (btnProfile != null) btnProfile.IsEnabled = !busy;
         }
 
         public static async System.Threading.Tasks.Task ShowSystemInfoAsync()

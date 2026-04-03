@@ -28,13 +28,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
             
-            // NOTE: Commands are bound to viewmodel when using MVVM; preserve click handlers for legacy path
-            if (this.DataContext is UI.ViewModels.FtpViewModel vm)
-            {
-                // Commands are expected to be set on the VM via DI
-            }
-
-            // Fallback legacy handlers for direct control usage
+            // Click handlers for all buttons
+            this.FindControl<Button>("BtnStart")!.Click += async (s, e) => { NotificationService.ShowBackupToast("FTP", "Starting sync...", "Info"); await StartBackupAsync("MANUAL"); };
+            this.FindControl<Button>("BtnCancel")!.Click += async (s, e) => { await ConfirmCancelAsync(); };
             this.FindControl<Button>("BtnSyncCheck")!.Click += async (s, e) => { NotificationService.ShowBackupToast("FTP", "Running sync check...", "Info"); await SyncCheckAsync(); };
             this.FindControl<Button>("BtnTest")!.Click += async (s, e) => { NotificationService.ShowBackupToast("FTP", "Testing connection...", "Info"); await TestFtpAsync(); };
             this.FindControl<Button>("BtnClear")!.Click += async (s, e) => { 
@@ -113,7 +109,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
 
                     LogService.WriteLiveLog("CONNECTING: Starting FTP Sync...", BackupConfig.FtpLogFile, "Information", trigger);
-                    if (await ftp.ConnectAsync())
+                    bool connected = await ftp.ConnectAsync();
+                    if (_abortRequested) throw new OperationCanceledException();
+                    if (connected)
                     {
                         if (_abortRequested) throw new OperationCanceledException();
 

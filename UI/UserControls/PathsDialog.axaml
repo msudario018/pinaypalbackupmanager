@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.PathsDialog"
+             Width="500" Height="450">
+    
+    <Border Background="#1E1E2E" CornerRadius="12" BorderBrush="#45475A" BorderThickness="1" Padding="30">
+        <Grid RowDefinitions="Auto, *, Auto">
+            <!-- Header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,25">
+                <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" 
+                        Width="32" Height="32" Foreground="#A6E3A1"/>
+                <TextBlock Text="Backup Paths" FontSize="22" FontWeight="Bold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+            </StackPanel>
+            
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20">
+                    <Border Background="#313244" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="FTP Backup Path" Foreground="#F9E2AF" FontWeight="Bold"/>
+                            <TextBox Name="TxtFtpLocalFolder" Watermark="C:\\Backups\\FTP" Background="#1E1E2E" Foreground="#CDD6F4" CornerRadius="8" Padding="10"/>
+                            <TextBlock Text="Local folder where FTP backups will be stored" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#313244" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Mailchimp Backup Path" Foreground="#A6E3A1" FontWeight="Bold"/>
+                            <TextBox Name="TxtMailchimpFolder" Watermark="C:\\Backups\\Mailchimp" Background="#1E1E2E" Foreground="#CDD6F4" CornerRadius="8" Padding="10"/>
+                            <TextBlock Text="Local folder where Mailchimp backups will be stored" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#313244" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="SQL Backup Path" Foreground="#89B4FA" FontWeight="Bold"/>
+                            <TextBox Name="TxtSqlLocalFolder" Watermark="C:\\Backups\\SQL" Background="#1E1E2E" Foreground="#CDD6F4" CornerRadius="8" Padding="10"/>
+                            <TextBlock Text="Local folder where SQL backups will be stored" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <TextBlock Name="TxtStatus" Text="" Foreground="#F38BA8" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+            
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="15" Margin="0,20,0,0">
+                <Button Name="BtnCancel" Content="Cancel" Background="#45475A" Foreground="#CDD6F4" Padding="25,12" CornerRadius="8" FontWeight="SemiBold"/>
+                <Button Name="BtnSave" Content="Save Paths" Background="#A6E3A1" Foreground="#1E1E2E" Padding="25,12" CornerRadius="8" FontWeight="Bold"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

@@ -197,6 +197,9 @@ namespace PinayPalBackupManager.Services
             if (user.Status == "Disabled")
                 return (false, "Account is disabled. Contact the admin.");
 
+            if (user.Status == "Deleted")
+                return (false, "Account has been deleted. Contact the admin if you believe this is an error.");
+
             if (user.Status == "Pending")
                 return (false, "Account is pending approval.");
 
@@ -387,35 +390,41 @@ namespace PinayPalBackupManager.Services
             return SetUserStatusAsync(userId, status).GetAwaiter().GetResult();
         }
 
-        public static bool DeleteUser(int userId)
+        public static async Task<bool> DeleteUserAsync(int userId)
         {
             // Get username first for Firebase sync
             var user = GetUserById(userId);
+            if (user == null) return false;
             
+            // First, mark as deleted in local DB and change password to prevent login
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "DELETE FROM Users WHERE Id = @id AND Role != 'Admin'";
+            cmd.CommandText = "UPDATE Users SET Status = 'Deleted', PasswordHash = 'DELETED_USER', Salt = 'DELETED_USER' WHERE Id = @id AND Role != 'Admin'";
             cmd.Parameters.AddWithValue("@id", userId);
             var result = cmd.ExecuteNonQuery() > 0;
             
-            // Sync deletion to Firebase (fire-and-forget)
-            if (result && user != null)
+            // Then sync deletion to Firebase (await this time)
+            if (result)
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await FirebaseUserService.RemoveUserAsync(user.Username);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AuthService] Failed to sync user deletion: {ex.Message}");
-                    }
-                });
+                    await FirebaseUserService.RemoveUserAsync(user.Username);
+                    Console.WriteLine($"[AuthService] User deleted from Firebase: {user.Username}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AuthService] Failed to sync user deletion to Firebase: {ex.Message}");
+                }
             }
             
             return result;
+        }
+
+        [Obsolete("Use DeleteUserAsync instead")]
+        public static bool DeleteUser(int userId)
+        {
+            return DeleteUserAsync(userId).GetAwaiter().GetResult();
         }
 
         public static AppUser? GetUserById(int userId)
@@ -445,6 +454,13 @@ namespace PinayPalBackupManager.Services
                 
                 foreach (var remoteUser in remoteUsers)
                 {
+                    // Skip deleted users - don't re-add them
+                    if (remoteUser.Status == "Deleted")
+                    {
+                        Console.WriteLine($"[AuthService] Skipping deleted remote user: {remoteUser.Username}");
+                        continue;
+                    }
+                    
                     // Skip if user already exists locally
                     if (localUsernames.Contains(remoteUser.Username.ToLower()))
                     {

@@ -39,14 +39,14 @@ namespace PinayPalBackupManager.Services
                 {
                     // Materialize the lines first to ensure Reverse() works on a solid collection
                     var allLines = File.ReadAllLines(logFile);
-                    return [.. allLines.Reverse().Take(lineCount)];
+                    return allLines.Reverse().Take(lineCount).ToList();
                 }
                 catch
                 {
-                    return ["Error reading log file."];
+                    return new List<string>();
                 }
             }
-            return ["Log file not found."];
+            return new List<string>();
         }
 
         public static void ClearLogs(string logFile)

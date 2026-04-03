@@ -128,15 +128,25 @@ namespace PinayPalBackupManager.UI
                                 var errorTxt = this.FindControl<TextBlock>("TxtLoginError");
                                 if (errorTxt == null) return;
                                 
-                                if (newStatus == "Active")
+                                // Only show status updates if there's already an error message showing
+                                // This prevents the message from appearing when user is just typing
+                                if (!string.IsNullOrWhiteSpace(errorTxt.Text))
                                 {
-                                    errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
-                                    errorTxt.Text = "Your account has been approved! You can now log in.";
-                                }
-                                else if (newStatus == "Disabled")
-                                {
-                                    errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
-                                    errorTxt.Text = "Your account has been disabled. Contact admin.";
+                                    if (newStatus == "Active")
+                                    {
+                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                                        errorTxt.Text = "Your account has been approved! You can now log in.";
+                                    }
+                                    else if (newStatus == "Deleted")
+                                    {
+                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                        errorTxt.Text = "Your account has been deleted. Contact admin if you believe this is an error.";
+                                    }
+                                    else if (newStatus == "Disabled")
+                                    {
+                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                        errorTxt.Text = "Your account has been disabled. Contact admin.";
+                                    }
                                 }
                             }
                         });

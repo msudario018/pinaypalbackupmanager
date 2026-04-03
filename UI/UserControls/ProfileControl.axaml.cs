@@ -339,10 +339,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     Title = "User Management",
                     Content = dialog,
-                    Width = 600,
-                    Height = 500,
+                    Width = 900,
+                    Height = 850,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = false,
+                    CanResize = true,
                     ShowInTaskbar = false,
                     Background = Avalonia.Media.Brushes.Transparent
                 };

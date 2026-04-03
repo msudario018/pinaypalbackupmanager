@@ -171,7 +171,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task StartSpecificTaskAsync(string type)
         {
+            if (_isBusy) return;
             SetBusy(true);
+            _abortRequested = false;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = $"EXPORTING {type.ToUpper()}...";
             
@@ -180,21 +182,42 @@ namespace PinayPalBackupManager.UI.UserControls
 
             await Task.Run(async () =>
             {
-                if (_abortRequested) return;
-                var mc = new MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    this.FindControl<TextBlock>("TxtFile")!.Text = $"Exporting {type}...";
-                    this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = true;
-                });
-                
-                string result = await mc.RunSpecificTaskAsync(type, BackupConfig.MailchimpFolder);
-                LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", "MANUAL");
-                
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    txtStatus.Text = "COMPLETE";
-                    txtStatus.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
-                    this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
-                });
+                try
+                {
+                    if (_abortRequested) throw new OperationCanceledException();
+                    var mc = new MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        this.FindControl<TextBlock>("TxtFile")!.Text = $"Exporting {type}...";
+                        this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = true;
+                    });
+                    
+                    string result = await mc.RunSpecificTaskAsync(type, BackupConfig.MailchimpFolder);
+                    LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", "MANUAL");
+                    
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse(_abortRequested ? "#F9E2AF" : "#A6E3A1");
+                        this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    LogService.WriteLiveLog($"CANCELLED: {type} export cancelled by user.", BackupConfig.McLogFile, "Warning", "MANUAL");
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        txtStatus.Text = "CANCELLED";
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                        this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"ERROR: {type} export failed - {ex.Message}", BackupConfig.McLogFile, "Error", "MANUAL");
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        txtStatus.Text = "EXPORT ERROR";
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
+                    });
+                }
             });
             SetBusy(false);
         }
@@ -328,6 +351,12 @@ namespace PinayPalBackupManager.UI.UserControls
             _isBusy = busy;
             this.FindControl<Button>("BtnRunFull")!.IsEnabled = !busy;
             this.FindControl<Button>("BtnCancel")!.IsEnabled = busy;
+            this.FindControl<Button>("BtnSyncCheck")!.IsEnabled = !busy;
+            this.FindControl<Button>("BtnMembers")!.IsEnabled = !busy;
+            this.FindControl<Button>("BtnCampaigns")!.IsEnabled = !busy;
+            this.FindControl<Button>("BtnReports")!.IsEnabled = !busy;
+            this.FindControl<Button>("BtnMergeFields")!.IsEnabled = !busy;
+            this.FindControl<Button>("BtnTags")!.IsEnabled = !busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
             if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle";
         }
