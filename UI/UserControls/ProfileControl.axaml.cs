@@ -174,7 +174,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Change Password",
                     Content = dialog,
                     Width = 400,
-                    Height = 350,
+                    Height = 450,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,

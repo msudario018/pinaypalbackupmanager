@@ -121,46 +121,46 @@ namespace PinayPalBackupManager.UI.UserControls
                 // Spacer
                 row.Children.Add(new Border { Width = 1, MinWidth = 50 });
 
-                // Action buttons
-                var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+                // Action buttons - use WrapPanel for better layout with many buttons
+                var buttonPanel = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
 
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
                     // Change Password button
-                    var btnChangePassword = new Button { Content = "Change Password", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnChangePassword = new Button { Content = "Change Password", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     var targetUserId = user.Id;
                     var targetUsername = user.Username;
                     btnChangePassword.Click += async (_, _) => await ShowAdminChangePasswordDialog(targetUserId, targetUsername);
                     buttonPanel.Children.Add(btnChangePassword);
 
                     // Change Username button
-                    var btnChangeUsername = new Button { Content = "Change Username", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnChangeUsername = new Button { Content = "Change Username", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     btnChangeUsername.Click += async (_, _) => await ShowAdminChangeUsernameDialog(targetUserId, targetUsername);
                     buttonPanel.Children.Add(btnChangeUsername);
 
                     if (user.Status == "Pending")
                     {
-                        var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnApprove.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
                         buttonPanel.Children.Add(btnApprove);
                     }
                     else if (user.Status == "Active")
                     {
-                        var btnDisable = new Button { Content = "Disable", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#F9E2AF"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnDisable = new Button { Content = "Disable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#F9E2AF"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnDisable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
                         buttonPanel.Children.Add(btnDisable);
                     }
                     else if (user.Status == "Disabled")
                     {
-                        var btnEnable = new Button { Content = "Enable", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#A6E3A1"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnEnable = new Button { Content = "Enable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#A6E3A1"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnEnable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
                         buttonPanel.Children.Add(btnEnable);
                     }
 
-                    var btnDelete = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#F38BA8"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnDelete = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#F38BA8"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     var deleteId = user.Id;
                     var deleteUsername = user.Username;
                     btnDelete.Click += async (_, _) =>
