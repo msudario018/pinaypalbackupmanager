@@ -273,7 +273,14 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
-                    if (user.Status == "Active")
+                    if (user.Status == "Pending")
+                    {
+                        var btnApprove = new Button { Content = "Approve", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#89B4FA"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
+                        var uid = user.Id;
+                        btnApprove.Click += (_, _) => { AuthService.SetUserStatus(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
+                        row.Children.Add(btnApprove);
+                    }
+                    else if (user.Status == "Active")
                     {
                         var btnDisable = new Button { Content = "Disable", FontSize = 10, Padding = new Avalonia.Thickness(8, 4), Background = Avalonia.Media.Brush.Parse("#F9E2AF"), Foreground = Avalonia.Media.Brush.Parse("#0B0F17"), CornerRadius = new Avalonia.CornerRadius(6) };
                         var uid = user.Id;

@@ -100,7 +100,7 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
                 cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
-                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Active");
+                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
                 cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
 
@@ -126,7 +126,7 @@ namespace PinayPalBackupManager.Services
                     });
                 }
 
-                return (true, isFirstUser ? "Admin account created." : "Registration successful!");
+                return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
             }
             catch (SqliteException ex)
             {

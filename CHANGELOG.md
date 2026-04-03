@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.6] - 2025-04-03
+
+### Added
+- New user approval workflow - users must be approved by admin before accessing the app
+- Admin can approve pending users from User Management panel
+- Shared IP/Host field for FTP and SQL credentials (simplified configuration)
+
+### Fixed
+- Profile tab overscroll - buttons now fully visible
+- Release notes now included in Velopack packages
+
 ## [2.6.5] - 2025-04-03
 
 ### Fixed

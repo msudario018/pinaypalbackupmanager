@@ -105,7 +105,7 @@
                 </Border>
                 
                 <!-- Danger Zone -->
-                <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#F38BA8" BorderThickness="1">
+                <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#F38BA8" BorderThickness="1" Margin="0,0,0,50">
                     <StackPanel Spacing="20">
                         <TextBlock Text="DANGER ZONE" FontSize="16" FontWeight="Bold" Foreground="#F38BA8"/>
                         <TextBlock Text="Irreversible actions for your account" FontSize="12" Foreground="#6C7066"/>
