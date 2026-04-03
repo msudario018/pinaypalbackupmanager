@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.20] - 2025-04-03
+
+### Fixed
+- User Management dialog width increased (600→750px) to prevent button overflow
+- User Management buttons now wrap to next line instead of clipping
+- Change Password dialog height and button padding improved
+- Admin Change Password dialog height and button padding improved
+- Invite Codes dialog height increased to fix Close button position
+
 ## [2.6.19] - 2025-04-03
 
 ### Added
