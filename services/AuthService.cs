@@ -145,13 +145,51 @@ namespace PinayPalBackupManager.Services
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
 
-            using var conn = new SqliteConnection(ConnectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
-            cmd.Parameters.AddWithValue("@u", username.Trim());
+            // First, try to sync user status from Firebase to get latest approval status
+            // This is especially important for pending users who were just approved
+            try
+            {
+                // Use timeout to prevent blocking UI thread
+                var task = Task.Run(async () => await FirebaseUserService.GetAllUsersAsync());
+                if (task.Wait(TimeSpan.FromSeconds(3)))
+                {
+                    var firebaseUsers = task.Result;
+                    var localUser = GetUserByUsername(username.Trim());
+                    
+                    if (localUser != null)
+                    {
+                        var remoteUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(username.Trim(), StringComparison.OrdinalIgnoreCase));
+                        if (remoteUser != null && remoteUser.Status != localUser.Status)
+                        {
+                            // Update local status to match Firebase
+                            using var conn = new SqliteConnection(ConnectionString);
+                            conn.Open();
+                            using var cmd = conn.CreateCommand();
+                            cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
+                            cmd.Parameters.AddWithValue("@s", remoteUser.Status);
+                            cmd.Parameters.AddWithValue("@id", localUser.Id);
+                            cmd.ExecuteNonQuery();
+                            Console.WriteLine($"[AuthService] Synced status from Firebase for {username}: {localUser.Status} -> {remoteUser.Status}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[AuthService] Pre-login sync timeout - continuing with local status");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Pre-login sync failed: {ex.Message}");
+            }
 
-            using var reader = cmd.ExecuteReader();
+            using var conn2 = new SqliteConnection(ConnectionString);
+            conn2.Open();
+            using var cmd2 = conn2.CreateCommand();
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
+            cmd2.Parameters.AddWithValue("@u", username.Trim());
+
+            using var reader = cmd2.ExecuteReader();
             if (!reader.Read())
                 return (false, "Invalid username or password.");
 

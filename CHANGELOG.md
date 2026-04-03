@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.11] - 2025-04-03
+
+### Added
+- Real-time status sync - login screen now listens for approval status changes
+- Users see instant notification when their account is approved by admin
+
+## [2.6.10] - 2025-04-03
+
+### Fixed
+- System Information dialog now shows latest changelog from CHANGELOG.md
+- CHANGELOG.md now included in app distribution
+
 ## [2.6.9] - 2025-04-03
 
 ### Fixed

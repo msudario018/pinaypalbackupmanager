@@ -201,24 +201,41 @@ namespace PinayPalBackupManager.Services
         }
         
         /// <summary>
-        /// Listen for user changes from Firebase (polling approach for simplicity)
+        /// Listen for specific user status changes from Firebase (for real-time approval updates)
         /// </summary>
-        public static async Task StartListeningForChangesAsync(Action<List<AppUser>> onUsersChanged)
+        public static async Task StartListeningForUserStatusAsync(string username, Action<string> onStatusChanged)
         {
+            if (!await EnsureInitializedAsync()) return;
+            
+            string lastStatus = string.Empty;
+            
             while (true)
             {
                 try
                 {
-                    var users = await GetAllUsersAsync();
-                    onUsersChanged?.Invoke(users);
+                    var response = await _httpClient.GetAsync($"{FirebaseUrl}{UsersPath}/{username}.json");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        if (!string.IsNullOrEmpty(json) && json != "null")
+                        {
+                            var userData = JsonSerializer.Deserialize<FirebaseUserData>(json);
+                            if (userData != null && userData.Status != lastStatus)
+                            {
+                                lastStatus = userData.Status;
+                                onStatusChanged?.Invoke(userData.Status);
+                                Console.WriteLine($"[FirebaseUser] Status change detected for {username}: {userData.Status}");
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[FirebaseUser] Listener error: {ex.Message}");
+                    Console.WriteLine($"[FirebaseUser] User listener error: {ex.Message}");
                 }
                 
-                // Poll every 10 seconds
-                await Task.Delay(10000);
+                // Poll every 3 seconds for faster status updates
+                await Task.Delay(3000);
             }
         }
         

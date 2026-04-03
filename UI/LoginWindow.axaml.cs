@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PinayPalBackupManager.Services;
@@ -9,6 +11,7 @@ namespace PinayPalBackupManager.UI
     public partial class LoginWindow : Window
     {
         public event Action? OnLoginSuccess;
+        private CancellationTokenSource? _statusListenerCts;
 
         private static bool IsDevelopmentMachine()
         {
@@ -82,6 +85,16 @@ namespace PinayPalBackupManager.UI
             this.FindControl<Button>("BtnShowRegister")!.Click += (_, _) => ShowRegisterPanel(isFirstUser: false);
             this.FindControl<Button>("BtnShowLogin")!.Click += (_, _) => ShowLoginPanel();
 
+            // Start real-time status listener when username changes
+            this.FindControl<TextBox>("TxtLoginUser")!.TextChanged += (s, e) =>
+            {
+                var username = this.FindControl<TextBox>("TxtLoginUser")!.Text ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    StartStatusListener(username.Trim());
+                }
+            };
+
             // Allow Enter key on password fields
             this.FindControl<TextBox>("TxtLoginPass")!.KeyDown += (s, e) =>
             {
@@ -91,6 +104,44 @@ namespace PinayPalBackupManager.UI
             {
                 if (e.Key == Avalonia.Input.Key.Enter) OnRegisterClick(s, e);
             };
+        }
+
+        private void StartStatusListener(string username)
+        {
+            // Cancel any existing listener
+            _statusListenerCts?.Cancel();
+            _statusListenerCts = new CancellationTokenSource();
+            
+            // Start listening for status changes in background
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await FirebaseUserService.StartListeningForUserStatusAsync(username, (newStatus) =>
+                    {
+                        // Update UI on main thread
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
+                            
+                            if (newStatus == "Active")
+                            {
+                                errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                                errorTxt.Text = "Your account has been approved! You can now log in.";
+                            }
+                            else if (newStatus == "Disabled")
+                            {
+                                errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                errorTxt.Text = "Your account has been disabled. Contact admin.";
+                            }
+                        });
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LoginWindow] Status listener error: {ex.Message}");
+                }
+            }, _statusListenerCts.Token);
         }
 
         private void ShowLoginPanel()
