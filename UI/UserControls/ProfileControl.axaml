@@ -25,7 +25,11 @@
                                         <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
                                     </Ellipse.Effect>
                                 </Ellipse>
-                                <Image Name="ImgAvatar" Width="76" Height="76" Stretch="UniformToFill" IsVisible="False"/>
+                                <Image Name="ImgAvatar" Width="76" Height="76" Stretch="UniformToFill" IsVisible="False">
+                                    <Image.Clip>
+                                        <EllipseGeometry Rect="0,0,76,76"/>
+                                    </Image.Clip>
+                                </Image>
                             </Grid>
                         </Border>
                         

@@ -34,11 +34,14 @@
                 <!-- Profile Section -->
                 <Border Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="0,1,0,0" Padding="10" Margin="0,0,0,0">
                     <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Center">
-                        <Ellipse Name="AvatarImage" Width="32" Height="32" Fill="#45475A">
-                            <Ellipse.Effect>
-                                <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
+                        <Grid Width="32" Height="32">
+                            <Ellipse Name="AvatarImageBg" Width="32" Height="32" Fill="#45475A"/>
+                            <Image Name="AvatarImage" Width="32" Height="32" Stretch="UniformToFill" IsVisible="False">
+                                <Image.Clip>
+                                    <EllipseGeometry Rect="0,0,32,32"/>
+                                </Image.Clip>
+                            </Image>
+                        </Grid>
                     </Button>
                 </Border>
             </Grid>

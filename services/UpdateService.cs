@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using MsBox.Avalonia.Enums;
 using Velopack;
 using Velopack.Sources;
+using Avalonia.Controls;
+using PinayPalBackupManager.UI.UserControls;
 
 namespace PinayPalBackupManager.Services
 {
@@ -22,7 +24,7 @@ namespace PinayPalBackupManager.Services
                 {
                     if (!silentIfNone)
                     {
-                        await NotificationService.ShowMessageBoxAsync("You are up to date.", "Updates", ButtonEnum.Ok, Icon.Info);
+                        await ShowSimpleDialogAsync("You are up to date.", "Updates", Icon.Info);
                     }
                     return;
                 }
@@ -48,9 +50,9 @@ namespace PinayPalBackupManager.Services
                     notes = "(No release notes provided)";
                 }
 
-                var msg = $"Update available: v{version}\n\nWhat's New:\n{notes}\n\nInstall update now?";
-                var ok = await NotificationService.ConfirmAsync(msg, "Update Available", Icon.Info);
-                if (!ok) return;
+                // Show custom centered dialog
+                bool install = await ShowUpdateDialogAsync(version, notes);
+                if (!install) return;
 
                 NotificationService.ShowBackupToast("Updates", "Downloading update...", "Info");
                 await mgr.DownloadUpdatesAsync(update);
@@ -62,13 +64,65 @@ namespace PinayPalBackupManager.Services
             {
                 if (!silentIfNone)
                 {
-                    await NotificationService.ShowMessageBoxAsync($"Update check failed: {ex.Message}", "Updates", ButtonEnum.Ok, Icon.Error);
+                    await ShowSimpleDialogAsync($"Update check failed: {ex.Message}", "Updates", Icon.Error);
                 }
                 else
                 {
                     NotificationService.ShowBackupToast("Updates", "Update check failed.", "Warning");
                 }
             }
+        }
+
+        private static async Task<bool> ShowUpdateDialogAsync(string version, string changelog)
+        {
+            var dialog = new UpdateAvailableDialog(version, changelog);
+            var window = new Window
+            {
+                Title = "Update Available",
+                Content = dialog,
+                Width = 450,
+                Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Background = Avalonia.Media.Brushes.Transparent
+            };
+
+            var tcs = new TaskCompletionSource<bool>();
+
+            dialog.OnYes += (sender, e) =>
+            {
+                window.Close();
+                tcs.SetResult(true);
+            };
+
+            dialog.OnNo += (sender, e) =>
+            {
+                window.Close();
+                tcs.SetResult(false);
+            };
+
+            // Get the main window as owner
+            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+            else
+            {
+                window.Show();
+                return await tcs.Task;
+            }
+
+            return await tcs.Task;
+        }
+
+        private static async Task ShowSimpleDialogAsync(string message, string title, Icon icon)
+        {
+            await NotificationService.ShowMessageBoxAsync(message, title, ButtonEnum.Ok, icon);
         }
 
         private static string GetChangelogFromLocalFile()

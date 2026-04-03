@@ -683,7 +683,36 @@ namespace PinayPalBackupManager.UI
         private void UpdateProfileDisplay()
         {
             // Profile display simplified - only avatar shown in sidebar
-            // Username and role now shown in ProfileControl page
+            LoadSidebarAvatar();
+        }
+
+        private void LoadSidebarAvatar()
+        {
+            try
+            {
+                var appDataDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                var avatarPath = System.IO.Path.Combine(appDataDir, "avatar.png");
+                
+                var imgAvatar = this.FindControl<Image>("AvatarImage");
+                var ellipseBg = this.FindControl<Ellipse>("AvatarImageBg");
+                
+                if (System.IO.File.Exists(avatarPath) && imgAvatar != null)
+                {
+                    var bitmap = new Avalonia.Media.Imaging.Bitmap(avatarPath);
+                    imgAvatar.Source = bitmap;
+                    imgAvatar.IsVisible = true;
+                    if (ellipseBg != null) ellipseBg.IsVisible = false;
+                }
+                else
+                {
+                    if (imgAvatar != null) imgAvatar.IsVisible = false;
+                    if (ellipseBg != null) ellipseBg.IsVisible = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainWindow] Failed to load sidebar avatar: {ex.Message}");
+            }
         }
 
         private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
