@@ -19,11 +19,14 @@
                     <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto">
                         <!-- Avatar -->
                         <Border Grid.Row="0" Grid.Column="0" Background="#45475A" CornerRadius="50" Width="80" Height="80" Margin="0,0,20,0">
-                            <Ellipse Width="76" Height="76" Fill="#313244">
-                                <Ellipse.Effect>
-                                    <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
-                                </Ellipse.Effect>
-                            </Ellipse>
+                            <Grid>
+                                <Ellipse Width="76" Height="76" Fill="#313244">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <Image Name="ImgAvatar" Width="76" Height="76" Stretch="UniformToFill" IsVisible="False"/>
+                            </Grid>
                         </Border>
                         
                         <!-- User Details -->
@@ -51,8 +54,6 @@
                         
                         <!-- Quick Actions -->
                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,20,0,0">
-                            <Button Name="BtnChangePassword" Classes="SecondaryBtn" Content="Change Password"/>
-                            <Button Name="BtnChangeUsername" Classes="SecondaryBtn" Content="Change Username"/>
                             <Button Name="BtnUploadAvatar" Classes="SecondaryBtn" Content="Upload Avatar"/>
                         </StackPanel>
                     </Grid>

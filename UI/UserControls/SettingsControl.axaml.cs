@@ -353,7 +353,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
             this.FindControl<TextBox>("TxtSqlUser")!.Text = s.Sql.User;
             this.FindControl<TextBox>("TxtSqlPassword")!.Text = s.Sql.Password;
-            this.FindControl<TextBox>("TxtSqlRemotePath")!.Text = s.Sql.RemotePath;
 
             this.FindControl<TextBox>("TxtMcApiKey")!.Text = s.Mailchimp.ApiKey;
             this.FindControl<TextBox>("TxtMcAudienceId")!.Text = s.Mailchimp.AudienceId;
@@ -385,7 +384,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Host = this.FindControl<TextBox>("TxtSharedHost")!.Text ?? string.Empty,
                     User = this.FindControl<TextBox>("TxtSqlUser")!.Text ?? string.Empty,
                     Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? string.Empty,
-                    RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")!.Text ?? string.Empty,
+                    RemotePath = "/public_html/mysql_staged",
                     TlsFingerprint = this.FindControl<TextBox>("TxtSharedTls")!.Text ?? string.Empty,
                 },
                 Mailchimp = new MailchimpSettings

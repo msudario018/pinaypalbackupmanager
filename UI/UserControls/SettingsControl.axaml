@@ -70,7 +70,7 @@
                     <TextBlock Text="SQL (uses Shared Host)" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtSqlUser" Watermark="SQL User"/>
                     <TextBox Name="TxtSqlPassword" Watermark="SQL Password" PasswordChar="●"/>
-                    <TextBox Name="TxtSqlRemotePath" Watermark="SQL Remote Path"/>
+                    <TextBlock Text="Remote Path: /public_html/mysql_staged" Foreground="#6C7086" FontSize="11" FontStyle="Italic"/>
 
                     <TextBlock Text="Mailchimp" Foreground="#A6ADC8" FontWeight="Bold" Margin="0,8,0,0"/>
                     <TextBox Name="TxtMcApiKey" Watermark="Mailchimp API Key" PasswordChar="●"/>

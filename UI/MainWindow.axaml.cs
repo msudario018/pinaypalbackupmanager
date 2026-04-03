@@ -1,17 +1,26 @@
+using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Documents;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using MsBox.Avalonia.Enums;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using PinayPalBackupManager.Services;
 using PinayPalBackupManager.Models;
 using PinayPalBackupManager.UI.UserControls;
-using Avalonia.Threading;
-using System.Text;
 
 namespace PinayPalBackupManager.UI
 {
@@ -187,11 +196,33 @@ namespace PinayPalBackupManager.UI
                            "- SQL health check aligned with SQL Sync Check to prevent false OUTDATED";
             }
 
-            string message = $"Build Date: {buildDate}\n" +
-                             $"Creator: {creator}\n\n" +
-                             $"CHANGELOG:\n{changelog}";
+            string buildInfo = $"Build Date: {buildDate}\nCreator: {creator}";
 
-            await NotificationService.ShowMessageBoxAsync(message, "System Information", MsBox.Avalonia.Enums.ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Info);
+            // Create and show custom dialog
+            var dialog = new SystemInfoDialog(buildInfo, changelog);
+            var window = new Window
+            {
+                Title = "System Information",
+                Content = dialog,
+                Width = 500,
+                Height = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Background = Avalonia.Media.Brushes.Transparent
+            };
+
+            dialog.OnOk += (sender, e) => window.Close();
+
+            // Get the main window as owner
+            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
         }
 
         private static string BuildChangelogSummary(string markdown)

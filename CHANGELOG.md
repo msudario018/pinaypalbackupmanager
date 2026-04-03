@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.14] - 2025-04-03
+
+### Fixed
+- Credentials persistence - fixed Sql.Host not being saved in config merge
+- Change Username dialog height - fixed button cutoff
+- Avatar upload - now loads and displays uploaded avatar on profile
+- Status listener - stops properly when login successful
+- System Info dialog - centered, non-draggable custom dialog
+- Update changelogs - now reads from local CHANGELOG.md
+- Removed Change Password/Username from Quick Actions (now only in Security section)
+- SQL Remote Path - hardcoded to /public_html/mysql_staged
+
 ## [2.6.13] - 2025-04-03
 
 ### Added

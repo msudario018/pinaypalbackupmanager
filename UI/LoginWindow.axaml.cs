@@ -119,20 +119,25 @@ namespace PinayPalBackupManager.UI
                 {
                     await FirebaseUserService.StartListeningForUserStatusAsync(username, (newStatus) =>
                     {
-                        // Update UI on main thread
+                        // Update UI on main thread only if window is still open
                         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
-                            var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
-                            
-                            if (newStatus == "Active")
+                            // Check if window is still open and not closing
+                            if (this.IsVisible && _statusListenerCts != null && !_statusListenerCts.IsCancellationRequested)
                             {
-                                errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
-                                errorTxt.Text = "Your account has been approved! You can now log in.";
-                            }
-                            else if (newStatus == "Disabled")
-                            {
-                                errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
-                                errorTxt.Text = "Your account has been disabled. Contact admin.";
+                                var errorTxt = this.FindControl<TextBlock>("TxtLoginError");
+                                if (errorTxt == null) return;
+                                
+                                if (newStatus == "Active")
+                                {
+                                    errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                                    errorTxt.Text = "Your account has been approved! You can now log in.";
+                                }
+                                else if (newStatus == "Disabled")
+                                {
+                                    errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                    errorTxt.Text = "Your account has been disabled. Contact admin.";
+                                }
                             }
                         });
                     });
@@ -142,6 +147,14 @@ namespace PinayPalBackupManager.UI
                     Console.WriteLine($"[LoginWindow] Status listener error: {ex.Message}");
                 }
             }, _statusListenerCts.Token);
+        }
+
+        protected override void OnClosing(Avalonia.Controls.WindowClosingEventArgs e)
+        {
+            // Stop the status listener when window closes
+            _statusListenerCts?.Cancel();
+            _statusListenerCts = null;
+            base.OnClosing(e);
         }
 
         private void ShowLoginPanel()
@@ -186,6 +199,8 @@ namespace PinayPalBackupManager.UI
             var (success, message) = AuthService.Login(username, password);
             if (success)
             {
+                // Stop the status listener
+                _statusListenerCts?.Cancel();
                 OnLoginSuccess?.Invoke();
             }
             else

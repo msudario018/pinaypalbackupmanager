@@ -23,6 +23,7 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Update display
             UpdateProfileDisplay();
+            LoadAvatarImage();
             
             // Listen for auth changes
             AuthService.OnUserChanged += (user) => UpdateProfileDisplay();
@@ -55,24 +56,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnLogs.Click += (s, e) => ShowLogs();
             }
             
-            // Profile actions
-            var btnChangePassword = this.FindControl<Button>("BtnChangePassword");
+            // Profile actions - only from Security section
             var btnChangePassword2 = this.FindControl<Button>("BtnChangePassword2");
-            if (btnChangePassword != null)
-            {
-                btnChangePassword.Click += async (s, e) => await ShowChangePasswordDialog();
-            }
             if (btnChangePassword2 != null)
             {
                 btnChangePassword2.Click += async (s, e) => await ShowChangePasswordDialog();
             }
             
-            var btnChangeUsername = this.FindControl<Button>("BtnChangeUsername");
             var btnChangeUsername2 = this.FindControl<Button>("BtnChangeUsername2");
-            if (btnChangeUsername != null)
-            {
-                btnChangeUsername.Click += async (s, e) => await ShowChangeUsernameDialog();
-            }
             if (btnChangeUsername2 != null)
             {
                 btnChangeUsername2.Click += async (s, e) => await ShowChangeUsernameDialog();
@@ -228,7 +219,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Change Username",
                     Content = dialog,
                     Width = 400,
-                    Height = 280,
+                    Height = 320,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
@@ -292,12 +283,40 @@ namespace PinayPalBackupManager.UI.UserControls
                     var avatarPath = Path.Combine(appDataDir, "avatar.png");
                     File.Copy(localPath, avatarPath, true);
                     
+                    // Load the avatar image
+                    LoadAvatarImage();
+                    
                     NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
                 }
             }
             catch (Exception ex)
             {
                 NotificationService.ShowBackupToast("Profile", $"Failed to upload avatar: {ex.Message}", "Error");
+            }
+        }
+
+        private void LoadAvatarImage()
+        {
+            try
+            {
+                var appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager");
+                var avatarPath = Path.Combine(appDataDir, "avatar.png");
+                
+                if (File.Exists(avatarPath))
+                {
+                    var imgAvatar = this.FindControl<Image>("ImgAvatar");
+                    if (imgAvatar != null)
+                    {
+                        // Load image from file
+                        var bitmap = new Avalonia.Media.Imaging.Bitmap(avatarPath);
+                        imgAvatar.Source = bitmap;
+                        imgAvatar.IsVisible = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProfileControl] Failed to load avatar: {ex.Message}");
             }
         }
 
