@@ -65,13 +65,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtVersion = this.FindControl<TextBlock>("TxtVersion");
             if (txtVersion != null) txtVersion.Text = BackupConfig.AppVersion;
 
-            // Dialog buttons for credentials and paths
-            var btnEditCredentials = this.FindControl<Button>("BtnEditCredentials");
-            if (btnEditCredentials != null)
-            {
-                btnEditCredentials.Click += async (s, e) => await ShowCredentialsDialogAsync();
-            }
-
+            // Dialog button for paths only (credentials are pre-configured)
             var btnEditPaths = this.FindControl<Button>("BtnEditPaths");
             if (btnEditPaths != null)
             {
