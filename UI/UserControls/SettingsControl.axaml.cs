@@ -344,7 +344,9 @@ namespace PinayPalBackupManager.UI.UserControls
             var sharedTls = !string.IsNullOrWhiteSpace(s.Ftp.TlsFingerprint) ? s.Ftp.TlsFingerprint : s.Sql.TlsFingerprint;
             this.FindControl<TextBox>("TxtSharedTls")!.Text = sharedTls;
 
-            this.FindControl<TextBox>("TxtSharedHost")!.Text = s.Ftp.Host;
+            // Shared Host (prefer FTP value, fall back to SQL)
+            var sharedHost = !string.IsNullOrWhiteSpace(s.Ftp.Host) ? s.Ftp.Host : s.Sql.Host;
+            this.FindControl<TextBox>("TxtSharedHost")!.Text = sharedHost;
             this.FindControl<TextBox>("TxtFtpUser")!.Text = s.Ftp.User;
             this.FindControl<TextBox>("TxtFtpPassword")!.Text = s.Ftp.Password;
             this.FindControl<TextBox>("TxtFtpPort")!.Text = s.Ftp.Port.ToString();
@@ -380,6 +382,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 },
                 Sql = new SqlSettings
                 {
+                    Host = this.FindControl<TextBox>("TxtSharedHost")!.Text ?? string.Empty,
                     User = this.FindControl<TextBox>("TxtSqlUser")!.Text ?? string.Empty,
                     Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? string.Empty,
                     RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")!.Text ?? string.Empty,

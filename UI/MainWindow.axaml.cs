@@ -50,6 +50,7 @@ namespace PinayPalBackupManager.UI
             };
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;
+                AuthService.Logout();
                 OnLogoutRequested?.Invoke();
             };
             _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
@@ -57,6 +58,7 @@ namespace PinayPalBackupManager.UI
             _settingsControl.OnLogout += () =>
             {
                 _allowClose = true;
+                AuthService.Logout();
                 OnLogoutRequested?.Invoke();
             };
 

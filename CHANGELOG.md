@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.12] - 2025-04-03
+
+### Fixed
+- Credentials and paths now properly save and persist after closing and reopening app
+- Added missing Host property to SqlSettings for shared host persistence
+- Logout now properly clears user session and returns to login screen instead of closing app
+
 ## [2.6.11] - 2025-04-03
 
 ### Added
