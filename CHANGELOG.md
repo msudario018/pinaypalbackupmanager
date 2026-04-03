@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.9] - 2025-04-03
+
+### Fixed
+- Pending approval sync - users approved by admin can now log in successfully
+- Status sync now prevents downgrading from Active to Pending
+
 ## [2.6.8] - 2025-04-03
 
 ### Added
