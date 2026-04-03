@@ -47,6 +47,7 @@ jobs:
         run: dotnet publish PinayPalBackupManager.csproj -c Release -o publish -r win-x64 --self-contained true
 
       - name: Create Velopack Release
+        shell: bash
         env:
           SIGN_CERT: ${{ secrets.SIGN_CERTIFICATE }}
           SIGN_PASS: ${{ secrets.SIGN_PASSWORD }}
