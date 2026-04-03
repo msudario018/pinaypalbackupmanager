@@ -37,4 +37,4 @@ jobs:
           dotnet tool install -g vpk
           vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
           vpk pack -u PinayPal.PinayPalBackupManager -v ${{ steps.get-version.outputs.version }} -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --token ${{ secrets.GITHUB_TOKEN }}
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --token ${{ secrets.GITHUB_TOKEN }} --changelog CHANGELOG.md
