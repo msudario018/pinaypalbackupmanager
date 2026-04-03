@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.7] - 2025-04-03
+
+### Fixed
+- Version bump to resolve release conflict
+
 ## [2.6.6] - 2025-04-03
 
 ### Added
