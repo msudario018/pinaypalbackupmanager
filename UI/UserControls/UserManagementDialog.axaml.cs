@@ -69,44 +69,86 @@ namespace PinayPalBackupManager.UI.UserControls
             foreach (var user in users)
             {
                 var isCurrentUser = currentUser != null && user.Id == currentUser.Id;
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                
+                // Create card-style container for each user
+                var userCard = new Border
+                {
+                    Background = Brush.Parse("#1E1E2E"),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15),
+                    BorderBrush = Brush.Parse("#45475A"),
+                    BorderThickness = new Thickness(1)
+                };
+
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+
+                // User info section
+                var userInfo = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+                
+                var nameText = new TextBlock
+                {
+                    Text = user.Username + (isCurrentUser ? " (You)" : ""),
+                    Foreground = Brush.Parse("#CDD6F4"),
+                    FontSize = 14,
+                    FontWeight = FontWeight.SemiBold
+                };
+                userInfo.Children.Add(nameText);
+
+                var detailsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                
+                var roleText = new TextBlock
+                {
+                    Text = user.Role,
+                    Foreground = Brush.Parse("#89B4FA"),
+                    FontSize = 11,
+                    FontWeight = FontWeight.Medium
+                };
+                detailsRow.Children.Add(roleText);
 
                 var statusColor = user.Status == "Active" ? "#A6E3A1" : user.Status == "Disabled" ? "#F38BA8" : "#F9E2AF";
-                var youMarker = isCurrentUser ? " (You)" : "";
-                row.Children.Add(new TextBlock
+                var statusText = new TextBlock
                 {
-                    Text = $"{user.Username}{youMarker} — {user.Role} — {user.Status}",
+                    Text = "• " + user.Status,
                     Foreground = Brush.Parse(statusColor),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    FontSize = 12,
-                    Width = 240
-                });
+                    FontSize = 11,
+                    FontWeight = FontWeight.Medium
+                };
+                detailsRow.Children.Add(statusText);
+                
+                userInfo.Children.Add(detailsRow);
+                row.Children.Add(userInfo);
+
+                // Spacer
+                row.Children.Add(new Border { Width = 1, MinWidth = 50 });
+
+                // Action buttons
+                var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
 
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
                     if (user.Status == "Pending")
                     {
-                        var btnApprove = new Button { Content = "Approve", FontSize = 10, Padding = new Thickness(8, 4), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6) };
+                        var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnApprove.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
-                        row.Children.Add(btnApprove);
+                        buttonPanel.Children.Add(btnApprove);
                     }
                     else if (user.Status == "Active")
                     {
-                        var btnDisable = new Button { Content = "Disable", FontSize = 10, Padding = new Thickness(8, 4), Background = Brush.Parse("#F9E2AF"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6) };
+                        var btnDisable = new Button { Content = "Disable", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#F9E2AF"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnDisable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
-                        row.Children.Add(btnDisable);
+                        buttonPanel.Children.Add(btnDisable);
                     }
                     else if (user.Status == "Disabled")
                     {
-                        var btnEnable = new Button { Content = "Enable", FontSize = 10, Padding = new Thickness(8, 4), Background = Brush.Parse("#A6E3A1"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6) };
+                        var btnEnable = new Button { Content = "Enable", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#A6E3A1"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnEnable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
-                        row.Children.Add(btnEnable);
+                        buttonPanel.Children.Add(btnEnable);
                     }
 
-                    var btnDelete = new Button { Content = "Delete", FontSize = 10, Padding = new Thickness(8, 4), Background = Brush.Parse("#F38BA8"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6) };
+                    var btnDelete = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(12, 6), Background = Brush.Parse("#F38BA8"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     var deleteId = user.Id;
                     var deleteUsername = user.Username;
                     btnDelete.Click += async (_, _) =>
@@ -119,10 +161,12 @@ namespace PinayPalBackupManager.UI.UserControls
                             NotificationService.ShowBackupToast("Users", "User deleted.", "Warning");
                         }
                     };
-                    row.Children.Add(btnDelete);
+                    buttonPanel.Children.Add(btnDelete);
                 }
 
-                userListPanel.Children.Add(row);
+                row.Children.Add(buttonPanel);
+                userCard.Child = row;
+                userListPanel.Children.Add(userCard);
             }
         }
     }

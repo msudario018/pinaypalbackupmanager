@@ -61,12 +61,6 @@ namespace PinayPalBackupManager.UI
             };
             _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
-            _settingsControl.OnLogout += () =>
-            {
-                _allowClose = true;
-                AuthService.Logout();
-                OnLogoutRequested?.Invoke();
-            };
 
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])

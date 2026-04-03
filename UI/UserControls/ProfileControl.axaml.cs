@@ -341,8 +341,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     Title = "User Management",
                     Content = dialog,
-                    Width = 500,
-                    Height = 450,
+                    Width = 600,
+                    Height = 500,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
@@ -382,8 +382,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     Title = "Invite Codes",
                     Content = dialog,
-                    Width = 450,
-                    Height = 300,
+                    Width = 500,
+                    Height = 350,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
