@@ -61,6 +61,21 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Retention days
+            var txtRetention = this.FindControl<TextBox>("TxtRetentionDays");
+            if (txtRetention != null) txtRetention.Text = ConfigService.Current.Operation.RetentionDays.ToString();
+            var btnSaveRetention = this.FindControl<Button>("BtnSaveRetention");
+            if (btnSaveRetention != null) btnSaveRetention.Click += (_, _) =>
+            {
+                if (int.TryParse(txtRetention?.Text?.Trim(), out int days) && days >= 1 && days <= 365)
+                {
+                    ConfigService.Current.Operation.RetentionDays = days;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Retention", $"Backup files older than {days} day(s) will be deleted automatically.", "Info");
+                }
+                else NotificationService.ShowBackupToast("Retention", "Enter a value between 1 and 365 days.", "Warning");
+            };
+
             // Set version dynamically
             var txtVersion = this.FindControl<TextBlock>("TxtVersion");
             if (txtVersion != null) txtVersion.Text = BackupConfig.AppVersion;

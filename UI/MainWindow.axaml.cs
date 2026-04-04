@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -48,11 +49,39 @@ namespace PinayPalBackupManager.UI
             _backupManager.OnHealthUpdate += UpdateHealthStatus;
             NotificationService.OnToast += HandleToast;
 
+            WindowStateService.Restore(this);
+
+            ThemeService.Load();
+            UpdateThemeIcon();
+            ThemeService.OnThemeChanged += _ => UpdateThemeIcon();
+
+            var btnTheme = this.FindControl<Button>("BtnThemeToggle");
+            if (btnTheme != null) btnTheme.Click += (_, _) => { ThemeService.Toggle(); UpdateThemeIcon(); };
+
+            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+            if (btnCustomize != null) btnCustomize.Click += async (_, _) => await OpenTabOrderDialogAsync();
+
+            var btnBell = this.FindControl<Button>("BtnNotificationCenter");
+            if (btnBell != null) btnBell.Click += (_, _) => ToggleNotificationCenter();
+            var btnClearNotif = this.FindControl<Button>("BtnClearNotifications");
+            if (btnClearNotif != null) btnClearNotif.Click += (_, _) => { NotificationHistoryService.ClearAll(); PopulateNotificationCenter(); UpdateBellBadge(); };
+
+            NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
+
+            SetupSystemTray();
+
             _homeControl = new HomeControl(_backupManager);
-            _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl); UpdateSidebarSelection("FTP"); };
-            _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl); UpdateSidebarSelection("Mailchimp"); };
-            _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl); UpdateSidebarSelection("SQL"); };
+            _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
+            _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
+            _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
             _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
+            _homeControl.OnEmergencyStop += () =>
+            {
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled.", "Warning");
+            };
             _ftpControl = new FtpControl(_backupManager);
             _mailchimpControl = new MailchimpControl(_backupManager);
             _sqlControl = new SqlControl(_backupManager);
@@ -611,6 +640,8 @@ namespace PinayPalBackupManager.UI
 
         protected override void OnClosing(WindowClosingEventArgs e)
         {
+            WindowStateService.Save(this);
+
             if (!_allowClose)
             {
                 e.Cancel = true;
@@ -673,6 +704,130 @@ namespace PinayPalBackupManager.UI
                 };
                 _toastTimer.Start();
             });
+        }
+
+        private bool _notifCenterOpen;
+
+        private void ToggleNotificationCenter()
+        {
+            _notifCenterOpen = !_notifCenterOpen;
+            var panel = this.FindControl<Border>("NotificationCenter");
+            if (panel != null) panel.IsVisible = _notifCenterOpen;
+            if (_notifCenterOpen) { PopulateNotificationCenter(); NotificationHistoryService.MarkAllRead(); UpdateBellBadge(); }
+        }
+
+        private void PopulateNotificationCenter()
+        {
+            var list = this.FindControl<StackPanel>("NotificationList");
+            if (list == null) return;
+            list.Children.Clear();
+            var entries = NotificationHistoryService.Entries;
+            if (entries.Count == 0)
+            {
+                list.Children.Add(new TextBlock { Text = "No notifications yet.", FontSize = 11, Foreground = Brush.Parse("#6C7086"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12) });
+                return;
+            }
+            foreach (var n in entries)
+            {
+                string accent = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#F9E2AF" : n.Type == "Success" ? "#A6E3A1" : "#89B4FA";
+                var row = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8), Margin = new Thickness(0, 2) };
+                row.Background = Brush.Parse(ThemeService.IsDark ? "#1E1E2E" : "#E6E9EF");
+                var content = new StackPanel { Spacing = 2 };
+                var header = new Grid();
+                header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+                header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+                var title = new TextBlock { Text = n.Title, FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Brush.Parse(accent) };
+                var time = new TextBlock { Text = n.Time.ToString("HH:mm"), FontSize = 9, Foreground = Brush.Parse("#6C7086"), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(title, 0); Grid.SetColumn(time, 1);
+                header.Children.Add(title); header.Children.Add(time);
+                content.Children.Add(header);
+                content.Children.Add(new TextBlock { Text = n.Message, FontSize = 10, Foreground = Brush.Parse(ThemeService.IsDark ? "#A6ADC8" : "#5C5F77"), TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+                row.Child = content;
+                list.Children.Add(row);
+            }
+        }
+
+        private void UpdateBellBadge()
+        {
+            var badge = this.FindControl<Border>("BellBadge");
+            var count = this.FindControl<TextBlock>("BellCount");
+            int unread = NotificationHistoryService.UnreadCount;
+            if (badge != null) badge.IsVisible = unread > 0;
+            if (count != null) count.Text = unread > 9 ? "9+" : unread.ToString();
+        }
+
+        private void SetupSystemTray()
+        {
+            try
+            {
+                var tray = new Avalonia.Controls.TrayIcon();
+                tray.Icon = new Avalonia.Controls.WindowIcon(new Avalonia.Media.Imaging.Bitmap(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico")));
+                tray.ToolTipText = "PinayPal Backup Manager";
+                tray.Clicked += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
+                var menu = new Avalonia.Controls.NativeMenu();
+                var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show" };
+                showItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
+                var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit" };
+                exitItem.Click += (_, _) => { _allowClose = true; Close(); };
+                menu.Items.Add(showItem);
+                menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
+                menu.Items.Add(exitItem);
+                tray.Menu = menu;
+                Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { tray });
+            }
+            catch { }
+        }
+
+        private void UpdateThemeIcon()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var icon = this.FindControl<TextBlock>("TxtThemeIcon");
+                if (icon != null) icon.Text = ThemeService.IsDark ? "☀" : "🌙";
+            });
+        }
+
+        private async Task OpenTabOrderDialogAsync()
+        {
+            var dialog = new TabOrderDialog();
+            await dialog.ShowDialog<bool?>(this);
+            if (dialog.Saved) ApplySavedTabOrder();
+        }
+
+        private void ApplySavedTabOrder()
+        {
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar == null) return;
+
+            var order = TabOrderDialog.LoadSavedTagOrder();
+            var buttons = sidebar.Children.OfType<Button>().ToList();
+            var separators = sidebar.Children.OfType<Rectangle>().ToList();
+
+            sidebar.Children.Clear();
+
+            bool first = true;
+            foreach (var tag in order)
+            {
+                var btn = buttons.FirstOrDefault(b => b.Tag is string t && t == tag);
+                if (btn == null) continue;
+
+                if (!first && tag == "Settings")
+                {
+                    var sep = separators.LastOrDefault();
+                    if (sep != null) sidebar.Children.Add(sep);
+                }
+                else if (!first && tag != "Settings" && first == false)
+                {
+                    if (tag == order.Skip(1).FirstOrDefault() && separators.Count > 0)
+                    {
+                    }
+                }
+
+                sidebar.Children.Add(btn);
+                first = false;
+            }
+
+            NotificationService.ShowBackupToast("Tabs", "Tab order updated.", "Success");
         }
 
         #region Profile Management

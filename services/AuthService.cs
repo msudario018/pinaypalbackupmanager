@@ -139,7 +139,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        public static (bool success, string message) Login(string username, string password)
+        public static async Task<(bool success, string message)> LoginAsync(string username, string password)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
@@ -148,33 +148,26 @@ namespace PinayPalBackupManager.Services
             // This is especially important for pending users who were just approved
             try
             {
-                // Use timeout to prevent blocking UI thread
-                var task = Task.Run(async () => await FirebaseUserService.GetAllUsersAsync());
-                if (task.Wait(TimeSpan.FromSeconds(3)))
+                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync().ConfigureAwait(false);
+                var localUser = GetUserByUsername(username.Trim());
+                
+                if (localUser != null)
                 {
-                    var firebaseUsers = task.Result;
-                    var localUser = GetUserByUsername(username.Trim());
-                    
-                    if (localUser != null)
+                    // Check if user exists in Firebase and sync status if needed
+                    var firebaseUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(localUser.Username, StringComparison.OrdinalIgnoreCase));
+                    if (firebaseUser != null && firebaseUser.Status != localUser.Status)
                     {
-                        var remoteUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(username.Trim(), StringComparison.OrdinalIgnoreCase));
-                        if (remoteUser != null && remoteUser.Status != localUser.Status)
-                        {
-                            // Update local status to match Firebase
-                            using var conn = new SqliteConnection(ConnectionString);
-                            conn.Open();
-                            using var cmd = conn.CreateCommand();
-                            cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
-                            cmd.Parameters.AddWithValue("@s", remoteUser.Status);
-                            cmd.Parameters.AddWithValue("@id", localUser.Id);
-                            cmd.ExecuteNonQuery();
-                            Console.WriteLine($"[AuthService] Synced status from Firebase for {username}: {localUser.Status} -> {remoteUser.Status}");
-                        }
+                        // Update local status to match Firebase
+                        using var conn = new SqliteConnection(ConnectionString);
+                        conn.Open();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
+                        cmd.Parameters.AddWithValue("@s", firebaseUser.Status);
+                        cmd.Parameters.AddWithValue("@id", localUser.Id);
+                        cmd.ExecuteNonQuery();
+                        Console.WriteLine($"[AuthService] Synced status from Firebase for {username}: {localUser.Status} -> {firebaseUser.Status}");
+                        localUser.Status = firebaseUser.Status;
                     }
-                }
-                else
-                {
-                    Console.WriteLine($"[AuthService] Pre-login sync timeout - continuing with local status");
                 }
             }
             catch (Exception ex)
@@ -212,6 +205,19 @@ namespace PinayPalBackupManager.Services
             return (true, $"Welcome, {user.Username}!");
         }
 
+        // Synchronous wrapper for backward compatibility
+        public static (bool success, string message) Login(string username, string password)
+        {
+            try
+            {
+                return LoginAsync(username, password).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Login error: {ex.Message}");
+            }
+        }
+
         public static bool LoginById(int userId)
         {
             var user = GetUserById(userId);
@@ -231,17 +237,14 @@ namespace PinayPalBackupManager.Services
 
         // ── Invite Code ──
 
-        public static string GetInviteCode()
+        public static async Task<string> GetInviteCodeAsync()
         {
             // Try to get from Firebase first (with timeout to avoid blocking)
             string? firebaseCode = null;
             try
             {
-                var task = Task.Run(async () => await FirebaseInviteService.GetInviteCodeAsync());
-                if (task.Wait(TimeSpan.FromSeconds(2)))
-                {
-                    firebaseCode = task.Result;
-                }
+                var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2));
+                firebaseCode = await FirebaseInviteService.GetInviteCodeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -281,6 +284,20 @@ namespace PinayPalBackupManager.Services
             }
             
             return storedCode;
+        }
+
+        // Synchronous wrapper for backward compatibility
+        public static string GetInviteCode()
+        {
+            try
+            {
+                return GetInviteCodeAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] GetInviteCode error: {ex.Message}");
+                return GetInviteCodeFromConfig() ?? "PINAYPAL2024";
+            }
         }
 
         private static string GetInviteCodeFromConfig()

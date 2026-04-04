@@ -2,12 +2,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.ProfileControl">
     
-    <Grid RowDefinitions="Auto, *, Auto" Background="#0B0F17">
+    <Grid RowDefinitions="Auto, *, Auto" Background="{DynamicResource AppBg}">
         <!-- Header -->
-        <Border Grid.Row="0" Background="#11111B" Padding="30,25" BorderBrush="#313244" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource AppSurface}" Padding="30,25" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
             <StackPanel Spacing="12">
-                <TextBlock Text="PROFILE" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-                <TextBlock Text="Manage your account settings and preferences" FontSize="12" Foreground="#6C7066"/>
+                <TextBlock Text="PROFILE" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                <TextBlock Text="Manage your account settings and preferences" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
             </StackPanel>
         </Border>
         
@@ -15,7 +15,7 @@
         <ScrollViewer Grid.Row="1" Padding="30,30,30,30" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="30">
                 <!-- User Info Card -->
-                <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#313244" BorderThickness="1">
+                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
                     <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto">
                         <!-- Avatar -->
                         <Border Grid.Row="0" Grid.Column="0" Background="#45475A" CornerRadius="50" Width="80" Height="80" Margin="0,0,20,0">
@@ -35,23 +35,23 @@
                         
                         <!-- User Details -->
                         <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Name="TxtUsername" Text="Loading..." FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
-                            <TextBlock Name="TxtUserRole" Text="Loading..." FontSize="14" Foreground="#6C7086"/>
+                            <TextBlock Name="TxtUsername" Text="Loading..." FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                            <TextBlock Name="TxtUserRole" Text="Loading..." FontSize="14" Foreground="{DynamicResource AppMuted}"/>
                             <TextBlock Name="TxtUserStatus" Text="Active" FontSize="12" Foreground="#A6E3A1"/>
                         </StackPanel>
                         
                         <!-- Account Stats -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="30" Margin="0,20,0,0">
-                            <Border Background="#11111B" CornerRadius="8" Padding="15,10">
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Account Type" FontSize="10" Foreground="#6C7066"/>
-                                    <TextBlock Name="TxtAccountType" Text="Standard" FontSize="14" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                    <TextBlock Text="Account Type" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtAccountType" Text="Standard" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Background="#11111B" CornerRadius="8" Padding="15,10">
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Member Since" FontSize="10" Foreground="#6C7066"/>
-                                    <TextBlock Name="TxtMemberSince" Text="Today" FontSize="14" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                    <TextBlock Text="Member Since" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtMemberSince" Text="Today" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -64,7 +64,7 @@
                 </Border>
                 
                 <!-- Admin Section (only visible to admins) -->
-                <Border Name="AdminSection" Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#313244" BorderThickness="1" IsVisible="False">
+                <Border Name="AdminSection" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" IsVisible="False">
                     <StackPanel Spacing="20">
                         <TextBlock Text="ADMINISTRATOR OPTIONS" FontSize="16" FontWeight="Bold" Foreground="#F38BA8"/>
                         
@@ -94,7 +94,7 @@
                 </Border>
                 
                 <!-- Security Section -->
-                <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#313244" BorderThickness="1">
+                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
                     <StackPanel Spacing="20">
                         <TextBlock Text="SECURITY" FontSize="16" FontWeight="Bold" Foreground="#89B4FA"/>
                         
@@ -105,15 +105,15 @@
                             <Button Grid.Row="1" Grid.Column="1" Name="BtnLoginHistory" Classes="SecondaryBtn" Content="Login History" IsEnabled="False" Margin="7.5,7.5,0,0"/>
                         </Grid>
                         
-                        <TextBlock Text="Last login: Today at 2:30 PM" FontSize="12" Foreground="#6C7066" FontStyle="Italic"/>
+                        <TextBlock Text="Last login: Today at 2:30 PM" FontSize="12" Foreground="{DynamicResource AppMuted}" FontStyle="Italic"/>
                     </StackPanel>
                 </Border>
                 
                 <!-- Danger Zone -->
-                <Border Background="#1E1E2E" CornerRadius="12" Padding="30" BorderBrush="#F38BA8" BorderThickness="1" Margin="0,0,0,100">
+                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="#F38BA8" BorderThickness="1" Margin="0,0,0,100">
                     <StackPanel Spacing="20">
                         <TextBlock Text="DANGER ZONE" FontSize="16" FontWeight="Bold" Foreground="#F38BA8"/>
-                        <TextBlock Text="Irreversible actions for your account" FontSize="12" Foreground="#6C7066"/>
+                        <TextBlock Text="Irreversible actions for your account" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                         
                         <StackPanel Spacing="10">
                             <Button Name="BtnLogout" Classes="DangerBtn" Content="Logout" HorizontalAlignment="Stretch"/>

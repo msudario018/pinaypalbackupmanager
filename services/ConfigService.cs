@@ -118,6 +118,46 @@ namespace PinayPalBackupManager.Services
             return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
         }
 
+        public static void SaveOperation()
+        {
+            try
+            {
+                var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+                var existing = File.Exists(appDataPath) ? ReadFile(appDataPath) : new AppSettings();
+                existing.Operation.RetentionDays    = Current.Operation.RetentionDays;
+                existing.Operation.AutoStartWindows = Current.Operation.AutoStartWindows;
+                var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                File.WriteAllText(appDataPath, json);
+            }
+            catch { }
+        }
+
+        public static void SaveSchedule()
+        {
+            try
+            {
+                var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+                var existing = File.Exists(appDataPath) ? ReadFile(appDataPath) : new AppSettings();
+                existing.Schedule.FtpDailySyncHourMnl = Current.Schedule.FtpDailySyncHourMnl;
+                existing.Schedule.FtpDailySyncMinuteMnl = Current.Schedule.FtpDailySyncMinuteMnl;
+                existing.Schedule.MailchimpDailySyncHourMnl = Current.Schedule.MailchimpDailySyncHourMnl;
+                existing.Schedule.MailchimpDailySyncMinuteMnl = Current.Schedule.MailchimpDailySyncMinuteMnl;
+                existing.Schedule.SqlDailySyncHourMnl = Current.Schedule.SqlDailySyncHourMnl;
+                existing.Schedule.SqlDailySyncMinuteMnl = Current.Schedule.SqlDailySyncMinuteMnl;
+                existing.Schedule.FtpAutoScanHours = Current.Schedule.FtpAutoScanHours;
+                existing.Schedule.FtpAutoScanMinutes = Current.Schedule.FtpAutoScanMinutes;
+                existing.Schedule.MailchimpAutoScanHours = Current.Schedule.MailchimpAutoScanHours;
+                existing.Schedule.MailchimpAutoScanMinutes = Current.Schedule.MailchimpAutoScanMinutes;
+                existing.Schedule.SqlAutoScanHours = Current.Schedule.SqlAutoScanHours;
+                existing.Schedule.SqlAutoScanMinutes = Current.Schedule.SqlAutoScanMinutes;
+                var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                File.WriteAllText(appDataPath, json);
+            }
+            catch { }
+        }
+
         private static void MergeInto(AppSettings target, AppSettings source)
         {
             if (!string.IsNullOrWhiteSpace(source.Paths.FtpLocalFolder)) target.Paths.FtpLocalFolder = source.Paths.FtpLocalFolder;
@@ -145,6 +185,16 @@ namespace PinayPalBackupManager.Services
             if (source.Schedule.MailchimpDailySyncMinuteMnl != 0) target.Schedule.MailchimpDailySyncMinuteMnl = source.Schedule.MailchimpDailySyncMinuteMnl;
             if (source.Schedule.SqlDailySyncHourMnl != 0) target.Schedule.SqlDailySyncHourMnl = source.Schedule.SqlDailySyncHourMnl;
             if (source.Schedule.SqlDailySyncMinuteMnl != 0) target.Schedule.SqlDailySyncMinuteMnl = source.Schedule.SqlDailySyncMinuteMnl;
+
+            if (source.Schedule.FtpAutoScanHours != 0) target.Schedule.FtpAutoScanHours = source.Schedule.FtpAutoScanHours;
+            if (source.Schedule.FtpAutoScanMinutes != 0) target.Schedule.FtpAutoScanMinutes = source.Schedule.FtpAutoScanMinutes;
+            if (source.Schedule.MailchimpAutoScanHours != 0) target.Schedule.MailchimpAutoScanHours = source.Schedule.MailchimpAutoScanHours;
+            if (source.Schedule.MailchimpAutoScanMinutes != 0) target.Schedule.MailchimpAutoScanMinutes = source.Schedule.MailchimpAutoScanMinutes;
+            if (source.Schedule.SqlAutoScanHours != 0) target.Schedule.SqlAutoScanHours = source.Schedule.SqlAutoScanHours;
+            if (source.Schedule.SqlAutoScanMinutes != 0) target.Schedule.SqlAutoScanMinutes = source.Schedule.SqlAutoScanMinutes;
+
+            if (source.Operation.RetentionDays != 0) target.Operation.RetentionDays = source.Operation.RetentionDays;
+            if (source.Operation.AutoStartWindows) target.Operation.AutoStartWindows = true;
         }
     }
 }

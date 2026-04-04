@@ -21,15 +21,17 @@ namespace PinayPalBackupManager.Services
         private DateTime _lastMailchimpDailyRunMnlDate;
         private DateTime _lastSqlDailyRunMnlDate;
 
+        public bool IsPaused { get; set; } = false;
+
         public event Action<List<BackupHealthReport>>? OnHealthUpdate;
         public event Action<DateTime, DateTime, DateTime, DateTime>? OnTimeUpdate;
         public event Action? OnFtpAutoSyncRequested;
         public event Action? OnMailchimpAutoSyncRequested;
         public event Action? OnSqlAutoSyncRequested;
 
-        public static readonly TimeSpan FtpAutoScanInterval = TimeSpan.FromHours(3);
-        public static readonly TimeSpan MailchimpAutoScanInterval = TimeSpan.FromHours(2);
-        public static readonly TimeSpan SqlAutoScanInterval = TimeSpan.FromHours(2) + TimeSpan.FromMinutes(15);
+        public static TimeSpan FtpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.FtpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.FtpAutoScanMinutes);
+        public static TimeSpan MailchimpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.MailchimpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.MailchimpAutoScanMinutes);
+        public static TimeSpan SqlAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.SqlAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.SqlAutoScanMinutes);
 
         public DateTime NextFtpAutoScan => _lastFtpAutoReset.Add(FtpAutoScanInterval);
         public DateTime NextMailchimpAutoScan => _lastMailchimpAutoReset.Add(MailchimpAutoScanInterval);
@@ -72,7 +74,7 @@ namespace PinayPalBackupManager.Services
             
             OnTimeUpdate?.Invoke(now, mnlTime, NextFtpAutoScan, NextFtpDailySyncMnl);
 
-            if (System.Threading.Volatile.Read(ref _healthRunning) == 0)
+            if (!IsPaused && System.Threading.Volatile.Read(ref _healthRunning) == 0)
             {
                 if (now >= NextFtpAutoScan)
                 {
@@ -91,7 +93,7 @@ namespace PinayPalBackupManager.Services
                 }
             }
 
-            if (mnlTime.Second == 0)
+            if (!IsPaused && mnlTime.Second == 0)
             {
                 var todayMnl = mnlTime.Date;
 

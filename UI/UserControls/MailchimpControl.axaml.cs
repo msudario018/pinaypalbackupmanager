@@ -135,6 +135,12 @@ namespace PinayPalBackupManager.UI.UserControls
                         LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", trigger);
                     }
 
+                    if (!_abortRequested)
+                    {
+                        var integrity = CheckIntegrity(BackupConfig.MailchimpFolder);
+                        LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.McLogFile, "Information", trigger);
+                        NotificationService.ShowBackupToast("Mailchimp Backup Done", $"Full export complete. {integrity}", "Success");
+                    }
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
                         txtStatus.Foreground = _abortRequested ? Avalonia.Media.Brush.Parse("#F38BA8") : Avalonia.Media.Brush.Parse("#A6E3A1");
@@ -224,6 +230,23 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public bool IsBusy => _isBusy;
         public Task TriggerSyncCheckAsync() => SyncCheckAsync();
+
+        private static string CheckIntegrity(string folder)
+        {
+            try
+            {
+                if (!Directory.Exists(folder)) return "No local folder found.";
+                var newest = new DirectoryInfo(folder)
+                    .EnumerateFiles("*", SearchOption.AllDirectories)
+                    .Where(f => f.Name != "backuplog.txt")
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .FirstOrDefault();
+                if (newest == null) return "No backup files found.";
+                if (newest.Length == 0) return $"WARNING: {newest.Name} is zero-byte!";
+                return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
+            }
+            catch (Exception ex) { return $"WARNING: {ex.Message}"; }
+        }
 
         public void RequestCancelFromShell()
         {

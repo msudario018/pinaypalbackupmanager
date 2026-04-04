@@ -145,8 +145,25 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             if (_abortRequested) throw new OperationCanceledException();
                             string localPath = Path.Combine(BackupConfig.SqlLocalFolder, file.Name);
-                            if (!File.Exists(localPath)) missingCount++;
-                            else if (new FileInfo(localPath).Length != file.Length) missingCount++;
+                            if (!File.Exists(localPath))
+                            {
+                                missingCount++;
+                            }
+                            else
+                            {
+                                var localFile = new FileInfo(localPath);
+                                // Check file size OR if remote is significantly newer (more than 1 minute)
+                                bool sizeDiffers = localFile.Length != file.Length;
+                                bool timeDiffers = file.LastWriteTime > localFile.LastWriteTimeUtc.AddMinutes(1);
+                                
+                                if (sizeDiffers || timeDiffers)
+                                {
+                                    missingCount++;
+                                    string reason = sizeDiffers ? "size differs" : 
+                                                   timeDiffers ? "remote newer" : "unknown";
+                                    LogService.WriteLiveLog($"CHANGE DETECTED: {file.Name} ({reason})", BackupConfig.SqlLogFile, "Information", trigger);
+                                }
+                            }
                         }
 
                         if (missingCount == 0)
@@ -172,7 +189,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
                             if (_abortRequested) throw new OperationCanceledException();
                             LogService.WriteLiveLog("SUCCESS: SQL Backup complete.", BackupConfig.SqlLogFile, "Information", trigger);
-                            NotificationService.ShowBackupToast("SQL Backup Success", $"Successfully synchronized {missingCount} database file(s).", "Info");
+                            var integrity = CheckIntegrity(BackupConfig.SqlLocalFolder);
+                            LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.SqlLogFile, "Information", trigger);
+                            NotificationService.ShowBackupToast("SQL Backup Success", $"Synchronized {missingCount} file(s). {integrity}", "Success");
                         }
 
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
@@ -183,7 +202,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     else
                     {
                         taskError = "Authentication Error. Check SQL credentials.";
-                        LogService.WriteLiveLog($"LOGIN FAILED: {taskError}", BackupConfig.SqlLogFile, "Error", trigger);
+                        LogService.WriteLiveLog($"STOPPED: Error detected - {taskError}", BackupConfig.SqlLogFile, "Warning", trigger);
                         NotificationService.ShowBackupToast("SQL Backup Failed", $"Error: {taskError}", "Error");
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "LOGIN FAILED";
@@ -433,6 +452,23 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public bool IsBusy => _isBusy;
         public Task TriggerSyncCheckAsync() => SyncCheckAsync();
+
+        private static string CheckIntegrity(string folder)
+        {
+            try
+            {
+                if (!Directory.Exists(folder)) return "No local folder found.";
+                var newest = new DirectoryInfo(folder)
+                    .EnumerateFiles("*", SearchOption.AllDirectories)
+                    .Where(f => f.Name != "backuplog.txt" && f.Name != "backup_log.txt")
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .FirstOrDefault();
+                if (newest == null) return "No backup files found.";
+                if (newest.Length == 0) return $"WARNING: {newest.Name} is zero-byte!";
+                return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
+            }
+            catch (Exception ex) { return $"WARNING: {ex.Message}"; }
+        }
 
         public void RequestCancelFromShell()
         {

@@ -130,18 +130,19 @@
         </Style>
 
         <Style Selector="Button.Secondary">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="16,9"/>
         </Style>
         <Style Selector="Button.Secondary:pointerover">
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.Secondary:pressed">
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppSubtext}"/>
             <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
@@ -163,32 +164,78 @@
 
         <Style Selector="Button.Ghost">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="10,8"/>
         </Style>
         <Style Selector="Button.Ghost:pointerover">
-            <Setter Property="Background" Value="#232334"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.Ghost:pressed">
-            <Setter Property="Background" Value="#2B2B3E"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
     </Application.Styles>
 
     <Application.Resources>
-        <Color x:Key="ColorBg">#0B0F17</Color>
-        <Color x:Key="ColorSurface">#11111B</Color>
-        <Color x:Key="ColorSurface2">#1A1B26</Color>
-        <Color x:Key="ColorBorder">#313244</Color>
-        <Color x:Key="ColorText">#CDD6F4</Color>
-        <Color x:Key="ColorMuted">#A6ADC8</Color>
-        <Color x:Key="AccentFtp">#A6E3A1</Color>
-        <Color x:Key="AccentMailchimp">#89DCEB</Color>
-        <Color x:Key="AccentSql">#F9E2AF</Color>
-        <Color x:Key="AccentWebsite">#CBA6F7</Color>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBg">#0B0F17</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSidebar">#11111B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTopBar">#11111B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCard">#1E1E2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSurface">#11111B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppText">#CDD6F4</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSubtext">#A6ADC8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMuted">#6C7086</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppVeryMuted">#45475A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#313244</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder2">#1E1E2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerAutoScan">#2D241E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerDaily">#1E252E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppManilaTime">#F9E2AF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppLogText">#A6ADC8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#F9E2AF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnGreen">#1A2E1A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnBlue">#1E252E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnRed">#2D1515</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBg">#EFF1F5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSidebar">#CCD0DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTopBar">#CCD0DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCard">#E6E9EF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSurface">#DCE0E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppText">#4C4F69</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSubtext">#5C5F77</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMuted">#7C7F93</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppVeryMuted">#9CA0B0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#BCC0CC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder2">#ACB0BE</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerAutoScan">#FEF3E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerDaily">#EBF0FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppManilaTime">#B45309</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppLogText">#374151</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#B45309</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnGreen">#D1FAE5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnBlue">#DBEAFE</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnRed">#FEE2E2</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <Color x:Key="ColorBg">#0B0F17</Color>
+            <Color x:Key="ColorSurface">#11111B</Color>
+            <Color x:Key="ColorSurface2">#1A1B26</Color>
+            <Color x:Key="ColorBorder">#313244</Color>
+            <Color x:Key="ColorText">#CDD6F4</Color>
+            <Color x:Key="ColorMuted">#A6ADC8</Color>
+            <Color x:Key="AccentFtp">#A6E3A1</Color>
+            <Color x:Key="AccentMailchimp">#89DCEB</Color>
+            <Color x:Key="AccentSql">#F9E2AF</Color>
+            <Color x:Key="AccentWebsite">#CBA6F7</Color>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

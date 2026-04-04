@@ -63,6 +63,7 @@ namespace PinayPalBackupManager.Services
             {
                 using var httpClient = new System.Net.Http.HttpClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(5);
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "PinayPalBackupManager/1.0");
                 
                 var response = await httpClient.GetAsync($"{FirebaseUrl}{InviteCodePath}.json");
                 if (response.IsSuccessStatusCode)

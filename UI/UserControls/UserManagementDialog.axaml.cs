@@ -75,12 +75,19 @@ namespace PinayPalBackupManager.UI.UserControls
                 var isCurrentUser = currentUser != null && user.Id == currentUser.Id;
                 
                 // Create card-style container for each user
+                bool isDark = Services.ThemeService.IsDark;
+                string cardBg    = isDark ? "#1E1E2E" : "#E6E9EF";
+                string cardBdr   = isDark ? "#45475A" : "#BCC0CC";
+                string textMain  = isDark ? "#CDD6F4" : "#4C4F69";
+                string textLabel = isDark ? "#A6ADC8" : "#5C5F77";
+                string btnBg     = isDark ? "#313244" : "#BCC0CC";
+
                 var userCard = new Border
                 {
-                    Background = Brush.Parse("#1E1E2E"),
+                    Background = Brush.Parse(cardBg),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(15),
-                    BorderBrush = Brush.Parse("#45475A"),
+                    BorderBrush = Brush.Parse(cardBdr),
                     BorderThickness = new Thickness(1)
                 };
 
@@ -94,7 +101,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var nameText = new TextBlock
                 {
                     Text = user.Username + (isCurrentUser ? " (You)" : ""),
-                    Foreground = Brush.Parse("#CDD6F4"),
+                    Foreground = Brush.Parse(textMain),
                     FontSize = 14,
                     FontWeight = FontWeight.SemiBold
                 };
@@ -132,7 +139,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (AuthService.IsAdmin)
                 {
                     var viewUser = user;
-                    var btnView = new Button { Content = "View Details", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnView = new Button { Content = "View Details", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse(btnBg), Foreground = Brush.Parse(textMain), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     btnView.Click += async (_, _) => await ShowUserDetailsDialog(viewUser);
                     buttonPanel.Children.Add(btnView);
                 }
@@ -211,17 +218,26 @@ namespace PinayPalBackupManager.UI.UserControls
                     _          => "#A6ADC8"
                 };
 
-                var content = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+                bool detailDark  = Services.ThemeService.IsDark;
+                string detailBg  = detailDark ? "#1E1E2E" : "#E6E9EF";
+                string detailHdr = detailDark ? "#313244" : "#BCC0CC";
+                string detailTxt = detailDark ? "#CDD6F4" : "#4C4F69";
+                string detailLbl = detailDark ? "#A6ADC8" : "#5C5F77";
+                string detailSep = detailDark ? "#313244" : "#BCC0CC";
+                string detailMut = detailDark ? "#6C7086" : "#7C7F93";
+                string detailBtn = detailDark ? "#45475A" : "#BCC0CC";
+
+                var content = new StackPanel { Spacing = 0, Background = Brush.Parse(detailBg) };
 
                 // Header
                 var header = new Border
                 {
-                    Background = Brush.Parse("#313244"),
+                    Background = Brush.Parse(detailHdr),
                     Padding = new Thickness(24, 16),
                     Child = new TextBlock
                     {
                         Text = "User Details",
-                        Foreground = Brush.Parse("#CDD6F4"),
+                        Foreground = Brush.Parse(detailTxt),
                         FontSize = 16,
                         FontWeight = FontWeight.Bold,
                         HorizontalAlignment = HorizontalAlignment.Center
@@ -238,8 +254,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));
                     row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
-                    var lbl = new TextBlock { Text = label, Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-                    var val = new TextBlock { Text = value, Foreground = Brush.Parse(valueColor), FontSize = 12, TextWrapping = Avalonia.Media.TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+                    var lbl = new TextBlock { Text = label, Foreground = Brush.Parse(detailLbl), FontSize = 12, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+                    var val = new TextBlock { Text = value, Foreground = Brush.Parse(valueColor == "#CDD6F4" ? detailTxt : valueColor == "#6C7086" ? detailMut : valueColor), FontSize = 12, TextWrapping = Avalonia.Media.TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
 
                     Grid.SetColumn(lbl, 0);
                     Grid.SetColumn(val, 1);
@@ -247,7 +263,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     row.Children.Add(val);
                     body.Children.Add(row);
 
-                    body.Children.Add(new Border { Height = 1, Background = Brush.Parse("#313244"), Margin = new Thickness(0, 4) });
+                    body.Children.Add(new Border { Height = 1, Background = Brush.Parse(detailSep), Margin = new Thickness(0, 4) });
                 }
 
                 AddRow("User ID:",       $"#{user.Id}");
@@ -266,8 +282,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 0, 0, 20),
                     Padding = new Thickness(40, 10),
-                    Background = Brush.Parse("#45475A"),
-                    Foreground = Brush.Parse("#CDD6F4"),
+                    Background = Brush.Parse(detailBtn),
+                    Foreground = Brush.Parse(detailTxt),
                     CornerRadius = new CornerRadius(8),
                     FontWeight = FontWeight.SemiBold
                 };
@@ -284,7 +300,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Brush.Parse("#1E1E2E")
+                    Background = Brush.Parse(detailBg)
                 };
 
                 btnClose.Click += (_, _) => window.Close();

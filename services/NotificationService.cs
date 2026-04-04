@@ -21,6 +21,7 @@ namespace PinayPalBackupManager.Services
         {
             // Since Avalonia doesn't have a built-in native toast, we'll log it for now
             LogService.WriteLiveLog($"[NOTIFICATION] {title}: {message}", "", type, "SYSTEM");
+            NotificationHistoryService.Add(title, message, type);
             OnToast?.Invoke(title, message, type);
         }
 

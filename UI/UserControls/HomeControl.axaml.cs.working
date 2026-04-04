@@ -1,0 +1,32 @@
+using System;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
+using PinayPalBackupManager.Models;
+using PinayPalBackupManager.Services;
+
+namespace PinayPalBackupManager.UI.UserControls
+{
+    public partial class HomeControl : UserControl
+    {
+        private readonly BackupManager _manager;
+
+        public event Action? OnNavigateFtp;
+        public event Action? OnNavigateMailchimp;
+        public event Action? OnNavigateSql;
+        public event Action? OnRunAllChecks;
+        public event Action? OnEmergencyStop;
+
+        public HomeControl(BackupManager manager)
+        {
+            Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            _manager = manager;
+
+            this.FindControl<Button>("BtnGoFtp")!.Click += (_, _) => OnNavigateFtp?.Invoke();
+            this.FindControl<Button>("BtnGoMc")!.Click += (_, _) => OnNavigateMailchimp?.Invoke();
+        }
+    }
+}

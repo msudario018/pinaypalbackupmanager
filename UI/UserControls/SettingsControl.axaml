@@ -4,62 +4,71 @@
     <ScrollViewer>
         <StackPanel Spacing="20">
             <!-- App Updates (1st) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="White"/>
+                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}"/>
                     <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                 </StackPanel>
             </Border>
 
             <!-- Backup Health Dashboard (2nd) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
                     <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
                     <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="#A6ADC8" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
 
             <!-- System Configuration (3rd) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
-                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="White"/>
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,6"/>
+                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
+                    <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4,0,0">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Backup Retention" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Days to keep old backup files before auto-delete" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                        </StackPanel>
+                        <TextBox Grid.Column="1" Name="TxtRetentionDays" Width="54" TextAlignment="Center" FontSize="13" FontWeight="Bold" Background="{DynamicResource AppSurface}" Foreground="#89B4FA" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,5" Margin="10,0,6,0"/>
+                        <TextBlock Grid.Column="2" Text="days" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Button Name="BtnSaveRetention" Content="Save Retention Policy" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
                 </StackPanel>
             </Border>
 
             <!-- System Information (4th) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="#CBA6F7" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Text="App Version:" Foreground="#A6ADC8" Width="120"/>
+                        <TextBlock Text="App Version:" Foreground="{DynamicResource AppSubtext}" Width="120"/>
                         <TextBlock Grid.Column="1" Name="TxtVersion" Text="v..." FontWeight="Bold"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Text="Created By:" Foreground="#A6ADC8" Width="120"/>
+                        <TextBlock Text="Created By:" Foreground="{DynamicResource AppSubtext}" Width="120"/>
                         <TextBlock Grid.Column="1" Name="TxtCreator" Text="Wesley" FontWeight="Bold"/>
                     </Grid>
                     <Button Name="BtnShowSystemInfo" Content="VIEW CHANGELOG &amp; BUILD INFO" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
-                            Background="#313244" Foreground="White" FontWeight="Bold" Padding="10" CornerRadius="8" Margin="0,10,0,0"/>
+                            Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" FontWeight="Bold" Padding="10" CornerRadius="8" Margin="0,10,0,0"/>
                 </StackPanel>
             </Border>
 
             <!-- Credentials & Paths (3rd) -->
-            <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
                     <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
                     
                     <Grid ColumnDefinitions="*,*">
-                        <Button Name="BtnEditCredentials" Background="#313244" Foreground="White" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Margin="0,0,5,0">
+                        <Button Name="BtnEditCredentials" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Margin="0,0,5,0">
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="M12,17A2,2 0 0,1 14,19A2,2 0 0,1 12,21A2,2 0 0,1 10,19A2,2 0 0,1 12,17M12,4C14.5,4 16.5,5.5 17.3,8H17.3C17.5,8.5 18,9 18.6,9H19C20.1,9 21,9.9 21,11C21,12.1 20.1,13 19,13H17.3C17.3,13.2 17.2,13.5 17.1,13.7L15.7,15.8C15.4,16.2 15,16.4 14.5,16.4H9.5C9,16.4 8.6,16.2 8.3,15.8L6.9,13.7C6.8,13.5 6.7,13.2 6.7,13H5C3.9,13 3,12.1 3,11C3,9.9 3.9,9 5,9H5.4C6,9 6.5,8.5 6.7,8H6.7C7.5,5.5 9.5,4 12,4Z" Width="20" Height="20"/>
                                 <TextBlock Text="Edit Credentials" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
                         
-                        <Button Name="BtnEditPaths" Background="#313244" Foreground="White" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Grid.Column="1" Margin="5,0,0,0">
+                        <Button Name="BtnEditPaths" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Grid.Column="1" Margin="5,0,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" Width="20" Height="20"/>
                                 <TextBlock Text="Edit Paths" FontWeight="SemiBold"/>
@@ -67,7 +76,7 @@
                         </Button>
                     </Grid>
                     
-                    <TextBlock Name="TxtConfigStatus" Text="" Foreground="#A6ADC8" FontStyle="Italic" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtConfigStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
         </StackPanel>

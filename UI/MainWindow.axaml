@@ -4,14 +4,14 @@
         Title="PinayPal Backup Manager"
         Width="1000" Height="780"
         WindowStartupLocation="CenterScreen"
-        Background="#0B0F17"
+        Background="{DynamicResource AppBg}"
         Foreground="#CDD6F4"
         Icon="/Assets/logo.ico">
     
     <Grid ColumnDefinitions="72, *">
         <!-- Sidebar -->
-        <Border Grid.Column="0" Background="#11111B" BorderBrush="#1E1E2E" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto, *, Auto">
+        <Border Grid.Column="0" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder2}" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto, *, Auto, Auto">
 
                 <!-- Logo Area -->
                 <Border Grid.Row="0" Padding="0,18,0,14" BorderBrush="#1E1E2E" BorderThickness="0,0,0,1">
@@ -39,8 +39,15 @@
                     </Button>
                 </StackPanel>
 
+                <!-- Customize Tabs Button -->
+                <Button Name="BtnCustomizeTabs" Grid.Row="2" Classes="SideBtn" ToolTip.Tip="Customize Tab Order"
+                        HorizontalAlignment="Center" Margin="10,4,10,0" Cursor="Hand">
+                    <PathIcon Data="M3,15H21V13H3V15M3,19H21V17H3V19M3,11H21V9H3V11M3,5V7H21V5H3Z"
+                              Width="16" Height="16" Foreground="#585B70"/>
+                </Button>
+
                 <!-- Profile Section -->
-                <Border Grid.Row="2" Padding="0,10" BorderBrush="#1E1E2E" BorderThickness="0,1,0,0">
+                <Border Grid.Row="3" Padding="0,10" BorderBrush="#1E1E2E" BorderThickness="0,1,0,0">
                     <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center"
                             CornerRadius="12" ToolTip.Tip="Profile" Cursor="Hand">
                         <Grid Width="36" Height="36">
@@ -59,45 +66,78 @@
         <!-- Main Content Area -->
         <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto, Auto">
             <!-- Top Bar -->
-            <Border Grid.Row="0" Height="54" Background="#11111B" BorderBrush="#313244" BorderThickness="0,0,0,1">
+            <Border Grid.Row="0" Height="54" Background="{DynamicResource AppTopBar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
                 <Grid ColumnDefinitions="*, *, *">
                     <!-- US Time Badge -->
-                    <Border Grid.Column="0" Background="#11111B" BorderBrush="#313244" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
+                    <Border Grid.Column="0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
                                       Width="10" Height="10" Foreground="#A6ADC8"/>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="US (UTC-7)" Foreground="#A6ADC8" FontSize="8" FontWeight="Bold"/>
-                                <TextBlock Name="TxtUsTime" Text="--:--:--" FontSize="11" FontWeight="Heavy" Foreground="White"/>
+                                <TextBlock Text="US (UTC-7)" Foreground="{DynamicResource AppSubtext}" FontSize="8" FontWeight="Bold"/>
+                                <TextBlock Name="TxtUsTime" Text="--:--:--" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Manila Time Badge -->
-                    <Border Grid.Column="1" Background="#11111B" BorderBrush="#313244" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Center" Margin="0,7" Padding="14,6">
+                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Center" Margin="0,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
-                                      Width="10" Height="10" Foreground="#F9E2AF"/>
+                                      Width="10" Height="10" Foreground="{DynamicResource AppManilaTime}"/>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="MANILA (UTC+8)" Foreground="#F9E2AF" FontSize="8" FontWeight="Bold"/>
-                                <TextBlock Name="TxtMnlTime" Text="--:--:--" FontSize="11" FontWeight="Heavy" Foreground="#F9E2AF"/>
+                                <TextBlock Text="MANILA (UTC+8)" Foreground="{DynamicResource AppManilaTime}" FontSize="8" FontWeight="Bold"/>
+                                <TextBlock Name="TxtMnlTime" Text="--:--:--" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppManilaTime}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Version Badge -->
-                    <Border Grid.Column="2" Background="#11111B" BorderBrush="#313244" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Right" Margin="0,7,20,7" Padding="14,6">
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Button Name="BtnSystemInfo" Classes="Ghost" VerticalAlignment="Center" Cursor="Hand">
-                                <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" 
-                                          Width="10" Height="10" Foreground="#A6ADC8"/>
+                    <!-- Theme Toggle + Bell + Version Badge -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6" Margin="0,0,16,0">
+                        <!-- Bell icon with unread badge -->
+                        <Grid>
+                            <Button Name="BtnNotificationCenter" ToolTip.Tip="Notification History" Cursor="Hand"
+                                    Background="{DynamicResource AppCard}" BorderThickness="0" CornerRadius="20" Padding="10,6">
+                                <TextBlock Text="🔔" FontSize="13" VerticalAlignment="Center"/>
                             </Button>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="VERSION" Foreground="#A6ADC8" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
-                                <TextBlock Name="TxtVersionBadge" Text="v..." FontSize="11" FontWeight="Heavy" Foreground="White"/>
+                            <Border Name="BellBadge" Background="#F38BA8" CornerRadius="6" Padding="3,1" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False" Margin="0,0,2,0">
+                                <TextBlock Name="BellCount" Text="0" FontSize="8" FontWeight="Bold" Foreground="White"/>
+                            </Border>
+                        </Grid>
+                        <Button Name="BtnThemeToggle" ToolTip.Tip="Toggle Light/Dark Mode" Cursor="Hand"
+                                Background="{DynamicResource AppCard}" BorderThickness="0" CornerRadius="20" Padding="10,6">
+                            <TextBlock Name="TxtThemeIcon" Text="☀" FontSize="15" VerticalAlignment="Center"/>
+                        </Button>
+                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" Padding="14,6">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Name="BtnSystemInfo" Classes="Ghost" VerticalAlignment="Center" Cursor="Hand">
+                                    <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"
+                                              Width="10" Height="10" Foreground="#A6ADC8"/>
+                                </Button>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="VERSION" Foreground="#A6ADC8" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                    <TextBlock Name="TxtVersionBadge" Text="v..." FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Notification Center Flyout -->
+            <Border Name="NotificationCenter" Grid.Row="0" Grid.RowSpan="3" IsVisible="False"
+                    ZIndex="998" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,58,16,0" Width="340"
+                    Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12"
+                    MaxHeight="420">
+                <Grid RowDefinitions="Auto, *">
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="16,14,16,10">
+                        <TextBlock Text="NOTIFICATIONS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="BtnClearNotifications" Content="Clear all" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppMuted}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand"/>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" MaxHeight="360" Margin="0,0,0,8">
+                        <StackPanel Name="NotificationList" Spacing="2" Margin="8,0,8,8"/>
+                    </ScrollViewer>
                 </Grid>
             </Border>
 
@@ -105,38 +145,56 @@
             <ContentControl Grid.Row="1" Name="MainContent" Margin="20"/>
 
             <Border Grid.Row="2" Name="ToastBorder" IsVisible="False" Opacity="1" HorizontalAlignment="Right" Margin="0,0,20,10"
-                    Background="#11111B" BorderBrush="#313244" BorderThickness="1" CornerRadius="10" Padding="14" Width="360" IsHitTestVisible="False">
+                    Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Width="360" IsHitTestVisible="False">
                 <StackPanel Spacing="6">
                     <TextBlock Name="ToastTitle" Text="Notification" FontWeight="Bold" Foreground="#CBA6F7"/>
-                    <TextBlock Name="ToastMessage" Text="" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                    <TextBlock Name="ToastMessage" Text="" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
             <!-- Bottom Status Bar -->
-            <Border Grid.Row="3" Name="StatusBar" Height="40" Background="#11111B" BorderBrush="#313244" BorderThickness="0,1,0,0" CornerRadius="0,0,12,0">
+            <Border Grid.Row="3" Name="StatusBar" Height="40" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,0">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0" Spacing="10">
-                        <PathIcon Name="StatusIcon" Data="{StaticResource CloudIcon}" Width="14" Height="14" Foreground="#A6ADC8"/>
-                        <TextBlock Name="TxtStatus" Text="SYSTEM READY" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="#A6ADC8"/>
+                        <PathIcon Name="StatusIcon" Data="{StaticResource CloudIcon}" Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
+                        <TextBlock Name="TxtStatus" Text="SYSTEM READY" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
                     </StackPanel>
                     
-                    <Border Grid.Column="1" Name="HealthBadge" Background="#1E1E2E" CornerRadius="20" Margin="10,5,20,5" Padding="12,0">
+                    <Border Grid.Column="1" Name="HealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Margin="10,5,20,5" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Ellipse Name="HealthIndicator" Width="8" Height="8" Fill="#A6ADC8"/>
-                            <TextBlock Name="TxtHealth" Text="HEALTH: SCANNING..." VerticalAlignment="Center" FontSize="10" FontWeight="Heavy" Foreground="#A6ADC8"/>
+                            <TextBlock Name="TxtHealth" Text="HEALTH: SCANNING..." VerticalAlignment="Center" FontSize="10" FontWeight="Heavy" Foreground="{DynamicResource AppSubtext}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
             </Border>
 
-            <Border Name="StartupOverlay" Grid.RowSpan="4" IsVisible="False" Background="#CC11111B" CornerRadius="14" Margin="10" Padding="0" ZIndex="999">
+            <Border Name="StartupOverlay" Grid.RowSpan="4" IsVisible="False" Background="#CC000000" Padding="0" ZIndex="999">
                 <Grid>
-                    <Border Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1" CornerRadius="14" Padding="22" Width="420" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Starting up" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Running health scan..." FontSize="12" Foreground="#A6ADC8" HorizontalAlignment="Center"/>
-                            <ProgressBar IsIndeterminate="True" Height="10" CornerRadius="5" Background="#313244" Foreground="#89B4FA"/>
-                            <TextBlock Name="TxtStartupHint" Text="Please wait" FontSize="11" Foreground="#6C7086" HorizontalAlignment="Center"/>
+                    <Border BorderBrush="#CBA6F7" BorderThickness="1" CornerRadius="16"
+                            Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            ClipToBounds="True" Background="{DynamicResource AppCard}">
+                        <StackPanel>
+                            <!-- Branded header -->
+                            <Border Background="#2D2346" Padding="24,18" CornerRadius="15,15,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                                    <Image Source="/Assets/logo.ico" Width="36" Height="36" VerticalAlignment="Center"/>
+                                    <StackPanel VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="PinayPal Backup Manager" FontSize="13" FontWeight="Bold" Foreground="#CBA6F7"/>
+                                        <TextBlock Text="Initializing services..." FontSize="11" Foreground="#A6ADC8"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Content -->
+                            <StackPanel Spacing="14" Margin="28,22,28,26">
+                                <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                    <TextBlock Text="Running health scan" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Checking all services before starting..." FontSize="11" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <ProgressBar IsIndeterminate="True" Height="6" CornerRadius="3" Background="{DynamicResource AppBorder}" Foreground="#CBA6F7"/>
+                                <TextBlock Name="TxtStartupHint" Text="Please wait" FontSize="11" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -162,14 +220,14 @@
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover">
-            <Setter Property="Background" Value="#1E1E2E"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="RenderTransform" Value="scale(1.06)"/>
         </Style>
         <Style Selector="Button.SideBtn.Selected">
             <Setter Property="Background" Value="#2D2346"/>
         </Style>
         <Style Selector="Button.SideBtn:pressed">
-            <Setter Property="Background" Value="#2D2346"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="RenderTransform" Value="scale(0.93)"/>
         </Style>
 

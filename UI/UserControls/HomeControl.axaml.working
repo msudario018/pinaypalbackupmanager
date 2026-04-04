@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.HomeControl">
+    <StackPanel Margin="20" Spacing="20">
+        <TextBlock Text="Home Dashboard - Simplified" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+        <TextBlock Text="This is a simplified version to test startup" FontSize="14" Foreground="{DynamicResource AppSubtext}"/>
+        
+        <!-- Basic Service Cards -->
+        <Grid ColumnDefinitions="*, *">
+            <Border Grid.Column="0" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="16" Margin="0,0,8,0">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="FTP BACKUP" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                    <Button Name="BtnGoFtp" Content="Open FTP Tab →" Background="#1A2E1A" Foreground="#A6E3A1" BorderThickness="0" CornerRadius="6" Padding="8"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="16" Margin="8,0,0,0">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="MAILCHIMP BACKUP" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                    <Button Name="BtnGoMc" Content="Open Mailchimp Tab →" Background="#0F2028" Foreground="#89DCEB" BorderThickness="0" CornerRadius="6" Padding="8"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

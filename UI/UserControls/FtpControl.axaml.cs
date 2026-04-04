@@ -169,7 +169,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
                             if (_abortRequested) throw new OperationCanceledException();
                             LogService.WriteLiveLog($"COMPLETE: {missingCount} backup(s) synchronized.", BackupConfig.FtpLogFile, "Information", trigger);
-                            NotificationService.ShowBackupToast("FTP Sync Success", $"{missingCount} new backup(s) downloaded ({trigger}).", "Info");
+                            var integrity = CheckIntegrity(BackupConfig.FtpLocalFolder);
+                            LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.FtpLogFile, "Information", trigger);
+                            NotificationService.ShowBackupToast("FTP Sync Success", $"{missingCount} new backup(s) downloaded ({trigger}). {integrity}", "Success");
                         }
                         else
                         {
@@ -436,6 +438,30 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public bool IsBusy => _isBusy;
         public Task TriggerSyncCheckAsync() => SyncCheckAsync();
+
+        private static string CheckIntegrity(string folder)
+        {
+            try
+            {
+                if (!Directory.Exists(folder)) return "No local folder found.";
+                var newest = new DirectoryInfo(folder)
+                    .EnumerateFiles("*", SearchOption.AllDirectories)
+                    .Where(f => f.Name != "backuplog.txt")
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .FirstOrDefault();
+                if (newest == null) return "No backup files found.";
+                if (newest.Length == 0) return $"WARNING: {newest.Name} is zero-byte!";
+                if (newest.Extension.Equals(".gz", StringComparison.OrdinalIgnoreCase) || newest.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var fs = File.OpenRead(newest.FullName);
+                    using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionMode.Decompress);
+                    var buf = new byte[512];
+                    gz.Read(buf, 0, buf.Length);
+                }
+                return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
+            }
+            catch (Exception ex) { return $"WARNING: {ex.Message}"; }
+        }
 
         public void RequestCancelFromShell()
         {

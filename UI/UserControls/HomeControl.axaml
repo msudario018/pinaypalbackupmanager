@@ -1,21 +1,51 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.HomeControl">
-    <ScrollViewer>
-        <StackPanel Spacing="16" Margin="0,0,8,24">
+    <UserControl.Styles>
+        <Style Selector="Ellipse.pulse">
+            <Style.Animations>
+                <Animation Duration="0:0:1.6" IterationCount="INFINITE" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.25"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <!-- White theme optimizations -->
+        <Style Selector="Border.background-card">
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBlock.service-title">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.service-action">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </UserControl.Styles>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="16" Margin="16,16,24,24">
 
             <!-- Header -->
             <Grid ColumnDefinitions="*, Auto">
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Name="TxtGreeting" Text="Dashboard" FontSize="22" FontWeight="Bold" Foreground="#CDD6F4"/>
-                    <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="#6C7086"/>
+                    <TextBlock Name="TxtGreeting" Text="Dashboard" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <Border Name="DashHealthBadge" Background="#1E1E2E" CornerRadius="20" Padding="14,8">
+                    <Button Name="BtnCompactToggle" Content="⊟ Compact" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
+                            BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand"/>
+                    <Border Name="DashHealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Padding="14,8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Ellipse Name="DashHealthDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                            <Ellipse Name="DashHealthDot" Classes="pulse" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
                             <TextBlock Name="DashHealthText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
-                                       Foreground="#6C7086" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <Button Name="BtnRunAllChecks" Content="Run All Checks" Background="#2D2346" Foreground="#CBA6F7"
@@ -36,36 +66,11 @@
                 </Grid>
             </Border>
 
-            <!-- Quick Stats Row -->
-            <Grid ColumnDefinitions="*, *, *">
-                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="TOTAL FILES" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
-                        <TextBlock Name="StatTotalFiles" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="across all backups" FontSize="10" Foreground="#45475A"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="1" Margin="4,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="STORAGE USED" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
-                        <TextBlock Name="StatStorage" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="total backup size" FontSize="10" Foreground="#45475A"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="2" Margin="8,0,0,0" Background="#1E1E2E" CornerRadius="10" Padding="16,14">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="SERVICES OK" FontSize="9" Foreground="#6C7086" FontWeight="Bold" LetterSpacing="1"/>
-                        <TextBlock Name="StatServicesOk" Text="—" FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="out of 3 services" FontSize="10" Foreground="#45475A"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
             <!-- Service Cards -->
-            <Grid ColumnDefinitions="*, *, *">
+            <Grid Name="ServiceCardsSection" ColumnDefinitions="*, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
 
                 <!-- FTP Card -->
-                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
                     <StackPanel Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Border Background="#1A2E1A" CornerRadius="8" Padding="8" VerticalAlignment="Center">
@@ -74,38 +79,53 @@
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
                                 <TextBlock Text="FTP SYNC" FontSize="12" FontWeight="Bold" Foreground="#A6E3A1"/>
-                                <TextBlock Text="Website backup" FontSize="10" Foreground="#45475A"/>
+                                <TextBlock Text="Website backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                        <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Name="FtpStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <Ellipse Name="FtpStatusDot" Classes="pulse" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
                                 <TextBlock Name="FtpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
-                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                                           Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="FtpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="FtpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="FtpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="FtpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                         </StackPanel>
 
-                        <Button Name="BtnGoFtp" Content="Open FTP Tab →" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="#1A2E1A" Foreground="#A6E3A1"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                FontWeight="SemiBold" Cursor="Hand"/>
+                        <TextBlock Name="FtpLastSummary" Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap"/>
+
+                        <!-- File Browser -->
+                        <Grid ColumnDefinitions="*, Auto">
+                            <Button Name="BtnGoFtp" Content="Open FTP Tab →" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" Background="#1A2E1A" Foreground="#A6E3A1"
+                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                    FontWeight="SemiBold" Cursor="Hand"/>
+                            <Button Grid.Column="1" Name="BtnFtpFiles" Content="📂" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
+                        </Grid>
+                        <Border Name="FtpFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Name="BtnFtpOpenFolder" Content="Open Folder" Background="#1A2E1A" Foreground="#A6E3A1" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
+                                </Grid>
+                                <StackPanel Name="FtpFileList" Spacing="2"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
                 <!-- Mailchimp Card -->
-                <Border Grid.Column="1" Margin="4,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <Border Grid.Column="1" Margin="6,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
                     <StackPanel Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Border Background="#0F2028" CornerRadius="8" Padding="8" VerticalAlignment="Center">
@@ -114,38 +134,52 @@
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
                                 <TextBlock Text="MAILCHIMP" FontSize="12" FontWeight="Bold" Foreground="#89DCEB"/>
-                                <TextBlock Text="Email backup" FontSize="10" Foreground="#45475A"/>
+                                <TextBlock Text="Email backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                        <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Name="MailchimpStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <Ellipse Name="MailchimpStatusDot" Classes="pulse" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
                                 <TextBlock Name="MailchimpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
-                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                                           Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="MailchimpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="MailchimpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                         </StackPanel>
 
-                        <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab →" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="#0F2028" Foreground="#89DCEB"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                FontWeight="SemiBold" Cursor="Hand"/>
+                        <TextBlock Name="MailchimpLastSummary" Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap"/>
+
+                        <Grid ColumnDefinitions="*, Auto">
+                            <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab →" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" Background="#0F2028" Foreground="#89DCEB"
+                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                    FontWeight="SemiBold" Cursor="Hand"/>
+                            <Button Grid.Column="1" Name="BtnMcFiles" Content="📂" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
+                        </Grid>
+                        <Border Name="McFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Name="BtnMcOpenFolder" Content="Open Folder" Background="#0F2028" Foreground="#89DCEB" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
+                                </Grid>
+                                <StackPanel Name="McFileList" Spacing="2"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
                 <!-- SQL Card -->
-                <Border Grid.Column="2" Margin="8,0,0,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <Border Grid.Column="2" Margin="8,0,0,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
                     <StackPanel Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Border Background="#2A2510" CornerRadius="8" Padding="8" VerticalAlignment="Center">
@@ -154,90 +188,295 @@
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
                                 <TextBlock Text="SQL BACKUP" FontSize="12" FontWeight="Bold" Foreground="#F9E2AF"/>
-                                <TextBlock Text="Database backup" FontSize="10" Foreground="#45475A"/>
+                                <TextBlock Text="Database backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="#11111B" CornerRadius="8" Padding="12,8">
+                        <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Name="SqlStatusDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
+                                <Ellipse Name="SqlStatusDot" Classes="pulse" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center"/>
                                 <TextBlock Name="SqlStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
-                                           Foreground="#6C7086" VerticalAlignment="Center"/>
+                                           Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="SqlLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="SqlLastSync" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
-                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="#6C7086"/>
-                                <TextBlock Grid.Column="1" Name="SqlNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Grid.Column="1" Name="SqlNextScan" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                         </StackPanel>
 
-                        <Button Name="BtnGoSql" Content="Open SQL Tab →" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="#2A2510" Foreground="#F9E2AF"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                FontWeight="SemiBold" Cursor="Hand"/>
+                        <TextBlock Name="SqlLastSummary" Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" TextWrapping="Wrap"/>
+
+                        <Grid ColumnDefinitions="*, Auto">
+                            <Button Name="BtnGoSql" Content="Open SQL Tab →" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" Background="#2A2510" Foreground="#F9E2AF"
+                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                    FontWeight="SemiBold" Cursor="Hand"/>
+                            <Button Grid.Column="1" Name="BtnSqlFiles" Content="📂" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
+                        </Grid>
+                        <Border Name="SqlFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Name="BtnSqlOpenFolder" Content="Open Folder" Background="#2A2510" Foreground="#F9E2AF" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
+                                </Grid>
+                                <StackPanel Name="SqlFileList" Spacing="2"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- Backup Health Dashboard -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto, Auto">
+                        <TextBlock Text="BACKUP HEALTH" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <Ellipse Grid.Column="1" Name="HealthAutoRefreshIndicator" Classes="pulse" Width="6" Height="6" Fill="#A6E3A1" VerticalAlignment="Center" Margin="0,0,8,0" IsVisible="False"/>
+                        <Button Grid.Column="2" Name="BtnRefreshHealth" Content="↻ Auto" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand"/>
+                    </Grid>
+                    
+                    <!-- Health Score -->
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <Border Grid.Column="0" Background="#1A2E1A" CornerRadius="12" Padding="20,16" Margin="0,0,16,0" VerticalAlignment="Center">
+                            <StackPanel Spacing="4">
+                                <TextBlock Name="HealthScoreText" Text="—" FontSize="28" FontWeight="Bold" Foreground="#A6E3A1" HorizontalAlignment="Center" Padding="4,2"/>
+                                <TextBlock Name="HealthTrendText" Text="Calculating..." FontSize="10" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <Grid ColumnDefinitions="Auto, 40, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#A6E3A1" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Grid.Column="1" Text="FTP" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="HealthFtpScore" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#A6E3A1" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto, 60, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#89DCEB" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="HealthMcScore" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#89DCEB" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto, 30, Auto">
+                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F9E2AF" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Grid.Column="1" Text="SQL" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Name="HealthSqlScore" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#F9E2AF" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                            </Grid>
+                        </StackPanel>
+                        
+                        <Border Grid.Column="2" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="CRITICAL ALERTS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" HorizontalAlignment="Center"/>
+                                <TextBlock Name="CriticalAlertsCount" Text="0" FontSize="20" FontWeight="Bold" Foreground="#F38BA8" HorizontalAlignment="Center"/>
+                                <TextBlock Text="need attention" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    
+                    <!-- Critical Alerts List -->
+                    <Border Name="CriticalAlertsPanel" Background="#2D1515" CornerRadius="8" Padding="12,8" IsVisible="False">
+                        <StackPanel Name="CriticalAlertsList" Spacing="6"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Operations -->
+            <Border Classes="background-card" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Text="OPERATIONS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Name="BtnMaintenanceToggle" Content="⏸ Pause All" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" FontWeight="SemiBold" Cursor="Hand"/>
+                            <Button Name="BtnEmergencyStop" Content="⛔ Stop All" Background="#3D1515" Foreground="#F38BA8" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" FontWeight="SemiBold" Cursor="Hand"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Button Name="BtnBackupAll" Grid.Column="0" Margin="0,0,6,0" Content="⚡ Backup All" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#1A2E1A" Foreground="#A6E3A1" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
+                        <Button Name="BtnTestAllConn" Grid.Column="1" Margin="3,0" Content="🔗 Test All" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#0F2028" Foreground="#89DCEB" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
+                        <Button Name="BtnRetryFailed" Grid.Column="2" Margin="6,0,0,0" Content="↩ Retry Failed" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2A2510" Foreground="#F9E2AF" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
+                    </Grid>
+                    <TextBlock Name="TxtOperationsStatus" Text="" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Quick Stats Row -->
+            <Grid ColumnDefinitions="*, *, *">
+                <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="10" Padding="16,12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="TOTAL FILES" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatTotalFiles" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                        <TextBlock Text="across all backups" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Margin="6,0" Classes="background-card" CornerRadius="10" Padding="16,12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="STORAGE USED" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatStorage" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                        <TextBlock Text="total backup size" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Margin="8,0,0,0" Classes="background-card" CornerRadius="10" Padding="16,12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="SERVICES OK" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
+                        <TextBlock Name="StatServicesOk" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                        <TextBlock Text="out of 3 services" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Connectivity + Stats Row -->
+            <Grid ColumnDefinitions="*, *">
+
+                <!-- Connectivity -->
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="CONNECTIVITY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                            <Button Name="BtnPingAll" Grid.Column="1" Content="↻ Test All" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0" CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto, *, Auto">
+                            <Ellipse Grid.Column="0" Name="PingFtpDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1" Text="FTP Server" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="PingFtpText" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto, *, Auto">
+                            <Ellipse Grid.Column="0" Name="PingSqlDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1" Text="SQL Server" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="PingSqlText" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto, *, Auto">
+                            <Ellipse Grid.Column="0" Name="PingMcDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1" Text="Mailchimp API" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="PingMcText" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Stats & Reporting -->
+                <Border Grid.Column="1" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0" Text="BACKUP STATS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
+                            <Ellipse Grid.Column="1" Name="StatsAutoRefreshIndicator" Classes="pulse" Width="6" Height="6" Fill="#89B4FA" VerticalAlignment="Center" Margin="8,0,0,0" IsVisible="False"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto, *">
+                            <Border Grid.Column="0" Background="#1A2E1A" CornerRadius="6" Padding="10,5" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Name="TxtStreak" Text="🔥 0d" FontSize="14" FontWeight="Bold" Foreground="#A6E3A1"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="Backup streak" FontSize="10" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Name="TxtLastFailure" Text="Calculating..." FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </Grid>
+                        <!-- 7-Day Heatmap -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="LAST 7 DAYS" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="0.5"/>
+                            <StackPanel Name="HeatmapRow" Orientation="Horizontal" Spacing="4"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="*, *">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="THIS WEEK" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="0.5"/>
+                                <TextBlock Name="TxtWeekBackups" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                <TextBlock Text="backups run" FontSize="9" Foreground="{DynamicResource AppVeryMuted}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="AVG DURATION" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="0.5"/>
+                                <TextBlock Name="TxtAvgDuration" Text="—" FontSize="22" FontWeight="Bold" Foreground="#89B4FA"/>
+                                <TextBlock Text="per backup" FontSize="9" Foreground="{DynamicResource AppVeryMuted}"/>
+                            </StackPanel>
+                        </Grid>
+                        <!-- Per-service stats -->
+                        <Border Background="{DynamicResource AppSurface}" CornerRadius="6" Padding="10,8">
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="PER SERVICE" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5"/>
+                                <Grid ColumnDefinitions="Auto, 30, Auto">
+                                    <Ellipse Grid.Column="0" Width="6" Height="6" Fill="#A6E3A1" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Grid.Column="1" Text="FTP" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="StatFtpRate" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#A6E3A1" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto, 50, Auto">
+                                    <Ellipse Grid.Column="0" Width="6" Height="6" Fill="#89DCEB" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="StatMcRate" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#89DCEB" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto, 25, Auto">
+                                    <Ellipse Grid.Column="0" Width="6" Height="6" Fill="#F9E2AF" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Grid.Column="1" Text="SQL" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="StatSqlRate" Text="—" FontSize="10" FontWeight="SemiBold" Foreground="#F9E2AF" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Schedule Adjustment -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="SCHEDULE ADJUSTMENT" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
+                        <TextBlock Name="SchedSummaryText" Text="Loading schedule..." FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                    </StackPanel>
+                    <Button Name="BtnOpenSchedule" Grid.Column="1" Content="⚙ Edit Schedule" Background="#CBA6F7" Foreground="#1E1E2E" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" FontWeight="Bold" Cursor="Hand" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
 
             <!-- Storage Usage + Daily Schedule Row -->
             <Grid ColumnDefinitions="*, *">
 
                 <!-- Storage Usage -->
-                <Border Grid.Column="0" Margin="0,0,8,0" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
                     <StackPanel Spacing="14">
-                        <TextBlock Text="STORAGE USAGE" FontSize="11" FontWeight="Bold" Foreground="#A6ADC8" LetterSpacing="0.5"/>
-
+                        <TextBlock Text="STORAGE USAGE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
                         <StackPanel Spacing="10">
                             <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Grid.Column="0" Text="FTP / Website" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="0" Text="FTP / Website" FontSize="11" Foreground="{DynamicResource AppSubtext}"/>
                                     <TextBlock Grid.Column="1" Name="StorageFtp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#A6E3A1"/>
                                 </Grid>
-                                <ProgressBar Name="StorageFtpBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#A6E3A1"/>
+                                <ProgressBar Name="StorageFtpBar" Height="4" CornerRadius="2" Background="{DynamicResource AppSurface}" Value="0" Maximum="100" Foreground="#A6E3A1"/>
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Grid.Column="0" Text="Mailchimp" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="0" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}"/>
                                     <TextBlock Grid.Column="1" Name="StorageMailchimp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#89DCEB"/>
                                 </Grid>
-                                <ProgressBar Name="StorageMailchimpBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#89DCEB"/>
+                                <ProgressBar Name="StorageMailchimpBar" Height="4" CornerRadius="2" Background="{DynamicResource AppSurface}" Value="0" Maximum="100" Foreground="#89DCEB"/>
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Grid.Column="0" Text="SQL / Database" FontSize="11" Foreground="#A6ADC8"/>
+                                    <TextBlock Grid.Column="0" Text="SQL / Database" FontSize="11" Foreground="{DynamicResource AppSubtext}"/>
                                     <TextBlock Grid.Column="1" Name="StorageSql" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#F9E2AF"/>
                                 </Grid>
-                                <ProgressBar Name="StorageSqlBar" Height="4" CornerRadius="2" Background="#11111B" Value="0" Maximum="100" Foreground="#F9E2AF"/>
+                                <ProgressBar Name="StorageSqlBar" Height="4" CornerRadius="2" Background="{DynamicResource AppSurface}" Value="0" Maximum="100" Foreground="#F9E2AF"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Daily Schedule -->
-                <Border Grid.Column="1" Background="#1E1E2E" CornerRadius="14" Padding="20">
+                <Border Grid.Column="1" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
                     <StackPanel Spacing="14">
-                        <TextBlock Text="DAILY SCHEDULE" FontSize="11" FontWeight="Bold" Foreground="#A6ADC8" LetterSpacing="0.5"/>
-
+                        <TextBlock Text="DAILY SCHEDULE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#A6E3A1" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="FTP / Website" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="FTP / Website" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="SchedFtp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#A6E3A1" VerticalAlignment="Center"/>
                             </Grid>
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#89DCEB" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="SchedMailchimp" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#89DCEB" VerticalAlignment="Center"/>
                             </Grid>
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F9E2AF" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="SQL / Database" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="SQL / Database" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="SchedSql" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="#F9E2AF" VerticalAlignment="Center"/>
                             </Grid>
                         </StackPanel>
@@ -246,13 +485,16 @@
             </Grid>
 
             <!-- Recent Activity -->
-            <Border Background="#1E1E2E" CornerRadius="14" Padding="20">
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
                 <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*, Auto">
+                    <Grid ColumnDefinitions="*, Auto, 6, Auto">
                         <TextBlock Grid.Column="0" Text="RECENT ACTIVITY" FontSize="11" FontWeight="Bold"
-                                   Foreground="#A6ADC8" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Name="BtnRefreshActivity" Content="↻ Refresh"
-                                Background="#313244" Foreground="#A6ADC8" BorderThickness="0"
+                                   Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="BtnExportCsv" Content="↓ Export CSV"
+                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
+                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                        <Button Grid.Column="3" Name="BtnRefreshActivity" Content="↻ Refresh"
+                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
                                 CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
                     </Grid>
                     <StackPanel Name="ActivityList" Spacing="4"/>

@@ -7,6 +7,13 @@ namespace PinayPalBackupManager.Services
         public SqlSettings Sql { get; set; } = new();
         public MailchimpSettings Mailchimp { get; set; } = new();
         public ScheduleSettings Schedule { get; set; } = new();
+        public OperationSettings Operation { get; set; } = new();
+    }
+
+    public sealed class OperationSettings
+    {
+        public int RetentionDays { get; set; } = 7;
+        public bool AutoStartWindows { get; set; } = false;
     }
 
     public sealed class PathsSettings
@@ -48,5 +55,12 @@ namespace PinayPalBackupManager.Services
         public int MailchimpDailySyncMinuteMnl { get; set; } = 0;
         public int SqlDailySyncHourMnl { get; set; } = 17;
         public int SqlDailySyncMinuteMnl { get; set; } = 0;
+
+        public int FtpAutoScanHours { get; set; } = 3;
+        public int FtpAutoScanMinutes { get; set; } = 0;
+        public int MailchimpAutoScanHours { get; set; } = 2;
+        public int MailchimpAutoScanMinutes { get; set; } = 0;
+        public int SqlAutoScanHours { get; set; } = 2;
+        public int SqlAutoScanMinutes { get; set; } = 15;
     }
 }
