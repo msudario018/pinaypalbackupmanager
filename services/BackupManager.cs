@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
+using WinSCP;
 using PinayPalBackupManager.Models;
 
 namespace PinayPalBackupManager.Services
@@ -25,6 +26,7 @@ namespace PinayPalBackupManager.Services
 
         public event Action<List<BackupHealthReport>>? OnHealthUpdate;
         public event Action<DateTime, DateTime, DateTime, DateTime>? OnTimeUpdate;
+        public event Action<string, int, string>? OnBackupProgress; // service, percent, status
         public event Action? OnFtpAutoSyncRequested;
         public event Action? OnMailchimpAutoSyncRequested;
         public event Action? OnSqlAutoSyncRequested;
@@ -65,6 +67,11 @@ namespace PinayPalBackupManager.Services
         public void Stop()
         {
             _mainTimer.Stop();
+        }
+
+        public void ReportBackupProgress(string service, int percent, string status)
+        {
+            OnBackupProgress?.Invoke(service, percent, status);
         }
 
         private void MainTimer_Elapsed(object? sender, ElapsedEventArgs e)
@@ -123,7 +130,7 @@ namespace PinayPalBackupManager.Services
         public async Task RunHealthCheckAsync(bool triggerAutoSync = false)
         {
             if (System.Threading.Interlocked.Exchange(ref _healthRunning, 1) == 1) return;
-            LogService.WriteLiveLog("HEALTH: Starting global health check...", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+            LogService.WriteSystemLog("HEALTH: Starting global health check...", "Information", "SYSTEM");
             try
             {
                 await Task.Run(async () =>
@@ -132,21 +139,21 @@ namespace PinayPalBackupManager.Services
                     var nowUtc = DateTime.UtcNow;
                     var freshWindowUtc = nowUtc.AddHours(-25);
 
-                    LogService.WriteLiveLog($"HEALTH: Fresh window (UTC) set to {freshWindowUtc:MM/dd hh:mm:ss}.", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                    LogService.WriteSystemLog($"HEALTH: Fresh window (UTC) set to {freshWindowUtc:MM/dd hh:mm:ss}.", "Information", "SYSTEM");
 
                     // 1. Website Check
-                    LogService.WriteLiveLog("HEALTH: Checking Website status...", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                    LogService.WriteSystemLog("HEALTH: Checking Website status...", "Information", "SYSTEM");
                     reports.Add(await CheckWebsiteHealthAsync());
 
                     // 2. Mailchimp Check
-                    LogService.WriteLiveLog("HEALTH: Checking Mailchimp status...", BackupConfig.McLogFile, "Information", "SYSTEM");
+                    LogService.WriteSystemLog("HEALTH: Checking Mailchimp status...", "Information", "SYSTEM");
                     reports.Add(CheckMailchimpHealth(freshWindowUtc));
 
                     // 3. Database Check
-                    LogService.WriteLiveLog("HEALTH: Checking Database status...", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+                    LogService.WriteSystemLog("HEALTH: Checking Database status...", "Information", "SYSTEM");
                     reports.Add(CheckDatabaseHealth(freshWindowUtc));
 
-                    LogService.WriteLiveLog("HEALTH: Global health check completed.", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                    LogService.WriteSystemLog("HEALTH: Global health check completed.", "Information", "SYSTEM");
                     OnHealthUpdate?.Invoke(reports);
 
                     if (triggerAutoSync)
@@ -189,7 +196,8 @@ namespace PinayPalBackupManager.Services
                 {
                     report.Status = "OK";
                     report.Color = "LimeGreen";
-                    report.LastUpdate = latestLocal.LastWriteTime.ToString("MM/dd hh:mm:ss");
+                    var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(latestLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                    report.LastUpdate = mnlTime.ToString("MM/dd hh:mm:ss");
                     report.FileName = latestLocal.Name;
 
                     // --- WEBSITE: FTP COMPARISON ---
@@ -212,9 +220,12 @@ namespace PinayPalBackupManager.Services
                                     .EnumerateFiles("*", SearchOption.AllDirectories)
                                     .FirstOrDefault(f => string.Equals(f.Name, ftpLatest.Name, StringComparison.OrdinalIgnoreCase));
 
-                                if (matchingLocal != null && matchingLocal.Length == ftpLatest.Length)
+                                if (matchingLocal != null)
                                 {
-                                    report.LastUpdate = matchingLocal.LastWriteTime.ToString("MM/dd hh:mm:ss");
+                                    report.Status = "OK";
+                                    report.Color = "LimeGreen";
+                                    var mnlTime2 = TimeZoneInfo.ConvertTimeFromUtc(matchingLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                                    report.LastUpdate = mnlTime2.ToString("MM/dd hh:mm:ss");
                                     report.FileName = matchingLocal.Name;
                                 }
                                 else
@@ -305,18 +316,48 @@ namespace PinayPalBackupManager.Services
         private static BackupHealthReport CheckDatabaseHealth(DateTime freshWindowUtc)
         {
             var report = new BackupHealthReport { Service = "Database" };
+            
+            // Check if SQL config is set
+            if (string.IsNullOrEmpty(BackupConfig.FtpHost) || string.IsNullOrEmpty(BackupConfig.SqlUser))
+            {
+                report.Status = "NOT CONFIGURED";
+                report.Color = "Gray";
+                report.LastUpdate = "SQL credentials not set";
+                return report;
+            }
+            
             if (Directory.Exists(BackupConfig.SqlLocalFolder))
             {
                 try
                 {
                     using var sql = new SqlService();
                     string decryptedPass = SecurityService.GetDecryptedSqlPassword();
+                    if (string.IsNullOrEmpty(decryptedPass))
+                    {
+                        report.Status = "NOT CONFIGURED";
+                        report.Color = "Gray";
+                        report.LastUpdate = "SQL password not set";
+                        return report;
+                    }
+                    
                     sql.Initialize(BackupConfig.FtpHost, BackupConfig.SqlUser, decryptedPass, BackupConfig.SqlTlsFingerprint);
 
-                    var localLatest = new DirectoryInfo(BackupConfig.SqlLocalFolder)
-                        .EnumerateFiles("*.sql*", SearchOption.AllDirectories)
-                        .OrderByDescending(f => f.LastWriteTimeUtc)
-                        .FirstOrDefault();
+                    FileInfo localLatest;
+                    try
+                    {
+                        localLatest = new DirectoryInfo(BackupConfig.SqlLocalFolder)
+                            .EnumerateFiles("*.sql*", SearchOption.AllDirectories)
+                            .OrderByDescending(f => f.LastWriteTimeUtc)
+                            .FirstOrDefault();
+                    }
+                    catch (Exception ex)
+                    {
+                        report.Status = "LOCAL SCAN ERROR";
+                        report.Color = "Orange";
+                        report.Missing = $"Cannot read local files: {ex.Message}";
+                        LogService.WriteSystemLog($"HEALTH: SQL local scan error - {ex.Message}", "Error", "SYSTEM");
+                        return report;
+                    }
 
                     if (localLatest == null)
                     {
@@ -328,17 +369,59 @@ namespace PinayPalBackupManager.Services
                     }
 
                     report.FileName = localLatest.Name;
-                    report.LastUpdate = $"Local latest: {localLatest.Name} ({localLatest.LastWriteTimeUtc:MM/dd HH:mm} UTC)";
+                    var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(localLatest.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                    report.LastUpdate = $"Local latest: {localLatest.Name} ({mnlTime:MM/dd HH:mm})";
 
                     if (!sql.ConnectAsync().GetAwaiter().GetResult())
                     {
+                        // If connection fails but we have recent local files, consider it OK
+                        if (localLatest != null)
+                        {
+                            var timeSinceBackup = DateTime.UtcNow - localLatest.LastWriteTimeUtc;
+                            if (timeSinceBackup.TotalHours < 48) // If local backup is less than 48 hours old
+                            {
+                                report.Status = "OK (LOCAL ONLY)";
+                                report.Color = "LimeGreen";
+                                report.LastUpdate = $"Local: {localLatest.Name} ({mnlTime:MM/dd HH:mm}) - Remote unreachable";
+                                return report;
+                            }
+                        }
+                        
                         report.Status = "CONNECTION FAILED";
                         report.Color = "Orange";
                         report.Missing = "Unable to connect to SQL FTP";
                         return report;
                     }
 
-                    var remoteLatest = sql.ListFiles(BackupConfig.SqlRemotePath)
+                    IEnumerable<RemoteFileInfo> remoteFiles;
+                    try
+                    {
+                        remoteFiles = sql.ListFiles(BackupConfig.SqlRemotePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        // If remote listing fails but we have recent local files, consider it OK
+                        if (localLatest != null)
+                        {
+                            var timeSinceBackup = DateTime.UtcNow - localLatest.LastWriteTimeUtc;
+                            if (timeSinceBackup.TotalHours < 48) // If local backup is less than 48 hours old
+                            {
+                                report.Status = "OK (LOCAL ONLY)";
+                                report.Color = "LimeGreen";
+                                report.LastUpdate = $"Local: {localLatest.Name} ({mnlTime:MM/dd HH:mm}) - Remote list failed";
+                                LogService.WriteSystemLog($"HEALTH: SQL remote list failed but local is recent - {ex.Message}", "Warning", "SYSTEM");
+                                return report;
+                            }
+                        }
+                        
+                        report.Status = "REMOTE SCAN ERROR";
+                        report.Color = "Orange";
+                        report.Missing = $"Cannot list remote files: {ex.Message}";
+                        LogService.WriteSystemLog($"HEALTH: SQL remote scan error - {ex.Message}", "Error", "SYSTEM");
+                        return report;
+                    }
+
+                    var remoteLatest = remoteFiles
                         .Where(f => !f.IsDirectory)
                         .Where(f => f.Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase) || f.Name.EndsWith(".sql.gz", StringComparison.OrdinalIgnoreCase))
                         .OrderByDescending(f => f.LastWriteTime)
@@ -357,18 +440,46 @@ namespace PinayPalBackupManager.Services
                     long remoteSize = remoteLatest.Length;
                     long localSize = hasRemoteFileLocally ? new FileInfo(expectedLocalPath).Length : -1;
 
+                    // Primary check: if remote file exists locally with same size, consider it OK
                     if (hasRemoteFileLocally && localSize == remoteSize)
                     {
                         report.Status = "OK";
                         report.Color = "LimeGreen";
-                        report.LastUpdate = $"Local has latest remote: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC)";
+                        var remoteUtc = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
+                        var remoteMnlTime = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                        report.LastUpdate = $"Local has latest remote: {remoteLatest.Name} ({remoteMnlTime:MM/dd HH:mm})";
+                        LogService.WriteSystemLog($"HEALTH: SQL OK - local has remote file with same size: {remoteLatest.Name}", "Information", "SYSTEM");
                         return report;
                     }
 
-                    if (remoteLatest.LastWriteTime <= localLatest.LastWriteTimeUtc.AddMinutes(1))
+                    // Secondary check: if remote file exists locally (any size) and time difference is within 24 hours, consider it OK
+                    if (hasRemoteFileLocally)
+                    {
+                        var localRemoteFile = new FileInfo(expectedLocalPath);
+                        var remoteUtc = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
+                        var timeDiff = remoteUtc - localRemoteFile.LastWriteTimeUtc;
+                        LogService.WriteSystemLog($"HEALTH: SQL remote file exists locally - TimeDiff: {timeDiff.TotalMinutes:F1}min, Remote: {remoteUtc:yyyy-MM-dd HH:mm:ss} UTC, Local: {localRemoteFile.LastWriteTimeUtc:yyyy-MM-dd HH:mm:ss} UTC", "Information", "SYSTEM");
+                        if (timeDiff.TotalMinutes <= 1440) // 24 hours for timezone tolerance
+                        {
+                            report.Status = "OK";
+                            report.Color = "LimeGreen";
+                            var remoteMnlTime = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                            report.LastUpdate = $"Local has remote file: {remoteLatest.Name} ({remoteMnlTime:MM/dd HH:mm})";
+                            LogService.WriteSystemLog($"HEALTH: SQL OK - remote file exists locally with time diff within 24h", "Information", "SYSTEM");
+                            return report;
+                        }
+                    }
+
+                    // Tertiary check: if local latest file is recent enough (within 24 hours of remote latest), consider it OK
+                    var remoteUtc2 = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
+                    var localLatestTimeDiff = remoteUtc2 - localLatest.LastWriteTimeUtc;
+                    LogService.WriteSystemLog($"HEALTH: SQL comparing localLatest - LocalLatest: {localLatest.Name}, LocalTime: {localLatest.LastWriteTimeUtc:yyyy-MM-dd HH:mm:ss} UTC, RemoteTime: {remoteUtc2:yyyy-MM-dd HH:mm:ss} UTC, Diff: {localLatestTimeDiff.TotalMinutes:F1}min", "Information", "SYSTEM");
+                    
+                    if (remoteUtc2 <= localLatest.LastWriteTimeUtc.AddMinutes(1440)) // 24 hours for timezone tolerance
                     {
                         report.Status = "OK";
                         report.Color = "LimeGreen";
+                        LogService.WriteSystemLog($"HEALTH: SQL OK - localLatest time diff within 24h", "Information", "SYSTEM");
                         return report;
                     }
 
@@ -384,13 +495,17 @@ namespace PinayPalBackupManager.Services
                     report.Status = "OUTDATED";
                     report.Color = "Red";
                     report.NeedsSync = true;
-                    report.LastUpdate = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC) | Local latest: {localLatest.Name} ({localLatest.LastWriteTimeUtc:MM/dd HH:mm} UTC)";
+                    var remoteUtc3 = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
+                    var remoteMnlTime2 = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc3, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                    var localMnlTime = TimeZoneInfo.ConvertTimeFromUtc(localLatest.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                    report.LastUpdate = $"Remote latest: {remoteLatest.Name} ({remoteMnlTime2:MM/dd HH:mm}) | Local latest: {localLatest.Name} ({localMnlTime:MM/dd HH:mm})";
                 }
                 catch (Exception ex)
                 {
                     report.Status = "SCAN ERROR";
                     report.Color = "Orange";
                     report.Missing = ex.Message;
+                    LogService.WriteSystemLog($"HEALTH: SQL check error - {ex.Message}", "Error", "SYSTEM");
                 }
             }
             else

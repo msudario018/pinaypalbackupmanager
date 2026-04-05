@@ -36,9 +36,9 @@
 
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
 
-                            <Ellipse Width="8" Height="8" Fill="#FAB387"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AppManilaTime}"/>
 
-                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="#FAB387" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="{DynamicResource AppManilaTime}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
 
                         </StackPanel>
 
@@ -48,9 +48,9 @@
 
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
 
-                            <Ellipse Width="8" Height="8" Fill="#89B4FA"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AppText}"/>
 
-                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="#89B4FA" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="{DynamicResource AppText}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
 
                         </StackPanel>
 
@@ -150,9 +150,9 @@
 
             <Setter Property="FontWeight" Value="SemiBold"/>
 
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
 
             <Setter Property="CornerRadius" Value="6"/>
 
@@ -174,7 +174,7 @@
 
         <Style Selector="Button.ToolBtn:pointerover">
 
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -182,7 +182,7 @@
 
         <Style Selector="Button.ToolBtn:pressed">
 
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -208,7 +208,7 @@
 
         <Style Selector="Button#BtnStart:pointerover">
 
-            <Setter Property="Background" Value="#C0F5BB"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -216,7 +216,7 @@
 
         <Style Selector="Button#BtnStart:pressed">
 
-            <Setter Property="Background" Value="#90C88C"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -242,7 +242,7 @@
 
         <Style Selector="Button#BtnCancel:pointerover">
 
-            <Setter Property="Background" Value="#F8B1C4"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -250,7 +250,7 @@
 
         <Style Selector="Button#BtnCancel:pressed">
 
-            <Setter Property="Background" Value="#E37A92"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -260,11 +260,11 @@
 
         <Style Selector="Button#BtnViewLog">
 
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="FontWeight" Value="Bold"/>
 
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
 
             <Setter Property="Transitions">
 
@@ -282,7 +282,7 @@
 
         <Style Selector="Button#BtnViewLog:pointerover">
 
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.01)"/>
 
@@ -290,7 +290,7 @@
 
         <Style Selector="Button#BtnViewLog:pressed">
 
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.99)"/>
 

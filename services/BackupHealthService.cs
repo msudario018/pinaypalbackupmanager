@@ -73,8 +73,34 @@ namespace PinayPalBackupManager.Services
             {
                 var logFile = GetLogFile(service);
                 var logs = GetRecentLogs(logFile, last7d);
-                var total = logs.Count;
-                var successful = logs.Count(l => l.Contains("SUCCESS") || l.Contains("COMPLETE"));
+                
+                // Only count actual backup attempts (logs that contain completion indicators)
+                var backupAttempts = logs.Where(l => 
+                    l.Contains("SUCCESS") || 
+                    l.Contains("SUCCESS:") ||
+                    l.Contains("COMPLETE") || 
+                    l.Contains("COMPLETE:") ||
+                    l.Contains("DOWNLOAD COMPLETE") ||
+                    l.Contains("finished successfully") ||
+                    l.Contains("Backup complete") ||
+                    l.Contains("Synchronization completed") ||
+                    l.Contains("SYNC COMPLETE") ||
+                    l.Contains("ERROR") ||
+                    l.Contains("FAILED") ||
+                    l.Contains("CANCELLED")).ToList();
+                
+                var total = backupAttempts.Count;
+                // Look for various success indicators
+                var successful = backupAttempts.Count(l => 
+                    l.Contains("SUCCESS") || 
+                    l.Contains("SUCCESS:") ||
+                    l.Contains("COMPLETE") || 
+                    l.Contains("COMPLETE:") ||
+                    l.Contains("DOWNLOAD COMPLETE") ||
+                    l.Contains("finished successfully") ||
+                    l.Contains("Backup complete") ||
+                    l.Contains("Synchronization completed") ||
+                    l.Contains("SYNC COMPLETE"));
                 var serviceScore = total > 0 ? (successful * 100 / total) : 0;
                 score.ServiceScores[service] = serviceScore;
             }
@@ -262,10 +288,16 @@ namespace PinayPalBackupManager.Services
 
         private static DateTime? ParseLogTime(string logLine)
         {
-            // Expected format: "[2025-04-04 12:34:56] MESSAGE"
-            var match = System.Text.RegularExpressions.Regex.Match(logLine, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+            // Try 12-hour format first: "[2025-04-04 12:34:56 PM] MESSAGE" or "[2025-04-04 12:34:56 AM] MESSAGE"
+            var match = System.Text.RegularExpressions.Regex.Match(logLine, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
             if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var time))
                 return time;
+            
+            // Fallback to 24-hour format: "[2025-04-04 12:34:56] MESSAGE" (for old logs)
+            match = System.Text.RegularExpressions.Regex.Match(logLine, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+            if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var time24))
+                return time24;
+                
             return null;
         }
 
@@ -293,15 +325,39 @@ namespace PinayPalBackupManager.Services
 
         private static int CalculatePeriodScore(DateTime start, DateTime end)
         {
-            var services = new[] { "FTP", "SQL", "Mailchimp" };
             var scores = new List<int>();
+            var services = new[] { ("FTP", BackupConfig.FtpLogFile), ("SQL", BackupConfig.SqlLogFile), ("Mailchimp", BackupConfig.McLogFile) };
 
-            foreach (var service in services)
+            foreach (var (service, logFile) in services)
             {
-                var logFile = GetLogFile(service);
                 var logs = GetRecentLogs(logFile, start).Where(l => ParseLogTime(l) < end);
-                var total = logs.Count();
-                var successful = logs.Count(l => l.Contains("SUCCESS") || l.Contains("COMPLETE"));
+                
+                // Only count actual backup attempts
+                var backupAttempts = logs.Where(l => 
+                    l.Contains("SUCCESS") || 
+                    l.Contains("SUCCESS:") ||
+                    l.Contains("COMPLETE") || 
+                    l.Contains("COMPLETE:") ||
+                    l.Contains("DOWNLOAD COMPLETE") ||
+                    l.Contains("finished successfully") ||
+                    l.Contains("Backup complete") ||
+                    l.Contains("Synchronization completed") ||
+                    l.Contains("SYNC COMPLETE") ||
+                    l.Contains("ERROR") ||
+                    l.Contains("FAILED") ||
+                    l.Contains("CANCELLED"));
+                
+                var total = backupAttempts.Count();
+                var successful = backupAttempts.Count(l => 
+                    l.Contains("SUCCESS") || 
+                    l.Contains("SUCCESS:") ||
+                    l.Contains("COMPLETE") || 
+                    l.Contains("COMPLETE:") ||
+                    l.Contains("DOWNLOAD COMPLETE") ||
+                    l.Contains("finished successfully") ||
+                    l.Contains("Backup complete") ||
+                    l.Contains("Synchronization completed") ||
+                    l.Contains("SYNC COMPLETE"));
                 var score = total > 0 ? (successful * 100 / total) : 0;
                 scores.Add(score);
             }

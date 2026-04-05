@@ -133,6 +133,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 s.SqlAutoScanMinutes      = Parse(GetTb("SqlScanMinutes"), 15, 0, 59);
 
                 ConfigService.SaveSchedule();
+                ConfigService.Load();
+                LogService.WriteSystemLog("Schedule configuration updated", "Information", "SETTINGS");
                 Close(true);
             }
             catch (Exception ex)

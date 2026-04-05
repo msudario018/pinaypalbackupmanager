@@ -42,6 +42,8 @@ namespace PinayPalBackupManager.Services
             return currentPath;
         }
 
+        public static string SystemLogPath => GetPath("system_log.txt");
+
         public static void MigrateFile(string fileName)
         {
             var legacyPath = Path.Combine(LegacyDirectory, fileName);

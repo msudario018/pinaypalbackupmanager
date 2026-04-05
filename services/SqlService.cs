@@ -17,15 +17,11 @@ namespace PinayPalBackupManager.Services
 
         public void Initialize(string host, string user, string password, string fingerprint)
         {
-            LogService.WriteLiveLog($"SQL INIT: Host={host}, User={user}, Port=21", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+            LogService.WriteLiveLog($"SQL INIT: Connecting to database server", BackupConfig.SqlLogFile, "Information", "SYSTEM");
             
             if (string.IsNullOrEmpty(password))
             {
                 LogService.WriteLiveLog("SQL INIT WARNING: Password is empty after decryption!", BackupConfig.SqlLogFile, "Warning", "SYSTEM");
-            }
-            else
-            {
-                LogService.WriteLiveLog($"SQL INIT: Password recovered ({password.Length} characters).", BackupConfig.SqlLogFile, "Information", "SYSTEM");
             }
 
             _options = new SessionOptions
@@ -99,8 +95,11 @@ namespace PinayPalBackupManager.Services
                 {
                     try
                     {
+                        LogService.WriteLiveLog($"SQL SYNC: Starting SynchronizeDirectories(Local, {localPath}, {remotePath})", BackupConfig.SqlLogFile, "Information", "SYSTEM");
                         var result = _session.SynchronizeDirectories(SynchronizationMode.Local, localPath, remotePath, false);
+                        LogService.WriteLiveLog($"SQL SYNC: SynchronizeDirectories returned - checking results...", BackupConfig.SqlLogFile, "Information", "SYSTEM");
                         result.Check();
+                        LogService.WriteLiveLog($"SQL SYNC: SynchronizeDirectories completed successfully", BackupConfig.SqlLogFile, "Information", "SYSTEM");
                     }
                     catch (SessionLocalException ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
                     {
@@ -125,6 +124,11 @@ namespace PinayPalBackupManager.Services
         {
             if (_session == null || !_session.Opened) return [];
             return _session.ListDirectory(path).Files;
+        }
+
+        public Session? GetSession()
+        {
+            return _session;
         }
 
         public void Dispose()

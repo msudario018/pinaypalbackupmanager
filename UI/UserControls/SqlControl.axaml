@@ -5,21 +5,21 @@
         <!-- Header -->
         <Border Grid.Row="0" Background="{DynamicResource AppCard}" Padding="20" CornerRadius="12" Margin="0,0,0,15" ClipToBounds="True">
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
-                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="#F9E2AF" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
+                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
                 <TextBlock Grid.Row="1" Name="TxtFile" Text="Status: Idle" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
                 <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,12">
                     <Border Background="{DynamicResource AppTimerAutoScan}" CornerRadius="20" Padding="15,7">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Ellipse Width="8" Height="8" Fill="#FAB387"/>
-                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="#FAB387" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AppManilaTime}"/>
+                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="{DynamicResource AppManilaTime}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <Border Background="{DynamicResource AppTimerDaily}" CornerRadius="20" Padding="15,7">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Ellipse Width="8" Height="8" Fill="#89B4FA"/>
-                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="#89B4FA" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AppText}"/>
+                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="{DynamicResource AppText}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -32,7 +32,7 @@
         </Border>
 
         <!-- Progress -->
-        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="{DynamicResource AppBorder}" Foreground="#F9E2AF"/>
+        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"/>
 
         <!-- Utility Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15" HorizontalAlignment="Right">
@@ -73,8 +73,8 @@
             <Setter Property="Padding" Value="12,5"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Transitions">
@@ -85,11 +85,11 @@
             </Setter>
         </Style>
         <Style Selector="Button.ToolBtn:pointerover">
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.ToolBtn:pressed">
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
@@ -102,11 +102,11 @@
             </Setter>
         </Style>
         <Style Selector="Button#BtnStart:pointerover">
-            <Setter Property="Background" Value="#FAEFCB"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button#BtnStart:pressed">
-            <Setter Property="Background" Value="#DBC898"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
@@ -119,18 +119,18 @@
             </Setter>
         </Style>
         <Style Selector="Button#BtnCancel:pointerover">
-            <Setter Property="Background" Value="#F8B1C4"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button#BtnCancel:pressed">
-            <Setter Property="Background" Value="#E37A92"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
         <Style Selector="Button#BtnViewLog">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="Background" Duration="0:0:0.2"/>
@@ -139,11 +139,11 @@
             </Setter>
         </Style>
         <Style Selector="Button#BtnViewLog:pointerover">
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(1.01)"/>
         </Style>
         <Style Selector="Button#BtnViewLog:pressed">
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
             <Setter Property="RenderTransform" Value="scale(0.99)"/>
         </Style>
     </UserControl.Styles>

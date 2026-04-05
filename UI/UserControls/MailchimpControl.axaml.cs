@@ -71,11 +71,17 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task StartFullBackupAsync(string trigger = "MANUAL")
         {
+            // Reload config to ensure we have latest settings
+            ConfigService.Load();
+            
             SetBusy(true);
             _abortRequested = false;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "EXPORTING FULL...";
             txtStatus.Foreground = Avalonia.Media.Brush.Parse("#89DCEB");
+
+            // Report global backup progress
+            _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORTING FULL...");
 
             // --- TIMER RESET & LOGGING ---
             if (_manager != null)
@@ -91,17 +97,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     if (_abortRequested) throw new OperationCanceledException();
-                    // 7-Day Cleanup
-                    LogService.WriteLiveLog("CLEANUP: Checking for Mailchimp files older than 7 days...", BackupConfig.McLogFile, "Information", trigger);
+                    // Cleanup old files based on retention setting
+                    var retentionDays = ConfigService.Current.Operation.RetentionDays;
+                    LogService.WriteLiveLog($"CLEANUP: Checking for Mailchimp files older than {retentionDays} days...", BackupConfig.McLogFile, "Information", trigger);
                     
-                    var limitDate = BackupManager.GetTzDate().AddDays(-7);
+                    var limitDate = BackupManager.GetTzDate().AddDays(-retentionDays);
                     var oldFiles = new DirectoryInfo(BackupConfig.MailchimpFolder).GetFiles("*", SearchOption.AllDirectories)
                         .Where(f => f.LastWriteTime < limitDate && f.Name != "backuplog.txt")
                         .ToList();
 
                     if (oldFiles.Count > 0)
                     {
-                        LogService.WriteLiveLog($"CLEANUP: Found {oldFiles.Count} Mailchimp files older than 7 days. Removing...", BackupConfig.McLogFile, "Information", trigger);
+                        LogService.WriteLiveLog($"CLEANUP: Found {oldFiles.Count} Mailchimp files older than {retentionDays} days. Removing...", BackupConfig.McLogFile, "Information", trigger);
                         foreach (var file in oldFiles)
                         {
                             if (_abortRequested) break;
@@ -130,6 +137,8 @@ namespace PinayPalBackupManager.UI.UserControls
                             this.FindControl<TextBlock>("TxtFile")!.Text = $"Exporting {task}... ({pct}%)";
                             this.FindControl<ProgressBar>("ProgressBar")!.Value = pct;
                         });
+                        // Report global backup progress
+                        _manager?.ReportBackupProgress("Mailchimp", pct, $"Exporting {task}...");
                         
                         string result = await mc.RunSpecificTaskAsync(task, BackupConfig.MailchimpFolder);
                         LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", trigger);
@@ -146,6 +155,9 @@ namespace PinayPalBackupManager.UI.UserControls
                         txtStatus.Foreground = _abortRequested ? Avalonia.Media.Brush.Parse("#F38BA8") : Avalonia.Media.Brush.Parse("#A6E3A1");
                         if (!_abortRequested) LogService.WriteLiveLog("COMPLETE: Full Mailchimp session finished successfully.", BackupConfig.McLogFile, "Information", trigger);
                     });
+                    // Report global backup progress
+                    if (!_abortRequested) _manager?.ReportBackupProgress("Mailchimp", 100, "COMPLETE");
+                    else _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
                 }
                 catch (OperationCanceledException)
                 {
@@ -155,6 +167,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         txtStatus.Text = "CANCELLED";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
                     });
+                    // Report global backup progress cancelled
+                    _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
                 }
                 catch (Exception ex)
                 {
@@ -163,6 +177,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         txtStatus.Text = "EXPORT ERROR";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
                     });
+                    // Report global backup progress error
+                    _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORT ERROR");
                 }
                 finally
                 {
@@ -270,9 +286,13 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private async Task SyncCheckAsync()
+        private async Task SyncCheckAsync(bool allowAutoSync = true)
         {
             SetBusy(true);
+            
+            // Reload config to ensure we have latest settings
+            ConfigService.Load();
+            
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             var txtFile = this.FindControl<TextBlock>("TxtFile")!;
             txtStatus.Text = "SYNC CHECK...";
@@ -353,15 +373,11 @@ namespace PinayPalBackupManager.UI.UserControls
             });
             NotificationService.ShowBackupToast("Mailchimp", toastMessage, toastType);
 
-            if (statusText == "OUTDATED")
+            if (allowAutoSync && statusText == "OUTDATED")
             {
-                bool syncNow = await NotificationService.ConfirmAsync("Mailchimp data is outdated or missing. Do you want to run a full backup now?", "Sync Now?");
-                if (syncNow)
-                {
-                    SetBusy(false);
-                    _ = StartFullBackupAsync("AUTO-SYNC");
-                    return;
-                }
+                SetBusy(false);
+                _ = StartFullBackupAsync("AUTO-SYNC");
+                return;
             }
 
             if (_manager != null)
@@ -385,6 +401,16 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnTags")!.IsEnabled = !busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
             if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle";
+        }
+
+        public void PerformSyncCheck()
+        {
+            _ = SyncCheckAsync(false);
+        }
+
+        public void StartFullBackupFromShell()
+        {
+            _ = StartFullBackupAsync("MANUAL");
         }
     }
 }

@@ -34,6 +34,7 @@ namespace PinayPalBackupManager.UI
         private readonly SqlControl _sqlControl;
         private readonly SettingsControl _settingsControl;
         private readonly ProfileControl _profileControl;
+        private DispatcherTimer? _activeProcessMonitorTimer;
         private bool _allowClose;
         private DispatcherTimer? _toastTimer;
         private IBrush _activeTabAccentBrush = Brush.Parse("#A6E3A1");
@@ -70,11 +71,21 @@ namespace PinayPalBackupManager.UI
 
             SetupSystemTray();
 
+            // Handle window state changes for layout optimization
+            this.GetObservable(Window.WindowStateProperty).Subscribe(OnWindowStateChanged);
+            OnWindowStateChanged(this.WindowState);
+
             _homeControl = new HomeControl(_backupManager);
             _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
             _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
             _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
             _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
+            _homeControl.OnFtpSyncCheck += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.PerformSyncCheck(); };
+            _homeControl.OnFtpQuickBackup += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.StartBackupFromShell(); };
+            _homeControl.OnMailchimpSyncCheck += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.PerformSyncCheck(); };
+            _homeControl.OnMailchimpQuickBackup += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.StartFullBackupFromShell(); };
+            _homeControl.OnSqlSyncCheck += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.PerformSyncCheck(); };
+            _homeControl.OnSqlQuickBackup += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.StartBackupFromShell(); };
             _homeControl.OnEmergencyStop += () =>
             {
                 if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
@@ -95,6 +106,14 @@ namespace PinayPalBackupManager.UI
                 OnLogoutRequested?.Invoke();
             };
             _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
+
+            // Start active process monitor
+            _activeProcessMonitorTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
+            _activeProcessMonitorTimer.Start();
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
             // Setup button click handlers
@@ -429,12 +448,43 @@ namespace PinayPalBackupManager.UI
 
             foreach (var child in sidebar.Children)
             {
-                if (child is Button b && b.Tag is string t)
+                if (child is Button btn && btn.Tag is string tag)
                 {
-                    if (string.Equals(t, activeTag, StringComparison.OrdinalIgnoreCase)) b.Classes.Add("Selected");
-                    else b.Classes.Remove("Selected");
+                    if (tag == activeTag)
+                    {
+                        btn.Classes.Add("Selected");
+                        var icon = btn.FindDescendantOfType<PathIcon>();
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#CBA6F7");
+                    }
+                    else
+                    {
+                        btn.Classes.Remove("Selected");
+                        var icon = btn.FindDescendantOfType<PathIcon>();
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#585B70");
+                    }
                 }
             }
+        }
+
+        private void OnWindowStateChanged(WindowState state)
+        {
+            var mainContent = this.FindControl<ContentControl>("MainContent");
+            if (mainContent == null) return;
+
+            // Adjust margins based on window state
+            if (state == WindowState.Maximized)
+            {
+                // Smaller margin when maximized for more screen space
+                mainContent.Margin = new Thickness(8);
+            }
+            else
+            {
+                // Standard margin for normal window
+                mainContent.Margin = new Thickness(20);
+            }
+
+            // Update HomeControl layout for maximized state
+            _homeControl?.SetMaximizedLayout(state == WindowState.Maximized);
         }
 
         private void ShowControl(UserControl control)
@@ -450,11 +500,49 @@ namespace PinayPalBackupManager.UI
 
         private async Task RunAllChecksAsync()
         {
-            NotificationService.ShowBackupToast("Dashboard", "Running sync check on all services...", "Info");
-            if (!_ftpControl.IsBusy) await _ftpControl.TriggerSyncCheckAsync();
-            if (!_mailchimpControl.IsBusy) await _mailchimpControl.TriggerSyncCheckAsync();
-            if (!_sqlControl.IsBusy) await _sqlControl.TriggerSyncCheckAsync();
-            NotificationService.ShowBackupToast("Dashboard", "All checks complete.", "Info");
+            NotificationService.ShowBackupToast("Dashboard", "Running parallel sync check on all services...", "Info");
+            
+            var tasks = new List<Task<(string service, bool success)>>();
+            
+            if (!_ftpControl.IsBusy) tasks.Add(Task.Run(async () => 
+            {
+                try { await _ftpControl.TriggerSyncCheckAsync(); return ("FTP", true); }
+                catch { return ("FTP", false); }
+            }));
+            
+            if (!_mailchimpControl.IsBusy) tasks.Add(Task.Run(async () => 
+            {
+                try { await _mailchimpControl.TriggerSyncCheckAsync(); return ("Mailchimp", true); }
+                catch { return ("Mailchimp", false); }
+            }));
+            
+            if (!_sqlControl.IsBusy) tasks.Add(Task.Run(async () => 
+            {
+                try { await _sqlControl.TriggerSyncCheckAsync(); return ("SQL", true); }
+                catch { return ("SQL", false); }
+            }));
+            
+            if (tasks.Count == 0)
+            {
+                NotificationService.ShowBackupToast("Dashboard", "All services are busy. Try again later.", "Warning");
+                return;
+            }
+            
+            var results = await Task.WhenAll(tasks);
+            var successCount = results.Count(r => r.success);
+            var failedServices = results.Where(r => !r.success).Select(r => r.service).ToList();
+            
+            // Run health check after all sync checks complete
+            _ = _backupManager.RunHealthCheckAsync();
+            
+            if (failedServices.Count > 0)
+            {
+                NotificationService.ShowBackupToast("Dashboard", $"Checks complete. {successCount}/{tasks.Count} succeeded. Failed: {string.Join(", ", failedServices)}", "Warning");
+            }
+            else
+            {
+                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{tasks.Count} succeeded).", "Info");
+            }
         }
 
         private static IBrush GetAccentBrushForControl(UserControl control)
@@ -672,6 +760,16 @@ namespace PinayPalBackupManager.UI
 
             _allowClose = true;
             Close();
+        }
+
+        private void UpdateActiveProcessCount(object? sender, EventArgs e)
+        {
+            int activeCount = 0;
+            if (_ftpControl?.IsBusy == true) activeCount++;
+            if (_mailchimpControl?.IsBusy == true) activeCount++;
+            if (_sqlControl?.IsBusy == true) activeCount++;
+            
+            _homeControl.SetActiveOperations(activeCount);
         }
 
         private void HandleToast(string title, string message, string type)

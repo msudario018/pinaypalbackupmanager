@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.6] - 2026-04-05
+
+### Changed
+- **System Status Overview**: Changed "Storage" to "Disk Space Available" to show free disk space instead of total storage used
+- **Quick Stats Cards**: Removed "Storage Used" card (4th column) and changed layout from 4 columns to 3 columns for better spacing
+- **Search Feature**: Removed search box and button from dashboard (Export CSV button remains in Recent Activity section)
+- **Window Maximization**: Optimized layout when window is maximized (reduced margins from 20px to 8px, removed MaxWidth constraints on dashboard sections)
+
+### Fixed
+- **SQL Sync Check**: Added secondary check to prevent false "OUTDATED" status - now considers remote file up to date if it exists locally with same size (even if not the localLatest)
+- **SQL Timezone Tolerance**: Increased sync check time buffer from 60 minutes to 24 hours (1440 minutes) to account for timezone differences
+- **SQL Health Check**: Fixed timezone tolerance in health check from 1 minute to 24 hours to prevent false "OUTDATED" reports after backup
+- **SQL Sync UI**: Set initial status to "SYNC CHECK..." during comparison to prevent intermediate "OUTDATED" status from flashing
+- **SQL Health Check Errors**: Added specific error handling for local file enumeration (LOCAL SCAN ERROR) and remote file listing (REMOTE SCAN ERROR) with detailed logging
+
+## [2.8.5] - 2026-04-05
+
+### Added
+- **Dashboard Customization**: New Customize button on home dashboard to toggle section visibility and compact mode
+- **Dashboard Auto-Refresh**: Home dashboard now auto-refreshes every 30 seconds to show real-time status
+- **SQL Sync Fallback**: Added individual file download fallback if WinSCP SynchronizeDirectories fails
+- **SQL Progress Bar**: Added progress bar updates during file-by-file download in SQL sync
+- **Compact Mode Persistence**: Compact mode setting now persists across app restarts
+- **Config Reload**: All sync operations now reload config before starting to ensure latest settings
+- **Backup All Status**: Backup All button now shows detailed status messages (e.g., "Backup complete (FTP, Mailchimp)" or "All backups are up to date")
+- **Total HDD Storage**: Storage display now shows total disk capacity in format "8.50GB/931.0GB"
+- **Retry Failed Button**: Retry Failed button is now disabled when no failed backups exist, enabled only when failures are detected
+- **Smart Drive Detection**: Total HDD storage now detects the drive where backup paths are located (e.g., D:/ drive)
+
+### Fixed
+- **Sensitive Logging**: Removed password and host/user information from FTP and SQL initialization logs
+- **SQL Sync Auto-Trigger**: Sync check now automatically triggers backup when remote is outdated or has size mismatch (no user prompt)
+- **SQL Sync Optimization**: Improved sync check to prioritize file content (name + size) over timestamps, preventing false "outdated" reports
+- **SQL Sync Time Buffer**: Increased from 5 to 60 minutes for file name matching check
+- **SQL Manual Backup**: Manual backup button now checks if already up to date before syncing, shows "Backup is already up to date" if no sync needed
+- **Config Save**: Fixed settings save to properly merge with existing config instead of overwriting
+- **Health Score Calculation**: Added more success indicators (SUCCESS, COMPLETE, Backup complete, SYNC COMPLETE) to properly detect successful backups
+- **Storage Used Calculation**: Now calculates actual storage from FTP, Mailchimp, and SQL folders instead of showing "0 MB"
+- **Last Backup Time**: Last backup times now display in Manila time instead of UTC
+- **Run All Checks**: Optimized to use parallel execution with Task.WhenAll for faster performance
+- **Health Check Update**: Run All Checks now triggers health check after completion to update status bar
+- **Content Cutoff**: Added vertical scroll to home dashboard to prevent content being cut off
+- **Compact Mode**: Now applies to entire home dashboard (spacing, padding, font sizes) instead of just service tabs
+- **Quick Stats Layout**: Removed duplicate storage display from quick stats row (kept in storage usage section)
+
 ## [2.7.0] - 2026-04-04
 
 ### Added

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,16 +22,43 @@ namespace PinayPalBackupManager.UI.UserControls
         private System.Timers.Timer? _scheduleTimer;
         private System.Timers.Timer? _storageTimer;
         private System.Timers.Timer? _healthRefreshTimer;
+        private bool _compactMode = false;
+        private int _activeOperations = 0;
+        private System.Timers.Timer? _activeProcessUpdateTimer;
         private System.Timers.Timer? _statsRefreshTimer;
+        private System.Timers.Timer? _dashboardRefreshTimer;
 
         public event Action? OnNavigateFtp;
         public event Action? OnNavigateMailchimp;
         public event Action? OnNavigateSql;
         public event Action? OnRunAllChecks;
         public event Action? OnEmergencyStop;
+        public event Action? OnFtpSyncCheck;
+        public event Action? OnFtpQuickBackup;
+        public event Action? OnMailchimpSyncCheck;
+        public event Action? OnMailchimpQuickBackup;
+        public event Action? OnSqlSyncCheck;
+        public event Action? OnSqlQuickBackup;
 
         private bool _autoPinged;
         private bool _maintenancePaused;
+
+        public HomeControl() : this(null)
+        {
+            // Load saved dashboard customization
+            var savedSettings = DashboardCustomization.Load();
+            _compactMode = savedSettings.CompactMode;
+            if (_compactMode)
+            {
+                ApplyCompactMode(true);
+                var btn = this.FindControl<Button>("BtnCompactToggle");
+                if (btn != null) 
+                {
+                    btn.Content = "⊞ Expand";
+                    btn.Foreground = Brush.Parse("#A6E3A1");
+                }
+            }
+        }
 
         public HomeControl(BackupManager manager)
         {
@@ -39,6 +67,12 @@ namespace PinayPalBackupManager.UI.UserControls
 
             _manager.OnHealthUpdate += OnHealthUpdate;
             _manager.OnTimeUpdate += OnTimeUpdate;
+            _manager.OnBackupProgress += OnBackupProgress;
+
+            // Start active process update timer (every 1 second for real-time updates)
+            _activeProcessUpdateTimer = new System.Timers.Timer(1000);
+            _activeProcessUpdateTimer.Elapsed += (_, _) => UpdateActiveProcessDisplay();
+            _activeProcessUpdateTimer.Start();
 
             this.FindControl<Button>("BtnGoFtp")!.Click += (_, _) => OnNavigateFtp?.Invoke();
             this.FindControl<Button>("BtnGoMailchimp")!.Click += (_, _) => OnNavigateMailchimp?.Invoke();
@@ -46,14 +80,24 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnRunAllChecks")!.Click += (_, _) => OnRunAllChecks?.Invoke();
             this.FindControl<Button>("BtnRefreshActivity")!.Click += (_, _) => LoadRecentActivity();
 
+            // Quick action buttons
+            this.FindControl<Button>("BtnFtpSyncCheck")!.Click += (_, _) => OnFtpSyncCheck?.Invoke();
+            this.FindControl<Button>("BtnFtpQuickBackup")!.Click += (_, _) => OnFtpQuickBackup?.Invoke();
+            this.FindControl<Button>("BtnMcSyncCheck")!.Click += (_, _) => OnMailchimpSyncCheck?.Invoke();
+            this.FindControl<Button>("BtnMcQuickBackup")!.Click += (_, _) => OnMailchimpQuickBackup?.Invoke();
+            this.FindControl<Button>("BtnSqlSyncCheck")!.Click += (_, _) => OnSqlSyncCheck?.Invoke();
+            this.FindControl<Button>("BtnSqlQuickBackup")!.Click += (_, _) => OnSqlQuickBackup?.Invoke();
+
             this.FindControl<Button>("BtnPingAll")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnOpenSchedule")!.Click += async (_, _) => await OpenScheduleDialogAsync();
-            this.FindControl<Button>("BtnBackupAll")!.Click += (_, _) => { SetOpStatus("Running all backup checks...", "#FAB387"); OnRunAllChecks?.Invoke(); SetOpStatus("All checks triggered.", "#A6E3A1"); };
+            this.FindControl<Button>("BtnBackupAll")!.Click += async (_, _) => await RunAllBackupsAsync();
             this.FindControl<Button>("BtnTestAllConn")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnRetryFailed")!.Click += (_, _) => { SetOpStatus("Retrying all services...", "#FAB387"); OnRunAllChecks?.Invoke(); SetOpStatus("Retry triggered. Check service tabs for results.", "#A6E3A1"); };
             this.FindControl<Button>("BtnCompactToggle")!.Click += (_, _) => ToggleCompactMode();
             this.FindControl<Button>("BtnEmergencyStop")!.Click += (_, _) => { OnEmergencyStop?.Invoke(); SetOpStatus("Emergency stop sent to all services.", "#F38BA8"); };
             this.FindControl<Button>("BtnMaintenanceToggle")!.Click += (_, _) => ToggleMaintenance();
+            this.FindControl<Button>("BtnCustomizeDashboard")!.Click += (_, _) => ShowDashboardCustomization();
+            this.FindControl<Button>("BtnClearErrors")!.Click += (_, _) => ClearRecentErrors();
             this.FindControl<Button>("BtnExportCsv")!.Click += (_, _) => ExportActivityCsv();
 
             this.FindControl<Button>("BtnFtpFiles")!.Click += (_, _) => ToggleFileBrowser("Ftp", BackupConfig.FtpLocalFolder);
@@ -64,6 +108,8 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnSqlOpenFolder")!.Click += (_, _) => OpenFolder(BackupConfig.SqlLocalFolder);
 
             this.FindControl<Button>("BtnRefreshHealth")!.Click += (_, _) => _ = LoadHealthDashboardAsync();
+            this.FindControl<Button>("BtnClearSystemLogs")!.Click += (_, _) => ClearSystemLogs();
+            this.FindControl<Button>("BtnRefreshSystemLogs")!.Click += (_, _) => _ = LoadSystemLogsAsync();
 
             UpdateGreeting();
             UpdateDailySchedule();
@@ -77,6 +123,21 @@ namespace PinayPalBackupManager.UI.UserControls
             // Start auto-refresh for health dashboard and stats
             StartHealthAutoRefresh();
             StartStatsAutoRefresh();
+            
+            // Subscribe to system log events
+            LogService.OnNewLogEntry += OnNewSystemLogEntry;
+            
+            // Load system logs
+            _ = LoadSystemLogsAsync();
+            
+            // Initialize new dashboard features
+            _ = UpdateSystemStatusAsync();
+            _ = UpdateQuickStatsAsync();
+            _ = UpdateTimeSinceLastBackupAsync();
+            _ = LoadRecentErrorsAsync();
+            
+            // Start dashboard auto-refresh (every 30 seconds)
+            StartDashboardAutoRefresh();
         }
 
         private async Task LoadHealthDashboardAsync()
@@ -104,6 +165,9 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (ftpScore != null) ftpScore.Text = $"{health.ServiceScores.GetValueOrDefault("FTP", 0)}%";
                         if (mcScore != null) mcScore.Text = $"{health.ServiceScores.GetValueOrDefault("Mailchimp", 0)}%";
                         if (sqlScore != null) sqlScore.Text = $"{health.ServiceScores.GetValueOrDefault("SQL", 0)}%";
+                        
+                        // Update services status summary
+                        UpdateServicesStatusSummary(health.ServiceScores);
                         
                         // Update critical alerts
                         var alertsCount = this.FindControl<TextBlock>("CriticalAlertsCount");
@@ -133,10 +197,10 @@ namespace PinayPalBackupManager.UI.UserControls
                                 {
                                     Text = alert.Service switch
                                     {
-                                        "FTP" => "☁",
-                                        "Mailchimp" => "✉",
-                                        "SQL" => "🗄",
-                                        _ => "⚠"
+                                        "FTP" => "FTP",
+                                        "Mailchimp" => "MC",
+                                        "SQL" => "SQL",
+                                        _ => "ERR"
                                     },
                                     FontSize = 12,
                                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
@@ -178,7 +242,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             {
                                 var noAlerts = new TextBlock
                                 {
-                                    Text = "✅ No critical alerts - all systems healthy!",
+                                    Text = "No critical alerts - all systems healthy!",
                                     FontSize = 10,
                                     Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"),
                                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
@@ -212,6 +276,49 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (sub != null) sub.Text = mnlTime.ToString("dddd, MMMM d · hh:mm tt") + " Manila";
             }
             catch { }
+        }
+
+        private void OnTimeUpdate(DateTime now, DateTime mnlTime, DateTime nextFtp, DateTime nextFtpDaily)
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var sub = this.FindControl<TextBlock>("TxtTime");
+                if (sub != null) sub.Text = mnlTime.ToString("dddd, MMMM d · hh:mm tt") + " Manila";
+                
+                // Update timer displays
+                SetTimer("FtpNextScan", _manager.NextFtpAutoScan, now);
+                SetTimer("MailchimpNextScan", _manager.NextMailchimpAutoScan, now);
+                SetTimer("SqlNextScan", _manager.NextSqlAutoScan, now);
+                UpdateDailySchedule(mnlTime);
+
+                // Update schedule overview
+                UpdateScheduleOverview(now);
+            });
+        }
+
+        private void OnBackupProgress(string service, int percent, string status)
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
+                var progressText = this.FindControl<TextBlock>("BackupProgressText");
+                var progressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
+
+                if (progressBar != null)
+                {
+                    progressBar.Value = percent;
+                }
+
+                if (progressText != null)
+                {
+                    progressText.Text = status;
+                }
+
+                if (progressPercent != null)
+                {
+                    progressPercent.Text = percent + "%";
+                }
+            });
         }
 
         private void OnHealthUpdate(List<BackupHealthReport> reports)
@@ -266,6 +373,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
 
                 UpdateGreeting();
+                
+                // Update retry failed button state based on failed backups
+                _ = UpdateRetryFailedButtonStateAsync();
             });
         }
 
@@ -280,23 +390,49 @@ namespace PinayPalBackupManager.UI.UserControls
             if (last != null) last.Text = string.IsNullOrWhiteSpace(lastSync) ? "Never" : lastSync;
         }
 
-        private void OnTimeUpdate(DateTime usTime, DateTime mnlTime, DateTime nextAuto, DateTime nextDaily)
-        {
-            Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                SetTimer("FtpNextScan", _manager.NextFtpAutoScan, usTime);
-                SetTimer("MailchimpNextScan", _manager.NextMailchimpAutoScan, usTime);
-                SetTimer("SqlNextScan", _manager.NextSqlAutoScan, usTime);
-                UpdateDailySchedule(mnlTime);
-            });
-        }
-
         private void SetTimer(string controlName, DateTime next, DateTime now)
         {
             var txt = this.FindControl<TextBlock>(controlName);
             if (txt == null) return;
             var diff = next - now;
             txt.Text = diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "Due now";
+        }
+
+        private void UpdateScheduleOverview(DateTime now)
+        {
+            // Update schedule times for each service
+            Set("FtpScheduleTime", _manager.NextFtpAutoScan.ToString("hh:mm tt"));
+            Set("McScheduleTime", _manager.NextMailchimpAutoScan.ToString("hh:mm tt"));
+            Set("SqlScheduleTime", _manager.NextSqlAutoScan.ToString("hh:mm tt"));
+
+            // Calculate countdown to next backup
+            var nextBackup = new[] { _manager.NextFtpAutoScan, _manager.NextMailchimpAutoScan, _manager.NextSqlAutoScan }
+                .Where(d => d > now)
+                .OrderBy(d => d)
+                .FirstOrDefault();
+
+            if (nextBackup != default)
+            {
+                var diff = nextBackup - now;
+                string countdown;
+                if (diff.TotalHours < 1)
+                    countdown = $"{diff.TotalMinutes:F0}m";
+                else if (diff.TotalHours < 24)
+                    countdown = $"{diff.TotalHours:F1}h";
+                else
+                    countdown = $"{diff.TotalDays:F1}d";
+
+                Set("NextBackupCountdown", $"Next in: {countdown}");
+            }
+            else
+            {
+                Set("NextBackupCountdown", "Next in: --");
+            }
+
+            // Update status based on whether the service is due
+            Set("FtpScheduleStatus", _manager.NextFtpAutoScan <= now ? "Due now" : "Scheduled");
+            Set("McScheduleStatus", _manager.NextMailchimpAutoScan <= now ? "Due now" : "Scheduled");
+            Set("SqlScheduleStatus", _manager.NextSqlAutoScan <= now ? "Due now" : "Scheduled");
         }
 
         private void UpdateDailySchedule(DateTime? mnlNow = null)
@@ -326,6 +462,8 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             try
             {
+                LogService.WriteLiveLog("[STORAGE] Starting storage calculation...", "", "Information", "SYSTEM");
+                
                 var ftpSize = await Task.Run(() => GetFolderSize(BackupConfig.FtpLocalFolder));
                 var mcSize = await Task.Run(() => GetFolderSize(BackupConfig.MailchimpFolder));
                 var sqlSize = await Task.Run(() => GetFolderSize(BackupConfig.SqlLocalFolder));
@@ -338,20 +476,145 @@ namespace PinayPalBackupManager.UI.UserControls
                 int totalFiles = ftpCount + mcCount + sqlCount;
                 long maxSize = Math.Max(1, Math.Max(ftpSize, Math.Max(mcSize, sqlSize)));
 
+                // Get total HDD storage
+                long totalDiskSpace = await Task.Run(() => GetTotalDiskSpace());
+
+                LogService.WriteLiveLog($"[STORAGE] FTP: {FormatSize(ftpSize)}, MC: {FormatSize(mcSize)}, SQL: {FormatSize(sqlSize)}, Total: {FormatSize(totalSize)}/{FormatSize(totalDiskSpace)}", "", "Information", "SYSTEM");
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     Set("StorageFtp", FormatSize(ftpSize));
-                    Set("StorageMailchimp", FormatSize(mcSize));
+                    Set("StorageMc", FormatSize(mcSize));
                     Set("StorageSql", FormatSize(sqlSize));
-                    Set("StatStorage", FormatSize(totalSize));
+                    Set("StorageTotal", FormatSize(totalSize));
+                    Set("StatStorage", $"{FormatSize(totalSize)}/{FormatSize(totalDiskSpace)}");
                     Set("StatTotalFiles", totalFiles.ToString("N0"));
 
+                    // Update breakdown section
+                    Set("StorageFtpBreakdown", FormatSize(ftpSize));
+                    Set("StorageMcBreakdown", FormatSize(mcSize));
+                    Set("StorageSqlBreakdown", FormatSize(sqlSize));
+
+                    // Calculate percentages
+                    double ftpPercent = totalSize > 0 ? (double)ftpSize / totalSize * 100 : 0;
+                    double mcPercent = totalSize > 0 ? (double)mcSize / totalSize * 100 : 0;
+                    double sqlPercent = totalSize > 0 ? (double)sqlSize / totalSize * 100 : 0;
+
                     SetBar("StorageFtpBar", ftpSize, maxSize);
-                    SetBar("StorageMailchimpBar", mcSize, maxSize);
+                    SetBar("StorageMcBar", mcSize, maxSize);
                     SetBar("StorageSqlBar", sqlSize, maxSize);
+
+                    // Update breakdown section progress bars
+                    SetBar("StorageFtpBarBreakdown", ftpSize, maxSize);
+                    SetBar("StorageMcBarBreakdown", mcSize, maxSize);
+                    SetBar("StorageSqlBarBreakdown", sqlSize, maxSize);
+
+                    Set("StorageFtpPercent", $"{ftpPercent:F1}%");
+                    Set("StorageMcPercent", $"{mcPercent:F1}%");
+                    Set("StorageSqlPercent", $"{sqlPercent:F1}%");
+
+                    // Update breakdown section percentages
+                    Set("StorageFtpPercentBreakdown", $"{ftpPercent:F1}%");
+                    Set("StorageMcPercentBreakdown", $"{mcPercent:F1}%");
+                    Set("StorageSqlPercentBreakdown", $"{sqlPercent:F1}%");
                 });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[STORAGE] Error calculating storage: {ex.Message}", "", "Error", "SYSTEM");
+            }
+            
+            // Update retry failed button state
+            await UpdateRetryFailedButtonStateAsync();
+        }
+
+        private async Task UpdateRetryFailedButtonStateAsync()
+        {
+            try
+            {
+                var hasFailedBackups = await Task.Run(() => CheckForFailedBackups());
+                
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var btnRetryFailed = this.FindControl<Button>("BtnRetryFailed");
+                    if (btnRetryFailed != null)
+                    {
+                        btnRetryFailed.IsEnabled = hasFailedBackups;
+                        btnRetryFailed.Opacity = hasFailedBackups ? 1.0 : 0.5;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[RETRY] Error checking failed backups: {ex.Message}", "", "Error", "SYSTEM");
+            }
+        }
+
+        private static bool CheckForFailedBackups()
+        {
+            try
+            {
+                var today = DateTime.Now.ToString("yyyy-MM-dd");
+                
+                // Check FTP logs
+                var ftpLogs = File.Exists(BackupConfig.FtpLogFile) 
+                    ? File.ReadAllLines(BackupConfig.FtpLogFile).Where(l => l.Contains(today)).ToList() 
+                    : new List<string>();
+                var ftpFailed = ftpLogs.Any(l => l.Contains("ERROR") || l.Contains("FAILED"));
+                
+                // Check Mailchimp logs
+                var mcLogs = File.Exists(BackupConfig.McLogFile) 
+                    ? File.ReadAllLines(BackupConfig.McLogFile).Where(l => l.Contains(today)).ToList() 
+                    : new List<string>();
+                var mcFailed = mcLogs.Any(l => l.Contains("ERROR") || l.Contains("FAILED"));
+                
+                // Check SQL logs
+                var sqlLogs = File.Exists(BackupConfig.SqlLogFile) 
+                    ? File.ReadAllLines(BackupConfig.SqlLogFile).Where(l => l.Contains(today)).ToList() 
+                    : new List<string>();
+                var sqlFailed = sqlLogs.Any(l => l.Contains("ERROR") || l.Contains("FAILED"));
+                
+                return ftpFailed || mcFailed || sqlFailed;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static long GetTotalDiskSpace()
+        {
+            try
+            {
+                // Get the drive where the first backup folder is located
+                string backupPath = BackupConfig.FtpLocalFolder;
+                if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                {
+                    backupPath = BackupConfig.MailchimpFolder;
+                }
+                if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                {
+                    backupPath = BackupConfig.SqlLocalFolder;
+                }
+                
+                if (string.IsNullOrEmpty(backupPath))
+                {
+                    return 0;
+                }
+                
+                var driveRoot = System.IO.Path.GetPathRoot(backupPath);
+                if (string.IsNullOrEmpty(driveRoot))
+                {
+                    return 0;
+                }
+                
+                var driveInfo = new DriveInfo(driveRoot);
+                return driveInfo.TotalSize;
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private void LoadRecentActivity()
@@ -552,9 +815,40 @@ namespace PinayPalBackupManager.UI.UserControls
             _ => Brush.Parse("#6C7086")
         };
 
-        // ── Schedule Adjustment ──────────────────────────────────────────────
+        public void IncrementActiveOperations() => _activeOperations++;
+        public void DecrementActiveOperations() => _activeOperations = Math.Max(0, _activeOperations - 1);
+        public void SetActiveOperations(int count) => _activeOperations = count;
 
-        private bool _compactMode;
+        public void SetMaximizedLayout(bool isMaximized)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var quickStatsGrid = this.FindControl<Grid>("QuickStatsGrid");
+                var serviceCardsGrid = this.FindControl<Grid>("ServiceCardsSection");
+                
+                if (quickStatsGrid != null)
+                {
+                    quickStatsGrid.MaxWidth = isMaximized ? double.PositiveInfinity : 1200;
+                }
+                
+                if (serviceCardsGrid != null)
+                {
+                    serviceCardsGrid.MaxWidth = isMaximized ? double.PositiveInfinity : 1200;
+                }
+            });
+        }
+
+        private void UpdateActiveProcessDisplay()
+        {
+            var activeProcessesText = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
+            Dispatcher.UIThread.Post(() =>
+            {
+                var processesTextBlock = this.FindControl<TextBlock>("ActiveProcesses");
+                if (processesTextBlock != null) processesTextBlock.Text = activeProcessesText;
+            });
+        }
+
+        // ── Schedule Adjustment ──────────────────────────────────────────────
 
         private void UpdateSchedSummary()
         {
@@ -579,13 +873,75 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
+        private async Task RunAllBackupsAsync()
+        {
+            SetOpStatus("Running backup checks on all services...", "#FAB387");
+            NotificationService.ShowBackupToast("Dashboard", "Running backup checks on all services...", "Info");
+            
+            // Trigger the checks via event
+            OnRunAllChecks?.Invoke();
+            
+            // Wait for checks to complete (approximate wait)
+            await Task.Delay(3000);
+            
+            // Run health check to get current status
+            await _manager.RunHealthCheckAsync();
+            
+            // Determine which services were updated by checking logs
+            var updatedServices = new List<string>();
+            var recentLogs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 100);
+            var today = DateTime.Now.ToString("yyyy-MM-dd");
+            
+            foreach (var log in recentLogs.Where(l => l.Contains(today)))
+            {
+                if (log.Contains("FTP") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
+                {
+                    if (!updatedServices.Contains("FTP")) updatedServices.Add("FTP");
+                }
+                if (log.Contains("Mailchimp") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
+                {
+                    if (!updatedServices.Contains("Mailchimp")) updatedServices.Add("Mailchimp");
+                }
+                if (log.Contains("SQL") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
+                {
+                    if (!updatedServices.Contains("SQL")) updatedServices.Add("SQL");
+                }
+            }
+            
+            // Show appropriate status message
+            if (updatedServices.Count == 0)
+            {
+                SetOpStatus("All backups are up to date.", "#A6E3A1");
+                NotificationService.ShowBackupToast("Backup Complete", "All backups are up to date.", "Success");
+            }
+            else if (updatedServices.Count == 3)
+            {
+                SetOpStatus("All backups completed successfully.", "#A6E3A1");
+                NotificationService.ShowBackupToast("Backup Complete", "All backups completed successfully.", "Success");
+            }
+            else
+            {
+                var servicesList = string.Join(", ", updatedServices);
+                SetOpStatus($"Backup complete ({servicesList})", "#A6E3A1");
+                NotificationService.ShowBackupToast("Backup Complete", $"Backup complete ({servicesList})", "Success");
+            }
+        }
+
         private void ToggleCompactMode()
         {
             _compactMode = !_compactMode;
-            var section = this.FindControl<Avalonia.Controls.Grid>("ServiceCardsSection");
-            if (section != null) section.IsVisible = !_compactMode;
+            ApplyCompactMode(_compactMode);
             var btn = this.FindControl<Button>("BtnCompactToggle");
-            if (btn != null) btn.Content = _compactMode ? "⊞ Expand" : "⊟ Compact";
+            if (btn != null) 
+            {
+                btn.Content = _compactMode ? "⊞ Expand" : "⊟ Compact";
+                btn.Foreground = _compactMode ? Brush.Parse("#A6E3A1") : Brush.Parse("{DynamicResource AppMuted}");
+            }
+            
+            // Save the compact mode setting
+            var settings = DashboardCustomization.Load();
+            settings.CompactMode = _compactMode;
+            DashboardCustomization.Save(settings);
         }
 
         // ── Connectivity ─────────────────────────────────────────────────────
@@ -926,13 +1282,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartStatsAutoRefresh()
         {
-            _statsRefreshTimer = new System.Timers.Timer(45000); // 45 seconds (slightly different from health)
-            _statsRefreshTimer.Elapsed += async (sender, e) => 
-            {
-                await LoadWeeklyStatsAsync();
-                await UpdateStorageAsync();
-                await LoadLastBackupSummariesAsync();
-            };
+            _statsRefreshTimer = new System.Timers.Timer(45000); // 45 seconds
+            _statsRefreshTimer.Elapsed += async (_, _) => await LoadWeeklyStatsAsync();
             _statsRefreshTimer.AutoReset = true;
             _statsRefreshTimer.Start();
             
@@ -946,9 +1297,622 @@ namespace PinayPalBackupManager.UI.UserControls
             LogService.WriteLiveLog("[STATS] Auto-refresh started (45s interval)", "", "Information", "SYSTEM");
         }
 
+        private void StartDashboardAutoRefresh()
+        {
+            _dashboardRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
+            _dashboardRefreshTimer.Elapsed += async (_, _) =>
+            {
+                await UpdateSystemStatusAsync();
+                await UpdateQuickStatsAsync();
+                await UpdateTimeSinceLastBackupAsync();
+                await LoadRecentErrorsAsync();
+            };
+            _dashboardRefreshTimer.AutoReset = true;
+            _dashboardRefreshTimer.Start();
+            
+            LogService.WriteLiveLog("[DASHBOARD] Auto-refresh started (30s interval)", "", "Information", "SYSTEM");
+        }
+
+        private async Task UpdateSystemStatusAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var uptime = DateTime.Now - Process.GetCurrentProcess().StartTime;
+                    var uptimeText = uptime.TotalHours < 1 ? $"{uptime.TotalMinutes:F0}m" :
+                                     uptime.TotalHours < 24 ? $"{uptime.TotalHours:F1}h" :
+                                     $"{uptime.TotalDays:F1}d";
+
+                    var lastHealthCheck = "Never";
+                    if (File.Exists(AppDataPaths.SystemLogPath))
+                    {
+                        var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 50);
+                        var healthCheckLog = logs.FirstOrDefault(l => l.Contains("HEALTH: Global health check completed"));
+                        if (healthCheckLog != null)
+                        {
+                            // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
+                            var match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
+                            if (!match.Success)
+                            {
+                                // Fallback to 24-hour format: "[2025-04-04 12:34:56]" (for old logs)
+                                match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+                            }
+                            if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var healthTime))
+                            {
+                                // The log timestamp is in local time, not UTC
+                                var timeDiff = DateTime.Now - healthTime;
+                                lastHealthCheck = timeDiff.TotalMinutes < 60 ? $"{timeDiff.TotalMinutes:F0}m ago" :
+                                                  timeDiff.TotalHours < 24 ? $"{timeDiff.TotalHours:F1}h ago" :
+                                                  $"{timeDiff.TotalDays:F1}d ago";
+                            }
+                        }
+                    }
+
+                    var activeProcesses = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
+
+                    // Calculate available disk space
+                    long freeSpace = 0;
+                    try
+                    {
+                        // Get the drive where the first backup folder is located
+                        string backupPath = BackupConfig.FtpLocalFolder;
+                        if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                        {
+                            backupPath = BackupConfig.MailchimpFolder;
+                        }
+                        if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                        {
+                            backupPath = BackupConfig.SqlLocalFolder;
+                        }
+                        
+                        if (!string.IsNullOrEmpty(backupPath))
+                        {
+                            var driveRoot = System.IO.Path.GetPathRoot(backupPath);
+                            if (!string.IsNullOrEmpty(driveRoot))
+                            {
+                                var driveInfo = new DriveInfo(driveRoot);
+                                freeSpace = driveInfo.AvailableFreeSpace;
+                            }
+                        }
+                    }
+                    catch { }
+
+                    string storageText = freeSpace >= 1073741824 ? $"{freeSpace / 1073741824.0:F1} GB free" :
+                                     freeSpace >= 1048576 ? $"{freeSpace / 1048576.0:F1} MB free" :
+                                     freeSpace >= 1024 ? $"{freeSpace / 1024.0:F0} KB free" : "0 B free";
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var uptimeTextBlock = this.FindControl<TextBlock>("SystemUptime");
+                        var healthCheckTextBlock = this.FindControl<TextBlock>("LastHealthCheck");
+                        var processesTextBlock = this.FindControl<TextBlock>("ActiveProcesses");
+                        var storageTextBlock = this.FindControl<TextBlock>("StorageUsage");
+
+                        if (uptimeTextBlock != null) uptimeTextBlock.Text = uptimeText;
+                        if (healthCheckTextBlock != null) healthCheckTextBlock.Text = lastHealthCheck;
+                        if (processesTextBlock != null) processesTextBlock.Text = activeProcesses;
+                        if (storageTextBlock != null) storageTextBlock.Text = storageText;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error updating system status: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private async Task UpdateQuickStatsAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var backupsToday = 0;
+                    var failedBackups = 0;
+                    var successRate = 100.0;
+
+                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 100);
+                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 100);
+                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 100);
+
+                    var today = DateTime.Now.ToString("yyyy-MM-dd");
+                    var allLogs = ftpLogs.Concat(mcLogs).Concat(sqlLogs);
+                    
+                    foreach (var log in allLogs.Where(l => l.Contains(today)))
+                    {
+                        if (log.Contains("COMPLETE") || log.Contains("SUCCESS"))
+                            backupsToday++;
+                        if (log.Contains("ERROR") || log.Contains("FAILED"))
+                            failedBackups++;
+                    }
+
+                    if (backupsToday > 0)
+                    {
+                        successRate = ((double)(backupsToday - failedBackups) / backupsToday) * 100;
+                    }
+                    else if (failedBackups == 0)
+                    {
+                        successRate = 100.0; // No backups today but no failures either
+                    }
+
+                    // Calculate storage used
+                    long totalBytes = 0;
+                    try
+                    {
+                        if (Directory.Exists(BackupConfig.FtpLocalFolder))
+                        {
+                            totalBytes += new DirectoryInfo(BackupConfig.FtpLocalFolder)
+                                .EnumerateFiles("*", SearchOption.AllDirectories)
+                                .Sum(f => f.Length);
+                        }
+                        if (Directory.Exists(BackupConfig.MailchimpFolder))
+                        {
+                            totalBytes += new DirectoryInfo(BackupConfig.MailchimpFolder)
+                                .EnumerateFiles("*", SearchOption.AllDirectories)
+                                .Sum(f => f.Length);
+                        }
+                        if (Directory.Exists(BackupConfig.SqlLocalFolder))
+                        {
+                            totalBytes += new DirectoryInfo(BackupConfig.SqlLocalFolder)
+                                .EnumerateFiles("*", SearchOption.AllDirectories)
+                                .Sum(f => f.Length);
+                        }
+                    }
+                    catch { }
+
+                    string storageUsed = totalBytes >= 1073741824 ? $"{totalBytes / 1073741824.0:F1} GB" :
+                                     totalBytes >= 1048576 ? $"{totalBytes / 1048576.0:F1} MB" :
+                                     totalBytes >= 1024 ? $"{totalBytes / 1024.0:F0} KB" : "0 B";
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var backupsTodayText = this.FindControl<TextBlock>("StatBackupsToday");
+                        var successRateText = this.FindControl<TextBlock>("StatSuccessRate");
+                        var failedBackupsText = this.FindControl<TextBlock>("StatFailedBackups");
+                        var storageUsedText = this.FindControl<TextBlock>("StatStorageUsed");
+
+                        if (backupsTodayText != null) backupsTodayText.Text = backupsToday.ToString();
+                        if (successRateText != null) successRateText.Text = $"{successRate:F0}%";
+                        if (failedBackupsText != null) failedBackupsText.Text = failedBackups.ToString();
+                        if (storageUsedText != null) storageUsedText.Text = storageUsed;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error updating quick stats: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private async Task UpdateTimeSinceLastBackupAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 50);
+                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 50);
+                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 50);
+
+                    var ftpLastTime = GetLastBackupTime(ftpLogs);
+                    var mcLastTime = GetLastBackupTime(mcLogs);
+                    var sqlLastTime = GetLastBackupTime(sqlLogs);
+
+                    var ftpTimeText = GetTimeAgoText(ftpLastTime);
+                    var mcTimeText = GetTimeAgoText(mcLastTime);
+                    var sqlTimeText = GetTimeAgoText(sqlLastTime);
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var ftpTimeTextBlock = this.FindControl<TextBlock>("TimeSinceFtp");
+                        var mcTimeTextBlock = this.FindControl<TextBlock>("TimeSinceMc");
+                        var sqlTimeTextBlock = this.FindControl<TextBlock>("TimeSinceSql");
+
+                        if (ftpTimeTextBlock != null)
+                        {
+                            ftpTimeTextBlock.Text = ftpTimeText;
+                            ftpTimeTextBlock.Foreground = GetTimeAgoColor(ftpLastTime);
+                        }
+                        if (mcTimeTextBlock != null)
+                        {
+                            mcTimeTextBlock.Text = mcTimeText;
+                            mcTimeTextBlock.Foreground = GetTimeAgoColor(mcLastTime);
+                        }
+                        if (sqlTimeTextBlock != null)
+                        {
+                            sqlTimeTextBlock.Text = sqlTimeText;
+                            sqlTimeTextBlock.Foreground = GetTimeAgoColor(sqlLastTime);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error updating time since last backup: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private DateTime? GetLastBackupTime(List<string> logs)
+        {
+            foreach (var log in logs)
+            {
+                if (log.Contains("COMPLETE") || log.Contains("COMPLETE:") || log.Contains("SUCCESS") || log.Contains("SUCCESS:") || log.Contains("DOWNLOAD COMPLETE"))
+                {
+                    // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
+                    var match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
+                    if (!match.Success)
+                    {
+                        // Fallback to 24-hour format: "[2025-04-04 12:34:56]" (for old logs)
+                        match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+                    }
+                    if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var time))
+                    {
+                        // The log timestamp is in local time, not UTC
+                        return time;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private string GetTimeAgoText(DateTime? time)
+        {
+            if (!time.HasValue) return "Never";
+            var diff = DateTime.Now - time.Value;
+            if (diff.TotalMinutes < 60) return $"{diff.TotalMinutes:F0}m ago";
+            if (diff.TotalHours < 24) return $"{diff.TotalHours:F1}h ago";
+            return $"{diff.TotalDays:F1}d ago";
+        }
+
+        private IBrush GetTimeAgoColor(DateTime? time)
+        {
+            if (!time.HasValue) return Brush.Parse("#6C7086");
+            var diff = DateTime.Now - time.Value;
+            if (diff.TotalHours < 6) return Brush.Parse("#A6E3A1");
+            if (diff.TotalHours < 24) return Brush.Parse("#F9E2AF");
+            return Brush.Parse("#F38BA8");
+        }
+
+        private void UpdateServicesStatusSummary(Dictionary<string, int> serviceScores)
+        {
+            int healthyCount = 0;
+            
+            // FTP
+            int ftpScore = serviceScores.GetValueOrDefault("FTP", 0);
+            string ftpStatus = ftpScore >= 80 ? "Healthy" : ftpScore >= 50 ? "Warning" : ftpScore > 0 ? "Critical" : "No Data";
+            string ftpColor = ftpScore >= 80 ? "#A6E3A1" : ftpScore >= 50 ? "#F9E2AF" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("FtpHealthStatus", ftpStatus);
+            SetDot("FtpHealthDot", ftpColor);
+            if (ftpScore >= 80) healthyCount++;
+
+            // Mailchimp
+            int mcScore = serviceScores.GetValueOrDefault("Mailchimp", 0);
+            string mcStatus = mcScore >= 80 ? "Healthy" : mcScore >= 50 ? "Warning" : mcScore > 0 ? "Critical" : "No Data";
+            string mcColor = mcScore >= 80 ? "#A6E3A1" : mcScore >= 50 ? "#F9E2AF" : mcScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("McHealthStatus", mcStatus);
+            SetDot("McHealthDot", mcColor);
+            if (mcScore >= 80) healthyCount++;
+
+            // SQL
+            int sqlScore = serviceScores.GetValueOrDefault("SQL", 0);
+            string sqlStatus = sqlScore >= 80 ? "Healthy" : sqlScore >= 50 ? "Warning" : sqlScore > 0 ? "Critical" : "No Data";
+            string sqlColor = sqlScore >= 80 ? "#A6E3A1" : sqlScore >= 50 ? "#F9E2AF" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("SqlHealthStatus", sqlStatus);
+            SetDot("SqlHealthDot", sqlColor);
+            if (sqlScore >= 80) healthyCount++;
+
+            // Update services OK text
+            Set("ServicesHealthText", $"{healthyCount}/3 healthy");
+        }
+
+        private void SetDot(string controlName, string color)
+        {
+            var dot = this.FindControl<Ellipse>(controlName);
+            if (dot != null) dot.Fill = Brush.Parse(color);
+        }
+
+        private async Task LoadRecentErrorsAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var errors = new List<(string service, string error, DateTime time)>();
+
+                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 100);
+                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 100);
+                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 100);
+
+                    AddErrorsFromLogs(ftpLogs, "FTP", errors);
+                    AddErrorsFromLogs(mcLogs, "Mailchimp", errors);
+                    AddErrorsFromLogs(sqlLogs, "SQL", errors);
+
+                    var recentErrors = errors.OrderByDescending(e => e.time).Take(5).ToList();
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var errorsPanel = this.FindControl<Border>("RecentErrorsPanel");
+                        var errorsList = this.FindControl<StackPanel>("RecentErrorsList");
+
+                        if (errorsPanel != null && errorsList != null)
+                        {
+                            errorsPanel.IsVisible = recentErrors.Count > 0;
+                            errorsList.Children.Clear();
+
+                            foreach (var error in recentErrors)
+                            {
+                                var errorBorder = new Border
+                                {
+                                    Background = Brush.Parse("#3D2020"),
+                                    CornerRadius = new Avalonia.CornerRadius(6),
+                                    Padding = new Avalonia.Thickness(10, 6)
+                                };
+
+                                var errorGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto, *, Auto") };
+                                
+                                var serviceIcon = new TextBlock
+                                {
+                                    Text = error.service switch
+                                    {
+                                        "FTP" => "FTP",
+                                        "Mailchimp" => "MC",
+                                        "SQL" => "SQL",
+                                        _ => "ERR"
+                                    },
+                                    FontSize = 12,
+                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                                    Margin = new Avalonia.Thickness(0, 0, 8, 0)
+                                };
+
+                                var errorText = new TextBlock
+                                {
+                                    Text = error.error.Length > 50 ? error.error.Substring(0, 50) + "..." : error.error,
+                                    FontSize = 10,
+                                    Foreground = Brush.Parse("#F38BA8"),
+                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                                };
+
+                                var timeText = new TextBlock
+                                {
+                                    Text = GetTimeAgoText(error.time),
+                                    FontSize = 9,
+                                    Foreground = Brush.Parse("#6C7086"),
+                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                                };
+
+                                Grid.SetColumn(serviceIcon, 0);
+                                Grid.SetColumn(errorText, 1);
+                                Grid.SetColumn(timeText, 2);
+
+                                errorGrid.Children.Add(serviceIcon);
+                                errorGrid.Children.Add(errorText);
+                                errorGrid.Children.Add(timeText);
+
+                                errorBorder.Child = errorGrid;
+                                errorsList.Children.Add(errorBorder);
+                            }
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error loading recent errors: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private void AddErrorsFromLogs(List<string> logs, string service, List<(string service, string error, DateTime time)> errors)
+        {
+            foreach (var log in logs)
+            {
+                if (log.Contains("ERROR") || log.Contains("FAILED"))
+                {
+                    // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
+                    var match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
+                    if (!match.Success)
+                    {
+                        // Fallback to 24-hour format: "[2025-04-04 12:34:56]" (for old logs)
+                        match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+                    }
+                    if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var time))
+                    {
+                        var errorText = log.Split(new[] { "] " }, StringSplitOptions.None).LastOrDefault() ?? "Unknown error";
+                        errors.Add((service, errorText, time));
+                    }
+                }
+            }
+        }
+
+        private void ClearRecentErrors()
+        {
+            var errorsPanel = this.FindControl<Border>("RecentErrorsPanel");
+            var errorsList = this.FindControl<StackPanel>("RecentErrorsList");
+
+            if (errorsPanel != null && errorsList != null)
+            {
+                errorsPanel.IsVisible = false;
+                errorsList.Children.Clear();
+                NotificationService.ShowBackupToast("Recent Errors", "Errors cleared from dashboard.", "Success");
+            }
+        }
+
+        private void ShowDashboardCustomization()
+        {
+            var dialog = new DashboardCustomizationDialog();
+            
+            var window = new Window
+            {
+                Title = "Customize Dashboard",
+                Width = 500,
+                Height = 600,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                Content = dialog
+            };
+            
+            dialog.OnApply += (settings) =>
+            {
+                ApplyDashboardCustomization(settings);
+                window.Close();
+            };
+            
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+            if (parentWindow != null)
+            {
+                window.ShowDialog(parentWindow);
+            }
+        }
+
+        private void ApplyDashboardCustomization(DashboardCustomization settings)
+        {
+            // Apply visibility settings
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var systemStatus = this.FindControl<Border>(null);
+                var quickStats = this.FindControl<Grid>(null);
+                var timeSinceBackup = this.FindControl<Border>(null);
+                var recentErrors = this.FindControl<Border>("RecentErrorsPanel");
+                var serviceCards = this.FindControl<Grid>("ServiceCardsSection");
+                var healthDashboard = this.FindControl<Border>(null);
+                var operations = this.FindControl<Border>(null);
+                var connectivity = this.FindControl<Border>(null);
+                var statsReporting = this.FindControl<Border>(null);
+                var scheduleAdjustment = this.FindControl<Border>(null);
+                var storageUsage = this.FindControl<Border>(null);
+                var dailySchedule = this.FindControl<Border>(null);
+                var recentActivity = this.FindControl<Border>(null);
+                var systemLogs = this.FindControl<Border>(null);
+                
+                // Apply compact mode
+                if (settings.CompactMode)
+                {
+                    // Reduce padding and font sizes for compact view
+                    ApplyCompactMode(true);
+                }
+                else
+                {
+                    ApplyCompactMode(false);
+                }
+                
+                NotificationService.ShowBackupToast("Dashboard", "Customization applied.", "Success");
+            });
+        }
+
+        private void ApplyCompactMode(bool compact)
+        {
+            // Toggle compact mode by adjusting margins, spacing, and font sizes
+            var mainStackPanel = this.FindControl<StackPanel>(null);
+            if (mainStackPanel != null)
+            {
+                mainStackPanel.Spacing = compact ? 8 : 16;
+            }
+
+            // Adjust padding on cards
+            var cards = this.FindControl<StackPanel>(null)?.Children.OfType<Border>().ToList();
+            if (cards != null)
+            {
+                foreach (var card in cards)
+                {
+                    if (card.Padding is Avalonia.Thickness padding)
+                    {
+                        card.Padding = compact ? new Avalonia.Thickness(12) : new Avalonia.Thickness(16);
+                    }
+                }
+            }
+
+            // Adjust font sizes on headers
+            var headers = this.FindControl<StackPanel>(null)?.Children.OfType<TextBlock>()
+                .Where(tb => tb.FontSize >= 18).ToList();
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    header.FontSize = compact ? header.FontSize * 0.85 : header.FontSize;
+                }
+            }
+
+            // Adjust margins on sections
+            var sections = this.FindControl<StackPanel>(null)?.Children.OfType<Border>()
+                .Where(b => b.Name != null && b.Name.Contains("Panel")).ToList();
+            if (sections != null)
+            {
+                foreach (var section in sections)
+                {
+                    if (section.Margin is Avalonia.Thickness margin)
+                    {
+                        section.Margin = compact ? new Avalonia.Thickness(0, 8, 0, 0) : new Avalonia.Thickness(0, 16, 0, 0);
+                    }
+                }
+            }
+        }
+
+        private async Task LoadSystemLogsAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 100);
+                    var logText = string.Join("\n", logs);
+                    
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
+                        if (systemLogsText != null)
+                        {
+                            systemLogsText.Text = logs.Count > 0 ? logText : "No system logs available.";
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error loading system logs: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private void ClearSystemLogs()
+        {
+            try
+            {
+                LogService.ClearLogs(AppDataPaths.SystemLogPath);
+                _ = LoadSystemLogsAsync();
+                NotificationService.ShowBackupToast("System Logs", "System logs cleared successfully.", "Success");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("System Logs", $"Failed to clear logs: {ex.Message}", "Error");
+            }
+        }
+
+        private void OnNewSystemLogEntry(string logEntry, string logFile)
+        {
+            // Only update if it's a system log
+            if (logFile == AppDataPaths.SystemLogPath)
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
+                    if (systemLogsText != null)
+                    {
+                        var currentText = systemLogsText.Text;
+                        var newText = $"{logEntry}\n{currentText}";
+                        // Keep only last 100 lines to prevent memory issues
+                        var lines = newText.Split('\n').Take(100);
+                        systemLogsText.Text = string.Join("\n", lines);
+                    }
+                });
+            }
+        }
+
         protected override void OnUnloaded(RoutedEventArgs e)
         {
             base.OnUnloaded(e);
+            
+            // Unsubscribe from log events
+            LogService.OnNewLogEntry -= OnNewSystemLogEntry;
             
             // Hide auto-refresh indicators
             Dispatcher.UIThread.InvokeAsync(() =>
@@ -966,6 +1930,8 @@ namespace PinayPalBackupManager.UI.UserControls
             _healthRefreshTimer?.Dispose();
             _statsRefreshTimer?.Stop();
             _statsRefreshTimer?.Dispose();
+            _dashboardRefreshTimer?.Stop();
+            _dashboardRefreshTimer?.Dispose();
             _autoPingTimer?.Stop();
             _autoPingTimer?.Dispose();
             _statsTimer?.Stop();

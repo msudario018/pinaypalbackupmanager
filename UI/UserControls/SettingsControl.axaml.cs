@@ -47,7 +47,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 chkAutoUpdate.IsCheckedChanged += (s, e) =>
                 {
                     UpdatePreferences.SaveAutoCheckOnStartup(chkAutoUpdate.IsChecked == true);
-                    NotificationService.ShowBackupToast("Updates", chkAutoUpdate.IsChecked == true ? "Auto-check enabled." : "Auto-check disabled.", "Info");
+                    var status = chkAutoUpdate.IsChecked == true ? "enabled" : "disabled";
+                    NotificationService.ShowBackupToast("Updates", $"Auto-check {status}.", "Info");
+                    LogService.WriteSystemLog($"Auto-update check on startup {status}", "Information", "SETTINGS");
                 };
             }
 
@@ -71,7 +73,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     ConfigService.Current.Operation.RetentionDays = days;
                     ConfigService.SaveOperation();
+                    ConfigService.Load();
                     NotificationService.ShowBackupToast("Retention", $"Backup files older than {days} day(s) will be deleted automatically.", "Info");
+                    LogService.WriteSystemLog($"Retention days changed to {days} days", "Information", "SETTINGS");
                 }
                 else NotificationService.ShowBackupToast("Retention", "Enter a value between 1 and 365 days.", "Warning");
             };
@@ -160,6 +164,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 dialog.OnSave += async (sender, e) =>
                 {
                     await SaveSettingsAsync(dialog.GetSettings(), "Credentials saved.");
+                    LogService.WriteSystemLog("Credentials updated", "Information", "SETTINGS");
                     window.Close();
                 };
 
@@ -202,6 +207,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 dialog.OnSave += async (sender, e) =>
                 {
                     await SaveSettingsAsync(dialog.GetSettings(), "Paths saved.");
+                    LogService.WriteSystemLog("Backup paths updated", "Information", "SETTINGS");
                     window.Close();
                 };
 
@@ -228,19 +234,77 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 var dir = ConfigService.GetConfigDirectory();
                 var path = System.IO.Path.Combine(dir, "appsettings.local.json");
-                var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+                
+                // Read existing config to preserve other settings
+                AppSettings existing;
+                if (File.Exists(path))
+                {
+                    var existingJson = await File.ReadAllTextAsync(path);
+                    existing = JsonSerializer.Deserialize<AppSettings>(existingJson) ?? new AppSettings();
+                }
+                else
+                {
+                    existing = new AppSettings();
+                }
+                
+                // Merge new config into existing (this preserves settings not being changed)
+                MergeSettings(existing, config);
+                
+                var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(path, json);
 
                 ConfigService.Load();
                 NotificationService.ShowBackupToast("Config", successMessage, "Info");
                 if (status != null) status.Text = "Saved.";
                 OnConfigSaved?.Invoke();
+                
+                // Log the save operation
+                LogService.WriteSystemLog($"Configuration saved: {successMessage}", "Information", "SETTINGS");
             }
             catch (Exception ex)
             {
                 NotificationService.ShowBackupToast("Config", "Save failed.", "Error");
                 if (status != null) status.Text = ex.Message;
+                LogService.WriteSystemLog($"Configuration save failed: {ex.Message}", "Error", "SETTINGS");
             }
+        }
+
+        private void MergeSettings(AppSettings target, AppSettings source)
+        {
+            if (!string.IsNullOrWhiteSpace(source.Paths.FtpLocalFolder)) target.Paths.FtpLocalFolder = source.Paths.FtpLocalFolder;
+            if (!string.IsNullOrWhiteSpace(source.Paths.MailchimpFolder)) target.Paths.MailchimpFolder = source.Paths.MailchimpFolder;
+            if (!string.IsNullOrWhiteSpace(source.Paths.SqlLocalFolder)) target.Paths.SqlLocalFolder = source.Paths.SqlLocalFolder;
+
+            if (!string.IsNullOrWhiteSpace(source.Ftp.Host)) target.Ftp.Host = source.Ftp.Host;
+            if (!string.IsNullOrWhiteSpace(source.Ftp.User)) target.Ftp.User = source.Ftp.User;
+            if (!string.IsNullOrWhiteSpace(source.Ftp.Password)) target.Ftp.Password = source.Ftp.Password;
+            if (!string.IsNullOrWhiteSpace(source.Ftp.TlsFingerprint)) target.Ftp.TlsFingerprint = source.Ftp.TlsFingerprint;
+            if (source.Ftp.Port != 0) target.Ftp.Port = source.Ftp.Port;
+
+            if (!string.IsNullOrWhiteSpace(source.Sql.Host)) target.Sql.Host = source.Sql.Host;
+            if (!string.IsNullOrWhiteSpace(source.Sql.User)) target.Sql.User = source.Sql.User;
+            if (!string.IsNullOrWhiteSpace(source.Sql.Password)) target.Sql.Password = source.Sql.Password;
+            if (!string.IsNullOrWhiteSpace(source.Sql.RemotePath)) target.Sql.RemotePath = source.Sql.RemotePath;
+            if (!string.IsNullOrWhiteSpace(source.Sql.TlsFingerprint)) target.Sql.TlsFingerprint = source.Sql.TlsFingerprint;
+
+            if (!string.IsNullOrWhiteSpace(source.Mailchimp.ApiKey)) target.Mailchimp.ApiKey = source.Mailchimp.ApiKey;
+            if (!string.IsNullOrWhiteSpace(source.Mailchimp.AudienceId)) target.Mailchimp.AudienceId = source.Mailchimp.AudienceId;
+
+            if (source.Operation.RetentionDays > 0) target.Operation.RetentionDays = source.Operation.RetentionDays;
+            target.Operation.AutoStartWindows = source.Operation.AutoStartWindows;
+
+            target.Schedule.FtpDailySyncHourMnl = source.Schedule.FtpDailySyncHourMnl;
+            target.Schedule.FtpDailySyncMinuteMnl = source.Schedule.FtpDailySyncMinuteMnl;
+            target.Schedule.MailchimpDailySyncHourMnl = source.Schedule.MailchimpDailySyncHourMnl;
+            target.Schedule.MailchimpDailySyncMinuteMnl = source.Schedule.MailchimpDailySyncMinuteMnl;
+            target.Schedule.SqlDailySyncHourMnl = source.Schedule.SqlDailySyncHourMnl;
+            target.Schedule.SqlDailySyncMinuteMnl = source.Schedule.SqlDailySyncMinuteMnl;
+            target.Schedule.FtpAutoScanHours = source.Schedule.FtpAutoScanHours;
+            target.Schedule.FtpAutoScanMinutes = source.Schedule.FtpAutoScanMinutes;
+            target.Schedule.MailchimpAutoScanHours = source.Schedule.MailchimpAutoScanHours;
+            target.Schedule.MailchimpAutoScanMinutes = source.Schedule.MailchimpAutoScanMinutes;
+            target.Schedule.SqlAutoScanHours = source.Schedule.SqlAutoScanHours;
+            target.Schedule.SqlAutoScanMinutes = source.Schedule.SqlAutoScanMinutes;
         }
 
         [SupportedOSPlatform("windows")]
@@ -261,7 +325,9 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
             UpdateRegistryStartup();
+            var status = this.FindControl<CheckBox>("ChkStartup")?.IsChecked == true ? "enabled" : "disabled";
             NotificationService.ShowBackupToast("Startup", this.FindControl<CheckBox>("ChkStartup")?.IsChecked == true ? "Enabled." : "Disabled.", "Info");
+            LogService.WriteSystemLog($"Windows startup {status}", "Information", "SETTINGS");
         }
 
         [SupportedOSPlatform("windows")]

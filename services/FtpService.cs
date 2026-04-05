@@ -15,15 +15,11 @@ namespace PinayPalBackupManager.Services
 
         public void Initialize(string host, string user, string password, string fingerprint, int port = 21)
         {
-            LogService.WriteLiveLog($"FTP INIT: Host={host}, User={user}, Port={port}", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+            LogService.WriteLiveLog($"FTP INIT: Connecting to server on port {port}", BackupConfig.FtpLogFile, "Information", "SYSTEM");
             
             if (string.IsNullOrEmpty(password))
             {
                 LogService.WriteLiveLog("FTP INIT WARNING: Password is empty after decryption!", BackupConfig.FtpLogFile, "Warning", "SYSTEM");
-            }
-            else
-            {
-                LogService.WriteLiveLog($"FTP INIT: Password recovered ({password.Length} characters).", BackupConfig.FtpLogFile, "Information", "SYSTEM");
             }
 
             _options = new SessionOptions

@@ -11,7 +11,7 @@ namespace PinayPalBackupManager.Services
 
         public static void WriteLiveLog(string message, string logFile, string level = "Information", string trigger = "SYSTEM")
         {
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss tt");
             string logEntry = $"[{timestamp}] [{level.ToUpper()}] [{trigger.ToUpper()}] {message}";
 
             // Trigger UI update
@@ -28,6 +28,25 @@ namespace PinayPalBackupManager.Services
                 {
                     // Ignore write errors (similar to PowerShell's SilentlyContinue)
                 }
+            }
+        }
+
+        public static void WriteSystemLog(string message, string level = "Information", string trigger = "SYSTEM")
+        {
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss tt");
+            string logEntry = $"[{timestamp}] [{level.ToUpper()}] [{trigger.ToUpper()}] {message}";
+
+            // Trigger UI update
+            OnNewLogEntry?.Invoke(logEntry, AppDataPaths.SystemLogPath);
+
+            // Save to system log file
+            try
+            {
+                File.AppendAllLines(AppDataPaths.SystemLogPath, [logEntry]);
+            }
+            catch
+            {
+                // Ignore write errors
             }
         }
 
