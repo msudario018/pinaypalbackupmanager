@@ -134,7 +134,7 @@ namespace PinayPalBackupManager.UI
                                 {
                                     if (newStatus == "Active")
                                     {
-                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#52B788");
                                         errorTxt.Text = "Your account has been approved! You can now log in.";
                                     }
                                     else if (newStatus == "Deleted")
@@ -200,13 +200,13 @@ namespace PinayPalBackupManager.UI
             ClearErrors();
         }
 
-        private void OnLoginClick(object? sender, RoutedEventArgs e)
+        private async void OnLoginClick(object? sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("TxtLoginUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtLoginPass")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
 
-            var (success, message) = AuthService.Login(username, password);
+            var (success, message) = await AuthService.LoginAsync(username, password);
             if (success)
             {
                 _statusListenerCts?.Cancel();
@@ -223,18 +223,18 @@ namespace PinayPalBackupManager.UI
             }
         }
 
-        private void OnRegisterClick(object? sender, RoutedEventArgs e)
+        private async void OnRegisterClick(object? sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("TxtRegUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtRegPass")!.Text ?? string.Empty;
             var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtRegError")!;
 
-            var (success, message) = AuthService.Register(username, password, inviteCode);
+            var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
             if (success)
             {
                 // Auto-login after registration
-                var (loginOk, _) = AuthService.Login(username, password);
+                var (loginOk, _) = await AuthService.LoginAsync(username, password);
                 if (loginOk)
                 {
                     OnLoginSuccess?.Invoke();
@@ -244,7 +244,7 @@ namespace PinayPalBackupManager.UI
                 // Fallback: show login panel with success message
                 ShowLoginPanel();
                 this.FindControl<TextBlock>("TxtLoginError")!.Text = message + " Please sign in.";
-                this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#52B788");
             }
             else
             {

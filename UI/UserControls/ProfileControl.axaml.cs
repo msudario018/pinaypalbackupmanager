@@ -99,7 +99,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 txtUserRole!.Text = user.Role;
                 txtUserStatus!.Text = user.Status == "Active" ? "✓ Active" : user.Status;
                 txtUserStatus!.Foreground = user.Status == "Active" 
-                    ? Avalonia.Media.Brush.Parse("#A6E3A1") 
+                    ? Avalonia.Media.Brush.Parse("#52B788") 
                     : Avalonia.Media.Brush.Parse("#F38BA8");
                 
                 txtAccountType!.Text = user.Role == "Admin" ? "Administrator" : "Standard";
@@ -113,7 +113,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 txtUsername!.Text = "Guest";
                 txtUserRole!.Text = "Not logged in";
                 txtUserStatus!.Text = "⚠ Offline";
-                txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
                 txtAccountType!.Text = "Limited";
                 txtMemberSince!.Text = "N/A";
                 adminSection!.IsVisible = false;
@@ -171,13 +171,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new ChangePasswordDialog();
                 var window = new Window
                 {
-                    Title = "Change Password",
                     Content = dialog,
                     Width = 400,
                     Height = 450,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -216,13 +217,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new ChangeUsernameDialog();
                 var window = new Window
                 {
-                    Title = "Change Username",
                     Content = dialog,
                     Width = 400,
                     Height = 320,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -339,13 +341,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new UserManagementDialog();
                 var window = new Window
                 {
-                    Title = "User Management",
                     Content = dialog,
                     Width = 900,
                     Height = 850,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = true,
                     ShowInTaskbar = false,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -368,9 +371,11 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             const string dialogKey = "invite_codes";
             
+            Console.WriteLine("[ProfileControl] ShowInviteCodesDialog called");
+            
             if (NotificationService.IsDialogOpen(dialogKey))
             {
-                Console.WriteLine("[ProfileControl] Invite Codes dialog already open, skipping");
+                Console.WriteLine("[ProfileControl] Dialog already open, returning");
                 return;
             }
             
@@ -378,16 +383,19 @@ namespace PinayPalBackupManager.UI.UserControls
             
             try
             {
+                Console.WriteLine("[ProfileControl] Creating InviteCodesDialog...");
                 var dialog = new InviteCodesDialog();
+                Console.WriteLine("[ProfileControl] InviteCodesDialog created successfully");
                 var window = new Window
                 {
-                    Title = "Invite Codes",
                     Content = dialog,
-                    Width = 500,
-                    Height = 350,
+                    Width = 550,
+                    Height = 500,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -399,6 +407,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     await window.ShowDialog(parentWindow);
                 }
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("Users", "Failed to open invite codes dialog.", "Error");
             }
             finally
             {
@@ -424,13 +436,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new LogoutConfirmationDialog();
                 var window = new Window
                 {
-                    Title = "Confirm Logout",
                     Content = dialog,
                     Width = 400,
                     Height = 200,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };

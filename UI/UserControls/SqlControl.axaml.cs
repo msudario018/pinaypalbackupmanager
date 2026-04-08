@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -92,7 +95,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "SYNCING SQL...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+            txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
 
             // Report global backup progress
             _manager?.ReportBackupProgress("SQL", 0, "SYNCING SQL...");
@@ -278,7 +281,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "COMPLETE";
-                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                            txtStatus.Foreground = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(82, 183, 136)));
                         });
                         // Report global backup progress complete
                         _manager?.ReportBackupProgress("SQL", 100, "COMPLETE");
@@ -290,7 +293,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         NotificationService.ShowBackupToast("SQL Backup Failed", $"Error: {taskError}", "Error");
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "LOGIN FAILED";
-                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                            txtStatus.Foreground = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(243, 138, 168)));
                         });
                         // Report global backup progress failed
                         _manager?.ReportBackupProgress("SQL", 0, "LOGIN FAILED");
@@ -303,7 +306,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("SQL Backup Cancelled", "User cancelled the task.", "Warning");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                        txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("SQL", 0, "CANCELLED");
@@ -315,7 +318,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("SQL Backup Cancelled", "User cancelled the task.", "Warning");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                        txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("SQL", 0, "CANCELLED");
@@ -327,7 +330,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("SQL Backup Failed", $"Error: {taskError}", "Error");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "SYNC ERROR";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        txtStatus.Foreground = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(243, 138, 168)));
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("SQL", 0, "SYNC ERROR");
@@ -374,12 +377,12 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Set initial status to prevent showing old status during comparison
             txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+            txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
             txtFile.Text = "Status: Comparing local vs remote...";
             
             string statusText = "SYNC CHECK";
             string detailText = "Status: Idle";
-            string colorHex = "#A6ADC8";
+            string colorHex = "#C77DFF";
             string toastMessage = "Sync check finished.";
             string toastType = "Info";
 
@@ -455,7 +458,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "REMOTE EMPTY";
                         detailText = "Status: No .sql backups found on remote server.";
-                        colorHex = "#F9E2AF";
+                        colorHex = "#FAD643";
                         toastMessage = "Remote has no .sql backups.";
                         toastType = "Warning";
                         return;
@@ -488,7 +491,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "LATEST";
                         detailText = $"Local matches remote: {remoteLatest.Name} ({localSize:n0} bytes)";
-                        colorHex = "#A6E3A1";
+                        colorHex = "#52B788";
                         toastMessage = "Local SQL backup is up to date.";
                         toastType = "Info";
                         return;
@@ -499,7 +502,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "LATEST";
                         detailText = $"Local has remote file: {remoteLatest.Name} ({localSize:n0} bytes)";
-                        colorHex = "#A6E3A1";
+                        colorHex = "#52B788";
                         toastMessage = "Local SQL backup is up to date.";
                         toastType = "Info";
                         return;
@@ -515,7 +518,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             statusText = "LATEST";
                             detailText = $"Local matches remote: {localLatest.Name} (recent sync)";
-                            colorHex = "#A6E3A1";
+                            colorHex = "#52B788";
                             toastMessage = "Local SQL backup is up to date.";
                             toastType = "Info";
                             return;
@@ -578,7 +581,7 @@ namespace PinayPalBackupManager.UI.UserControls
             SetBusy(true);
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "TESTING SQL...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+            txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
 
             using var sql = new SqlService();
             string decryptedPass = SecurityService.GetDecryptedSqlPassword();
@@ -588,13 +591,13 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 LogService.WriteLiveLog("TEST SUCCESS: SQL Connection Verified.", BackupConfig.SqlLogFile, "Information", "MANUAL");
                 txtStatus.Text = "TEST SUCCESS";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                txtStatus.Foreground = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(82, 183, 136)));
             }
             else
             {
                 LogService.WriteLiveLog("TEST FAILED: Authentication Error.", BackupConfig.SqlLogFile, "Error", "MANUAL");
                 txtStatus.Text = "TEST FAILED";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                txtStatus.Foreground = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(243, 138, 168)));
             }
             SetBusy(false);
         }
@@ -613,8 +616,73 @@ namespace PinayPalBackupManager.UI.UserControls
                     .OrderByDescending(f => f.LastWriteTime)
                     .FirstOrDefault();
                 if (newest == null) return "No backup files found.";
-                if (newest.Length == 0) return $"WARNING: {newest.Name} is zero-byte!";
-                return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
+                
+                // Better integrity check using multiple criteria
+                var issues = new List<string>();
+                
+                // Check 1: File age (shouldn't be older than 7 days for regular backups)
+                var age = DateTime.Now - newest.LastWriteTime;
+                if (age.TotalDays > 7)
+                    issues.Add($"File is {age.TotalDays:F0} days old");
+                
+                // Check 2: File extension (should be .sql.gz for SQL backups)
+                if (!newest.Name.EndsWith(".sql.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!newest.Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                        issues.Add("Not a SQL backup file");
+                }
+                
+                // Check 3: File size logic (improved)
+                if (newest.Length == 0)
+                {
+                    // Only treat as warning if it's supposed to be a SQL backup
+                    if (newest.Name.EndsWith(".sql.gz", StringComparison.OrdinalIgnoreCase) || 
+                        newest.Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    {
+                        issues.Add("SQL backup file is zero-byte");
+                    }
+                    else
+                    {
+                        // For other files like .htaccess, zero bytes might be normal
+                        return $"OK — {newest.Name} (config file, {newest.Length / 1024.0:F1} KB)";
+                    }
+                }
+                else if (newest.Length < 1024) // Less than 1KB
+                {
+                    issues.Add("File seems too small for a backup");
+                }
+                
+                // Check 4: File content (basic validation for SQL files)
+                if (newest.Name.EndsWith(".sql.gz", StringComparison.OrdinalIgnoreCase) && newest.Length > 0)
+                {
+                    try
+                    {
+                        // Read first few bytes to check if it's a valid gzip file
+                        using var fs = new FileStream(newest.FullName, FileMode.Open, FileAccess.Read);
+                        var header = new byte[3];
+                        fs.Read(header, 0, 3);
+                        
+                        // Gzip files should start with 0x1F 0x8B 0x08
+                        if (header[0] != 0x1F || header[1] != 0x8B)
+                        {
+                            issues.Add("File doesn't appear to be a valid gzip archive");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        issues.Add($"Cannot read file: {ex.Message}");
+                    }
+                }
+                
+                // Return result based on issues found
+                if (issues.Count == 0)
+                {
+                    return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
+                }
+                else
+                {
+                    return $"WARNING — {newest.Name} ({string.Join(", ", issues)})";
+                }
             }
             catch (Exception ex) { return $"WARNING: {ex.Message}"; }
         }
@@ -638,7 +706,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtStatus != null)
             {
                 txtStatus.Text = "CANCELLING...";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                txtStatus.Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
             }
         }
 
@@ -652,6 +720,17 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnCancel")!.IsEnabled = busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
             if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle";
+        }
+
+        private T GetThemeResource<T>(string key, T fallback) where T : class
+        {
+            try
+            {
+                if (Application.Current?.Resources.TryGetValue(key, out var resource) == true && resource is T typedResource)
+                    return typedResource;
+            }
+            catch { }
+            return fallback;
         }
 
         public void PerformSyncCheck()

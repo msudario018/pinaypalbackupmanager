@@ -14,73 +14,107 @@ namespace PinayPalBackupManager.UI.UserControls
         private DateTime _nextRotateTime;
         private DispatcherTimer? _inviteTimer;
 
+        private async Task LoadInviteCodeAsync(TextBox? txtInviteCode)
+        {
+            try
+            {
+                var code = await AuthService.GetInviteCodeAsync();
+                if (txtInviteCode != null)
+                {
+                    txtInviteCode.Text = string.IsNullOrEmpty(code) ? "(none)" : code;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[InviteCodesDialog] Failed to load invite code: {ex.Message}");
+                if (txtInviteCode != null)
+                {
+                    txtInviteCode.Text = "(error)";
+                }
+            }
+        }
+
         public InviteCodesDialog()
         {
-            Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
-
-            var txtInviteCode = this.FindControl<TextBox>("TxtInviteCode");
-            var btnCopy = this.FindControl<Button>("BtnCopy");
-            var btnRegenerate = this.FindControl<Button>("BtnRegenerate");
-            var btnClose = this.FindControl<Button>("BtnClose");
-
-            // Load current invite code
-            var code = AuthService.GetInviteCode();
-            if (txtInviteCode != null) txtInviteCode.Text = string.IsNullOrEmpty(code) ? "(none)" : code;
-
-            // Setup copy button
-            if (btnCopy != null)
+            Console.WriteLine("[InviteCodesDialog] Constructor started");
+            
+            try
             {
-                btnCopy.Click += async (_, _) =>
+                Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+                Console.WriteLine("[InviteCodesDialog] XAML loaded successfully");
+
+                var txtInviteCode = this.FindControl<TextBox>("TxtInviteCode");
+                var btnCopy = this.FindControl<Button>("BtnCopy");
+                var btnRegenerate = this.FindControl<Button>("BtnRegenerate");
+                var btnClose = this.FindControl<Button>("BtnClose");
+                
+                Console.WriteLine($"[InviteCodesDialog] Controls found - TextBox: {txtInviteCode != null}, Copy: {btnCopy != null}, Regenerate: {btnRegenerate != null}, Close: {btnClose != null}");
+
+                // Setup copy button
+                if (btnCopy != null)
                 {
-                    if (txtInviteCode != null && !string.IsNullOrEmpty(txtInviteCode.Text) && txtInviteCode.Text != "(none)")
+                    btnCopy.Click += async (_, _) =>
                     {
-                        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-                        if (clipboard != null)
-                            await clipboard.SetTextAsync(txtInviteCode.Text);
-                        NotificationService.ShowBackupToast("Users", "Invite code copied to clipboard.", "Info");
-                    }
-                };
-            }
-
-            // Setup regenerate button
-            if (btnRegenerate != null)
-            {
-                btnRegenerate.Click += (_, _) =>
-                {
-                    var newCode = AuthService.RotateInviteCode();
-                    if (txtInviteCode != null) txtInviteCode.Text = newCode;
-                    _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
-                    NotificationService.ShowBackupToast("Users", "Invite code regenerated!", "Success");
-                };
-            }
-
-            // Setup close button
-            if (btnClose != null) btnClose.Click += (_, _) =>
-            {
-                _inviteTimer?.Stop();
-                OnClose?.Invoke(this, EventArgs.Empty);
-            };
-
-            // Start auto-rotation timer
-            _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
-            _inviteTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
-            _inviteTimer.Tick += (_, _) =>
-            {
-                var remaining = _nextRotateTime - DateTime.UtcNow;
-                if (remaining <= TimeSpan.Zero)
-                {
-                    var newCode = AuthService.RotateInviteCode();
-                    if (txtInviteCode != null) txtInviteCode.Text = newCode;
-                    _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
-                    NotificationService.ShowBackupToast("Users", "Invite code auto-rotated.", "Info");
+                        if (txtInviteCode != null && !string.IsNullOrEmpty(txtInviteCode.Text) && txtInviteCode.Text != "(none)")
+                        {
+                            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+                            if (clipboard != null)
+                                await clipboard.SetTextAsync(txtInviteCode.Text);
+                            NotificationService.ShowBackupToast("Users", "Invite code copied to clipboard.", "Info");
+                        }
+                    };
                 }
-                UpdateTimerArc(remaining.TotalSeconds / 300.0); // 300 seconds = 5 minutes
-            };
-            _inviteTimer.Start();
-            UpdateTimerArc(1.0);
+
+                // Setup regenerate button
+                if (btnRegenerate != null)
+                {
+                    btnRegenerate.Click += (_, _) =>
+                    {
+                        var newCode = AuthService.RotateInviteCode();
+                        if (txtInviteCode != null) txtInviteCode.Text = newCode;
+                        _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
+                        NotificationService.ShowBackupToast("Users", "Invite code regenerated!", "Success");
+                    };
+                }
+
+                // Setup close button
+                if (btnClose != null) btnClose.Click += (_, _) =>
+                {
+                    _inviteTimer?.Stop();
+                    OnClose?.Invoke(this, EventArgs.Empty);
+                };
+
+                // Start auto-rotation timer
+                _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
+                _inviteTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+                _inviteTimer.Tick += (_, _) =>
+                {
+                    var remaining = _nextRotateTime - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        var newCode = AuthService.RotateInviteCode();
+                        if (txtInviteCode != null) txtInviteCode.Text = newCode;
+                        _nextRotateTime = DateTime.UtcNow.AddMinutes(5);
+                        NotificationService.ShowBackupToast("Users", "Invite code auto-rotated.", "Info");
+                    }
+                    UpdateTimerArc(remaining.TotalSeconds / 300.0); // 300 seconds = 5 minutes
+                };
+                _inviteTimer.Start();
+                UpdateTimerArc(1.0);
+
+                // Load current invite code asynchronously to avoid blocking
+                _ = LoadInviteCodeAsync(txtInviteCode);
+                Console.WriteLine("[InviteCodesDialog] LoadInviteCodeAsync started");
+                Console.WriteLine("[InviteCodesDialog] Constructor completed successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[InviteCodesDialog] Constructor error: {ex.Message}");
+                Console.WriteLine($"[InviteCodesDialog] Stack trace: {ex.StackTrace}");
+            }
         }
 
         private void UpdateTimerArc(double progress)

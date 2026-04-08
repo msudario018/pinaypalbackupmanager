@@ -81,7 +81,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "SYNCING...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#89B4FA");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
 
             // Report global backup progress
             _manager?.ReportBackupProgress("FTP", 0, "SYNCING...");
@@ -191,7 +191,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "COMPLETE";
-                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#52B788");
                         });
                         // Report global backup progress complete
                         _manager?.ReportBackupProgress("FTP", 100, "COMPLETE");
@@ -217,7 +217,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -230,7 +230,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -291,12 +291,12 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             var txtFile = this.FindControl<TextBlock>("TxtFile")!;
             txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#89B4FA");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
             txtFile.Text = "Status: Comparing local vs remote...";
             
             string statusText = "SYNC CHECK";
             string detailText = "Status: Idle";
-            string colorHex = "#A6ADC8";
+            string colorHex = "#C77DFF";
             string toastTitle = "FTP";
             string toastMessage = "Sync check finished.";
             string toastType = "Info";
@@ -340,7 +340,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "REMOTE EMPTY";
                         detailText = "Status: No PinayPal .tar backup found on server.";
-                        colorHex = "#F9E2AF";
+                        colorHex = "#FAD643";
                         toastMessage = "Remote has no PinayPal backups.";
                         toastType = "Warning";
                         return;
@@ -372,7 +372,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "LATEST";
                         detailText = $"Local has latest remote: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC)";
-                        colorHex = "#A6E3A1";
+                        colorHex = "#52B788";
                         toastMessage = "Local backup is up to date.";
                         toastType = "Info";
                         return;
@@ -382,7 +382,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "SIZE MISMATCH";
                         detailText = $"Remote: {remoteLatest.Name} ({remoteSize:n0} bytes) | Local: {localSize:n0} bytes)";
-                        colorHex = "#F9E2AF";
+                        colorHex = "#FAD643";
                         toastMessage = "Remote file exists locally but size differs.";
                         toastType = "Warning";
                         return;
@@ -398,7 +398,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             statusText = "LATEST";
                             detailText = $"Local matches remote: {localLatest.Name} (recent sync)";
-                            colorHex = "#A6E3A1";
+                            colorHex = "#52B788";
                             toastMessage = "Local backup is up to date.";
                             toastType = "Info";
                             return;
@@ -456,7 +456,7 @@ namespace PinayPalBackupManager.UI.UserControls
             SetBusy(true);
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "TESTING CONNECTION...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#89B4FA");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
 
             using var ftp = new FtpService();
             string decryptedPass = SecurityService.GetDecryptedFtpPassword();
@@ -466,7 +466,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 LogService.WriteLiveLog("TEST SUCCESS: Connection Verified.", BackupConfig.FtpLogFile, "Information", "MANUAL");
                 txtStatus.Text = "TEST SUCCESS";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#52B788");
             }
             else
             {
@@ -523,7 +523,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtStatus != null)
             {
                 txtStatus.Text = "CANCELLING...";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
             }
         }
 

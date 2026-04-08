@@ -18,9 +18,9 @@
                 <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
                     <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto">
                         <!-- Avatar -->
-                        <Border Grid.Row="0" Grid.Column="0" Background="#45475A" CornerRadius="50" Width="80" Height="80" Margin="0,0,20,0">
+                        <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource AccentWebsite}" CornerRadius="50" Width="80" Height="80" Margin="0,0,20,0">
                             <Grid>
-                                <Ellipse Width="76" Height="76" Fill="#313244">
+                                <Ellipse Width="76" Height="76" Fill="{DynamicResource AccentWebsiteDark}">
                                     <Ellipse.Effect>
                                         <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="4" Opacity="0.3"/>
                                     </Ellipse.Effect>
@@ -37,7 +37,7 @@
                         <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="8">
                             <TextBlock Name="TxtUsername" Text="Loading..." FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                             <TextBlock Name="TxtUserRole" Text="Loading..." FontSize="14" Foreground="{DynamicResource AppMuted}"/>
-                            <TextBlock Name="TxtUserStatus" Text="Active" FontSize="12" Foreground="#A6E3A1"/>
+                            <TextBlock Name="TxtUserStatus" Text="Active" FontSize="12" Foreground="#52B788"/>
                         </StackPanel>
                         
                         <!-- Account Stats -->
@@ -66,27 +66,27 @@
                 <!-- Admin Section (only visible to admins) -->
                 <Border Name="AdminSection" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" IsVisible="False">
                     <StackPanel Spacing="20">
-                        <TextBlock Text="ADMINISTRATOR OPTIONS" FontSize="16" FontWeight="Bold" Foreground="#F38BA8"/>
+                        <TextBlock Text="ADMINISTRATOR OPTIONS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppWarning}"/>
                         
                         <Grid ColumnDefinitions="*, *" RowDefinitions="*, *">
                             <Button Grid.Row="0" Grid.Column="0" Name="BtnUserManagement" Classes="PrimaryBtn" Content="User Management" Margin="0,0,7.5,7.5">
                                 <Button.Tag>
-                                    <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="16" Height="16" Foreground="#0B0F17"/>
+                                    <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="16" Height="16" Foreground="#000000"/>
                                 </Button.Tag>
                             </Button>
                             <Button Grid.Row="0" Grid.Column="1" Name="BtnSystemInfo" Classes="PrimaryBtn" Content="System Info" Margin="7.5,0,0,7.5">
                                 <Button.Tag>
-                                    <PathIcon Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="#0B0F17"/>
+                                    <PathIcon Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="#000000"/>
                                 </Button.Tag>
                             </Button>
                             <Button Grid.Row="1" Grid.Column="0" Name="BtnInviteCodes" Classes="PrimaryBtn" Content="Invite Codes" Margin="0,7.5,7.5,0">
                                 <Button.Tag>
-                                    <PathIcon Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.71 21.88,10.08 22,10.46L20.95,12.96C20.84,12.65 20.7,12.34 20.53,12.03C20.7,11.72 20.84,11.41 20.95,11.11L22,13.61C21.88,13.99 21.73,14.36 21.54,14.71L19.43,13.07C19.47,12.75 19.5,12.43 19.5,12.12C19.5,11.8 19.47,11.47 19.43,11.15L21.54,9.52C21.73,9.86 21.88,10.23 22,10.61L20.95,13.11C20.84,12.8 20.7,12.5 20.53,12.18C20.7,11.87 20.84,11.56 20.95,11.25L22,13.75C21.88,14.13 21.73,14.5 21.54,14.85L19.43,13.21C19.47,12.89 19.5,12.57 19.5,12.25C19.5,11.93 19.47,11.6 19.43,11.28L21.54,9.65C21.73,9.99 21.88,10.36 22,10.74L20.95,13.24C20.84,12.93 20.7,12.62 20.53,12.31C20.7,12 20.84,11.69 20.95,11.38L22,13.88C21.88,14.26 21.73,14.63 21.54,14.98L19.43,13.34Z" Width="16" Height="16" Foreground="#0B0F17"/>
+                                    <PathIcon Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.71 21.88,10.08 22,10.46L20.95,12.96C20.84,12.65 20.7,12.34 20.53,12.03C20.7,11.72 20.84,11.41 20.95,11.11L22,13.61C21.88,13.99 21.73,14.36 21.54,14.71L19.43,13.07C19.47,12.75 19.5,12.43 19.5,12.12C19.5,11.8 19.47,11.47 19.43,11.15L21.54,9.52C21.73,9.86 21.88,10.23 22,10.61L20.95,13.11C20.84,12.8 20.7,12.5 20.53,12.18C20.7,11.87 20.84,11.56 20.95,11.25L22,13.75C21.88,14.13 21.73,14.5 21.54,14.85L19.43,13.21C19.47,12.89 19.5,12.57 19.5,12.25C19.5,11.93 19.47,11.6 19.43,11.28L21.54,9.65C21.73,9.99 21.88,10.36 22,10.74L20.95,13.24C20.84,12.93 20.7,12.62 20.53,12.31C20.7,12 20.84,11.69 20.95,11.38L22,13.88C21.88,14.26 21.73,14.63 21.54,14.98L19.43,13.34Z" Width="16" Height="16" Foreground="#000000"/>
                                 </Button.Tag>
                             </Button>
                             <Button Grid.Row="1" Grid.Column="1" Name="BtnLogs" Classes="PrimaryBtn" Content="View Logs" Margin="7.5,7.5,0,0">
                                 <Button.Tag>
-                                    <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V11H13.5V15H16L12,19Z" Width="16" Height="16" Foreground="#0B0F17"/>
+                                    <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V11H13.5V15H16L12,19Z" Width="16" Height="16" Foreground="#000000"/>
                                 </Button.Tag>
                             </Button>
                         </Grid>
@@ -96,7 +96,7 @@
                 <!-- Security Section -->
                 <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
                     <StackPanel Spacing="20">
-                        <TextBlock Text="SECURITY" FontSize="16" FontWeight="Bold" Foreground="#89B4FA"/>
+                        <TextBlock Text="SECURITY" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
                         
                         <Grid ColumnDefinitions="*, *" RowDefinitions="*, *">
                             <Button Grid.Row="0" Grid.Column="0" Name="BtnChangePassword2" Classes="SecondaryBtn" Content="Change Password" Margin="0,0,7.5,7.5"/>
@@ -110,9 +110,9 @@
                 </Border>
                 
                 <!-- Danger Zone -->
-                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="#F38BA8" BorderThickness="1" Margin="0,0,0,100">
+                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppWarning}" BorderThickness="1" Margin="0,0,0,100">
                     <StackPanel Spacing="20">
-                        <TextBlock Text="DANGER ZONE" FontSize="16" FontWeight="Bold" Foreground="#F38BA8"/>
+                        <TextBlock Text="DANGER ZONE" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppWarning}"/>
                         <TextBlock Text="Irreversible actions for your account" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                         
                         <StackPanel Spacing="10">

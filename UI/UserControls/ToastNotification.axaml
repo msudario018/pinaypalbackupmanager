@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.ToastNotification"
+             Width="320" Height="80"
+             Background="Transparent"
+             Cursor="Hand"
+             PointerPressed="ToastNotification_PointerPressed"
+             PointerMoved="ToastNotification_PointerMoved"
+             PointerReleased="ToastNotification_PointerReleased">
+    
+    <Border Name="ToastBorder" 
+            Background="{DynamicResource AppCard}" 
+            CornerRadius="12" 
+            BorderBrush="{DynamicResource AppBorder}" 
+            BorderThickness="1"
+            Padding="16"
+            BoxShadow="0 4 16 #00000020, 0 8 32 #00000010">
+        
+        <Grid RowDefinitions="Auto, *" ColumnDefinitions="Auto, *">
+            <!-- Icon -->
+            <Grid Grid.Row="0" Grid.Column="0" Width="24" Height="24" 
+                  VerticalAlignment="Top" Margin="0,0,12,0">
+                <Ellipse Name="IconCircle" 
+                         Fill="{DynamicResource AccentWebsite}" />
+                <PathIcon Name="IconPath" 
+                          Width="14" Height="14" 
+                          Foreground="#000000" 
+                          HorizontalAlignment="Center" 
+                          VerticalAlignment="Center"/>
+            </Grid>
+            
+            <!-- Content -->
+            <StackPanel Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Spacing="4">
+                <TextBlock Name="TitleText" Text="Title" 
+                           FontWeight="Bold" 
+                           FontSize="13" 
+                           Foreground="{DynamicResource AppText}"/>
+                <TextBlock Name="MessageText" Text="Message" 
+                           FontSize="11" 
+                           Foreground="{DynamicResource AppMuted}" 
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

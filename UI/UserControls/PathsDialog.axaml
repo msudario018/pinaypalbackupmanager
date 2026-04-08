@@ -8,7 +8,7 @@
             <!-- Header -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,25">
                 <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" 
-                        Width="32" Height="32" Foreground="#A6E3A1"/>
+                        Width="32" Height="32" Foreground="{DynamicResource AccentFtp}"/>
                 <TextBlock Text="Backup Paths" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
             </StackPanel>
             
@@ -17,7 +17,7 @@
                 <StackPanel Spacing="20">
                     <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="FTP Backup Path" Foreground="#F9E2AF" FontWeight="Bold"/>
+                            <TextBlock Text="FTP Backup Path" Foreground="{DynamicResource AccentSql}" FontWeight="Bold"/>
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBox Grid.Column="0" Name="TxtFtpLocalFolder" Watermark="C:\Backups\FTP" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
                                 <Button Grid.Column="1" Name="BtnBrowseFtp" Margin="8,2,0,2"
@@ -33,7 +33,7 @@
 
                     <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="Mailchimp Backup Path" Foreground="#A6E3A1" FontWeight="Bold"/>
+                            <TextBlock Text="Mailchimp Backup Path" Foreground="{DynamicResource AccentFtp}" FontWeight="Bold"/>
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBox Grid.Column="0" Name="TxtMailchimpFolder" Watermark="C:\Backups\Mailchimp" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
                                 <Button Grid.Column="1" Name="BtnBrowseMailchimp" Margin="8,2,0,2"
@@ -49,7 +49,7 @@
 
                     <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="SQL Backup Path" Foreground="#89B4FA" FontWeight="Bold"/>
+                            <TextBlock Text="SQL Backup Path" Foreground="{DynamicResource AccentWebsite}" FontWeight="Bold"/>
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBox Grid.Column="0" Name="TxtSqlLocalFolder" Watermark="C:\Backups\SQL" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
                                 <Button Grid.Column="1" Name="BtnBrowseSql" Margin="8,2,0,2"
@@ -63,14 +63,14 @@
                         </StackPanel>
                     </Border>
                     
-                    <TextBlock Name="TxtStatus" Text="" Foreground="#F38BA8" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtStatus" Text="" Foreground="{DynamicResource AppWarning}" FontSize="12" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
             
             <!-- Buttons -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="15" Margin="0,20,0,0">
                 <Button Name="BtnCancel" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="25,12" CornerRadius="8" FontWeight="SemiBold"/>
-                <Button Name="BtnSave" Content="Save Paths" Background="#A6E3A1" Foreground="#1E1E2E" Padding="25,12" CornerRadius="8" FontWeight="Bold"/>
+                <Button Name="BtnSave" Content="Save Paths" Background="{DynamicResource AccentFtp}" Foreground="#000000" Padding="25,12" CornerRadius="8" FontWeight="Bold"/>
             </StackPanel>
         </Grid>
     </Border>

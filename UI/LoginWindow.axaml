@@ -5,71 +5,71 @@
         Width="440" Height="520"
         WindowStartupLocation="CenterScreen"
         CanResize="False"
-        Background="#0B0F17"
-        Foreground="#CDD6F4"
+        Background="{DynamicResource AppBg}"
+        Foreground="{DynamicResource AppText}"
         Icon="/Assets/logo.ico">
 
     <Grid RowDefinitions="Auto, *">
         <!-- Header -->
-        <Border Grid.Row="0" Background="#11111B" Padding="20,18" BorderBrush="#313244" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource AppSidebar}" Padding="20,18" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
             <StackPanel HorizontalAlignment="Center" Spacing="6">
-                <TextBlock Text="PinayPal Backup Manager" FontSize="18" FontWeight="Bold" Foreground="#CBA6F7" HorizontalAlignment="Center"/>
-                <TextBlock Name="TxtSubtitle" Text="Sign in to continue" FontSize="12" Foreground="#6C7086" HorizontalAlignment="Center"/>
+                <TextBlock Text="PinayPal Backup Manager" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center"/>
+                <TextBlock Name="TxtSubtitle" Text="Sign in to continue" FontSize="12" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
 
         <!-- Login Panel -->
-        <Border Grid.Row="1" Name="LoginPanel" IsVisible="True" Margin="30,20" Background="#1E1E2E" CornerRadius="14" Padding="28">
+        <Border Grid.Row="1" Name="LoginPanel" IsVisible="True" Margin="30,20" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="28">
             <StackPanel Spacing="14" VerticalAlignment="Center">
-                <TextBlock Text="LOGIN" FontWeight="Bold" Foreground="#A6E3A1" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="LOGIN" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" FontSize="13" Margin="0,0,0,4"/>
 
-                <TextBlock Text="Username" Foreground="#A6ADC8" FontSize="11" FontWeight="Bold"/>
+                <TextBlock Text="Username" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="Bold"/>
                 <TextBox Name="TxtLoginUser" Watermark="Enter username"/>
 
-                <TextBlock Text="Password" Foreground="#A6ADC8" FontSize="11" FontWeight="Bold"/>
+                <TextBlock Text="Password" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="Bold"/>
                 <TextBox Name="TxtLoginPass" Watermark="Enter password" PasswordChar="●"/>
 
-                <TextBlock Name="TxtLoginError" Text="" Foreground="#F38BA8" FontSize="11" TextWrapping="Wrap"/>
+                <TextBlock Name="TxtLoginError" Text="" Foreground="{DynamicResource AppWarning}" FontSize="11" TextWrapping="Wrap"/>
 
                 <Button Name="BtnLogin" Content="SIGN IN" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        Background="#A6E3A1" Foreground="#0B0F17" FontWeight="Bold" Padding="12" CornerRadius="8" Margin="0,6,0,0"/>
+                        Background="{DynamicResource AccentWebsite}" Foreground="#000000" FontWeight="Bold" Padding="12" CornerRadius="8" Margin="0,6,0,0"/>
 
                 <CheckBox Name="ChkRememberMe" Content="Stay logged in" Classes="Modern"
-                          Foreground="#6C7086" FontSize="11"
+                          Foreground="{DynamicResource AppMuted}" FontSize="11"
                           HorizontalAlignment="Center" Margin="0,6,0,0"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,2,0,0">
-                    <TextBlock Text="Don't have an account?" Foreground="#6C7086" FontSize="11"/>
-                    <Button Name="BtnShowRegister" Content="Register" Classes="Link" Foreground="#89B4FA" FontSize="11" 
+                    <TextBlock Text="Don't have an account?" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                    <Button Name="BtnShowRegister" Content="Register" Classes="Link" Foreground="{DynamicResource AccentWebsite}" FontSize="11" 
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"/>
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <!-- Register Panel -->
-        <Border Grid.Row="1" Name="RegisterPanel" IsVisible="False" Margin="30,20" Background="#1E1E2E" CornerRadius="14" Padding="28">
+        <Border Grid.Row="1" Name="RegisterPanel" IsVisible="False" Margin="30,20" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="28">
             <StackPanel Spacing="14" VerticalAlignment="Center">
-                <TextBlock Name="TxtRegTitle" Text="CREATE ACCOUNT" FontWeight="Bold" Foreground="#89B4FA" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Name="TxtRegTitle" Text="CREATE ACCOUNT" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" FontSize="13" Margin="0,0,0,4"/>
 
-                <TextBlock Text="Username" Foreground="#A6ADC8" FontSize="11" FontWeight="Bold"/>
+                <TextBlock Text="Username" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="Bold"/>
                 <TextBox Name="TxtRegUser" Watermark="Choose a username"/>
 
-                <TextBlock Text="Password" Foreground="#A6ADC8" FontSize="11" FontWeight="Bold"/>
+                <TextBlock Text="Password" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="Bold"/>
                 <TextBox Name="TxtRegPass" Watermark="Choose a password" PasswordChar="●"/>
 
                 <StackPanel Name="InviteCodePanel" Spacing="4">
-                    <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock Text="Invite Code" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="Bold"/>
                     <TextBox Name="TxtInviteCode" Watermark="Enter invite code from admin"/>
                 </StackPanel>
 
-                <TextBlock Name="TxtRegError" Text="" Foreground="#F38BA8" FontSize="11" TextWrapping="Wrap"/>
+                <TextBlock Name="TxtRegError" Text="" Foreground="{DynamicResource AppWarning}" FontSize="11" TextWrapping="Wrap"/>
 
                 <Button Name="BtnRegister" Content="REGISTER" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        Background="#89B4FA" Foreground="#0B0F17" FontWeight="Bold" Padding="12" CornerRadius="8" Margin="0,6,0,0"/>
+                        Background="{DynamicResource AccentWebsite}" Foreground="#000000" FontWeight="Bold" Padding="12" CornerRadius="8" Margin="0,6,0,0"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,8,0,0">
-                    <TextBlock Text="Already have an account?" Foreground="#6C7086" FontSize="11"/>
-                    <Button Name="BtnShowLogin" Content="Sign in" Classes="Link" Foreground="#A6E3A1" FontSize="11" 
+                    <TextBlock Text="Already have an account?" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                    <Button Name="BtnShowLogin" Content="Sign in" Classes="Link" Foreground="{DynamicResource AccentWebsite}" FontSize="11" 
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"/>
                 </StackPanel>
             </StackPanel>
@@ -78,17 +78,17 @@
 
     <Window.Styles>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="10,8"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="BorderBrush" Value="#89B4FA"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentWebsite}"/>
         </Style>
         <Style Selector="Button.Link:pointerover">
-            <Setter Property="Foreground" Value="#CBA6F7"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentWebsiteLight}"/>
         </Style>
 
         <!-- Modern CheckBox Style -->
@@ -99,24 +99,24 @@
         <Style Selector="CheckBox.Modern /template/ Border#NormalRectangle">
             <Setter Property="CornerRadius" Value="5"/>
             <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="BorderBrush" Value="#45475A"/>
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
         </Style>
         <Style Selector="CheckBox.Modern:checked /template/ Border#NormalRectangle">
-            <Setter Property="Background" Value="#CBA6F7"/>
-            <Setter Property="BorderBrush" Value="#CBA6F7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentWebsite}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentWebsite}"/>
         </Style>
         <Style Selector="CheckBox.Modern:pointerover /template/ Border#NormalRectangle">
-            <Setter Property="BorderBrush" Value="#CBA6F7"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentWebsite}"/>
         </Style>
         <Style Selector="CheckBox.Modern /template/ Path#CheckMark">
-            <Setter Property="Stroke" Value="#1E1E2E"/>
+            <Setter Property="Stroke" Value="#000000"/>
             <Setter Property="StrokeThickness" Value="2"/>
         </Style>
         <Style Selector="CheckBox.Modern:checked > ContentPresenter">
-            <Setter Property="TextBlock.Foreground" Value="#CDD6F4"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
         </Style>
     </Window.Styles>
 </Window>

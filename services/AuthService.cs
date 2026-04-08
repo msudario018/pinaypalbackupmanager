@@ -139,6 +139,92 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        // Async version of Register to avoid deadlocks
+        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
+        {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+                return (false, "Username and password are required.");
+
+            if (password.Length < 4)
+                return (false, "Password must be at least 4 characters.");
+
+            bool isFirstUser = !HasAnyUsers();
+
+            if (!isFirstUser)
+            {
+                if (string.IsNullOrWhiteSpace(inviteCode))
+                    return (false, "Invite code is required.");
+
+                // Get invite code from Firebase first (with timeout)
+                string? firebaseCode = null;
+                try
+                {
+                    var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    firebaseCode = await FirebaseInviteService.GetInviteCodeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AuthService] Failed to get Firebase invite code: {ex.Message}");
+                }
+                
+                var storedCode = !string.IsNullOrEmpty(firebaseCode) ? firebaseCode : GetInviteCode();
+                bool isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
+                
+                if (!isValid)
+                    return (false, "Invalid invite code.");
+            }
+
+            var salt = GenerateSalt();
+            var hash = HashPassword(password, salt);
+
+            try
+            {
+                using var conn = new SqliteConnection(ConnectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
+                                    VALUES (@u, @h, @s, @r, @st, @c)";
+                cmd.Parameters.AddWithValue("@u", username.Trim());
+                cmd.Parameters.AddWithValue("@h", hash);
+                cmd.Parameters.AddWithValue("@s", salt);
+                cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
+                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
+                cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
+                cmd.ExecuteNonQuery();
+
+                if (isFirstUser)
+                {
+                    RotateInviteCode();
+                }
+
+                // Sync new user to Firebase (await this time for async version)
+                var newUser = GetUserByUsername(username.Trim());
+                if (newUser != null)
+                {
+                    try
+                    {
+                        await FirebaseUserService.SyncUserAsync(newUser);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AuthService] Failed to sync new user to Firebase: {ex.Message}");
+                    }
+                }
+
+                return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
+            }
+            catch (SqliteException ex)
+            {
+                if (ex.SqliteErrorCode == 19)
+                    return (false, "Username already exists.");
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"An unexpected error occurred: {ex.Message}");
+            }
+        }
+
         public static async Task<(bool success, string message)> LoginAsync(string username, string password)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))

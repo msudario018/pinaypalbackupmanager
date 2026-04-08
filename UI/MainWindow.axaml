@@ -5,37 +5,48 @@
         Width="1000" Height="850"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
-        Foreground="#CDD6F4"
+        Foreground="{DynamicResource AppText}"
         Icon="/Assets/logo.ico">
     
-    <Grid ColumnDefinitions="72, *">
-        <!-- Sidebar -->
-        <Border Grid.Column="0" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder2}" BorderThickness="0,0,1,0">
+    <Grid Name="MainGrid" ColumnDefinitions="72, *">
+        <!-- Enhanced Sidebar with Glass Effects -->
+        <Border Name="SidepanelBorder" Grid.Column="0" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,1,0">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#2D342D" Offset="0"/>
+                    <GradientStop Color="#3D453D" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid RowDefinitions="Auto, *, Auto, Auto">
-
-                <!-- Logo Area -->
-                <Border Grid.Row="0" Padding="0,18,0,14" BorderBrush="#1E1E2E" BorderThickness="0,0,0,1">
-                    <Image Source="/Assets/logo.ico" Width="34" Height="34" HorizontalAlignment="Center"/>
+                <!-- Logo Section -->
+                <Border Grid.Row="0" Height="60" CornerRadius="0,0,16,0" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image Source="/Assets/logo.ico" Width="32" Height="32" Stretch="UniformToFill">
+                            <Image.Clip>
+                                <EllipseGeometry Rect="0,0,32,32"/>
+                            </Image.Clip>
+                        </Image>
+                    </StackPanel>
                 </Border>
 
                 <!-- Navigation Buttons -->
                 <StackPanel Name="Sidebar" Grid.Row="1" Spacing="2" Margin="10,12,10,0" VerticalAlignment="Top">
                     <Button Classes="SideBtn" Tag="Home" ToolTip.Tip="Dashboard">
-                        <PathIcon Data="{StaticResource HomeIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                        <PathIcon Data="{StaticResource HomeIcon}" Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
                     </Button>
-                    <Rectangle Height="1" Fill="#1E1E2E" Margin="4,4"/>
+                    <Rectangle Height="1" Fill="{DynamicResource SidebarDivider}" Margin="4,4"/>
                     <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
-                        <PathIcon Data="{StaticResource CloudIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                        <PathIcon Data="{StaticResource CloudIcon}" Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
                     </Button>
                     <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp">
-                        <PathIcon Data="{StaticResource MailIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                        <PathIcon Data="{StaticResource MailIcon}" Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
                     </Button>
                     <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup">
-                        <PathIcon Data="{StaticResource DatabaseIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                        <PathIcon Data="{StaticResource DatabaseIcon}" Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
                     </Button>
-                    <Rectangle Height="1" Fill="#1E1E2E" Margin="4,8"/>
+                    <Rectangle Height="1" Fill="{DynamicResource SidebarDivider}" Margin="4,8"/>
                     <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings">
-                        <PathIcon Data="{StaticResource SettingsIcon}" Width="18" Height="18" Foreground="#585B70"/>
+                        <PathIcon Data="{StaticResource SettingsIcon}" Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
                     </Button>
                 </StackPanel>
 
@@ -43,15 +54,15 @@
                 <Button Name="BtnCustomizeTabs" Grid.Row="2" Classes="SideBtn" ToolTip.Tip="Customize Tab Order"
                         HorizontalAlignment="Center" Margin="10,4,10,0" Cursor="Hand">
                     <PathIcon Data="M3,15H21V13H3V15M3,19H21V17H3V19M3,11H21V9H3V11M3,5V7H21V5H3Z"
-                              Width="16" Height="16" Foreground="#585B70"/>
+                              Width="16" Height="16" Foreground="{DynamicResource SidebarIconMuted}"/>
                 </Button>
 
                 <!-- Profile Section -->
-                <Border Grid.Row="3" Padding="0,10" BorderBrush="#1E1E2E" BorderThickness="0,1,0,0">
+                <Border Grid.Row="3" Padding="0,10" BorderBrush="{DynamicResource SidebarDivider}" BorderThickness="0,1,0,0">
                     <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center"
                             CornerRadius="12" ToolTip.Tip="Profile" Cursor="Hand">
                         <Grid Width="36" Height="36">
-                            <Ellipse Name="AvatarImageBg" Width="36" Height="36" Fill="#313244"/>
+                            <Ellipse Name="AvatarImageBg" Width="36" Height="36" Fill="{DynamicResource AppBorder}"/>
                             <Image Name="AvatarImage" Width="36" Height="36" Stretch="UniformToFill" IsVisible="False">
                                 <Image.Clip>
                                     <EllipseGeometry Rect="0,0,36,36"/>
@@ -64,7 +75,7 @@
         </Border>
 
         <!-- Main Content Area -->
-        <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto, Auto">
+        <Grid Grid.Column="1" RowDefinitions="Auto, *">
             <!-- Top Bar -->
             <Border Grid.Row="0" Height="54" Background="{DynamicResource AppTopBar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
                 <Grid ColumnDefinitions="*, *, *">
@@ -72,7 +83,7 @@
                     <Border Grid.Column="0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
-                                      Width="10" Height="10" Foreground="#A6ADC8"/>
+                                      Width="10" Height="10" Foreground="{DynamicResource AppSubtext}"/>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="US (UTC-7)" Foreground="{DynamicResource AppSubtext}" FontSize="8" FontWeight="Bold"/>
                                 <TextBlock Name="TxtUsTime" Text="--:--:--" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
@@ -112,10 +123,10 @@
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <Button Name="BtnSystemInfo" Classes="Ghost" VerticalAlignment="Center" Cursor="Hand">
                                     <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"
-                                              Width="10" Height="10" Foreground="#A6ADC8"/>
+                                              Width="10" Height="10" Foreground="{DynamicResource AppSubtext}"/>
                                 </Button>
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="VERSION" Foreground="#A6ADC8" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="VERSION" Foreground="{DynamicResource AppSubtext}" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
                                     <TextBlock Name="TxtVersionBadge" Text="v..." FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </StackPanel>
@@ -124,8 +135,13 @@
                 </Grid>
             </Border>
 
+            <!-- Notification Center Overlay (for click-outside-to-close) -->
+            <Border Name="NotificationOverlay" Grid.Row="0" Grid.RowSpan="2" IsVisible="False"
+                    Background="#00000000" ZIndex="997" 
+                    PointerPressed="NotificationOverlay_PointerPressed"/>
+                    
             <!-- Notification Center Flyout -->
-            <Border Name="NotificationCenter" Grid.Row="0" Grid.RowSpan="3" IsVisible="False"
+            <Border Name="NotificationCenter" Grid.Row="0" Grid.RowSpan="2" IsVisible="False"
                     ZIndex="998" HorizontalAlignment="Right" VerticalAlignment="Top"
                     Margin="0,58,16,0" Width="340"
                     Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12"
@@ -144,44 +160,20 @@
             <!-- Content Container -->
             <ContentControl Grid.Row="1" Name="MainContent" Margin="20"/>
 
-            <Border Grid.Row="2" Name="ToastBorder" IsVisible="False" Opacity="1" HorizontalAlignment="Right" Margin="0,0,20,10"
-                    Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Width="360" IsHitTestVisible="False">
-                <StackPanel Spacing="6">
-                    <TextBlock Name="ToastTitle" Text="Notification" FontWeight="Bold" Foreground="#CBA6F7"/>
-                    <TextBlock Name="ToastMessage" Text="" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
 
-            <!-- Bottom Status Bar -->
-            <Border Grid.Row="3" Name="StatusBar" Height="40" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,0">
-                <Grid ColumnDefinitions="*, Auto">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0" Spacing="10">
-                        <PathIcon Name="StatusIcon" Data="{StaticResource CloudIcon}" Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
-                        <TextBlock Name="TxtStatus" Text="SYSTEM READY" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
-                    </StackPanel>
-                    
-                    <Border Grid.Column="1" Name="HealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Margin="10,5,20,5" Padding="12,0">
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Ellipse Name="HealthIndicator" Width="8" Height="8" Fill="#A6ADC8"/>
-                            <TextBlock Name="TxtHealth" Text="HEALTH: SCANNING..." VerticalAlignment="Center" FontSize="10" FontWeight="Heavy" Foreground="{DynamicResource AppSubtext}"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <Border Name="StartupOverlay" Grid.RowSpan="4" IsVisible="False" Background="#CC000000" Padding="0" ZIndex="999">
+            <Border Name="StartupOverlay" Grid.RowSpan="2" IsVisible="False" Background="#CC000000" Padding="0" ZIndex="999">
                 <Grid>
-                    <Border BorderBrush="#CBA6F7" BorderThickness="1" CornerRadius="16"
+                    <Border BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="16"
                             Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
                             ClipToBounds="True" Background="{DynamicResource AppCard}">
                         <StackPanel>
                             <!-- Branded header -->
-                            <Border Background="#2D2346" Padding="24,18" CornerRadius="15,15,0,0">
+                            <Border Background="{DynamicResource AppCard}" Padding="24,18" CornerRadius="15,15,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
                                     <Image Source="/Assets/logo.ico" Width="36" Height="36" VerticalAlignment="Center"/>
                                     <StackPanel VerticalAlignment="Center" Spacing="3">
-                                        <TextBlock Text="PinayPal Backup Manager" FontSize="13" FontWeight="Bold" Foreground="#CBA6F7"/>
-                                        <TextBlock Text="Initializing services..." FontSize="11" Foreground="#A6ADC8"/>
+                                        <TextBlock Text="PinayPal Backup Manager" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                        <TextBlock Text="Initializing services..." FontSize="11" Foreground="{DynamicResource AppSubtext}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -192,18 +184,19 @@
                                     <TextBlock Text="Running health scan" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" HorizontalAlignment="Center"/>
                                     <TextBlock Text="Checking all services before starting..." FontSize="11" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
                                 </StackPanel>
-                                <ProgressBar IsIndeterminate="True" Height="6" CornerRadius="3" Background="{DynamicResource AppBorder}" Foreground="#CBA6F7"/>
+                                <ProgressBar IsIndeterminate="True" Height="6" CornerRadius="3" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AccentWebsite}"/>
                                 <TextBlock Name="TxtStartupHint" Text="Please wait" FontSize="11" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>
             </Border>
+
         </Grid>
     </Grid>
 
     <Window.Styles>
-        <!-- Sidebar Button Animations -->
+        <!-- Enhanced Sidebar Button Animations with Glow Effects -->
         <Style Selector="Button.SideBtn">
             <Setter Property="Width" Value="48"/>
             <Setter Property="Height" Value="48"/>
@@ -214,21 +207,39 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.25" Easing="CubicEaseInOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
-            <Setter Property="RenderTransform" Value="scale(1.06)"/>
+            <Setter Property="Background" Value="{DynamicResource SidebarHover}"/>
+            <Setter Property="RenderTransform" Value="scale(1.08) translateY(-1px)"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#A78BFA" OffsetX="0" OffsetY="0" BlurRadius="8" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style Selector="Button.SideBtn.Selected">
-            <Setter Property="Background" Value="#2D2346"/>
+            <Setter Property="Background" Value="{DynamicResource SidebarSelectedBg}"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#A78BFA" OffsetX="0" OffsetY="0" BlurRadius="12" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pressed">
             <Setter Property="Background" Value="{DynamicResource AppCard}"/>
-            <Setter Property="RenderTransform" Value="scale(0.93)"/>
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+        <Style Selector="Button.SideBtn.Selected PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource SidebarIconActive}"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#A78BFA" OffsetX="0" OffsetY="0" BlurRadius="4" Opacity="0.5"/>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Sidebar Button Icons -->
@@ -240,10 +251,10 @@
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover PathIcon">
-            <Setter Property="Foreground" Value="#CBA6F7"/>
+            <Setter Property="Foreground" Value="{DynamicResource SidebarIconActive}"/>
         </Style>
         <Style Selector="Button.SideBtn.Selected PathIcon">
-            <Setter Property="Foreground" Value="#CBA6F7"/>
+            <Setter Property="Foreground" Value="{DynamicResource SidebarIconActive}"/>
         </Style>
 
         <!-- Profile Menu Styles -->
@@ -254,7 +265,7 @@
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtext}"/>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}" 
@@ -269,18 +280,18 @@
             </Setter>
         </Style>
         <Style Selector="Button.ProfileMenuItem:pointerover">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
         </Style>
         <Style Selector="Button.ProfileMenuItem:pressed">
-            <Setter Property="Background" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppVeryMuted}"/>
         </Style>
         <Style Selector="Button.LogoutBtn">
             <Setter Property="Foreground" Value="#F38BA8"/>
         </Style>
         <Style Selector="Button.LogoutBtn:pointerover">
             <Setter Property="Background" Value="#F38BA8"/>
-            <Setter Property="Foreground" Value="#1E1E2E"/>
+            <Setter Property="Foreground" Value="#10002B"/>
         </Style>
 
         <!-- Content Control Fade-in Animation -->
@@ -336,8 +347,8 @@
 
         <!-- Profile Control Button Styles -->
         <Style Selector="Button.PrimaryBtn">
-            <Setter Property="Background" Value="#89B4FA"/>
-            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="Background" Value="{DynamicResource AccentWebsite}"/>
+            <Setter Property="Foreground" Value="#10002B"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,12"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -350,16 +361,16 @@
             </Setter>
         </Style>
         <Style Selector="Button.PrimaryBtn:pointerover">
-            <Setter Property="Background" Value="#74A6F0"/>
+            <Setter Property="Background" Value="{DynamicResource AccentWebsiteLight}"/>
         </Style>
         <Style Selector="Button.PrimaryBtn:pressed">
-            <Setter Property="Background" Value="#5E8FD8"/>
+            <Setter Property="Background" Value="{DynamicResource AccentWebsiteDark}"/>
         </Style>
 
         <Style Selector="Button.SecondaryBtn">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppVeryMuted}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="16,12"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -372,16 +383,16 @@
             </Setter>
         </Style>
         <Style Selector="Button.SecondaryBtn:pointerover">
-            <Setter Property="Background" Value="#45475A"/>
-            <Setter Property="BorderBrush" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppVeryMuted}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppMuted}"/>
         </Style>
         <Style Selector="Button.SecondaryBtn:pressed">
-            <Setter Property="Background" Value="#585B70"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
         </Style>
 
         <Style Selector="Button.DangerBtn">
             <Setter Property="Background" Value="#F38BA8"/>
-            <Setter Property="Foreground" Value="#0B0F17"/>
+            <Setter Property="Foreground" Value="#10002B"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,12"/>
             <Setter Property="CornerRadius" Value="8"/>

@@ -11,7 +11,7 @@ namespace PinayPalBackupManager.Services
 {
     public class BackupManager
     {
-        private readonly Timer _mainTimer;
+        private readonly System.Timers.Timer _mainTimer;
         private int _healthRunning;
 
         private DateTime _lastFtpAutoReset;

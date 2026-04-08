@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Documents;
@@ -8,20 +7,19 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Platform;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using MsBox.Avalonia.Enums;
+using Firebase.Database;
+using Firebase.Database.Query;
+using PinayPalBackupManager.Services;
+using PinayPalBackupManager.Models;
+using PinayPalBackupManager.UI.UserControls;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using PinayPalBackupManager.Services;
-using PinayPalBackupManager.Models;
-using PinayPalBackupManager.UI.UserControls;
 
 namespace PinayPalBackupManager.UI
 {
@@ -37,7 +35,7 @@ namespace PinayPalBackupManager.UI
         private DispatcherTimer? _activeProcessMonitorTimer;
         private bool _allowClose;
         private DispatcherTimer? _toastTimer;
-        private IBrush _activeTabAccentBrush = Brush.Parse("#A6E3A1");
+        private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
         private bool _startupHealthPending = true;
         private bool _configRequired;
         public event Action? OnLogoutRequested;
@@ -60,7 +58,12 @@ namespace PinayPalBackupManager.UI
             if (btnTheme != null) btnTheme.Click += (_, _) => { ThemeService.Toggle(); UpdateThemeIcon(); };
 
             var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
-            if (btnCustomize != null) btnCustomize.Click += async (_, _) => await OpenTabOrderDialogAsync();
+            if (btnCustomize != null) 
+            {
+                btnCustomize.Click += async (_, _) => await OpenTabOrderDialogAsync();
+                // Hide during startup health check
+                btnCustomize.IsVisible = !_startupHealthPending;
+            }
 
             var btnBell = this.FindControl<Button>("BtnNotificationCenter");
             if (btnBell != null) btnBell.Click += (_, _) => ToggleNotificationCenter();
@@ -139,6 +142,24 @@ namespace PinayPalBackupManager.UI
             InitializeProfileSection();
 
             SetStartupBusy(true);
+            
+            // Hide entire sidepanel during startup for cleaner loading experience
+            var sidepanelBorder = this.FindControl<Border>("SidepanelBorder");
+            if (sidepanelBorder != null) sidepanelBorder.IsVisible = false;
+            
+            // Expand main content to full width during startup
+            var mainGrid = this.FindControl<Grid>("MainGrid");
+            if (mainGrid != null)
+            {
+                mainGrid.ColumnDefinitions.Clear();
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) }); // Hidden sidepanel
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Full width content
+            }
+            
+            // Disable notifications during startup
+            NotificationService.DisableNotifications();
+            
+            // Show startup notification (this will be logged but not displayed)
             NotificationService.ShowBackupToast("Startup", "Running health scan...", "Info");
 
             if (!ConfigService.IsConfigured())
@@ -168,8 +189,158 @@ namespace PinayPalBackupManager.UI
                     await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
                 });
             }
+            
+            // Handle window closing event
+            this.Closing += async (sender, e) =>
+            {
+                try
+                {
+                    LogService.WriteSystemLog("[MAINWINDOW] Starting graceful shutdown...", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "Starting graceful shutdown of all services", "MAINWINDOW");
+                    
+                    // Stop all running backup operations first
+                    if (_ftpControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping FTP operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping FTP operations...", "MAINWINDOW");
+                        _ftpControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    if (_mailchimpControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping Mailchimp operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping Mailchimp operations...", "MAINWINDOW");
+                        _mailchimpControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    if (_sqlControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping SQL operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping SQL operations...", "MAINWINDOW");
+                        _sqlControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    // Stop real-time monitoring service
+                    RealtimeMonitoringService.Stop();
+                    
+                    // Stop backup manager
+                    _backupManager?.Stop();
+                    
+                    // Stop active process monitor timer
+                    _activeProcessMonitorTimer?.Stop();
+                    
+                    // Stop toast timer
+                    _toastTimer?.Stop();
+                    
+                    // Update connection status to offline
+                    if (AuthService.CurrentUser?.Username != null)
+                    {
+                        try
+                        {
+                            var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                            var database = new FirebaseClient(databaseUrl);
+                            await database
+                                .Child("users")
+                                .Child(AuthService.CurrentUser.Username)
+                                .Child("connection")
+                                .PatchAsync(new 
+                                { 
+                                    status = "offline", 
+                                    lastSeen = DateTime.UtcNow.ToString("o"),
+                                    appShutdown = true
+                                });
+                                
+                            await RealtimeMonitoringService.AddLogAsync("Info", "Connection status updated to offline", "MAINWINDOW");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[MAINWINDOW] Failed to update offline status: {ex.Message}", "Error", "SYSTEM");
+                            await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to update offline status: {ex.Message}", "MAINWINDOW");
+                        }
+                    }
+                    
+                    LogService.WriteSystemLog("[MAINWINDOW] All services stopped successfully", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "All services stopped successfully", "MAINWINDOW");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "PC application shutdown completed", "MAINWINDOW");
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MAINWINDOW] Error during shutdown: {ex.Message}", "Error", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Error", $"Error during shutdown: {ex.Message}", "MAINWINDOW");
+                }
+            };
+            
+            // Initialize Firebase remote control only
+            LogService.WriteSystemLog("[MAINWINDOW] About to initialize Firebase remote control...", "Information", "SYSTEM");
+            
+            // Initialize Firebase remote control
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2000); // Wait for UI to fully load
+                LogService.WriteSystemLog("[MAINWINDOW] Starting Firebase remote control initialization...", "Information", "SYSTEM");
+                await InitializeFirebaseRemoteControl();
+                LogService.WriteSystemLog("[MAINWINDOW] Firebase remote control initialization completed", "Information", "SYSTEM");
+            });
         }
 
+        private async Task InitializeFirebaseRemoteControl()
+        {
+            try
+            {
+                LogService.WriteSystemLog("[MAINWINDOW] InitializeFirebaseRemoteControl started", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Info", "InitializeFirebaseRemoteControl started", "MAINWINDOW");
+                
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var username = AuthService.CurrentUser?.Username;
+                
+                LogService.WriteSystemLog($"[MAINWINDOW] Username check: {username ?? "NULL"}", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Info", $"Username check: {username ?? "NULL"}", "MAINWINDOW");
+                
+                if (username != null)
+                {
+                    LogService.WriteSystemLog("[MAINWINDOW] Username found, initializing services...", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "Username found, initializing services...", "MAINWINDOW");
+                    
+                    // Initialize real-time monitoring
+                    RealtimeMonitoringService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] RealtimeMonitoringService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "RealtimeMonitoringService initialized", "MAINWINDOW");
+                    
+                    // Initialize Firebase remote service
+                    FirebaseRemoteService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] FirebaseRemoteService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "FirebaseRemoteService initialized", "MAINWINDOW");
+                    
+                    // Listen for remote commands
+                    FirebaseRemoteService.ListenForCommands((commandType, commandId) => 
+                    {
+                        _ = ExecuteRemoteCommandAsync(commandType, commandId);
+                    });
+                    
+                    // Listen for quick actions
+                    ListenForQuickActions();
+                    
+                    LogService.WriteSystemLog("[FIREBASE] Remote control initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "Remote control initialized", "MAINWINDOW");
+                }
+                else
+                {
+                    LogService.WriteSystemLog("[FIREBASE] Failed to initialize remote control - no username", "Error", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Error", "Failed to initialize remote control - no username", "MAINWINDOW");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[FIREBASE] Initialization error: {ex.Message}", "Error", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Error", $"Initialization error: {ex.Message}", "MAINWINDOW");
+            }
+        }
+
+                
+        
         private void SetConfigRequiredMode(bool required)
         {
             _configRequired = required;
@@ -250,7 +421,6 @@ namespace PinayPalBackupManager.UI
             var dialog = new SystemInfoDialog(buildInfo, changelog);
             var window = new Window
             {
-                Title = "System Information",
                 Content = dialog,
                 Width = 500,
                 Height = 400,
@@ -258,7 +428,9 @@ namespace PinayPalBackupManager.UI
                 CanResize = false,
                 ShowInTaskbar = false,
                 Topmost = true,
-                Background = Avalonia.Media.Brushes.Transparent
+                Background = Avalonia.Media.Brushes.Transparent,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0
             };
 
             dialog.OnOk += (sender, e) => window.Close();
@@ -419,6 +591,7 @@ namespace PinayPalBackupManager.UI
                 switch (tag)
                 {
                     case "Home":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Home Dashboard", "Info");
                         ShowControl(_homeControl);
                         break;
                     case "FTP":
@@ -454,13 +627,13 @@ namespace PinayPalBackupManager.UI
                     {
                         btn.Classes.Add("Selected");
                         var icon = btn.FindDescendantOfType<PathIcon>();
-                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#CBA6F7");
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#FCA311");
                     }
                     else
                     {
                         btn.Classes.Remove("Selected");
                         var icon = btn.FindDescendantOfType<PathIcon>();
-                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#585B70");
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#808080");
                     }
                 }
             }
@@ -547,22 +720,22 @@ namespace PinayPalBackupManager.UI
 
         private static IBrush GetAccentBrushForControl(UserControl control)
         {
-            if (control is HomeControl) return Brush.Parse("#CBA6F7");
-            if (control is FtpControl) return Brush.Parse("#A6E3A1");
-            if (control is MailchimpControl) return Brush.Parse("#89DCEB");
-            if (control is SqlControl) return Brush.Parse("#F9E2AF");
-            if (control is SettingsControl) return Brush.Parse("#89B4FA");
-            return Brush.Parse("#A6ADC8");
+            if (control is HomeControl) return Brush.Parse("#FCA311");
+            if (control is FtpControl) return Brush.Parse("#52B788");
+            if (control is MailchimpControl) return Brush.Parse("#48CAE4");
+            if (control is SqlControl) return Brush.Parse("#FAD643");
+            if (control is SettingsControl) return Brush.Parse("#FCA311");
+            return Brush.Parse("#FCA311");
         }
 
         private static IBrush GetAccentBrushForService(string service)
         {
-            if (service.Equals("Website", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#CBA6F7");
-            if (service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#A6E3A1");
-            if (service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#89DCEB");
-            if (service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#F9E2AF");
-            if (service.Equals("Database", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#F9E2AF");
-            return Brush.Parse("#A6ADC8");
+            if (service.Equals("Website", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FCA311");
+            if (service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#52B788");
+            if (service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#48CAE4");
+            if (service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
+            if (service.Equals("Database", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
+            return Brush.Parse("#FCA311");
         }
 
         private void UpdateTime(DateTime usTime, DateTime mnlTime, DateTime nextAuto, DateTime nextDaily)
@@ -621,7 +794,48 @@ namespace PinayPalBackupManager.UI
                 {
                     _startupHealthPending = false;
                     SetStartupBusy(false);
+                    
+                    // Restore original grid layout with sidepanel first
+                    var mainGrid = this.FindControl<Grid>("MainGrid");
+                    if (mainGrid != null)
+                    {
+                        mainGrid.ColumnDefinitions.Clear();
+                        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) }); // Sidepanel width
+                        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content area
+                    }
+                    
+                    // Animate sidepanel appearance with fade-in and slide-in
+                    var sidepanelBorder = this.FindControl<Border>("SidepanelBorder");
+                    if (sidepanelBorder != null)
+                    {
+                        // Set initial state for animation
+                        sidepanelBorder.IsVisible = true;
+                        sidepanelBorder.Opacity = 0;
+                        sidepanelBorder.RenderTransform = new TranslateTransform(-72, 0); // Start from left
+                        
+                        // Animate with Task.Delay for smooth transitions
+                        Task.Delay(50).ContinueWith(_ =>
+                        {
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                // Fade-in animation
+                                sidepanelBorder.Opacity = 1;
+                                
+                                // Slide-in animation
+                                sidepanelBorder.RenderTransform = new TranslateTransform(0, 0);
+                            });
+                        });
+                    }
+                    
+                    // Enable notifications after startup complete
+                    NotificationService.EnableNotifications();
+                    
+                    // Show completion notification (now visible)
                     NotificationService.ShowBackupToast("Startup", "Health scan complete.", "Info");
+                    
+                    // Show customize tab order button after health check completes
+                    var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+                    if (btnCustomize != null) btnCustomize.IsVisible = true;
                 }
 
                 var txtHealth = this.FindControl<TextBlock>("TxtHealth");
@@ -639,7 +853,7 @@ namespace PinayPalBackupManager.UI
                         .ToArray();
 
                     var healthBrush = allOk
-                        ? Brush.Parse("#A6E3A1")
+                        ? Brush.Parse("#52B788")
                         : Brush.Parse("#F38BA8");
 
                     txtHealth.Inlines?.Clear();
@@ -654,14 +868,14 @@ namespace PinayPalBackupManager.UI
 
                     if (!allOk && outdated.Length > 0)
                     {
-                        txtHealth.Inlines.Add(new Run(" (")
+                        txtHealth.Inlines.Add(new Run("(") 
                         {
-                            Foreground = Brush.Parse("#6C7086")
+                            Foreground = Brush.Parse("#808080")
                         });
 
                         txtHealth.Inlines.Add(new Run("Outdated: ")
                         {
-                            Foreground = Brush.Parse("#A6ADC8"),
+                            Foreground = Brush.Parse("#FCA311"),
                             FontWeight = Avalonia.Media.FontWeight.SemiBold
                         });
 
@@ -671,7 +885,7 @@ namespace PinayPalBackupManager.UI
                             {
                                 txtHealth.Inlines.Add(new Run(", ")
                                 {
-                                    Foreground = Brush.Parse("#6C7086")
+                                    Foreground = Brush.Parse("#808080")
                                 });
                             }
 
@@ -685,14 +899,14 @@ namespace PinayPalBackupManager.UI
 
                         txtHealth.Inlines.Add(new Run(")")
                         {
-                            Foreground = Brush.Parse("#6C7086")
+                            Foreground = Brush.Parse("#808080")
                         });
                     }
 
                     if (indicator != null) indicator.Fill = healthBrush;
                     if (badge != null) badge.Background = allOk
-                        ? Brush.Parse("#1A2B21")
-                        : Brush.Parse("#2D1A1E");
+                        ? Brush.Parse("#112B1E")
+                        : Brush.Parse("#2D1515");
                 }
 
                 var statusBar = this.FindControl<Border>("StatusBar");
@@ -703,23 +917,23 @@ namespace PinayPalBackupManager.UI
                 {
                     bool allOk = reports.TrueForAll(r => string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase));
                     statusBar.Background = allOk
-                        ? Avalonia.Media.Brush.Parse("#0D1117")
+                        ? Avalonia.Media.Brush.Parse("#0D1F15")
                         : Avalonia.Media.Brush.Parse("#1A0F11");
                     statusBar.BorderBrush = allOk
-                        ? Avalonia.Media.Brush.Parse("#238636")
+                        ? Avalonia.Media.Brush.Parse("#2D6A4F")
                         : Avalonia.Media.Brush.Parse("#F38BA8");
 
                     if (txtStatus != null)
                     {
                         txtStatus.Foreground = allOk
-                            ? Avalonia.Media.Brush.Parse("#A6E3A1")
+                            ? Avalonia.Media.Brush.Parse("#52B788")
                             : Avalonia.Media.Brush.Parse("#F38BA8");
                     }
 
                     if (statusIcon != null)
                     {
                         statusIcon.Foreground = allOk
-                            ? Avalonia.Media.Brush.Parse("#A6E3A1")
+                            ? Avalonia.Media.Brush.Parse("#52B788")
                             : Avalonia.Media.Brush.Parse("#F38BA8");
                     }
                 }
@@ -756,6 +970,12 @@ namespace PinayPalBackupManager.UI
             if (_mailchimpControl.IsBusy) _mailchimpControl.RequestCancelFromShell();
             if (_sqlControl.IsBusy) _sqlControl.RequestCancelFromShell();
 
+            // Wait for tasks to cancel
+            await Task.Delay(1000);
+
+            // Stop real-time monitoring service
+            RealtimeMonitoringService.Stop();
+
             NotificationService.ShowBackupToast("Exiting", anyBusy ? "Closing app and cancelling running tasks." : "Closing app.", anyBusy ? "Warning" : "Info");
 
             _allowClose = true;
@@ -787,8 +1007,8 @@ namespace PinayPalBackupManager.UI
                 border.BorderBrush = type.Equals("Error", StringComparison.OrdinalIgnoreCase)
                     ? Avalonia.Media.Brush.Parse("#F38BA8")
                     : type.Equals("Warning", StringComparison.OrdinalIgnoreCase)
-                        ? Avalonia.Media.Brush.Parse("#F9E2AF")
-                        : Avalonia.Media.Brush.Parse("#313244");
+                        ? Avalonia.Media.Brush.Parse("#FAD643")
+                        : Avalonia.Media.Brush.Parse("#5A189A");
 
                 border.IsVisible = true;
                 border.Opacity = 1;
@@ -806,12 +1026,23 @@ namespace PinayPalBackupManager.UI
 
         private bool _notifCenterOpen;
 
-        private void ToggleNotificationCenter()
+        public void ToggleNotificationCenter()
         {
             _notifCenterOpen = !_notifCenterOpen;
             var panel = this.FindControl<Border>("NotificationCenter");
+            var overlay = this.FindControl<Border>("NotificationOverlay");
             if (panel != null) panel.IsVisible = _notifCenterOpen;
+            if (overlay != null) overlay.IsVisible = _notifCenterOpen;
             if (_notifCenterOpen) { PopulateNotificationCenter(); NotificationHistoryService.MarkAllRead(); UpdateBellBadge(); }
+        }
+        
+        private void NotificationOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            // Close notification center when overlay is clicked
+            if (_notifCenterOpen)
+            {
+                ToggleNotificationCenter();
+            }
         }
 
         private void PopulateNotificationCenter()
@@ -822,24 +1053,24 @@ namespace PinayPalBackupManager.UI
             var entries = NotificationHistoryService.Entries;
             if (entries.Count == 0)
             {
-                list.Children.Add(new TextBlock { Text = "No notifications yet.", FontSize = 11, Foreground = Brush.Parse("#6C7086"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12) });
+                list.Children.Add(new TextBlock { Text = "No notifications yet.", FontSize = 11, Foreground = Brush.Parse("#808080"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12) });
                 return;
             }
             foreach (var n in entries)
             {
-                string accent = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#F9E2AF" : n.Type == "Success" ? "#A6E3A1" : "#89B4FA";
+                string accent = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#FAD643" : n.Type == "Success" ? "#52B788" : "#FCA311";
                 var row = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8), Margin = new Thickness(0, 2) };
-                row.Background = Brush.Parse(ThemeService.IsDark ? "#1E1E2E" : "#E6E9EF");
+                row.Background = Brush.Parse(ThemeService.IsDark ? "#1F1505" : "#FFF3CD");
                 var content = new StackPanel { Spacing = 2 };
                 var header = new Grid();
                 header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
                 header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
                 var title = new TextBlock { Text = n.Title, FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Brush.Parse(accent) };
-                var time = new TextBlock { Text = n.Time.ToString("HH:mm"), FontSize = 9, Foreground = Brush.Parse("#6C7086"), VerticalAlignment = VerticalAlignment.Center };
+                var time = new TextBlock { Text = n.Time.ToString("HH:mm"), FontSize = 9, Foreground = Brush.Parse("#808080"), VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(title, 0); Grid.SetColumn(time, 1);
                 header.Children.Add(title); header.Children.Add(time);
                 content.Children.Add(header);
-                content.Children.Add(new TextBlock { Text = n.Message, FontSize = 10, Foreground = Brush.Parse(ThemeService.IsDark ? "#A6ADC8" : "#5C5F77"), TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+                content.Children.Add(new TextBlock { Text = n.Message, FontSize = 10, Foreground = Brush.Parse(ThemeService.IsDark ? "#FCA311" : "#D4880E"), TextWrapping = Avalonia.Media.TextWrapping.Wrap });
                 row.Child = content;
                 list.Children.Add(row);
             }
@@ -982,6 +1213,214 @@ namespace PinayPalBackupManager.UI
             }
         }
 
+        private async Task ExecuteRemoteCommandAsync(string commandType, string commandId)
+        {
+            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "running");
+            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 0, "Starting operation...", "", "", "");
+            await RealtimeMonitoringService.AddLogAsync("Info", $"Remote command received: {commandType}", "REMOTE");
+            
+            try
+            {
+                switch (commandType)
+                {
+                    case "ftp_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "FTP", "FTP sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing FTP sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "ftp_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "FTP");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case "mailchimp_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "Mailchimp", "Mailchimp sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing Mailchimp sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "mailchimp_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "Mailchimp");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.StartFullBackupFromShell();
+                        });
+                        break;
+                        
+                    case "sql_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "SQL", "SQL sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing SQL sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "sql_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "SQL");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case "test_log":
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Test log triggered from Flutter app", "SYSTEM");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Test log sent");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Test log sent successfully", "", "", "");
+                        break;
+                        
+                    default:
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", $"Unknown command type: {commandType}");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "Unknown command type", "", "", "");
+                        await RealtimeMonitoringService.AddLogAsync("Error", $"Unknown command type: {commandType}", "REMOTE");
+                        return;
+                }
+                
+                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Success");
+                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Operation completed successfully", "", "", "");
+                await RealtimeMonitoringService.AddActivityAsync("backup_completed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation completed");
+                await RealtimeMonitoringService.AddLogAsync("Info", $"Command completed: {commandType}", "REMOTE");
+            }
+            catch (Exception ex)
+            {
+                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
+                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
+                await RealtimeMonitoringService.AddActivityAsync("backup_failed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation failed: {ex.Message}");
+                await RealtimeMonitoringService.AddLogAsync("Error", $"Command failed: {commandType} - {ex.Message}", "REMOTE");
+                
+                // End progress tracking if it was started
+                if (BackupProgressService.IsTracking)
+                {
+                    await BackupProgressService.CompleteBackupAsync(false, ex.Message);
+                }
+            }
+        }
+
+        private void ListenForQuickActions()
+        {
+            try
+            {
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+                
+                if (username == null) return;
+                
+                // Simple polling approach for quick actions
+                Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var quickActions = await database
+                                .Child("users")
+                                .Child(username)
+                                .Child("quick_actions")
+                                .OnceAsync<QuickAction>();
+
+                            foreach (var action in quickActions)
+                            {
+                                if (action.Object?.Action == "emergency_stop" && action.Object?.Status == "pending")
+                                {
+                                    await HandleEmergencyStopAsync(action.Key);
+                                }
+                            }
+                            
+                            await Task.Delay(2000); // Check every 2 seconds
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[QUICK_ACTIONS] Monitoring error: {ex.Message}", "Error", "SYSTEM");
+                            await Task.Delay(5000); // Wait longer on error
+                        }
+                    }
+                });
+                
+                LogService.WriteSystemLog("[FIREBASE] Listening for quick actions...", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[FIREBASE] Failed to listen for quick actions: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        private async Task HandleEmergencyStopAsync(string actionId)
+        {
+            try
+            {
+                LogService.WriteSystemLog("[QUICK_ACTIONS] Emergency stop triggered", "Warning", "SYSTEM");
+                await RealtimeMonitoringService.AddActivityAsync("emergency_stop", "System", "Emergency stop triggered from Flutter app");
+                
+                // Stop all running operations
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                
+                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled from Flutter app.", "Warning");
+                
+                // Update action status
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+                
+                if (username != null)
+                {
+                    await database
+                        .Child("users")
+                        .Child(username)
+                        .Child("quick_actions")
+                        .Child(actionId)
+                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Emergency stop failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
         private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
         {
             // Show ProfileControl in main content area
@@ -1010,4 +1449,11 @@ namespace PinayPalBackupManager.UI
 
         #endregion
     }
+}
+
+public class QuickAction
+{
+    public string Action { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string Timestamp { get; set; } = "";
 }

@@ -14,6 +14,21 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         public event EventHandler? OnClose;
 
+        private Brush GetThemeResource(string key, Brush fallback)
+        {
+            try
+            {
+                var resource = Application.Current.FindResource(key);
+                if (resource is Brush brush)
+                    return brush;
+                return fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
         public UserManagementDialog()
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
@@ -75,19 +90,12 @@ namespace PinayPalBackupManager.UI.UserControls
                 var isCurrentUser = currentUser != null && user.Id == currentUser.Id;
                 
                 // Create card-style container for each user
-                bool isDark = Services.ThemeService.IsDark;
-                string cardBg    = isDark ? "#1E1E2E" : "#E6E9EF";
-                string cardBdr   = isDark ? "#45475A" : "#BCC0CC";
-                string textMain  = isDark ? "#CDD6F4" : "#4C4F69";
-                string textLabel = isDark ? "#A6ADC8" : "#5C5F77";
-                string btnBg     = isDark ? "#313244" : "#BCC0CC";
-
                 var userCard = new Border
                 {
-                    Background = Brush.Parse(cardBg),
+                    Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(128, 128, 128))),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(15),
-                    BorderBrush = Brush.Parse(cardBdr),
+                    BorderBrush = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))),
                     BorderThickness = new Thickness(1)
                 };
 
@@ -101,7 +109,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var nameText = new TextBlock
                 {
                     Text = user.Username + (isCurrentUser ? " (You)" : ""),
-                    Foreground = Brush.Parse(textMain),
+                    Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))),
                     FontSize = 14,
                     FontWeight = FontWeight.SemiBold
                 };
@@ -112,17 +120,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 var roleText = new TextBlock
                 {
                     Text = user.Role,
-                    Foreground = Brush.Parse("#89B4FA"),
+                    Foreground = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))),
                     FontSize = 11,
                     FontWeight = FontWeight.Medium
                 };
                 detailsRow.Children.Add(roleText);
 
-                var statusColor = user.Status == "Active" ? "#A6E3A1" : user.Status == "Disabled" ? "#F38BA8" : "#F9E2AF";
+                var statusColor = user.Status == "Active" ? "AccentFtp" : user.Status == "Disabled" ? "AppWarning" : "AccentSql";
                 var statusText = new TextBlock
                 {
                     Text = "• " + user.Status,
-                    Foreground = Brush.Parse(statusColor),
+                    Foreground = GetThemeResource(statusColor, new SolidColorBrush(Color.FromRgb(128, 128, 128))),
                     FontSize = 11,
                     FontWeight = FontWeight.Medium
                 };
@@ -139,7 +147,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (AuthService.IsAdmin)
                 {
                     var viewUser = user;
-                    var btnView = new Button { Content = "View Details", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse(btnBg), Foreground = Brush.Parse(textMain), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnView = new Button { Content = "View Details", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     btnView.Click += async (_, _) => await ShowUserDetailsDialog(viewUser);
                     buttonPanel.Children.Add(btnView);
                 }
@@ -147,40 +155,40 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (AuthService.IsAdmin && !isCurrentUser)
                 {
                     // Change Password button
-                    var btnChangePassword = new Button { Content = "Change Password", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnChangePassword = new Button { Content = "Change Password", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     var targetUserId = user.Id;
                     var targetUsername = user.Username;
                     btnChangePassword.Click += async (_, _) => await ShowAdminChangePasswordDialog(targetUserId, targetUsername);
                     buttonPanel.Children.Add(btnChangePassword);
 
                     // Change Username button
-                    var btnChangeUsername = new Button { Content = "Change Username", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnChangeUsername = new Button { Content = "Change Username", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AccentMailchimp", new SolidColorBrush(Color.FromRgb(0, 255, 255))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     btnChangeUsername.Click += async (_, _) => await ShowAdminChangeUsernameDialog(targetUserId, targetUsername);
                     buttonPanel.Children.Add(btnChangeUsername);
 
                     if (user.Status == "Pending")
                     {
-                        var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#89B4FA"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnApprove = new Button { Content = "Approve", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnApprove.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User approved!", "Success"); };
                         buttonPanel.Children.Add(btnApprove);
                     }
                     else if (user.Status == "Active")
                     {
-                        var btnDisable = new Button { Content = "Disable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#F9E2AF"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnDisable = new Button { Content = "Disable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(255, 255, 0))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnDisable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Disabled"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User disabled.", "Warning"); };
                         buttonPanel.Children.Add(btnDisable);
                     }
                     else if (user.Status == "Disabled")
                     {
-                        var btnEnable = new Button { Content = "Enable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#A6E3A1"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                        var btnEnable = new Button { Content = "Enable", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(0, 255, 0))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                         var uid = user.Id;
                         btnEnable.Click += async (_, _) => { await AuthService.SetUserStatusAsync(uid, "Active"); RefreshUserList(); NotificationService.ShowBackupToast("Users", "User enabled.", "Info"); };
                         buttonPanel.Children.Add(btnEnable);
                     }
 
-                    var btnDelete = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = Brush.Parse("#F38BA8"), Foreground = Brush.Parse("#0B0F17"), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
+                    var btnDelete = new Button { Content = "Delete", FontSize = 11, Padding = new Thickness(12, 6), Margin = new Thickness(4), Background = new SolidColorBrush(Color.FromRgb(255, 0, 0)), Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255)), CornerRadius = new CornerRadius(6), FontWeight = FontWeight.SemiBold };
                     var deleteId = user.Id;
                     var deleteUsername = user.Username;
                     btnDelete.Click += async (_, _) =>
@@ -212,32 +220,23 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 var statusColor = user.Status switch
                 {
-                    "Active"   => "#A6E3A1",
-                    "Pending"  => "#F9E2AF",
-                    "Disabled" => "#F38BA8",
-                    _          => "#A6ADC8"
+                    "Active"   => "AccentFtp",
+                    "Pending"  => "AccentSql",
+                    "Disabled" => "AppWarning",
+                    _          => "AccentWebsite"
                 };
 
-                bool detailDark  = Services.ThemeService.IsDark;
-                string detailBg  = detailDark ? "#1E1E2E" : "#E6E9EF";
-                string detailHdr = detailDark ? "#313244" : "#BCC0CC";
-                string detailTxt = detailDark ? "#CDD6F4" : "#4C4F69";
-                string detailLbl = detailDark ? "#A6ADC8" : "#5C5F77";
-                string detailSep = detailDark ? "#313244" : "#BCC0CC";
-                string detailMut = detailDark ? "#6C7086" : "#7C7F93";
-                string detailBtn = detailDark ? "#45475A" : "#BCC0CC";
-
-                var content = new StackPanel { Spacing = 0, Background = Brush.Parse(detailBg) };
+                var content = new StackPanel { Spacing = 0, Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(128, 128, 128))) };
 
                 // Header
                 var header = new Border
                 {
-                    Background = Brush.Parse(detailHdr),
+                    Background = GetThemeResource("AppSurface", new SolidColorBrush(Color.FromRgb(64, 64, 64))),
                     Padding = new Thickness(24, 16),
                     Child = new TextBlock
                     {
                         Text = "User Details",
-                        Foreground = Brush.Parse(detailTxt),
+                        Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))),
                         FontSize = 16,
                         FontWeight = FontWeight.Bold,
                         HorizontalAlignment = HorizontalAlignment.Center
@@ -248,30 +247,46 @@ namespace PinayPalBackupManager.UI.UserControls
                 // Details body
                 var body = new StackPanel { Spacing = 12, Margin = new Thickness(24, 20) };
 
-                void AddRow(string label, string value, string valueColor = "#CDD6F4")
+                void AddRow(string label, string value, string valueColor = "AppText")
                 {
                     var row = new Grid();
                     row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));
                     row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
-                    var lbl = new TextBlock { Text = label, Foreground = Brush.Parse(detailLbl), FontSize = 12, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-                    var val = new TextBlock { Text = value, Foreground = Brush.Parse(valueColor == "#CDD6F4" ? detailTxt : valueColor == "#6C7086" ? detailMut : valueColor), FontSize = 12, TextWrapping = Avalonia.Media.TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+                    var labelBlock = new TextBlock
+                    {
+                        Text = label + ":",
+                        Foreground = GetThemeResource("AppMuted", new SolidColorBrush(Color.FromRgb(128, 128, 128))),
+                        FontSize = 12,
+                        FontWeight = FontWeight.Medium,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(labelBlock, 0);
+                    row.Children.Add(labelBlock);
 
-                    Grid.SetColumn(lbl, 0);
-                    Grid.SetColumn(val, 1);
-                    row.Children.Add(lbl);
-                    row.Children.Add(val);
+                    var valueBlock = new TextBlock
+                    {
+                        Text = value,
+                        Foreground = GetThemeResource(valueColor, new SolidColorBrush(Color.FromRgb(255, 255, 255))),
+                        FontSize = 12,
+                        FontWeight = FontWeight.SemiBold,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    };
+                    Grid.SetColumn(valueBlock, 1);
+                    row.Children.Add(valueBlock);
+
                     body.Children.Add(row);
 
-                    body.Children.Add(new Border { Height = 1, Background = Brush.Parse(detailSep), Margin = new Thickness(0, 4) });
+                    body.Children.Add(new Border { Height = 1, Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Margin = new Thickness(0, 4) });
                 }
 
                 AddRow("User ID:",       $"#{user.Id}");
                 AddRow("Username:",      user.Username);
-                AddRow("Role:",          user.Role, user.Role == "Admin" ? "#CBA6F7" : "#89B4FA");
+                AddRow("Role:",          user.Role, "AccentWebsite");
                 AddRow("Status:",        user.Status, statusColor);
                 AddRow("Member Since:",  user.CreatedAt.ToString("MMM dd, yyyy  hh:mm tt") + " UTC");
-                AddRow("Password:",      "••••••••  (secured — cannot be displayed)", "#6C7086");
+                AddRow("Password:",      "••••••••  (secured — cannot be displayed)", "AppMuted");
 
                 content.Children.Add(body);
 
@@ -282,8 +297,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 0, 0, 20),
                     Padding = new Thickness(40, 10),
-                    Background = Brush.Parse(detailBtn),
-                    Foreground = Brush.Parse(detailTxt),
+                    Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))),
+                    Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))),
                     CornerRadius = new CornerRadius(8),
                     FontWeight = FontWeight.SemiBold
                 };
@@ -292,7 +307,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 var window = new Window
                 {
-                    Title = $"Details — {user.Username}",
                     Content = content,
                     Width = 460,
                     Height = 440,
@@ -300,7 +314,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Brush.Parse(detailBg)
+                    Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(128, 128, 128))),
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                 };
 
                 btnClose.Click += (_, _) => window.Close();
@@ -324,37 +340,37 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Window? window = null;
 
-                var root = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+                var root = new StackPanel { Spacing = 0, Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(36, 41, 56))) };
 
                 // Header
                 root.Children.Add(new Border
                 {
-                    Background = Brush.Parse("#313244"),
+                    Background = GetThemeResource("AppSurface", new SolidColorBrush(Color.FromRgb(64, 64, 64))),
                     Padding = new Thickness(24, 18),
                     Child = new StackPanel { Spacing = 4, Children =
                     {
-                        new TextBlock { Text = "Change Password", Foreground = Brush.Parse("#CDD6F4"), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
-                        new TextBlock { Text = $"for user: {username}", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
+                        new TextBlock { Text = "Change Password", Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+                        new TextBlock { Text = $"for user: {username}", Foreground = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
                     }}
                 });
 
                 // Body
                 var body = new StackPanel { Spacing = 8, Margin = new Thickness(28, 20, 28, 24) };
 
-                body.Children.Add(new TextBlock { Text = "New Password", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12 });
-                var txtNew = new TextBox { PasswordChar = '●', Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(new TextBlock { Text = "New Password", Foreground = GetThemeResource("AppSubtext", new SolidColorBrush(Color.FromRgb(128, 128, 128))), FontSize = 12 });
+                var txtNew = new TextBox { PasswordChar = '●', Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
                 body.Children.Add(txtNew);
 
-                body.Children.Add(new TextBlock { Text = "Confirm New Password", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
-                var txtConfirm = new TextBox { PasswordChar = '●', Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(new TextBlock { Text = "Confirm New Password", Foreground = GetThemeResource("AppSubtext", new SolidColorBrush(Color.FromRgb(128, 128, 128))), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var txtConfirm = new TextBox { PasswordChar = '●', Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
                 body.Children.Add(txtConfirm);
 
-                var txtError = new TextBlock { Foreground = Brush.Parse("#F38BA8"), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
+                var txtError = new TextBlock { Foreground = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(255, 140, 0))), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
                 body.Children.Add(txtError);
 
                 // Buttons
-                var btnCancel = new Button { Content = "Cancel", Background = Brush.Parse("#45475A"), Foreground = Brush.Parse("#CDD6F4"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
-                var btnChange = new Button { Content = "Change Password", Background = Brush.Parse("#CBA6F7"), Foreground = Brush.Parse("#1E1E2E"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
+                var btnCancel = new Button { Content = "Cancel", Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
+                var btnChange = new Button { Content = "Change Password", Background = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
                 var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
                 btnRow.Children.Add(btnCancel);
                 btnRow.Children.Add(btnChange);
@@ -364,7 +380,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 window = new Window
                 {
-                    Title = "Change User Password",
                     Content = root,
                     Width = 420,
                     SizeToContent = SizeToContent.Height,
@@ -372,7 +387,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Brush.Parse("#1E1E2E")
+                    Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(36, 41, 56))),
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                 };
 
                 btnCancel.Click += (_, _) => window.Close();
@@ -416,33 +433,33 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Window? window = null;
 
-                var root = new StackPanel { Spacing = 0, Background = Brush.Parse("#1E1E2E") };
+                var root = new StackPanel { Spacing = 0, Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(128, 128, 128))) };
 
                 // Header
                 root.Children.Add(new Border
                 {
-                    Background = Brush.Parse("#313244"),
+                    Background = GetThemeResource("AppSurface", new SolidColorBrush(Color.FromRgb(64, 64, 64))),
                     Padding = new Thickness(24, 18),
                     Child = new StackPanel { Spacing = 4, Children =
                     {
-                        new TextBlock { Text = "Change Username", Foreground = Brush.Parse("#CDD6F4"), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
-                        new TextBlock { Text = $"Current: {currentUsername}", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
+                        new TextBlock { Text = "Change Username", Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), FontSize = 18, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+                        new TextBlock { Text = $"Current: {currentUsername}", Foreground = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(255, 165, 0))), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center }
                     }}
                 });
 
                 // Body
                 var body = new StackPanel { Spacing = 8, Margin = new Thickness(28, 20, 28, 24) };
 
-                body.Children.Add(new TextBlock { Text = "New Username", Foreground = Brush.Parse("#A6ADC8"), FontSize = 12 });
-                var txtNew = new TextBox { Background = Brush.Parse("#313244"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(new TextBlock { Text = "New Username", Foreground = GetThemeResource("AppSubtext", new SolidColorBrush(Color.FromRgb(128, 128, 128))), FontSize = 12 });
+                var txtNew = new TextBox { Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
                 body.Children.Add(txtNew);
 
-                var txtError = new TextBlock { Foreground = Brush.Parse("#F38BA8"), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
+                var txtError = new TextBlock { Foreground = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(255, 140, 0))), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
                 body.Children.Add(txtError);
 
                 // Buttons
-                var btnCancel = new Button { Content = "Cancel", Background = Brush.Parse("#45475A"), Foreground = Brush.Parse("#CDD6F4"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
-                var btnChange = new Button { Content = "Change Username", Background = Brush.Parse("#89DCEB"), Foreground = Brush.Parse("#1E1E2E"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
+                var btnCancel = new Button { Content = "Cancel", Background = GetThemeResource("AppBorder", new SolidColorBrush(Color.FromRgb(128, 128, 128))), Foreground = GetThemeResource("AppText", new SolidColorBrush(Color.FromRgb(255, 255, 255))), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
+                var btnChange = new Button { Content = "Change Username", Background = GetThemeResource("AccentMailchimp", new SolidColorBrush(Color.FromRgb(0, 255, 255))), Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
                 var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
                 btnRow.Children.Add(btnCancel);
                 btnRow.Children.Add(btnChange);
@@ -452,7 +469,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 window = new Window
                 {
-                    Title = "Change Username",
                     Content = root,
                     Width = 420,
                     SizeToContent = SizeToContent.Height,
@@ -460,7 +476,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Brush.Parse("#1E1E2E")
+                    Background = GetThemeResource("AppCard", new SolidColorBrush(Color.FromRgb(36, 41, 56))),
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
                 };
 
                 btnCancel.Click += (_, _) => window.Close();

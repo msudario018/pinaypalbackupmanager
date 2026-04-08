@@ -6,7 +6,7 @@
             <!-- App Updates (1st) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="#F9E2AF" Margin="0,0,0,10"/>
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
                     <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}"/>
                     <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                 </StackPanel>
@@ -15,7 +15,7 @@
             <!-- Backup Health Dashboard (2nd) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="#A6E3A1" Margin="0,0,0,10"/>
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" Margin="0,0,0,10"/>
                     <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                     <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
@@ -24,14 +24,14 @@
             <!-- System Configuration (3rd) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,6"/>
+                    <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,6"/>
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
                     <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="Backup Retention" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                             <TextBlock Text="Days to keep old backup files before auto-delete" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
                         </StackPanel>
-                        <TextBox Grid.Column="1" Name="TxtRetentionDays" Width="54" TextAlignment="Center" FontSize="13" FontWeight="Bold" Background="{DynamicResource AppSurface}" Foreground="#89B4FA" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,5" Margin="10,0,6,0"/>
+                        <TextBox Grid.Column="1" Name="TxtRetentionDays" Width="54" TextAlignment="Center" FontSize="13" FontWeight="Bold" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AccentWebsite}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,5" Margin="10,0,6,0"/>
                         <TextBlock Grid.Column="2" Text="days" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                     </Grid>
                     <Button Name="BtnSaveRetention" Content="Save Retention Policy" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
@@ -41,7 +41,7 @@
             <!-- System Information (4th) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="#CBA6F7" Margin="0,0,0,10"/>
+                    <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Text="App Version:" Foreground="{DynamicResource AppSubtext}" Width="120"/>
                         <TextBlock Grid.Column="1" Name="TxtVersion" Text="v..." FontWeight="Bold"/>
@@ -58,7 +58,7 @@
             <!-- Credentials & Paths (3rd) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
-                    <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,10"/>
+                    <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
                     
                     <Grid ColumnDefinitions="*,*">
                         <Button Name="BtnEditCredentials" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Margin="0,0,5,0">

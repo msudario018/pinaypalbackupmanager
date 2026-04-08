@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.8] - 2026-04-08
+
+### Added
+- **Enhanced Toast Notifications**: Complete overhaul with contextual icons based on notification type (FTP, Mailchimp, SQL, User, Backup, Config, Tab, Health, Startup)
+- **Toast Interactions**: Implemented swipe-to-dismiss gesture (horizontal swipe > 100px) and click-to-open notification center functionality
+- **Notification Control System**: Added enable/disable notification system to prevent visual notifications during startup
+- **Sidepanel Animation**: Smooth fade-in and slide-in animation when sidepanel appears after health scan completion
+- **Dynamic Layout**: Main content area expands to full width during startup when sidepanel is hidden
+- **Contextual Icons**: Smart icon detection system that shows appropriate icons based on notification content (server icon for FTP, envelope for Mailchimp, database for SQL, etc.)
+
+### Fixed
+- **Toast Positioning**: Fixed duplicate notifications appearing - removed legacy ToastBorder system that was causing bottom notifications
+- **Icon Centering**: Fixed notification icons not being properly centered within their colored circles
+- **Hit Testing**: Enabled mouse interactions on toast containers (was disabled, preventing swipe/click gestures)
+- **Layout Spacing**: Fixed unwanted spacing at top when notifications appear by using overlay positioning
+- **Settings Colors**: Fixed hardcoded purple color (#C77DFF) in settings to use tea-green palette
+- **Sidepanel Visibility**: Fixed sidepanel elements still showing during startup by hiding entire sidepanel container
+
+### Improved
+- **Startup Experience**: Clean, distraction-free startup with hidden sidepanel and disabled notifications
+- **Visual Consistency**: All UI elements now use consistent tea-green color palette
+- **User Experience**: Progressive UI reveal with smooth animations and proper timing
+- **Notification System**: Single toast policy prevents duplicates and ensures clean interface
+
 ## [2.8.6] - 2026-04-05
 
 ### Changed
