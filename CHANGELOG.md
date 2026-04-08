@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.9] - 2026-04-09
+
+### Added
+- **Two-Factor Authentication (2FA)**: Complete TOTP-based 2FA implementation using Google Authenticator
+  - Enable/disable 2FA from Profile settings
+  - QR code generation for easy authenticator app setup
+  - Live TOTP countdown display showing current code and 30-second timer
+  - Backup/recovery codes for account recovery (10 codes generated, single-use)
+  - Firebase sync for 2FA settings across devices
+- **2FA Login Flow**: Added 2FA verification step during login when enabled
+  - Enter 6-digit code from authenticator app
+  - Support for recovery codes when authenticator is unavailable
+  - "Lost your phone?" helper text with recovery code option
+- **2FA Dialog Improvements**: Compact layout without scroll, white QR background for better scanning
+
+### Fixed
+- **Thread Safety**: Removed ConfigureAwait(false) from LoginAsync to prevent "call from invalid thread" errors
+- **QR Code Scanning**: Fixed blurring with BitmapInterpolationMode=None, simplified URI format
+- **Dialog Background**: Switched from ShowDialog to Show to eliminate dark modal overlay on 2FA and Login History dialogs
+- **Change Password**: Fixed deadlock by using synchronous password verification
+
+### Improved
+- **Security**: Added 2FA as optional security layer for user accounts
+- **User Experience**: Non-blocking dialogs with Topmost=true for better accessibility
+- **Backup Codes**: Visual display of codes with proper formatting and copy functionality
+
 ## [2.8.8] - 2026-04-08
 
 ### Added

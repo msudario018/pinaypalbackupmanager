@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.TwoFactorAuthDialog">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox#TxtCode:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+        </Style>
+        <Style Selector="TextBox#TxtCode">
+            <Setter Property="CaretBrush" Value="{DynamicResource AppText}"/>
+        </Style>
+    </UserControl.Styles>
+
+        <Border Background="{DynamicResource AppCard}" CornerRadius="12" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="24" Width="420">
+        <StackPanel Spacing="10">
+            <TextBlock Text="Two-Factor Authentication" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AppText}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+
+            <StackPanel Name="PanelSetup" Spacing="10" IsVisible="True">
+                <TextBlock Text="Scan this QR code with your authenticator app:" Foreground="{DynamicResource AppSubtext}" FontSize="11" TextWrapping="Wrap"/>
+                
+                <Border Background="White" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="16" CornerRadius="8" HorizontalAlignment="Center">
+                    <Image Name="ImgQr" Width="200" Height="200" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None"/>
+                </Border>
+                
+                <TextBlock Text="Or enter this secret key manually:" Foreground="{DynamicResource AppSubtext}" FontSize="11"/>
+                <TextBlock Name="TxtSecretKey" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AccentWebsite}" FontWeight="Bold" TextAlignment="Center"/>
+                
+                <TextBlock Text="Verification Code" Foreground="{DynamicResource AppSubtext}" FontSize="11"/>
+                <TextBox Name="TxtCode" Background="{DynamicResource AppBg}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="10,8" HorizontalContentAlignment="Center" MaxLength="6"/>
+                
+                <TextBlock Name="TxtError" Text="" Foreground="{DynamicResource AccentError}" FontSize="11" TextAlignment="Center"/>
+                
+                <Button Name="BtnEnable" Content="Enable 2FA" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" Padding="18,8" CornerRadius="8" FontWeight="Bold" HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Name="PanelEnabled" Spacing="10" IsVisible="False">
+                <TextBlock Text="2FA is enabled" FontSize="16" Foreground="{DynamicResource AccentFtp}" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                <!-- Live TOTP code with countdown -->
+                <Border Background="{DynamicResource AppBg}" CornerRadius="8" Padding="12" HorizontalAlignment="Center">
+                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="Current Code" Foreground="{DynamicResource AppSubtext}" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Name="TxtLiveCode" FontFamily="Consolas" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center" LetterSpacing="6"/>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <Border Grid.Column="0" Background="{DynamicResource AppBorder}" CornerRadius="3" Height="6" Margin="0,0,8,0">
+                                <Border Name="BarCountdown" Background="{DynamicResource AccentFtp}" CornerRadius="3" Height="6" HorizontalAlignment="Left"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Name="TxtCountdown" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Backup Codes (save these safely):" Foreground="{DynamicResource AppSubtext}" FontSize="11"/>
+                <Border Background="{DynamicResource AppBorder}" Padding="10" CornerRadius="8">
+                    <TextBlock Name="TxtBackupCodes" FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource AppText}" TextWrapping="Wrap"/>
+                </Border>
+                
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                    <Button Name="BtnRegenerate" Content="New Codes" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,8" CornerRadius="8"/>
+                    <Button Name="BtnDisable" Content="Disable 2FA" Background="{DynamicResource AccentError}" Foreground="{DynamicResource AppText}" Padding="15,8" CornerRadius="8"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Button Name="BtnClose" Content="Close" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" Padding="18,8" CornerRadius="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+        </StackPanel>
+        </Border>
+</UserControl>

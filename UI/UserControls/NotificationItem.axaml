@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.NotificationItem"
+             Background="Transparent"
+             Margin="4,3">
+    <Border Name="PART_MainBorder" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="14,12" IsHitTestVisible="False">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+            <PathIcon Name="PART_Icon" Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,14,0" IsHitTestVisible="False"/>
+            <StackPanel Grid.Column="1" Spacing="4" IsHitTestVisible="False">
+                <TextBlock Name="PART_Title" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}"/>
+                <TextBlock Name="PART_Message" FontSize="11" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <TextBlock Name="PART_Timestamp" Grid.Column="2" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="8,0,0,0" IsHitTestVisible="False"/>
+        </Grid>
+    </Border>
+</UserControl>

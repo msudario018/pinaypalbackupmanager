@@ -61,9 +61,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     return;
                 }
 
-                // Try to login with current password to verify
-                var (success, _) = AuthService.Login(user.Username, current);
-                if (!success)
+                // Verify current password directly (no async/deadlock)
+                if (!AuthService.VerifyPassword(user.Id, current))
                 {
                     txtError!.Text = "Current password is incorrect.";
                     return;

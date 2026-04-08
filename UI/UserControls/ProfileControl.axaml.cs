@@ -26,7 +26,11 @@ namespace PinayPalBackupManager.UI.UserControls
             LoadAvatarImage();
             
             // Listen for auth changes
-            AuthService.OnUserChanged += (user) => UpdateProfileDisplay();
+            AuthService.OnUserChanged += (user) =>
+            {
+                UpdateProfileDisplay();
+                LoadAvatarImage();
+            };
         }
 
         private void SetupButtonHandlers()
@@ -60,13 +64,13 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnChangePassword2 = this.FindControl<Button>("BtnChangePassword2");
             if (btnChangePassword2 != null)
             {
-                btnChangePassword2.Click += async (s, e) => await ShowChangePasswordDialog();
+                btnChangePassword2.Click += (s, e) => ShowChangePasswordDialog();
             }
             
             var btnChangeUsername2 = this.FindControl<Button>("BtnChangeUsername2");
             if (btnChangeUsername2 != null)
             {
-                btnChangeUsername2.Click += async (s, e) => await ShowChangeUsernameDialog();
+                btnChangeUsername2.Click += (s, e) => ShowChangeUsernameDialog();
             }
             
             var btnUploadAvatar = this.FindControl<Button>("BtnUploadAvatar");
@@ -81,6 +85,27 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnLogout.Click += async (s, e) => await ShowLogoutConfirmation();
             }
+
+            // Two-Factor Auth
+            var btnTwoFactorAuth = this.FindControl<Button>("BtnTwoFactorAuth");
+            if (btnTwoFactorAuth != null)
+            {
+                btnTwoFactorAuth.Click += (s, e) => ShowTwoFactorAuthDialog();
+            }
+
+            // Login History
+            var btnLoginHistory = this.FindControl<Button>("BtnLoginHistory");
+            if (btnLoginHistory != null)
+            {
+                btnLoginHistory.Click += (s, e) => ShowLoginHistoryDialog();
+            }
+
+            // Delete Account
+            var btnDeleteAccount = this.FindControl<Button>("BtnDeleteAccount");
+            if (btnDeleteAccount != null)
+            {
+                btnDeleteAccount.Click += async (s, e) => await ShowDeleteAccountDialog();
+            }
         }
 
         private void UpdateProfileDisplay()
@@ -91,6 +116,8 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtAccountType = this.FindControl<TextBlock>("TxtAccountType");
             var txtMemberSince = this.FindControl<TextBlock>("TxtMemberSince");
             var adminSection = this.FindControl<Border>("AdminSection");
+            var btnDeleteAccount = this.FindControl<Button>("BtnDeleteAccount");
+            var txtDeleteAdminNote = this.FindControl<TextBlock>("TxtDeleteAdminNote");
 
             if (AuthService.CurrentUser != null)
             {
@@ -99,7 +126,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 txtUserRole!.Text = user.Role;
                 txtUserStatus!.Text = user.Status == "Active" ? "✓ Active" : user.Status;
                 txtUserStatus!.Foreground = user.Status == "Active" 
-                    ? Avalonia.Media.Brush.Parse("#52B788") 
+                    ? Avalonia.Media.Brush.Parse("#588157") 
                     : Avalonia.Media.Brush.Parse("#F38BA8");
                 
                 txtAccountType!.Text = user.Role == "Admin" ? "Administrator" : "Standard";
@@ -107,16 +134,23 @@ namespace PinayPalBackupManager.UI.UserControls
                 
                 // Show admin section only to admins
                 adminSection!.IsVisible = AuthService.IsAdmin;
+
+                // Disable delete for admins and show note
+                if (btnDeleteAccount != null) btnDeleteAccount.IsEnabled = !string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase);
+                if (txtDeleteAdminNote != null) txtDeleteAdminNote.IsVisible = string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase);
             }
             else
             {
                 txtUsername!.Text = "Guest";
                 txtUserRole!.Text = "Not logged in";
                 txtUserStatus!.Text = "⚠ Offline";
-                txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                 txtAccountType!.Text = "Limited";
                 txtMemberSince!.Text = "N/A";
                 adminSection!.IsVisible = false;
+
+                if (btnDeleteAccount != null) btnDeleteAccount.IsEnabled = false;
+                if (txtDeleteAdminNote != null) txtDeleteAdminNote.IsVisible = false;
             }
         }
 
@@ -157,97 +191,79 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private async System.Threading.Tasks.Task ShowChangePasswordDialog()
+        private void ShowChangePasswordDialog()
         {
             const string dialogKey = "change_password";
             if (NotificationService.IsDialogOpen(dialogKey))
-            {
                 return;
-            }
             
             NotificationService.RegisterDialog(dialogKey);
-            try
+
+            var dialog = new ChangePasswordDialog();
+            var window = new Window
             {
-                var dialog = new ChangePasswordDialog();
-                var window = new Window
-                {
-                    Content = dialog,
-                    Width = 400,
-                    Height = 450,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = false,
-                    ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
-                    Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
-                };
+                Title = "Change Password",
+                Content = dialog,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None
+            };
 
-                dialog.OnPasswordChanged += (sender, e) =>
-                {
-                    window.Close();
-                    NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
-                };
-
-                dialog.OnCancel += (sender, e) => window.Close();
-
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
-            }
-            finally
+            dialog.OnPasswordChanged += (sender, e) =>
             {
-                NotificationService.UnregisterDialog(dialogKey);
-            }
+                window.Close();
+                NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
+            };
+
+            dialog.OnCancel += (sender, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            window.Show();
         }
 
-        private async System.Threading.Tasks.Task ShowChangeUsernameDialog()
+        private void ShowChangeUsernameDialog()
         {
             const string dialogKey = "change_username";
             if (NotificationService.IsDialogOpen(dialogKey))
-            {
                 return;
-            }
             
             NotificationService.RegisterDialog(dialogKey);
-            try
+
+            var dialog = new ChangeUsernameDialog();
+            var window = new Window
             {
-                var dialog = new ChangeUsernameDialog();
-                var window = new Window
-                {
-                    Content = dialog,
-                    Width = 400,
-                    Height = 320,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = false,
-                    ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
-                    Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
-                };
+                Title = "Change Username",
+                Content = dialog,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None
+            };
 
-                dialog.OnUsernameChanged += (sender, e) =>
-                {
-                    window.Close();
-                    UpdateProfileDisplay();
-                    NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
-                };
-
-                dialog.OnCancel += (sender, e) => window.Close();
-
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
-            }
-            finally
+            dialog.OnUsernameChanged += (sender, e) =>
             {
-                NotificationService.UnregisterDialog(dialogKey);
-            }
+                window.Close();
+                UpdateProfileDisplay();
+                NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
+            };
+
+            dialog.OnCancel += (sender, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            window.Show();
         }
 
         private async System.Threading.Tasks.Task UploadAvatar()
@@ -280,9 +296,16 @@ namespace PinayPalBackupManager.UI.UserControls
                     var file = files[0];
                     var localPath = file.Path.LocalPath;
                     
-                    // Copy to app data directory
+                    // Copy to app data directory (per-user)
                     var avatarPath = AppDataPaths.GetPath("avatar.png");
                     File.Copy(localPath, avatarPath, true);
+
+                    // Persist avatar path to the current user profile if available
+                    var user = AuthService.CurrentUser;
+                    if (user != null)
+                    {
+                        AuthService.UpdateAvatar(user.Id, avatarPath);
+                    }
                     
                     // Load the avatar image
                     LoadAvatarImage();
@@ -303,10 +326,24 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             try
             {
-                AppDataPaths.MigrateFile("avatar.png");
-                var avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
+                string? avatarPath = null;
+
+                // Prefer per-user avatar path from AuthService, fallback to legacy app data avatar.png
+                var user = AuthService.CurrentUser;
+                if (user != null)
+                {
+                    var userAvatar = AuthService.GetUserAvatar(user.Id);
+                    if (!string.IsNullOrWhiteSpace(userAvatar))
+                        avatarPath = userAvatar;
+                }
+
+                if (string.IsNullOrEmpty(avatarPath))
+                {
+                    AppDataPaths.MigrateFile("avatar.png");
+                    avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
+                }
                 
-                if (File.Exists(avatarPath))
+                if (!string.IsNullOrEmpty(avatarPath) && File.Exists(avatarPath))
                 {
                     var imgAvatar = this.FindControl<Image>("ImgAvatar");
                     if (imgAvatar != null)
@@ -341,16 +378,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new UserManagementDialog();
                 var window = new Window
                 {
+                    Title = "User Management",
                     Content = dialog,
                     Width = 900,
                     Height = 850,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = true,
                     ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0
                 };
 
                 dialog.OnClose += (sender, e) => window.Close();
@@ -371,11 +409,9 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             const string dialogKey = "invite_codes";
             
-            Console.WriteLine("[ProfileControl] ShowInviteCodesDialog called");
-            
             if (NotificationService.IsDialogOpen(dialogKey))
             {
-                Console.WriteLine("[ProfileControl] Dialog already open, returning");
+                Console.WriteLine("[ProfileControl] Invite Codes dialog already open, skipping");
                 return;
             }
             
@@ -383,11 +419,10 @@ namespace PinayPalBackupManager.UI.UserControls
             
             try
             {
-                Console.WriteLine("[ProfileControl] Creating InviteCodesDialog...");
                 var dialog = new InviteCodesDialog();
-                Console.WriteLine("[ProfileControl] InviteCodesDialog created successfully");
                 var window = new Window
                 {
+                    Title = "Invite Codes",
                     Content = dialog,
                     Width = 550,
                     Height = 500,
@@ -396,6 +431,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                    SystemDecorations = SystemDecorations.None,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -407,10 +444,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     await window.ShowDialog(parentWindow);
                 }
-            }
-            catch (Exception ex)
-            {
-                NotificationService.ShowBackupToast("Users", "Failed to open invite codes dialog.", "Error");
             }
             finally
             {
@@ -436,14 +469,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new LogoutConfirmationDialog();
                 var window = new Window
                 {
+                    Title = "Confirm Logout",
                     Content = dialog,
                     Width = 400,
                     Height = 200,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -465,6 +497,93 @@ namespace PinayPalBackupManager.UI.UserControls
             finally
             {
                 NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private void ShowTwoFactorAuthDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            var dialog = new TwoFactorAuthDialog(user.Id);
+            var window = new Window
+            {
+                Title = "Two-Factor Authentication",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Show();
+        }
+
+        private void ShowLoginHistoryDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            var dialog = new LoginHistoryDialog(user.Username);
+            var window = new Window
+            {
+                Title = "Login History",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Show();
+        }
+
+        private async Task ShowDeleteAccountDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            // First confirmation
+            var confirm1 = await ConfirmDialog.ShowAsync(
+                "Delete Account",
+                "WARNING: This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?");
+
+            if (!confirm1) return;
+
+            // Second confirmation
+            var confirm2 = await ConfirmDialog.ShowAsync(
+                "Confirm Deletion",
+                "Please confirm again: Your account, backups, and all data will be permanently removed.");
+
+            if (!confirm2) return;
+
+            // Delete user
+            var deleted = AuthService.DeleteUser(user.Id);
+            if (deleted)
+            {
+                NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");
+                await Task.Delay(2000);
+                Environment.Exit(0);
+            }
+            else
+            {
+                NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
             }
         }
     }

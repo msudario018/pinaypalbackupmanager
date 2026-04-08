@@ -185,28 +185,12 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<string> GetNetworkUsageAsync()
         {
-            try
-            {
-                // Simple network monitoring - return placeholder for now
-                return "0 KB/s";
-            }
-            catch
-            {
-                return "0 KB/s";
-            }
+            return await SystemMonitorService.GetNetworkUsageAsync();
         }
 
         private static async Task<string> GetDiskIoAsync()
         {
-            try
-            {
-                // Simple disk I/O monitoring - return placeholder for now
-                return "0 MB/s";
-            }
-            catch
-            {
-                return "0 MB/s";
-            }
+            return await SystemMonitorService.GetDiskIoAsync();
         }
 
         private static async Task<string> GetTotalMemoryAsync()

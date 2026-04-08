@@ -78,7 +78,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _abortRequested = false;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "EXPORTING FULL...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48CAE4");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
 
             // Report global backup progress
             _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORTING FULL...");
@@ -152,7 +152,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
-                        txtStatus.Foreground = _abortRequested ? Avalonia.Media.Brush.Parse("#F38BA8") : Avalonia.Media.Brush.Parse("#52B788");
+                        txtStatus.Foreground = _abortRequested ? Avalonia.Media.Brush.Parse("#F38BA8") : Avalonia.Media.Brush.Parse("#588157");
                         if (!_abortRequested) LogService.WriteLiveLog("COMPLETE: Full Mailchimp session finished successfully.", BackupConfig.McLogFile, "Information", trigger);
                     });
                     // Report global backup progress
@@ -165,7 +165,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     NotificationService.ShowBackupToast("Mailchimp Cancelled", "User cancelled the task.", "Warning");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
@@ -218,7 +218,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse(_abortRequested ? "#FAD643" : "#52B788");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse(_abortRequested ? "#dad7cd" : "#588157");
                         this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
                     });
                 }
@@ -227,7 +227,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     LogService.WriteLiveLog($"CANCELLED: {type} export cancelled by user.", BackupConfig.McLogFile, "Warning", "MANUAL");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                         this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = false;
                     });
                 }
@@ -282,7 +282,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtStatus != null)
             {
                 txtStatus.Text = "CANCELLING...";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
             }
         }
 
@@ -296,12 +296,12 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             var txtFile = this.FindControl<TextBlock>("TxtFile")!;
             txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48CAE4");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
             txtFile.Text = "Status: Checking local data freshness...";
 
             string statusText = "SYNC CHECK";
             string detailText = "Status: Idle";
-            string colorHex = "#C77DFF";
+            string colorHex = "#6C7086";
             string toastMessage = "Sync check finished.";
             string toastType = "Info";
 
@@ -350,7 +350,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "LATEST";
                         detailText = $"Local data is fresh: {freshnessUtc:MM/dd HH:mm} UTC";
-                        colorHex = "#52B788";
+                        colorHex = "#588157";
                         toastMessage = "Mailchimp data is up to date.";
                         toastType = "Info";
                     }
@@ -376,7 +376,14 @@ namespace PinayPalBackupManager.UI.UserControls
             if (allowAutoSync && statusText == "OUTDATED")
             {
                 SetBusy(false);
-                _ = StartFullBackupAsync("AUTO-SYNC");
+                bool confirm = await NotificationService.ConfirmAsync(
+                    "Mailchimp data is outdated. Do you want to sync now?",
+                    "Sync Now?"
+                );
+                if (confirm)
+                {
+                    _ = StartFullBackupAsync("AUTO-SYNC");
+                }
                 return;
             }
 

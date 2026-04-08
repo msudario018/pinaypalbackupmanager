@@ -24,7 +24,7 @@
                          Fill="{DynamicResource AccentWebsite}" />
                 <PathIcon Name="IconPath" 
                           Width="14" Height="14" 
-                          Foreground="#000000" 
+                          Foreground="{DynamicResource AppText}" 
                           HorizontalAlignment="Center" 
                           VerticalAlignment="Center"/>
             </Grid>

@@ -3,23 +3,23 @@
              x:Class="PinayPalBackupManager.UI.UserControls.MailchimpControl">
     <Grid RowDefinitions="Auto, Auto, Auto, Auto, *, Auto">
         <!-- Header -->
-        <Border Grid.Row="0" Background="#03045E" Padding="20" CornerRadius="12" Margin="0,0,0,15" ClipToBounds="True">
+        <Border Grid.Row="0" Background="{DynamicResource AccentMailchimpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentMailchimp}" BorderThickness="1">
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
-                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="#CAF0F8" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
+                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimpLight}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
-                <TextBlock Grid.Row="1" Name="TxtFile" Text="Status: Idle" Foreground="#90E0EF" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
+                <TextBlock Grid.Row="1" Name="TxtFile" Text="Status: Idle" Foreground="{DynamicResource AccentMailchimpMuted}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
                 <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,12">
-                    <Border Background="#48CAE4" CornerRadius="20" Padding="15,7">
+                    <Border Background="{DynamicResource AccentMailchimpDark}" CornerRadius="20" Padding="15,7">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Ellipse Width="8" Height="8" Fill="#03045E"/>
-                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="#03045E" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentMailchimpLight}"/>
+                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="{DynamicResource AccentMailchimpLight}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="#0077B6" CornerRadius="20" Padding="15,7">
+                    <Border Background="{DynamicResource AccentMailchimpDark}" CornerRadius="20" Padding="15,7">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Ellipse Width="8" Height="8" Fill="#48CAE4"/>
-                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="#CAF0F8" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentMailchimpLight}"/>
+                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="{DynamicResource AccentMailchimpLight}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -32,7 +32,7 @@
         </Border>
 
         <!-- Progress -->
-        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="#0077B6" Foreground="#CAF0F8"/>
+        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="{DynamicResource AccentMailchimpDark}" Foreground="{DynamicResource AccentMailchimp}"/>
 
         <!-- Utility Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15" HorizontalAlignment="Right">
@@ -40,9 +40,9 @@
             <Button Name="BtnClear" Classes="Secondary" Content="Clear"/>
         </StackPanel>
 
-        <Border Grid.Row="3" Background="#023E8A" CornerRadius="12" Padding="15" Margin="0,0,0,15">
+        <Border Grid.Row="3" Background="{DynamicResource AccentMailchimpBg}" CornerRadius="16" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource AccentMailchimp}" BorderThickness="1">
             <Grid RowDefinitions="Auto, Auto">
-                <TextBlock Grid.Row="0" Text="MAILCHIMP INDIVIDUAL BACKUP" Foreground="#90E0EF" FontWeight="Bold" FontSize="11" Margin="0,0,0,10"/>
+                <TextBlock Grid.Row="0" Text="MAILCHIMP INDIVIDUAL BACKUP" Foreground="{DynamicResource AccentMailchimpLight}" FontWeight="Bold" FontSize="11" Margin="0,0,0,10"/>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                     <Button Name="BtnMembers" Classes="Secondary" Content="Members"/>
                     <Button Name="BtnCampaigns" Classes="Secondary" Content="Campaigns"/>
@@ -54,24 +54,24 @@
         </Border>
 
         <!-- Logs Container -->
-        <Border Grid.Row="4" Background="#023E8A" CornerRadius="12" Padding="15">
+        <Border Grid.Row="4" Background="{DynamicResource AccentMailchimpBg}" CornerRadius="16" Padding="15" BorderBrush="{DynamicResource AccentMailchimp}" BorderThickness="1">
             <Grid RowDefinitions="Auto, *">
-                <TextBlock Text="TERMINAL LOGS" FontWeight="Bold" Foreground="#90E0EF" Margin="0,0,0,10"/>
+                <TextBlock Text="TERMINAL LOGS" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimpLight}" Margin="0,0,0,10"/>
 
                 <TextBox Grid.Row="1" Name="TxtLogs" IsReadOnly="True" Background="Transparent" BorderThickness="0"
-                         FontFamily="Consolas" Foreground="#ADE8F4" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
+                         CornerRadius="12" FontFamily="Consolas" Foreground="{DynamicResource AppLogText}" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
                          ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
             </Grid>
         </Border>
 
         <!-- Footer -->
         <Button Grid.Row="5" Name="BtnViewLog" Content="OPEN LOG FILE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
-                Background="#0077B6" Margin="0,15,0,0" Padding="10" CornerRadius="8"/>
+                Background="{DynamicResource AppBorder}" Margin="0,15,0,0" Padding="10" CornerRadius="12"/>
     </Grid>
 
     <UserControl.Styles>
         <Style Selector="TextBox#TxtLogs">
-            <Setter Property="Foreground" Value="#ADE8F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppLogText}"/>
         </Style>
         <Style Selector="TextBox#TxtLogs:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent"/>
@@ -79,16 +79,17 @@
         </Style>
         <Style Selector="TextBox#TxtLogs:focus /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentMailchimp}"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
 
         <Style Selector="Button.ToolBtn">
             <Setter Property="Padding" Value="12,5"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#CAF0F8"/>
-            <Setter Property="Background" Value="#03045E"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpLight}"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Transitions">
                 <Transitions>
@@ -98,11 +99,13 @@
             </Setter>
         </Style>
         <Style Selector="Button.ToolBtn:pointerover">
-            <Setter Property="Background" Value="#0096C7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button.ToolBtn:pressed">
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
@@ -110,9 +113,9 @@
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#0096C7"/>
-            <Setter Property="Background" Value="#0077B6"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpLight}"/>
+            <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="MinWidth" Value="110"/>
             <Setter Property="Transitions">
                 <Transitions>
@@ -122,65 +125,71 @@
             </Setter>
         </Style>
         <Style Selector="Button.ManualBtn:pointerover">
-            <Setter Property="Background" Value="#0096C7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(1.05)"/>
         </Style>
         <Style Selector="Button.ManualBtn:pressed">
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(0.95)"/>
         </Style>
 
         <Style Selector="Button#BtnRunFull">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button#BtnRunFull:pointerover">
-            <Setter Property="Background" Value="#0096C7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button#BtnRunFull:pressed">
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
         <Style Selector="Button#BtnCancel">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button#BtnCancel:pointerover">
-            <Setter Property="Background" Value="#0096C7"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
         <Style Selector="Button#BtnCancel:pressed">
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
 
         <Style Selector="Button#BtnViewLog">
-            <Setter Property="Foreground" Value="#0096C7"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpLight}"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button#BtnViewLog:pointerover">
-            <Setter Property="Background" Value="#0096C7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(1.01)"/>
         </Style>
         <Style Selector="Button#BtnViewLog:pressed">
-            <Setter Property="Background" Value="#0077B6"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMailchimpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
             <Setter Property="RenderTransform" Value="scale(0.99)"/>
         </Style>
     </UserControl.Styles>

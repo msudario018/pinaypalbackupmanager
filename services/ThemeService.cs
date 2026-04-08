@@ -1,13 +1,16 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace PinayPalBackupManager.Services
 {
     public static class ThemeService
     {
         private static readonly string PrefFile = Path.Combine(AppDataPaths.CurrentDirectory, "theme.txt");
+        private static bool _isApplying = false;
 
         public static bool IsDark { get; private set; } = true;
 
@@ -26,6 +29,8 @@ namespace PinayPalBackupManager.Services
 
         public static void Toggle()
         {
+            if (_isApplying) return;
+            
             IsDark = !IsDark;
             Apply();
             Save();
@@ -34,8 +39,22 @@ namespace PinayPalBackupManager.Services
 
         private static void Apply()
         {
-            if (Application.Current != null)
-                Application.Current.RequestedThemeVariant = IsDark ? ThemeVariant.Dark : ThemeVariant.Light;
+            if (Application.Current == null || _isApplying) return;
+            
+            _isApplying = true;
+            
+            // Use dispatcher to ensure UI thread execution with minimal delay
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    Application.Current.RequestedThemeVariant = IsDark ? ThemeVariant.Dark : ThemeVariant.Light;
+                }
+                finally
+                {
+                    _isApplying = false;
+                }
+            }, DispatcherPriority.Normal);
         }
 
         private static void Save()

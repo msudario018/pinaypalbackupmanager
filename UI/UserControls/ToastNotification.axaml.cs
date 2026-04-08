@@ -173,6 +173,9 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 mainWin.ToggleNotificationCenter();
             }
+            
+            // Dismiss the toast after opening notification center
+            DismissToast(0); // 0 for no swipe direction (fade out)
         }
 
         public void SetContent(string title, string message, string type = "Info")

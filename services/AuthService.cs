@@ -41,13 +41,22 @@ namespace PinayPalBackupManager.Services
                     Salt TEXT NOT NULL,
                     Role TEXT NOT NULL DEFAULT 'User',
                     Status TEXT NOT NULL DEFAULT 'Pending',
-                    CreatedAt TEXT NOT NULL
+                    CreatedAt TEXT NOT NULL,
+                    AvatarPath TEXT
                 );
                 CREATE TABLE IF NOT EXISTS AppConfig (
                     Key TEXT PRIMARY KEY,
                     Value TEXT NOT NULL
                 );";
             cmd.ExecuteNonQuery();
+
+            // Migrate: Add AvatarPath column if not exists
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Users ADD COLUMN AvatarPath TEXT";
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* Column may already exist */ }
         }
 
         public static bool HasAnyUsers()
@@ -139,92 +148,6 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        // Async version of Register to avoid deadlocks
-        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
-        {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return (false, "Username and password are required.");
-
-            if (password.Length < 4)
-                return (false, "Password must be at least 4 characters.");
-
-            bool isFirstUser = !HasAnyUsers();
-
-            if (!isFirstUser)
-            {
-                if (string.IsNullOrWhiteSpace(inviteCode))
-                    return (false, "Invite code is required.");
-
-                // Get invite code from Firebase first (with timeout)
-                string? firebaseCode = null;
-                try
-                {
-                    var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2));
-                    firebaseCode = await FirebaseInviteService.GetInviteCodeAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[AuthService] Failed to get Firebase invite code: {ex.Message}");
-                }
-                
-                var storedCode = !string.IsNullOrEmpty(firebaseCode) ? firebaseCode : GetInviteCode();
-                bool isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
-                
-                if (!isValid)
-                    return (false, "Invalid invite code.");
-            }
-
-            var salt = GenerateSalt();
-            var hash = HashPassword(password, salt);
-
-            try
-            {
-                using var conn = new SqliteConnection(ConnectionString);
-                conn.Open();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
-                                    VALUES (@u, @h, @s, @r, @st, @c)";
-                cmd.Parameters.AddWithValue("@u", username.Trim());
-                cmd.Parameters.AddWithValue("@h", hash);
-                cmd.Parameters.AddWithValue("@s", salt);
-                cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
-                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
-                cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
-                cmd.ExecuteNonQuery();
-
-                if (isFirstUser)
-                {
-                    RotateInviteCode();
-                }
-
-                // Sync new user to Firebase (await this time for async version)
-                var newUser = GetUserByUsername(username.Trim());
-                if (newUser != null)
-                {
-                    try
-                    {
-                        await FirebaseUserService.SyncUserAsync(newUser);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AuthService] Failed to sync new user to Firebase: {ex.Message}");
-                    }
-                }
-
-                return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
-            }
-            catch (SqliteException ex)
-            {
-                if (ex.SqliteErrorCode == 19)
-                    return (false, "Username already exists.");
-                return (false, $"Database error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"An unexpected error occurred: {ex.Message}");
-            }
-        }
-
         public static async Task<(bool success, string message)> LoginAsync(string username, string password)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
@@ -234,7 +157,7 @@ namespace PinayPalBackupManager.Services
             // This is especially important for pending users who were just approved
             try
             {
-                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync().ConfigureAwait(false);
+                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync();
                 var localUser = GetUserByUsername(username.Trim());
                 
                 if (localUser != null)
@@ -269,7 +192,11 @@ namespace PinayPalBackupManager.Services
 
             using var reader = cmd2.ExecuteReader();
             if (!reader.Read())
+            {
+                // Track failed login (user not found)
+                _ = LoginHistoryService.AddLoginAsync(username.Trim(), false, "User not found");
                 return (false, "Invalid username or password.");
+            }
 
             var user = ReadUser(reader);
 
@@ -284,10 +211,18 @@ namespace PinayPalBackupManager.Services
 
             var hash = HashPassword(password, user.Salt);
             if (!string.Equals(hash, user.PasswordHash, StringComparison.Ordinal))
+            {
+                // Track failed login
+                _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
                 return (false, "Invalid username or password.");
+            }
 
             CurrentUser = user;
             OnUserChanged?.Invoke(user);
+            
+            // Track successful login
+            _ = LoginHistoryService.AddLoginAsync(user.Username, true);
+            
             return (true, $"Welcome, {user.Username}!");
         }
 
@@ -311,6 +246,86 @@ namespace PinayPalBackupManager.Services
             CurrentUser = user;
             OnUserChanged?.Invoke(user);
             return true;
+        }
+
+        /// <summary>
+        /// Verify credentials without completing full login (used for 2FA flow).
+        /// Returns the user if credentials are valid, without setting CurrentUser.
+        /// </summary>
+        public static async Task<(bool success, AppUser? user, string message)> VerifyCredentialsAsync(string username, string password)
+        {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+                return (false, null, "Username and password are required.");
+
+            // Sync user status from Firebase first
+            try
+            {
+                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync();
+                var localUser = GetUserByUsername(username.Trim());
+                
+                if (localUser != null)
+                {
+                    var firebaseUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(localUser.Username, StringComparison.OrdinalIgnoreCase));
+                    if (firebaseUser != null && firebaseUser.Status != localUser.Status)
+                    {
+                        using var conn = new SqliteConnection(ConnectionString);
+                        conn.Open();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
+                        cmd.Parameters.AddWithValue("@s", firebaseUser.Status);
+                        cmd.Parameters.AddWithValue("@id", localUser.Id);
+                        cmd.ExecuteNonQuery();
+                        localUser.Status = firebaseUser.Status;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Pre-login sync failed: {ex.Message}");
+            }
+
+            using var conn2 = new SqliteConnection(ConnectionString);
+            conn2.Open();
+            using var cmd2 = conn2.CreateCommand();
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
+            cmd2.Parameters.AddWithValue("@u", username.Trim());
+
+            using var reader = cmd2.ExecuteReader();
+            if (!reader.Read())
+            {
+                _ = LoginHistoryService.AddLoginAsync(username.Trim(), false, "User not found");
+                return (false, null, "Invalid username or password.");
+            }
+
+            var user = ReadUser(reader);
+
+            if (user.Status == "Disabled")
+                return (false, null, "Account is disabled. Contact the admin.");
+
+            if (user.Status == "Deleted")
+                return (false, null, "Account has been deleted. Contact the admin if you believe this is an error.");
+
+            if (user.Status == "Pending")
+                return (false, null, "Account is pending approval.");
+
+            var hash = HashPassword(password, user.Salt);
+            if (!string.Equals(hash, user.PasswordHash, StringComparison.Ordinal))
+            {
+                _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
+                return (false, null, "Invalid username or password.");
+            }
+
+            return (true, user, "Credentials verified");
+        }
+
+        /// <summary>
+        /// Set current user after 2FA verification is complete.
+        /// </summary>
+        public static void SetCurrentUserFor2FA(AppUser user)
+        {
+            CurrentUser = user;
+            OnUserChanged?.Invoke(user);
+            _ = LoginHistoryService.AddLoginAsync(user.Username, true);
         }
 
         public static void Logout()
@@ -630,6 +645,14 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        public static bool VerifyPassword(int userId, string password)
+        {
+            var user = GetUserById(userId);
+            if (user == null) return false;
+            var hash = HashPassword(password, user.Salt);
+            return string.Equals(hash, user.PasswordHash, StringComparison.Ordinal);
+        }
+
         public static bool ChangePassword(int userId, string newPassword)
         {
             var user = GetUserById(userId);
@@ -697,6 +720,50 @@ namespace PinayPalBackupManager.Services
             }
 
             return result;
+        }
+
+        public static bool UpdateAvatar(int userId, string avatarPath)
+        {
+            try
+            {
+                using var conn = new SqliteConnection(ConnectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "UPDATE Users SET AvatarPath = @a WHERE Id = @id";
+                cmd.Parameters.AddWithValue("@a", avatarPath);
+                cmd.Parameters.AddWithValue("@id", userId);
+                var result = cmd.ExecuteNonQuery() > 0;
+
+                if (result)
+                {
+                    Console.WriteLine($"[AuthService] Avatar updated for user ID {userId}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthService] Failed to update avatar: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static string? GetUserAvatar(int userId)
+        {
+            try
+            {
+                using var conn = new SqliteConnection(ConnectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT AvatarPath FROM Users WHERE Id = @id";
+                cmd.Parameters.AddWithValue("@id", userId);
+                var result = cmd.ExecuteScalar();
+                return result?.ToString();
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // ── Helpers ──

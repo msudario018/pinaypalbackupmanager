@@ -30,5 +30,11 @@ namespace PinayPalBackupManager.Services
             _entries.Clear();
             UnreadCount = 0;
         }
+
+        public static void Remove(NotificationEntry entry)
+        {
+            _entries.Remove(entry);
+            if (UnreadCount > 0) UnreadCount--;
+        }
     }
 }

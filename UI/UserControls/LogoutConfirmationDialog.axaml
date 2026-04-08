@@ -21,7 +21,7 @@
             <Grid Grid.Row="2" ColumnDefinitions="*, *" HorizontalAlignment="Right" Margin="0,20,0,0">
                 <Button Grid.Column="0" x:Name="BtnCancel" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
                         Padding="20,8" CornerRadius="8" Margin="0,0,8,0"/>
-                <Button Grid.Column="1" x:Name="BtnLogout" Content="Logout" Background="#F38BA8" Foreground="#10002B"
+                <Button Grid.Column="1" x:Name="BtnLogout" Content="Logout" Background="{DynamicResource AccentError}" Foreground="{DynamicResource AppText}"
                         Padding="20,8" CornerRadius="8" FontWeight="Bold"/>
             </Grid>
         </Grid>

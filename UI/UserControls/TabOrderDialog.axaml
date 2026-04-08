@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="PinayPalBackupManager.UI.UserControls.TabOrderDialog"
+        Title="Customize Tab Order"
         Width="360"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
@@ -8,8 +9,9 @@
         ShowInTaskbar="False"
         Background="{DynamicResource AppBg}"
         ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="0"
         ExtendClientAreaChromeHints="NoChrome"
-        ExtendClientAreaTitleBarHeightHint="0">
+        SystemDecorations="None">
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
 
@@ -26,9 +28,9 @@
 
         <!-- Footer -->
         <Grid Grid.Row="2" ColumnDefinitions="*, Auto, 10, Auto" Margin="0,18,0,0">
-            <Button Grid.Column="0" Name="BtnResetOrder" Content="Reset to Default" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppWarning}" BorderThickness="0" CornerRadius="8" Padding="14,10" FontSize="11" Cursor="Hand"/>
+            <Button Grid.Column="0" Name="BtnResetOrder" Content="Reset to Default" Background="{DynamicResource AppMuted}" Foreground="{DynamicResource AccentWarning}" BorderThickness="0" CornerRadius="8" Padding="14,10" FontSize="11" Cursor="Hand"/>
             <Button Grid.Column="1" Name="BtnCancelOrder" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0" CornerRadius="8" Padding="20,10" FontSize="12" Cursor="Hand"/>
-            <Button Grid.Column="3" Name="BtnSaveOrder" Content="Apply Order" Background="{DynamicResource AccentWebsite}" Foreground="#000000" BorderThickness="0" CornerRadius="8" Padding="20,10" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+            <Button Grid.Column="3" Name="BtnSaveOrder" Content="Apply Order" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="20,10" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
         </Grid>
 
     </Grid>

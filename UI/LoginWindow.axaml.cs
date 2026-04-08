@@ -2,8 +2,11 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using PinayPalBackupManager.Models;
 using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.UI
@@ -24,6 +27,14 @@ namespace PinayPalBackupManager.UI
                    (currentDir.Contains("Debug") || currentDir.Contains("bin") || 
                     File.Exists(Path.Combine(baseDir, "..", "..", "PinayPalBackupManager.csproj")) ||
                     File.Exists(Path.Combine(currentDir, "PinayPalBackupManager.csproj")));
+        }
+
+        private IBrush GetBrush(string key)
+        {
+            if (Application.Current?.TryGetResource(key, out var value) == true && value is IBrush b)
+                return b;
+            // Fallbacks
+            return Brushes.White;
         }
 
         public LoginWindow()
@@ -81,6 +92,7 @@ namespace PinayPalBackupManager.UI
 
             // Wire buttons
             this.FindControl<Button>("BtnLogin")!.Click += OnLoginClick;
+            this.FindControl<Button>("BtnVerify2FA")!.Click += OnVerify2FAClick;
             this.FindControl<Button>("BtnRegister")!.Click += OnRegisterClick;
             this.FindControl<Button>("BtnShowRegister")!.Click += (_, _) => ShowRegisterPanel(isFirstUser: false);
             this.FindControl<Button>("BtnShowLogin")!.Click += (_, _) => ShowLoginPanel();
@@ -134,17 +146,17 @@ namespace PinayPalBackupManager.UI
                                 {
                                     if (newStatus == "Active")
                                     {
-                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#52B788");
+                                        errorTxt.Foreground = GetBrush("AccentFtp");
                                         errorTxt.Text = "Your account has been approved! You can now log in.";
                                     }
                                     else if (newStatus == "Deleted")
                                     {
-                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                        errorTxt.Foreground = GetBrush("AccentError");
                                         errorTxt.Text = "Your account has been deleted. Contact admin if you believe this is an error.";
                                     }
                                     else if (newStatus == "Disabled")
                                     {
-                                        errorTxt.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                                        errorTxt.Foreground = GetBrush("AccentError");
                                         errorTxt.Text = "Your account has been disabled. Contact admin.";
                                     }
                                 }
@@ -200,41 +212,124 @@ namespace PinayPalBackupManager.UI
             ClearErrors();
         }
 
+        private int _pending2FAUserId = 0;
+        private string _pendingUsername = "";
+        private string _pendingPassword = "";
+
         private async void OnLoginClick(object? sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("TxtLoginUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtLoginPass")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
+            var btnLogin = this.FindControl<Button>("BtnLogin");
 
-            var (success, message) = await AuthService.LoginAsync(username, password);
-            if (success)
+            try
             {
-                _statusListenerCts?.Cancel();
-                var rememberMe = this.FindControl<CheckBox>("ChkRememberMe")?.IsChecked == true;
-                if (rememberMe && AuthService.CurrentUser != null)
-                    SessionService.SaveSession(AuthService.CurrentUser.Id);
-                else
-                    SessionService.ClearSession();
-                OnLoginSuccess?.Invoke();
+                if (btnLogin != null) btnLogin.IsEnabled = false;
+                errorTxt.Foreground = GetBrush("AppMuted");
+                errorTxt.Text = "Checking credentials...";
+
+                // Step 1: Verify username/password only (no 2FA yet)
+                var (success, user, message) = await AuthService.VerifyCredentialsAsync(username, password);
+                if (!success || user == null)
+                {
+                    errorTxt.Foreground = GetBrush("AccentError");
+                    errorTxt.Text = message;
+                    return;
+                }
+
+                // Step 2: Check if 2FA is enabled
+                if (TwoFactorAuthService.IsEnabled(user.Id))
+                {
+                    // Store pending login info and show 2FA panel
+                    _pending2FAUserId = user.Id;
+                    _pendingUsername = username;
+                    _pendingPassword = password;
+                    Show2FAPanel();
+                    return;
+                }
+
+                // No 2FA - complete login directly
+                await CompleteLoginAsync(user);
             }
-            else
+            catch (Exception ex)
             {
-                errorTxt.Text = message;
+                errorTxt.Foreground = GetBrush("AccentError");
+                errorTxt.Text = $"Login failed: {ex.Message}";
+            }
+            finally
+            {
+                if (btnLogin != null) btnLogin.IsEnabled = true;
             }
         }
 
-        private async void OnRegisterClick(object? sender, RoutedEventArgs e)
+        private void Show2FAPanel()
+        {
+            this.FindControl<StackPanel>("Panel2FA")!.IsVisible = true;
+            this.FindControl<Button>("BtnLogin")!.IsVisible = false;
+            this.FindControl<TextBlock>("TxtLoginError")!.Text = "Enter the 6-digit code from your authenticator app";
+            this.FindControl<TextBox>("Txt2FACode")!.Focus();
+        }
+
+        private void Hide2FAPanel()
+        {
+            this.FindControl<StackPanel>("Panel2FA")!.IsVisible = false;
+            this.FindControl<Button>("BtnLogin")!.IsVisible = true;
+            this.FindControl<TextBlock>("Txt2FAError")!.Text = "";
+            this.FindControl<TextBox>("Txt2FACode")!.Text = "";
+        }
+
+        private async void OnVerify2FAClick(object? sender, RoutedEventArgs e)
+        {
+            var code = this.FindControl<TextBox>("Txt2FACode")!.Text?.Trim() ?? "";
+            var errorTxt = this.FindControl<TextBlock>("Txt2FAError")!;
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                errorTxt.Text = "Please enter your authenticator code or a recovery code";
+                return;
+            }
+
+            // Verify the 2FA code (handles both TOTP codes and recovery codes)
+            if (!TwoFactorAuthService.VerifyCode(_pending2FAUserId, code))
+            {
+                errorTxt.Text = "Invalid code. Please try again.";
+                return;
+            }
+
+            // Code is valid - complete the login
+            var user = AuthService.GetUserById(_pending2FAUserId);
+            if (user != null)
+            {
+                // Set current user since VerifyCredentials didn't do full login
+                AuthService.SetCurrentUserFor2FA(user);
+                await CompleteLoginAsync(user);
+            }
+        }
+
+        private async Task CompleteLoginAsync(AppUser user)
+        {
+            _statusListenerCts?.Cancel();
+            var rememberMe = this.FindControl<CheckBox>("ChkRememberMe")?.IsChecked == true;
+            if (rememberMe)
+                SessionService.SaveSession(user.Id);
+            else
+                SessionService.ClearSession();
+            OnLoginSuccess?.Invoke();
+        }
+
+        private void OnRegisterClick(object? sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("TxtRegUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtRegPass")!.Text ?? string.Empty;
             var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtRegError")!;
 
-            var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
+            var (success, message) = AuthService.Register(username, password, inviteCode);
             if (success)
             {
                 // Auto-login after registration
-                var (loginOk, _) = await AuthService.LoginAsync(username, password);
+                var (loginOk, _) = AuthService.Login(username, password);
                 if (loginOk)
                 {
                     OnLoginSuccess?.Invoke();
@@ -244,7 +339,7 @@ namespace PinayPalBackupManager.UI
                 // Fallback: show login panel with success message
                 ShowLoginPanel();
                 this.FindControl<TextBlock>("TxtLoginError")!.Text = message + " Please sign in.";
-                this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#52B788");
+                this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#588157");
             }
             else
             {

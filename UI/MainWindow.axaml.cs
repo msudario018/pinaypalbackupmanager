@@ -34,7 +34,9 @@ namespace PinayPalBackupManager.UI
         private readonly ProfileControl _profileControl;
         private DispatcherTimer? _activeProcessMonitorTimer;
         private bool _allowClose;
+#pragma warning disable CS0649
         private DispatcherTimer? _toastTimer;
+#pragma warning restore CS0649
         private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
         private bool _startupHealthPending = true;
         private bool _configRequired;
@@ -46,7 +48,6 @@ namespace PinayPalBackupManager.UI
             _backupManager = new BackupManager();
             _backupManager.OnTimeUpdate += UpdateTime;
             _backupManager.OnHealthUpdate += UpdateHealthStatus;
-            NotificationService.OnToast += HandleToast;
 
             WindowStateService.Restore(this);
 
@@ -151,6 +152,7 @@ namespace PinayPalBackupManager.UI
             var mainGrid = this.FindControl<Grid>("MainGrid");
             if (mainGrid != null)
             {
+                // Only modify column definitions during startup, keep row definitions from XAML
                 mainGrid.ColumnDefinitions.Clear();
                 mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) }); // Hidden sidepanel
                 mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Full width content
@@ -799,6 +801,7 @@ namespace PinayPalBackupManager.UI
                     var mainGrid = this.FindControl<Grid>("MainGrid");
                     if (mainGrid != null)
                     {
+                        // Only restore column definitions, keep row definitions from XAML
                         mainGrid.ColumnDefinitions.Clear();
                         mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) }); // Sidepanel width
                         mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content area
@@ -951,7 +954,6 @@ namespace PinayPalBackupManager.UI
                 return;
             }
 
-            NotificationService.OnToast -= HandleToast;
             _backupManager.Stop();
             base.OnClosing(e);
         }
@@ -992,37 +994,6 @@ namespace PinayPalBackupManager.UI
             _homeControl.SetActiveOperations(activeCount);
         }
 
-        private void HandleToast(string title, string message, string type)
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var border = this.FindControl<Border>("ToastBorder");
-                if (border == null) return;
-
-                var tTitle = this.FindControl<TextBlock>("ToastTitle");
-                var tMsg = this.FindControl<TextBlock>("ToastMessage");
-                if (tTitle != null) tTitle.Text = title;
-                if (tMsg != null) tMsg.Text = message;
-
-                border.BorderBrush = type.Equals("Error", StringComparison.OrdinalIgnoreCase)
-                    ? Avalonia.Media.Brush.Parse("#F38BA8")
-                    : type.Equals("Warning", StringComparison.OrdinalIgnoreCase)
-                        ? Avalonia.Media.Brush.Parse("#FAD643")
-                        : Avalonia.Media.Brush.Parse("#5A189A");
-
-                border.IsVisible = true;
-                border.Opacity = 1;
-
-                _toastTimer?.Stop();
-                _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-                _toastTimer.Tick += (_, _) =>
-                {
-                    _toastTimer?.Stop();
-                    border.IsVisible = false;
-                };
-                _toastTimer.Start();
-            });
-        }
 
         private bool _notifCenterOpen;
 
@@ -1058,21 +1029,39 @@ namespace PinayPalBackupManager.UI
             }
             foreach (var n in entries)
             {
-                string accent = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#FAD643" : n.Type == "Success" ? "#52B788" : "#FCA311";
-                var row = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8), Margin = new Thickness(0, 2) };
-                row.Background = Brush.Parse(ThemeService.IsDark ? "#1F1505" : "#FFF3CD");
-                var content = new StackPanel { Spacing = 2 };
-                var header = new Grid();
-                header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-                header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-                var title = new TextBlock { Text = n.Title, FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Brush.Parse(accent) };
-                var time = new TextBlock { Text = n.Time.ToString("HH:mm"), FontSize = 9, Foreground = Brush.Parse("#808080"), VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(title, 0); Grid.SetColumn(time, 1);
-                header.Children.Add(title); header.Children.Add(time);
-                content.Children.Add(header);
-                content.Children.Add(new TextBlock { Text = n.Message, FontSize = 10, Foreground = Brush.Parse(ThemeService.IsDark ? "#FCA311" : "#D4880E"), TextWrapping = Avalonia.Media.TextWrapping.Wrap });
-                row.Child = content;
-                list.Children.Add(row);
+                var item = new NotificationItem();
+                item.Title = n.Title;
+                item.Message = n.Message;
+                item.Timestamp = n.Time.ToString("h:mm tt");
+                
+                // Set icon brush based on type
+                string iconColor = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#FAD643" : n.Type == "Success" ? "#52B788" : "#FCA311";
+                item.IconBrush = Brush.Parse(iconColor);
+                
+                // Set icon data based on type
+                item.IconData = StreamGeometry.Parse(n.Type switch
+                {
+                    "Error" => "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
+                    "Warning" => "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z",
+                    "Success" => "M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z",
+                    _ => "M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                });
+                
+                // Handle dismiss
+                item.Dismissed += (s, e) =>
+                {
+                    NotificationHistoryService.Remove(n);
+                    Dispatcher.UIThread.Post(() => 
+                    { 
+                        if (list.Children.Contains(item)) 
+                            list.Children.Remove(item);
+                        UpdateBellBadge();
+                        if (NotificationHistoryService.Entries.Count == 0)
+                            PopulateNotificationCenter();
+                    });
+                };
+                
+                list.Children.Add(item);
             }
         }
 
@@ -1431,20 +1420,214 @@ namespace PinayPalBackupManager.UI
         
         private async Task ShowChangePasswordDialog()
         {
-            // TODO: Implement change password dialog
-            NotificationService.ShowBackupToast("Profile", "Password change feature coming soon!", "Info");
+            var dialog = new ChangePasswordDialog();
+            var window = new Window
+            {
+                Title = "Change Password",
+                Width = 420,
+                Height = 480,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brushes.Transparent,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnPasswordChanged += (s, e) =>
+            {
+                NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
+                window.Close();
+            };
+            dialog.OnCancel += (s, e) => window.Close();
+
+            await window.ShowDialog(this);
         }
 
         private async Task ShowChangeUsernameDialog()
         {
-            // TODO: Implement change username dialog
-            NotificationService.ShowBackupToast("Profile", "Username change feature coming soon!", "Info");
+            var dialog = new ChangeUsernameDialog();
+            var window = new Window
+            {
+                Title = "Change Username",
+                Width = 420,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brushes.Transparent,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnUsernameChanged += (s, e) =>
+            {
+                NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
+                window.Close();
+            };
+            dialog.OnCancel += (s, e) => window.Close();
+
+            await window.ShowDialog(this);
         }
 
         private async Task UploadAvatar()
         {
-            // TODO: Implement avatar upload
-            NotificationService.ShowBackupToast("Profile", "Avatar upload feature coming soon!", "Info");
+            var picker = new OpenFileDialog
+            {
+                Title = "Select Avatar Image",
+                AllowMultiple = false
+            };
+            picker.Filters.Add(new FileDialogFilter { Name = "Images", Extensions = new List<string> { "png", "jpg", "jpeg", "gif", "bmp" } });
+
+            var result = await picker.ShowAsync(this);
+            if (result != null && result.Length > 0)
+            {
+                try
+                {
+                    var filePath = result[0];
+                    var user = AuthService.CurrentUser;
+                    if (user == null) return;
+
+                    // Copy to app data folder
+                    var avatarFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PinayPalBackupManager", "Avatars");
+                    Directory.CreateDirectory(avatarFolder);
+
+                    var fileExt = System.IO.Path.GetExtension(filePath);
+                    var avatarPath = System.IO.Path.Combine(avatarFolder, $"{user.Id}{fileExt}" );
+
+                    File.Copy(filePath, avatarPath, overwrite: true);
+
+                    // Update user avatar in database
+                    var updated = AuthService.UpdateAvatar(user.Id, avatarPath);
+                    if (updated)
+                    {
+                        NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
+                    }
+                    else
+                    {
+                        NotificationService.ShowBackupToast("Profile", "Failed to save avatar.", "Error");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"Avatar upload failed: {ex.Message}", "", "Error", "SYSTEM");
+                    NotificationService.ShowBackupToast("Profile", "Avatar upload failed.", "Error");
+                }
+            }
+        }
+
+        private void ShowTwoFactorAuthDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            const string dialogKey = "two_factor";
+            if (NotificationService.IsDialogOpen(dialogKey))
+                return;
+            NotificationService.RegisterDialog(dialogKey);
+
+            var dialog = new TwoFactorAuthDialog(user.Id);
+            var window = new Window
+            {
+                Title = "Two-Factor Authentication",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            window.Show();
+        }
+
+        private void ShowLoginHistoryDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            const string dialogKey2 = "login_history";
+            if (NotificationService.IsDialogOpen(dialogKey2))
+                return;
+            NotificationService.RegisterDialog(dialogKey2);
+
+            var dialog = new LoginHistoryDialog(user.Username);
+            var window = new Window
+            {
+                Title = "Login History",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey2);
+            window.Show();
+        }
+
+        private async Task ShowDeleteAccountDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            // Do not allow deleting admin accounts
+            if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                NotificationService.ShowBackupToast("Account", "Admin accounts cannot be deleted.", "Error");
+                return;
+            }
+
+            var confirm = await ConfirmDialog.ShowAsync(
+                "Delete Account",
+                "WARNING: This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?");
+
+            if (!confirm) return;
+
+            // Second confirmation
+            var confirm2 = await ConfirmDialog.ShowAsync(
+                "Confirm Deletion",
+                "Please confirm again: Your account, backups, and all data will be permanently removed.");
+
+            if (!confirm2) return;
+
+            // Delete user
+            var deleted = AuthService.DeleteUser(user.Id);
+            if (deleted)
+            {
+                NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");
+                await Task.Delay(2000);
+                _allowClose = true;
+                Close();
+            }
+            else
+            {
+                NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
+            }
         }
 
         #endregion

@@ -6,7 +6,7 @@
             <!-- App Updates (1st) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="{DynamicResource AccentWarning}" Margin="0,0,0,10"/>
                     <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}"/>
                     <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                 </StackPanel>
@@ -15,7 +15,7 @@
             <!-- Backup Health Dashboard (2nd) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" Margin="0,0,0,10"/>
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}" Margin="0,0,0,10"/>
                     <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                     <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
@@ -58,7 +58,7 @@
             <!-- Credentials & Paths (3rd) -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
-                    <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
+                    <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,10"/>
                     
                     <Grid ColumnDefinitions="*,*">
                         <Button Name="BtnEditCredentials" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Margin="0,0,5,0">

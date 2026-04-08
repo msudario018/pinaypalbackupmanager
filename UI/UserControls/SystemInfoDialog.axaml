@@ -23,7 +23,7 @@
             </ScrollViewer>
             
             <!-- Button -->
-            <Button Grid.Row="2" Name="BtnOk" Content="OK" Background="{DynamicResource AccentWebsite}" Foreground="#000000" Padding="30,10" CornerRadius="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+            <Button Grid.Row="2" Name="BtnOk" Content="OK" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" Padding="30,10" CornerRadius="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,20,0,0"/>
         </Grid>
     </Border>
 </UserControl>

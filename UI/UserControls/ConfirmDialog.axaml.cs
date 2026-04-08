@@ -37,6 +37,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 ShowInTaskbar = false,
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
                 Topmost = true,
                 Background = Avalonia.Media.Brushes.Transparent
             };

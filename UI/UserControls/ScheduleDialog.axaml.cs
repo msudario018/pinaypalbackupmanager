@@ -70,13 +70,13 @@ namespace PinayPalBackupManager.UI.UserControls
             var amText = this.FindControl<TextBlock>($"{prefix}AmText");
             var pmText = this.FindControl<TextBlock>($"{prefix}PmText");
 
-            string activeColor = prefix == "Ftp" ? "#52B788" : prefix == "Mc" ? "#48CAE4" : "#C77DFF";
-            string activeBg    = prefix == "Ftp" ? "#10002B" : prefix == "Mc" ? "#0F2028" : "#2A2510";
+            string activeColor = prefix == "Ftp" ? "#588157" : prefix == "Mc" ? "#00b4d8" : "#fad643";
+            string activeBg    = prefix == "Ftp" ? "#344e41" : prefix == "Mc" ? "#03045e" : "#805b10";
 
-            if (amBtn  != null) amBtn.Background  = Brush.Parse(isPm ? "#5A189A" : activeBg);
-            if (pmBtn  != null) pmBtn.Background  = Brush.Parse(isPm ? activeBg  : "#5A189A");
-            if (amText != null) { amText.Foreground = Brush.Parse(isPm ? "#9D4EDD" : activeColor); }
-            if (pmText != null) { pmText.Foreground = Brush.Parse(isPm ? activeColor : "#9D4EDD"); }
+            if (amBtn  != null) amBtn.Background  = Brush.Parse(isPm ? "#6C7086" : activeBg);
+            if (pmBtn  != null) pmBtn.Background  = Brush.Parse(isPm ? activeBg  : "#6C7086");
+            if (amText != null) { amText.Foreground = Brush.Parse(isPm ? "#6C7086" : activeColor); }
+            if (pmText != null) { pmText.Foreground = Brush.Parse(isPm ? activeColor : "#6C7086"); }
         }
 
         private void ResetToDefault()
@@ -109,7 +109,7 @@ namespace PinayPalBackupManager.UI.UserControls
             SetTb("SqlScanMinutes", d.SqlAutoScanMinutes.ToString("D2"));
 
             var status = this.FindControl<TextBlock>("DialogStatus");
-            if (status != null) { status.Text = "Reset to defaults — click Save to apply"; status.Foreground = Brush.Parse("#FAB387"); }
+            if (status != null) { status.Text = "Reset to defaults — click Save to apply"; status.Foreground = Brush.Parse("#dad7cd"); }
         }
 
         private void SaveAndClose()

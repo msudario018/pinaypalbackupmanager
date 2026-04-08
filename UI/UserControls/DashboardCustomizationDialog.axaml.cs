@@ -23,8 +23,8 @@ namespace PinayPalBackupManager.UI.UserControls
             var applyButton = new Button
             {
                 Content = "Apply",
-                Background = Brush.Parse("#FAD643"),
-                Foreground = Brush.Parse("#9D4EDD"),
+                Background = Brush.Parse("#CBA6F7"),
+                Foreground = Brush.Parse("#1E1E2E"),
                 BorderThickness = new Avalonia.Thickness(0),
                 CornerRadius = new Avalonia.CornerRadius(6),
                 Padding = new Avalonia.Thickness(20, 10),
@@ -49,8 +49,8 @@ namespace PinayPalBackupManager.UI.UserControls
             var cancelButton = new Button
             {
                 Content = "Cancel",
-                Background = Brush.Parse("#48CAE4"),
-                Foreground = Brush.Parse("#FAD643"),
+                Background = Brush.Parse("#6C7086"),
+                Foreground = Brush.Parse("#CDD6F4"),
                 BorderThickness = new Avalonia.Thickness(0),
                 CornerRadius = new Avalonia.CornerRadius(6),
                 Padding = new Avalonia.Thickness(20, 10),
@@ -68,7 +68,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 Content = "Compact Mode",
                 FontSize = 13,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = Brush.Parse("#FAD643"),
+                Foreground = Brush.Parse("#6C7086"),
                 IsChecked = _settings.CompactMode
             };
 
@@ -83,14 +83,14 @@ namespace PinayPalBackupManager.UI.UserControls
                         Text = "Dashboard Customization",
                         FontSize = 20,
                         FontWeight = FontWeight.Bold,
-                        Foreground = Brush.Parse("#FAD643"),
+                        Foreground = Brush.Parse("#CBA6F7"),
                         Margin = new Avalonia.Thickness(0, 0, 0, 10)
                     },
                     new TextBlock
                     {
                         Text = "Choose which sections to show and your preferred view mode.",
                         FontSize = 12,
-                        Foreground = Brush.Parse("#FAD643"),
+                        Foreground = Brush.Parse("#6C7086"),
                         Margin = new Avalonia.Thickness(0, 0, 0, 20)
                     },
                     CreateSectionToggle("System Status Overview", nameof(_settings.ShowSystemStatus)),
@@ -109,7 +109,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     CreateSectionToggle("System Logs", nameof(_settings.ShowSystemLogs)),
                     new Border
                     {
-                        Background = Brush.Parse("#52B788"),
+                        Background = Brush.Parse("#6C7086"),
                         CornerRadius = new Avalonia.CornerRadius(8),
                         Padding = new Avalonia.Thickness(12),
                         Margin = new Avalonia.Thickness(0, 10, 0, 0),
@@ -135,7 +135,7 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             return new Border
             {
-                Background = Brush.Parse("#52B788"),
+                Background = Brush.Parse("#6C7086"),
                 CornerRadius = new Avalonia.CornerRadius(6),
                 Padding = new Avalonia.Thickness(12),
                 Child = new StackPanel
@@ -153,7 +153,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             Text = label,
                             FontSize = 13,
-                            Foreground = Brush.Parse("#FAD643"),
+                            Foreground = Brush.Parse("#6C7086"),
                             VerticalAlignment = VerticalAlignment.Center
                         }
                     }

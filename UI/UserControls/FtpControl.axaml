@@ -20,37 +20,37 @@
 
         <!-- Header -->
 
-        <Border Grid.Row="0" Background="#1B4332" Padding="20" CornerRadius="12" Margin="0,0,0,15" ClipToBounds="True">
+        <Border Grid.Row="0" Background="{DynamicResource AccentFtpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
 
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
 
-                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="#D8F3DC" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
+                <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentFtpLight}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
 
-                <TextBlock Grid.Row="1" Name="TxtFile" Text="Status: Idle" Foreground="#95D5B2" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
+                <TextBlock Grid.Row="1" Name="TxtFile" Text="Status: Idle" Foreground="{DynamicResource AccentFtpMuted}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
 
                 <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,12">
 
-                    <Border Background="#52B788" CornerRadius="20" Padding="15,7">
+                    <Border Background="{DynamicResource AccentFtpDark}" CornerRadius="20" Padding="15,7">
 
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
 
-                            <Ellipse Width="8" Height="8" Fill="#081C15"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentFtpLight}"/>
 
-                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="#081C15" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtAutoScan" Text="Auto-Scan: --:--:--" Foreground="{DynamicResource AccentFtpLight}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
 
                         </StackPanel>
 
                     </Border>
 
-                    <Border Background="#2D6A4F" CornerRadius="20" Padding="15,7">
+                    <Border Background="{DynamicResource AccentFtpDark}" CornerRadius="20" Padding="15,7">
 
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center">
 
-                            <Ellipse Width="8" Height="8" Fill="#52B788"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentFtpLight}"/>
 
-                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="#D8F3DC" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtNextDaily" Text="Next Daily: --:--:--" Foreground="{DynamicResource AccentFtpLight}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
 
                         </StackPanel>
 
@@ -74,7 +74,7 @@
 
         <!-- Progress -->
 
-        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" BorderBrush="#2D6A4F" Foreground="#D8F3DC"/>
+        <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="{DynamicResource AccentFtpDark}" Foreground="{DynamicResource AccentFtp}"/>
 
 
         <!-- Utility Buttons -->
@@ -92,15 +92,15 @@
 
         <!-- Logs Container -->
 
-        <Border Grid.Row="3" Background="#081C15" CornerRadius="12" Padding="15">
+        <Border Grid.Row="3" Background="{DynamicResource AccentFtpBg}" CornerRadius="16" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
 
             <Grid RowDefinitions="Auto, *">
 
-                <TextBlock Text="TERMINAL LOGS" FontWeight="Bold" Foreground="#95D5B2" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBlock Text="TERMINAL LOGS" FontWeight="Bold" Foreground="{DynamicResource AccentFtpLight}" Margin="0,0,0,10"/>
 
                 <TextBox Grid.Row="1" Name="TxtLogs" IsReadOnly="True" Background="Transparent" BorderThickness="0"
 
-                         FontFamily="Consolas" Foreground="#B7E4C7" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
+                         FontFamily="Consolas" Foreground="{DynamicResource AppLogText}" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
 
                          ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
 
@@ -113,7 +113,7 @@
 
         <Button Grid.Row="4" Name="BtnViewLog" Content="OPEN LOG FILE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
 
-                BorderBrush="#2D6A4F" Margin="0,15,0,0" Padding="10" CornerRadius="8"/>
+                BorderBrush="{DynamicResource AppBorder}" Margin="0,15,0,0" Padding="10" CornerRadius="12"/>
 
 
     </Grid>
@@ -122,7 +122,7 @@
     <UserControl.Styles>
 
         <Style Selector="TextBox#TxtLogs">
-            <Setter Property="Foreground" Value="#B7E4C7"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppLogText}"/>
         </Style>
         <Style Selector="TextBox#TxtLogs:pointerover /template/ Border#PART_BorderElement">
 
@@ -136,7 +136,8 @@
 
             <Setter Property="Background" Value="Transparent"/>
 
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFtp}"/>
+            <Setter Property="BorderThickness" Value="2"/>
 
         </Style>
 
@@ -150,9 +151,9 @@
 
             <Setter Property="FontWeight" Value="SemiBold"/>
 
-            <Setter Property="Foreground" Value="#D8F3DC"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
-            <Setter Property="Background" Value="#1B4332"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtpLight}"/>
 
             <Setter Property="CornerRadius" Value="6"/>
 
@@ -174,7 +175,8 @@
 
         <Style Selector="Button.ToolBtn:pointerover">
 
-            <Setter Property="Background" Value="#2D6A4F"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -182,7 +184,8 @@
 
         <Style Selector="Button.ToolBtn:pressed">
 
-            <Setter Property="Background" Value="#40916C"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -195,11 +198,8 @@
             <Setter Property="Transitions">
 
                 <Transitions>
-
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
-
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
 
             </Setter>
@@ -208,7 +208,8 @@
 
         <Style Selector="Button#BtnStart:pointerover">
 
-            <Setter Property="Background" Value="#2D6A4F"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -216,7 +217,8 @@
 
         <Style Selector="Button#BtnStart:pressed">
 
-            <Setter Property="Background" Value="#40916C"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -229,11 +231,8 @@
             <Setter Property="Transitions">
 
                 <Transitions>
-
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
-
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
 
             </Setter>
@@ -242,7 +241,7 @@
 
         <Style Selector="Button#BtnCancel:pointerover">
 
-            <Setter Property="Background" Value="#2D6A4F"/>
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.02)"/>
 
@@ -250,7 +249,7 @@
 
         <Style Selector="Button#BtnCancel:pressed">
 
-            <Setter Property="Background" Value="#40916C"/>
+            <Setter Property="Background" Value="{DynamicResource AppMuted}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
 
@@ -260,20 +259,17 @@
 
         <Style Selector="Button#BtnViewLog">
 
-            <Setter Property="Foreground" Value="#D8F3DC"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="FontWeight" Value="Bold"/>
 
-            <Setter Property="Background" Value="#2D6A4F"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtpLight}"/>
 
             <Setter Property="Transitions">
 
                 <Transitions>
-
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
-
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
                 </Transitions>
 
             </Setter>
@@ -282,7 +278,8 @@
 
         <Style Selector="Button#BtnViewLog:pointerover">
 
-            <Setter Property="Background" Value="#2D6A4F"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtp}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(1.01)"/>
 
@@ -290,7 +287,8 @@
 
         <Style Selector="Button#BtnViewLog:pressed">
 
-            <Setter Property="Background" Value="#40916C"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFtpDark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
 
             <Setter Property="RenderTransform" Value="scale(0.99)"/>
 

@@ -7,16 +7,16 @@
         <StackPanel Spacing="15" VerticalAlignment="Top">
             <TextBlock Text="Change Username" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AppText}" HorizontalAlignment="Center"/>
             
-            <TextBlock Name="TxtCurrent" Text="" Foreground="{DynamicResource AccentWebsite}" FontSize="12" HorizontalAlignment="Center"/>
+            <TextBlock Name="TxtCurrent" Text="" Foreground="{DynamicResource AppSubtext}" FontSize="12" HorizontalAlignment="Center"/>
             
             <TextBlock Text="New Username" Foreground="{DynamicResource AppSubtext}" FontSize="12"/>
-            <TextBox Name="TxtNewUsername" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
+            <TextBox Name="TxtNewUsername" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
             
-            <TextBlock Name="TxtError" Text="" Foreground="{DynamicResource AppWarning}" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
+            <TextBlock Name="TxtError" Text="" Foreground="{DynamicResource AccentError}" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,10,0,0">
                 <Button Name="BtnCancel" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,8" CornerRadius="8"/>
-                <Button Name="BtnChange" Content="Change Username" Background="{DynamicResource AccentMailchimp}" Foreground="#000000" Padding="15,8" CornerRadius="8" FontWeight="Bold"/>
+                <Button Name="BtnChange" Content="Change Username" Background="{DynamicResource AccentDefault}" Foreground="{DynamicResource AppText}" Padding="15,8" CornerRadius="8" FontWeight="Bold"/>
             </StackPanel>
         </StackPanel>
     </Border>

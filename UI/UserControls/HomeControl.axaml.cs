@@ -17,7 +17,13 @@ namespace PinayPalBackupManager.UI.UserControls
     public partial class HomeControl : UserControl
     {
         private readonly BackupManager _manager;
+#pragma warning disable CS0649
+        private System.Timers.Timer? _autoPingTimer;
+        private System.Timers.Timer? _statsTimer;
+        private System.Timers.Timer? _scheduleTimer;
+        private System.Timers.Timer? _storageTimer;
         private System.Timers.Timer? _healthRefreshTimer;
+#pragma warning restore CS0649
         private bool _compactMode = false;
         private int _activeOperations = 0;
         private System.Timers.Timer? _activeProcessUpdateTimer;
@@ -39,7 +45,7 @@ namespace PinayPalBackupManager.UI.UserControls
         private bool _autoPinged;
         private bool _maintenancePaused;
 
-        public HomeControl() : this(null)
+        public HomeControl() : this(null!)
         {
             // Load saved dashboard customization
             var savedSettings = DashboardCustomization.Load();
@@ -51,7 +57,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (btn != null) 
                 {
                     btn.Content = "⊞ Expand";
-                    btn.Foreground = Brush.Parse("#52B788");
+                    btn.Foreground = Brush.Parse("#588157");
                 }
             }
         }
@@ -88,7 +94,7 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnOpenSchedule")!.Click += async (_, _) => await OpenScheduleDialogAsync();
             this.FindControl<Button>("BtnBackupAll")!.Click += async (_, _) => await RunAllBackupsAsync();
             this.FindControl<Button>("BtnTestAllConn")!.Click += async (_, _) => await PingAllAsync();
-            this.FindControl<Button>("BtnRetryFailed")!.Click += (_, _) => { SetOpStatus("Retrying all services...", "#FAB387"); OnRunAllChecks?.Invoke(); SetOpStatus("Retry triggered. Check service tabs for results.", "#52B788"); };
+            this.FindControl<Button>("BtnRetryFailed")!.Click += (_, _) => { SetOpStatus("Retrying all services...", "#dad7cd"); OnRunAllChecks?.Invoke(); SetOpStatus("Retry triggered. Check service tabs for results.", "#588157"); };
             this.FindControl<Button>("BtnCompactToggle")!.Click += (_, _) => ToggleCompactMode();
             this.FindControl<Button>("BtnEmergencyStop")!.Click += (_, _) => { OnEmergencyStop?.Invoke(); SetOpStatus("Emergency stop sent to all services.", "#F38BA8"); };
             this.FindControl<Button>("BtnMaintenanceToggle")!.Click += (_, _) => ToggleMaintenance();
@@ -131,6 +137,9 @@ namespace PinayPalBackupManager.UI.UserControls
             _ = UpdateQuickStatsAsync();
             _ = UpdateTimeSinceLastBackupAsync();
             _ = LoadRecentErrorsAsync();
+            
+            // Initialize service status immediately
+            UpdateServicesStatusSummary(null);
             
             // Start dashboard auto-refresh (every 30 seconds)
             StartDashboardAutoRefresh();
@@ -218,7 +227,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 {
                                     Text = alert.AgeText,
                                     FontSize = 9,
-                                    Foreground = Avalonia.Media.Brush.Parse("#9D4EDD"),
+                                    Foreground = Avalonia.Media.Brush.Parse("#6C7086"),
                                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
                                 };
                                 
@@ -240,7 +249,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 {
                                     Text = "No critical alerts - all systems healthy!",
                                     FontSize = 10,
-                                    Foreground = Avalonia.Media.Brush.Parse("#52B788"),
+                                    Foreground = Avalonia.Media.Brush.Parse("#588157"),
                                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
                                 };
                                 alertsList.Children.Add(noAlerts);
@@ -348,7 +357,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
 
                 bool allOk = alertServices.Count == 0;
-                var healthBrush = allOk ? Brush.Parse("#52B788") : Brush.Parse("#F38BA8");
+                var healthBrush = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
 
                 var dot = this.FindControl<Ellipse>("DashHealthDot");
                 var txt = this.FindControl<TextBlock>("DashHealthText");
@@ -365,7 +374,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (statOk != null)
                 {
                     statOk.Text = $"{servicesOk}/3";
-                    statOk.Foreground = allOk ? Brush.Parse("#52B788") : Brush.Parse("#F38BA8");
+                    statOk.Foreground = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
                 }
 
                 UpdateGreeting();
@@ -650,7 +659,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         list.Children.Add(new TextBlock
                         {
                             Text = "No activity found.",
-                            Foreground = Brush.Parse("#7B2CBF"),
+                            Foreground = Brush.Parse("#6C7086"),
                             FontSize = 11
                         });
                         return;
@@ -660,16 +669,16 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         var svcColor = service switch
                         {
-                            "FTP" => "#52B788",
-                            "MC" => "#48CAE4",
-                            "SQL" => "#FAD643",
-                            _ => "#C77DFF"
+                            "FTP" => "#588157",
+                            "MC" => "#00b4d8",
+                            "SQL" => "#fad643",
+                            _ => "#6C7086"
                         };
                         var lvlColor = level switch
                         {
                             "ERROR" => "#F38BA8",
-                            "WARNING" => "#FAB387",
-                            _ => "#9D4EDD"
+                            "WARNING" => "#dad7cd",
+                            _ => "#6C7086"
                         };
 
                         var row = new Grid();
@@ -680,7 +689,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                         var svcBadge = new Border
                         {
-                            Background = Brush.Parse("#240046"),
+                            Background = Brush.Parse("#11111B"),
                             CornerRadius = new Avalonia.CornerRadius(4),
                             Padding = new Avalonia.Thickness(6, 2),
                             Margin = new Avalonia.Thickness(0, 0, 8, 0),
@@ -707,7 +716,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             Text = msg,
                             FontSize = 10,
-                            Foreground = Brush.Parse("#C77DFF"),
+                            Foreground = Brush.Parse("#6C7086"),
                             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                             TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
                         };
@@ -717,7 +726,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             Text = ts.ToString("HH:mm"),
                             FontSize = 9,
-                            Foreground = Brush.Parse("#7B2CBF"),
+                            Foreground = Brush.Parse("#6C7086"),
                             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                             Margin = new Avalonia.Thickness(8, 0, 0, 0)
                         };
@@ -805,10 +814,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private static IBrush ColorFromReport(string color) => color switch
         {
-            "LimeGreen" => Brush.Parse("#52B788"),
-            "Orange" => Brush.Parse("#FAB387"),
+            "LimeGreen" => Brush.Parse("#588157"),
+            "Orange" => Brush.Parse("#dad7cd"),
             "Red" => Brush.Parse("#F38BA8"),
-            _ => Brush.Parse("#9D4EDD")
+            _ => Brush.Parse("#6C7086")
         };
 
         public void IncrementActiveOperations() => _activeOperations++;
@@ -871,7 +880,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task RunAllBackupsAsync()
         {
-            SetOpStatus("Running backup checks on all services...", "#FAB387");
+            var startTime = DateTime.Now;
+            SetOpStatus("Running backup checks on all services...", "#dad7cd");
             NotificationService.ShowBackupToast("Dashboard", "Running backup checks on all services...", "Info");
             
             // Trigger the checks via event
@@ -883,44 +893,79 @@ namespace PinayPalBackupManager.UI.UserControls
             // Run health check to get current status
             await _manager.RunHealthCheckAsync();
             
+            var endTime = DateTime.Now;
+            var duration = endTime - startTime;
+            var durationMinutes = duration.TotalMinutes.ToString("F1");
+            
             // Determine which services were updated by checking logs
-            var updatedServices = new List<string>();
+            var completedServices = new List<string>();
+            var failedServices = new List<string>();
             var recentLogs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 100);
             var today = DateTime.Now.ToString("yyyy-MM-dd");
             
             foreach (var log in recentLogs.Where(l => l.Contains(today)))
             {
+                // Check for completed backups
                 if (log.Contains("FTP") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
                 {
-                    if (!updatedServices.Contains("FTP")) updatedServices.Add("FTP");
+                    if (!completedServices.Contains("FTP")) completedServices.Add("FTP");
                 }
                 if (log.Contains("Mailchimp") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
                 {
-                    if (!updatedServices.Contains("Mailchimp")) updatedServices.Add("Mailchimp");
+                    if (!completedServices.Contains("Mailchimp")) completedServices.Add("Mailchimp");
                 }
                 if (log.Contains("SQL") && (log.Contains("COMPLETE") || log.Contains("SUCCESS") || log.Contains("Backup complete") || log.Contains("SYNC COMPLETE")))
                 {
-                    if (!updatedServices.Contains("SQL")) updatedServices.Add("SQL");
+                    if (!completedServices.Contains("SQL")) completedServices.Add("SQL");
+                }
+                
+                // Check for failed backups
+                if (log.Contains("FTP") && (log.Contains("FAILED") || log.Contains("ERROR") || log.Contains("Exception")))
+                {
+                    if (!failedServices.Contains("FTP") && !completedServices.Contains("FTP")) failedServices.Add("FTP");
+                }
+                if (log.Contains("Mailchimp") && (log.Contains("FAILED") || log.Contains("ERROR") || log.Contains("Exception")))
+                {
+                    if (!failedServices.Contains("Mailchimp") && !completedServices.Contains("Mailchimp")) failedServices.Add("Mailchimp");
+                }
+                if (log.Contains("SQL") && (log.Contains("FAILED") || log.Contains("ERROR") || log.Contains("Exception")))
+                {
+                    if (!failedServices.Contains("SQL") && !completedServices.Contains("SQL")) failedServices.Add("SQL");
                 }
             }
             
-            // Show appropriate status message
-            if (updatedServices.Count == 0)
+            // Build detailed status message
+            string statusMessage;
+            string toastMessage;
+            string color = "#588157";
+            
+            if (completedServices.Count == 0 && failedServices.Count == 0)
             {
-                SetOpStatus("All backups are up to date.", "#52B788");
-                NotificationService.ShowBackupToast("Backup Complete", "All backups are up to date.", "Success");
+                statusMessage = "All backups are up to date.";
+                toastMessage = "All backups are up to date.";
             }
-            else if (updatedServices.Count == 3)
+            else if (completedServices.Count == 3 && failedServices.Count == 0)
             {
-                SetOpStatus("All backups completed successfully.", "#52B788");
-                NotificationService.ShowBackupToast("Backup Complete", "All backups completed successfully.", "Success");
+                statusMessage = $"All backups completed successfully ({durationMinutes}m)";
+                toastMessage = $"All backups completed successfully ({durationMinutes}m)";
+            }
+            else if (failedServices.Count > 0)
+            {
+                var completedList = completedServices.Count > 0 ? string.Join(", ", completedServices) : "none";
+                var failedList = string.Join(", ", failedServices);
+                statusMessage = $"Completed: {completedList} | Failed: {failedList} ({durationMinutes}m)";
+                toastMessage = $"Completed: {completedList} | Failed: {failedList} ({durationMinutes}m)";
+                color = "#F38BA8";
             }
             else
             {
-                var servicesList = string.Join(", ", updatedServices);
-                SetOpStatus($"Backup complete ({servicesList})", "#52B788");
-                NotificationService.ShowBackupToast("Backup Complete", $"Backup complete ({servicesList})", "Success");
+                var servicesList = string.Join(", ", completedServices);
+                statusMessage = $"Backup complete: {servicesList} ({durationMinutes}m)";
+                toastMessage = $"Backup complete: {servicesList} ({durationMinutes}m)";
             }
+            
+            SetOpStatus(statusMessage, color);
+            NotificationService.ShowBackupToast("Backup Complete", toastMessage, failedServices.Count > 0 ? "Error" : "Success");
         }
 
         private void ToggleCompactMode()
@@ -931,7 +976,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btn != null) 
             {
                 btn.Content = _compactMode ? "⊞ Expand" : "⊟ Compact";
-                btn.Foreground = _compactMode ? Brush.Parse("#52B788") : Brush.Parse("{DynamicResource AppMuted}");
+                btn.Foreground = _compactMode ? Brush.Parse("#588157") : Brush.Parse("{DynamicResource AppMuted}");
             }
             
             // Save the compact mode setting
@@ -944,10 +989,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task PingAllAsync()
         {
-            SetPing("Ftp", "#FAB387", "Checking...");
-            SetPing("Sql", "#FAB387", "Checking...");
-            SetPing("Mc",  "#FAB387", "Checking...");
-            SetOpStatus("Testing all connections...", "#FAB387");
+            SetPing("Ftp", "#dad7cd", "Checking...");
+            SetPing("Sql", "#dad7cd", "Checking...");
+            SetPing("Mc",  "#dad7cd", "Checking...");
+            SetOpStatus("Testing all connections...", "#dad7cd");
 
             await Task.WhenAll(
                 TcpCheckAsync("Ftp", BackupConfig.FtpHost,                    BackupConfig.FtpPort),
@@ -955,7 +1000,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 TcpCheckAsync("Mc",  "api.mailchimp.com",                      443)
             );
 
-            SetOpStatus("Connection test complete.", "#52B788");
+            SetOpStatus("Connection test complete.", "#588157");
         }
 
         private async Task TcpCheckAsync(string prefix, string host, int port)
@@ -969,7 +1014,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask && client.Connected)
                 {
                     sw.Stop();
-                    SetPing(prefix, "#52B788", $"{sw.ElapsedMilliseconds} ms");
+                    SetPing(prefix, "#588157", $"{sw.ElapsedMilliseconds} ms");
                 }
                 else
                 {
@@ -1095,11 +1140,11 @@ namespace PinayPalBackupManager.UI.UserControls
                         heatmap.Children.Clear();
                         for (int i = 6; i >= 0; i--)
                         {
-                            string color = !dayHasActivity[i] ? "#5A189A" : dayHasError[i] ? "#F38BA8" : "#52B788";
+                            string color = !dayHasActivity[i] ? "#6C7086" : dayHasError[i] ? "#F38BA8" : "#588157";
                             string label = i == 0 ? "T" : now.AddDays(-i).ToString("ddd")[..1];
                             var col = new Avalonia.Controls.StackPanel { Spacing = 3, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center };
                             col.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = Brush.Parse(color) });
-                            col.Children.Add(new TextBlock { Text = label, FontSize = 8, Foreground = Brush.Parse("#9D4EDD"), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center });
+                            col.Children.Add(new TextBlock { Text = label, FontSize = 8, Foreground = Brush.Parse("#6C7086"), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center });
                             heatmap.Children.Add(col);
                         }
                     }
@@ -1164,22 +1209,22 @@ namespace PinayPalBackupManager.UI.UserControls
 
             try
             {
-                if (!Directory.Exists(folder)) { list.Children.Add(new TextBlock { Text = "Folder not found.", FontSize = 9, Foreground = Brush.Parse("#9D4EDD") }); return; }
+                if (!Directory.Exists(folder)) { list.Children.Add(new TextBlock { Text = "Folder not found.", FontSize = 9, Foreground = Brush.Parse("#6C7086") }); return; }
                 var files = new DirectoryInfo(folder)
                     .EnumerateFiles("*", SearchOption.AllDirectories)
                     .Where(f => f.Name != "backuplog.txt" && f.Name != "backup_log.txt")
                     .OrderByDescending(f => f.LastWriteTime)
                     .Take(5)
                     .ToList();
-                if (files.Count == 0) { list.Children.Add(new TextBlock { Text = "No backup files found.", FontSize = 9, Foreground = Brush.Parse("#9D4EDD") }); return; }
+                if (files.Count == 0) { list.Children.Add(new TextBlock { Text = "No backup files found.", FontSize = 9, Foreground = Brush.Parse("#6C7086") }); return; }
                 foreach (var file in files)
                 {
                     string size = file.Length >= 1048576 ? $"{file.Length / 1048576.0:F1} MB" : $"{file.Length / 1024.0:F0} KB";
                     var row = new Grid();
                     row.ColumnDefinitions.Add(new Avalonia.Controls.ColumnDefinition(new Avalonia.Controls.GridLength(1, Avalonia.Controls.GridUnitType.Star)));
                     row.ColumnDefinitions.Add(new Avalonia.Controls.ColumnDefinition(Avalonia.Controls.GridLength.Auto));
-                    var name = new TextBlock { Text = $"📄 {file.Name}", FontSize = 9, Foreground = Brush.Parse(ThemeService.IsDark ? "#C77DFF" : "#5C5F77"), TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
-                    var sz   = new TextBlock { Text = size, FontSize = 9, Foreground = Brush.Parse("#9D4EDD"), Margin = new Avalonia.Thickness(6, 0, 0, 0) };
+                    var name = new TextBlock { Text = $"📄 {file.Name}", FontSize = 9, Foreground = Brush.Parse("#6C7086"), TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+                    var sz   = new TextBlock { Text = size, FontSize = 9, Foreground = Brush.Parse("#6C7086"), Margin = new Avalonia.Thickness(6, 0, 0, 0) };
                     Avalonia.Controls.Grid.SetColumn(name, 0); Avalonia.Controls.Grid.SetColumn(sz, 1);
                     row.Children.Add(name); row.Children.Add(sz);
                     list.Children.Add(row);
@@ -1208,10 +1253,10 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btn != null)
             {
                 btn.Content   = _maintenancePaused ? "▶ Resume" : "⏸ Pause All";
-                btn.Foreground = _maintenancePaused ? Brush.Parse("#FAB387") : null;
+                btn.Foreground = _maintenancePaused ? Brush.Parse("#dad7cd") : null;
             }
             var msg = _maintenancePaused ? "Maintenance mode ON — auto-scans paused." : "Maintenance mode OFF — auto-scans resumed.";
-            SetOpStatus(msg, _maintenancePaused ? "#FAB387" : "#52B788");
+            SetOpStatus(msg, _maintenancePaused ? "#dad7cd" : "#588157");
             NotificationService.ShowBackupToast("Maintenance", msg, _maintenancePaused ? "Warning" : "Info");
         }
 
@@ -1240,7 +1285,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     $"PinayPal_Activity_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(exportPath, lines);
                 NotificationService.ShowBackupToast("Export", $"Saved to Desktop: {System.IO.Path.GetFileName(exportPath)}", "Success");
-                SetOpStatus($"CSV exported → {System.IO.Path.GetFileName(exportPath)}", "#52B788");
+                SetOpStatus($"CSV exported → {System.IO.Path.GetFileName(exportPath)}", "#588157");
             }
             catch (Exception ex)
             {
@@ -1563,39 +1608,50 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private IBrush GetTimeAgoColor(DateTime? time)
         {
-            if (!time.HasValue) return Brush.Parse("#9D4EDD");
+            if (!time.HasValue) return Brush.Parse("#6C7086");
             var diff = DateTime.Now - time.Value;
-            if (diff.TotalHours < 6) return Brush.Parse("#52B788");
-            if (diff.TotalHours < 24) return Brush.Parse("#FAD643");
+            if (diff.TotalHours < 6) return Brush.Parse("#588157");
+            if (diff.TotalHours < 24) return Brush.Parse("#dad7cd");
             return Brush.Parse("#F38BA8");
         }
 
         private void UpdateServicesStatusSummary(Dictionary<string, int> serviceScores)
         {
+            if (serviceScores == null)
+            {
+                // Initialize with default values if no data
+                serviceScores = new Dictionary<string, int>
+                {
+                    {"FTP", 0},
+                    {"Mailchimp", 0},
+                    {"SQL", 0}
+                };
+            }
+
             int healthyCount = 0;
             
             // FTP
             int ftpScore = serviceScores.GetValueOrDefault("FTP", 0);
             string ftpStatus = ftpScore >= 80 ? "Healthy" : ftpScore >= 50 ? "Warning" : ftpScore > 0 ? "Critical" : "No Data";
-            string ftpColor = ftpScore >= 80 ? "#52B788" : ftpScore >= 50 ? "#FAD643" : ftpScore > 0 ? "#F38BA8" : "#9D4EDD";
-            Set("FtpHealthStatus", ftpStatus);
-            SetDot("FtpHealthDot", ftpColor);
+            string ftpColor = ftpScore >= 80 ? "#588157" : ftpScore >= 50 ? "#dad7cd" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("FtpStatusText", ftpStatus);
+            SetDot("FtpStatusDot", ftpColor);
             if (ftpScore >= 80) healthyCount++;
 
             // Mailchimp
             int mcScore = serviceScores.GetValueOrDefault("Mailchimp", 0);
             string mcStatus = mcScore >= 80 ? "Healthy" : mcScore >= 50 ? "Warning" : mcScore > 0 ? "Critical" : "No Data";
-            string mcColor = mcScore >= 80 ? "#52B788" : mcScore >= 50 ? "#FAD643" : mcScore > 0 ? "#F38BA8" : "#9D4EDD";
-            Set("McHealthStatus", mcStatus);
-            SetDot("McHealthDot", mcColor);
+            string mcColor = mcScore >= 80 ? "#00b4d8" : mcScore >= 50 ? "#caf0f8" : mcScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("MailchimpStatusText", mcStatus);
+            SetDot("MailchimpStatusDot", mcColor);
             if (mcScore >= 80) healthyCount++;
 
             // SQL
             int sqlScore = serviceScores.GetValueOrDefault("SQL", 0);
             string sqlStatus = sqlScore >= 80 ? "Healthy" : sqlScore >= 50 ? "Warning" : sqlScore > 0 ? "Critical" : "No Data";
-            string sqlColor = sqlScore >= 80 ? "#52B788" : sqlScore >= 50 ? "#FAD643" : sqlScore > 0 ? "#F38BA8" : "#9D4EDD";
-            Set("SqlHealthStatus", sqlStatus);
-            SetDot("SqlHealthDot", sqlColor);
+            string sqlColor = sqlScore >= 80 ? "#fad643" : sqlScore >= 50 ? "#ffe169" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
+            Set("SqlStatusText", sqlStatus);
+            SetDot("SqlStatusDot", sqlColor);
             if (sqlScore >= 80) healthyCount++;
 
             // Update services OK text
@@ -1673,7 +1729,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 {
                                     Text = GetTimeAgoText(error.time),
                                     FontSize = 9,
-                                    Foreground = Brush.Parse("#9D4EDD"),
+                                    Foreground = Brush.Parse("#6C7086"),
                                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
                                 };
 
@@ -1739,14 +1795,13 @@ namespace PinayPalBackupManager.UI.UserControls
             
             var window = new Window
             {
-                Content = dialog,
+                Title = "Customize Dashboard",
                 Width = 500,
                 Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
-                ShowInTaskbar = false,
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                Content = dialog
             };
             
             dialog.OnApply += (settings) =>
@@ -1767,20 +1822,20 @@ namespace PinayPalBackupManager.UI.UserControls
             // Apply visibility settings
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var systemStatus = this.FindControl<Border>(null);
-                var quickStats = this.FindControl<Grid>(null);
-                var timeSinceBackup = this.FindControl<Border>(null);
+                var systemStatus = this.FindControl<Border>(string.Empty);
+                var quickStats = this.FindControl<Grid>(string.Empty);
+                var timeSinceBackup = this.FindControl<Border>(string.Empty);
                 var recentErrors = this.FindControl<Border>("RecentErrorsPanel");
                 var serviceCards = this.FindControl<Grid>("ServiceCardsSection");
-                var healthDashboard = this.FindControl<Border>(null);
-                var operations = this.FindControl<Border>(null);
-                var connectivity = this.FindControl<Border>(null);
-                var statsReporting = this.FindControl<Border>(null);
-                var scheduleAdjustment = this.FindControl<Border>(null);
-                var storageUsage = this.FindControl<Border>(null);
-                var dailySchedule = this.FindControl<Border>(null);
-                var recentActivity = this.FindControl<Border>(null);
-                var systemLogs = this.FindControl<Border>(null);
+                var healthDashboard = this.FindControl<Border>(string.Empty);
+                var operations = this.FindControl<Border>(string.Empty);
+                var connectivity = this.FindControl<Border>(string.Empty);
+                var statsReporting = this.FindControl<Border>(string.Empty);
+                var scheduleAdjustment = this.FindControl<Border>(string.Empty);
+                var storageUsage = this.FindControl<Border>(string.Empty);
+                var dailySchedule = this.FindControl<Border>(string.Empty);
+                var recentActivity = this.FindControl<Border>(string.Empty);
+                var systemLogs = this.FindControl<Border>(string.Empty);
                 
                 // Apply compact mode
                 if (settings.CompactMode)
@@ -1870,30 +1925,6 @@ namespace PinayPalBackupManager.UI.UserControls
             });
         }
 
-        private void OnNewSystemLogEntry(string logEntry, string logFile)
-        {
-            // Only update if it's a system log
-            if (logFile == AppDataPaths.SystemLogPath)
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
-                    if (systemLogsText != null)
-                    {
-                        var currentText = systemLogsText.Text;
-                        var lines = currentText.Split('\n').ToList();
-                        
-                        // Add new log entry at top
-                        var newText = $"{logEntry}\n{string.Join("\n", lines)}";
-                        
-                        // Keep only last 100 lines to prevent memory issues
-                        var finalLines = newText.Split('\n').Take(100);
-                        systemLogsText.Text = string.Join("\n", finalLines);
-                    }
-                });
-            }
-        }
-
         private void ClearSystemLogs()
         {
             try
@@ -1905,6 +1936,26 @@ namespace PinayPalBackupManager.UI.UserControls
             catch (Exception ex)
             {
                 NotificationService.ShowBackupToast("System Logs", $"Failed to clear logs: {ex.Message}", "Error");
+            }
+        }
+
+        private void OnNewSystemLogEntry(string logEntry, string logFile)
+        {
+            // Only update if it's a system log
+            if (logFile == AppDataPaths.SystemLogPath)
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
+                    if (systemLogsText != null)
+                    {
+                        var currentText = systemLogsText.Text;
+                        var newText = $"{logEntry}\n{currentText}";
+                        // Keep only last 100 lines to prevent memory issues
+                        var lines = newText.Split('\n').Take(100);
+                        systemLogsText.Text = string.Join("\n", lines);
+                    }
+                });
             }
         }
 
@@ -1933,6 +1984,14 @@ namespace PinayPalBackupManager.UI.UserControls
             _statsRefreshTimer?.Dispose();
             _dashboardRefreshTimer?.Stop();
             _dashboardRefreshTimer?.Dispose();
+            _autoPingTimer?.Stop();
+            _autoPingTimer?.Dispose();
+            _statsTimer?.Stop();
+            _statsTimer?.Dispose();
+            _scheduleTimer?.Stop();
+            _scheduleTimer?.Dispose();
+            _storageTimer?.Stop();
+            _storageTimer?.Dispose();
         }
     }
 }

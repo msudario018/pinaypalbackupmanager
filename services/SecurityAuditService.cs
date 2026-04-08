@@ -30,7 +30,7 @@ namespace PinayPalBackupManager.Services
         public class CredentialRecord
         {
             public string Service { get; set; } = "";
-            public string LastUpdated { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            public string LastUpdated { get; set; } = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss");
             public string LastUpdatedBy { get; set; } = "";
             public int RotationDays { get; set; } = 90;
             public bool RotationEnabled { get; set; } = true;

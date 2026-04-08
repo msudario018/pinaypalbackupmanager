@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -60,26 +59,26 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
 
                 bool isDark = Services.ThemeService.IsDark;
-                string btnBg       = isDark ? "#52B788" : "#9D4EDD";
+                string btnBg       = isDark ? "#6C7086" : "#BCC0CC";
 
                 var labelText = new TextBlock
                 {
                     Text = label,
                     FontSize = 13,
                     FontWeight = Avalonia.Media.FontWeight.SemiBold,
-                    Foreground = GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(250, 214, 67))),
+                    Foreground = Brush.Parse(isDark ? "#CDD6F4" : "#4C4F69"),
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                string btnFgActive = "AccentSql";
-                string btnFgMuted  = isDark ? "#48CAE4" : "#9CA0B0";
+                string btnFgActive = isDark ? "#CDD6F4" : "#4C4F69";
+                string btnFgMuted  = isDark ? "#6C7086"  : "#9CA0B0";
 
                 var btnUp = new Button
                 {
                     Content = "▲",
                     FontSize = 12,
                     Padding = new Avalonia.Thickness(8, 4),
-                    Background = GetThemeResource("AppSurface", new SolidColorBrush(Color.FromRgb(30, 35, 50))),
-                    Foreground = idx == 0 ? GetThemeResource("AppMuted", new SolidColorBrush(Color.FromRgb(148, 163, 184))) : GetThemeResource(btnFgActive, new SolidColorBrush(Color.FromRgb(250, 214, 67))),
+                    Background = Brush.Parse(btnBg),
+                    Foreground = idx == 0 ? Brush.Parse(btnFgMuted) : Brush.Parse(btnFgActive),
                     IsEnabled = idx > 0,
                     BorderThickness = new Avalonia.Thickness(0),
                     CornerRadius = new Avalonia.CornerRadius(6),
@@ -92,8 +91,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Content = "▼",
                     FontSize = 12,
                     Padding = new Avalonia.Thickness(8, 4),
-                    Background = GetThemeResource("AppSurface", new SolidColorBrush(Color.FromRgb(30, 35, 50))),
-                    Foreground = idx == _tabs.Count - 1 ? GetThemeResource("AppMuted", new SolidColorBrush(Color.FromRgb(148, 163, 184))) : GetThemeResource(btnFgActive, new SolidColorBrush(Color.FromRgb(250, 214, 67))),
+                    Background = Brush.Parse(btnBg),
+                    Foreground = idx == _tabs.Count - 1 ? Brush.Parse(btnFgMuted) : Brush.Parse(btnFgActive),
                     IsEnabled = idx < _tabs.Count - 1,
                     BorderThickness = new Avalonia.Thickness(0),
                     CornerRadius = new Avalonia.CornerRadius(6),
@@ -114,7 +113,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 list.Children.Add(row);
 
                 if (i < _tabs.Count - 1)
-                    list.Children.Add(new Border { Height = 1, Background = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(82, 183, 136))), Margin = new Avalonia.Thickness(0, 2) });
+                    list.Children.Add(new Border { Height = 1, Background = Brush.Parse(isDark ? "#6C7086" : "#BCC0CC"), Margin = new Avalonia.Thickness(0, 2) });
             }
         }
 
@@ -126,17 +125,6 @@ namespace PinayPalBackupManager.UI.UserControls
             _tabs[index] = _tabs[newIndex];
             _tabs[newIndex] = temp;
             BuildList();
-        }
-
-        private T GetThemeResource<T>(string key, T fallback) where T : class
-        {
-            try
-            {
-                if (Application.Current?.Resources.TryGetValue(key, out var resource) == true && resource is T typedResource)
-                    return typedResource;
-            }
-            catch { }
-            return fallback;
         }
 
         private void SaveOrder()

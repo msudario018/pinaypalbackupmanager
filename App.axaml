@@ -6,24 +6,24 @@
         <FluentTheme />
 
         <!-- GLOBAL ANIMATIONS & TRANSITIONS -->
-        <!-- Global Button Animations -->
+        <!-- Global Button Animations - Optimized for faster theme switching -->
         <Style Selector="Button">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseInOut"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- Sidebar Button Animations -->
+        <!-- Sidebar Button Animations - Optimized -->
         <Style Selector="Button.SideBtn">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseInOut"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -37,50 +37,50 @@
             <Setter Property="RenderTransform" Value="scale(1.0)"/>
         </Style>
 
-        <!-- Border Animations (for smooth color transitions) -->
+        <!-- Border Animations - Optimized for faster theme switching -->
         <Style Selector="Border">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.22" Easing="CubicEaseOut"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- TextBlock Animations -->
+        <!-- TextBlock Animations - Optimized -->
         <Style Selector="TextBlock">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.18" Easing="SineEaseInOut"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- ListBox Item Animations -->
+        <!-- ListBox Item Animations - Optimized -->
         <Style Selector="ListBoxItem">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- DataGridRow Animations -->
+        <!-- DataGridRow Animations - Optimized -->
         <Style Selector="DataGridRow">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="SineEaseOut"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="SineEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.08"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- Content Control Fade-in -->
+        <!-- Content Control Fade-in - Optimized -->
         <Style Selector="ContentControl">
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -94,8 +94,8 @@
             <Setter Property="BoxShadow" Value="0 4 16 #00000020, 0 8 32 #00000010"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.3" Easing="CubicEaseInOut"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3" Easing="CubicEaseInOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -115,9 +115,9 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseInOut"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseInOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.1"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -140,7 +140,7 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -149,14 +149,14 @@
             <Setter Property="Background" Value="{DynamicResource AccentWebsiteLight}"/>
         </Style>
 
-        <!-- ProgressBar smooth value transition and style -->
+        <!-- ProgressBar smooth value transition and style - Optimized -->
         <Style Selector="ProgressBar">
             <Setter Property="Height" Value="10"/>
             <Setter Property="CornerRadius" Value="5"/>
             <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Value" Duration="0:0:0.35" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Value" Duration="0:0:0.15"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -232,6 +232,32 @@
             <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
 
+        <!-- Admin Button Style - Uses muted color palette -->
+        <Style Selector="Button.Admin">
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.Admin:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFtp}"/>
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+        </Style>
+        <Style Selector="Button.Admin:pressed">
+            <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
         <Style Selector="Button.Ghost">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource AppText}"/>
@@ -281,31 +307,35 @@
                     <SolidColorBrush x:Key="AppBtnBlue">#0D1A22</SolidColorBrush>
                     <SolidColorBrush x:Key="AppBtnRed">#2D1515</SolidColorBrush>
 
-                    <!-- Tea-Green Accent Colors -->
-                    <SolidColorBrush x:Key="AccentFtp">#CCD5AE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpLight">#E9EDC9</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpDark">#B5C99A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpBg">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpMuted">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpSurface">#5A625A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpGlow">#CCD5AE40</SolidColorBrush>
+                    <!-- Backup Tab Specific Colors -->
+                    <!-- FTP/Website - Green Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentFtp">#6b8e6b</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpLight">#a8c6a8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpDark">#4a6b50</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpBg">#3d5a4e</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpMuted">#c9d4c5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpSurface">#6b8e6b</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpGlow">#6b8e6b40</SolidColorBrush>
 
-                    <SolidColorBrush x:Key="AccentMailchimp">#FAEDCD</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpLight">#FEFAE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpDark">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpBg">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpMuted">#E9EDC9</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpSurface">#5A625A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpGlow">#FAEDCD40</SolidColorBrush>
+                    <!-- Mailchimp - Blue Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentMailchimp">#48a9c9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpLight">#b8e0e8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpDark">#3a7ca5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpBg">#1a3a5a</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpMuted">#7ac8d8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpSurface">#48a9c9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpGlow">#48a9c940</SolidColorBrush>
 
-                    <SolidColorBrush x:Key="AccentSql">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlLight">#FAEDCD</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlDark">#B5A680</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlBg">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlMuted">#CCD5AE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlSurface">#5A625A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlGlow">#D4A37340</SolidColorBrush>
+                    <!-- SQL - Gold Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentSql">#e6c55c</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlLight">#f0d878</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlDark">#b8963a</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlBg">#8a6b30</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlMuted">#d4b84d</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlSurface">#e6c55c</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlGlow">#e6c55c40</SolidColorBrush>
 
+                    <!-- Website/General - Tea-Green Purple -->
                     <SolidColorBrush x:Key="AccentWebsite">#CCD5AE</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteLight">#E9EDC9</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteDark">#B5C99A</SolidColorBrush>
@@ -313,6 +343,15 @@
                     <SolidColorBrush x:Key="AccentWebsiteMuted">#D4A373</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteSurface">#5A625A</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteGlow">#CCD5AE40</SolidColorBrush>
+
+                    <!-- Error - Tea-Green Red -->
+                    <SolidColorBrush x:Key="AccentError">#F38BA8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorLight">#FFB3C7</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorDark">#E37A92</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorBg">#2D1515</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorMuted">#FFD1DC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorSurface">#9D1D35</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorGlow">#F38BA840</SolidColorBrush>
 
                     <!-- Tea-Green Sidebar Theme -->
                     <SolidColorBrush x:Key="SidebarIconMuted">#CCD5AE</SolidColorBrush>
@@ -350,31 +389,35 @@
                     <SolidColorBrush x:Key="AppBtnBlue">#CAF0F8</SolidColorBrush>
                     <SolidColorBrush x:Key="AppBtnRed">#FEE2E2</SolidColorBrush>
 
-                    <!-- Tea-Green Accent Colors (Light) -->
-                    <SolidColorBrush x:Key="AccentFtp">#CCD5AE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpLight">#E9EDC9</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpDark">#B5C99A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpBg">#FAEDCD</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpMuted">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpSurface">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpGlow">#CCD5AE20</SolidColorBrush>
+                    <!-- Backup Tab Specific Colors (Light) -->
+                    <!-- FTP/Website - Green Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentFtp">#6b8e6b</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpLight">#a8c6a8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpDark">#4a6b50</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpBg">#c9d4c5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpMuted">#a8c6a8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpSurface">#6b8e6b</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpGlow">#6b8e6b30</SolidColorBrush>
 
-                    <SolidColorBrush x:Key="AccentMailchimp">#FAEDCD</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpLight">#FEFAE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpDark">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpBg">#E9EDC9</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpMuted">#CCD5AE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpSurface">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpGlow">#FAEDCD20</SolidColorBrush>
+                    <!-- Mailchimp - Blue Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentMailchimp">#48a9c9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpLight">#b8e0e8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpDark">#3a7ca5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpBg">#b8e0e8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpMuted">#7ac8d8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpSurface">#48a9c9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpGlow">#48a9c930</SolidColorBrush>
 
-                    <SolidColorBrush x:Key="AccentSql">#D4A373</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlLight">#FAEDCD</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlDark">#B5A680</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlBg">#FEFAE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlMuted">#CCD5AE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlSurface">#4A524A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlGlow">#D4A37320</SolidColorBrush>
+                    <!-- SQL - Gold Theme (Modernized) -->
+                    <SolidColorBrush x:Key="AccentSql">#e6c55c</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlLight">#f0d878</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlDark">#b8963a</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlBg">#f0d878</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlMuted">#d4b84d</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlSurface">#e6c55c</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlGlow">#e6c55c30</SolidColorBrush>
 
+                    <!-- Website/General - Tea-Green Purple -->
                     <SolidColorBrush x:Key="AccentWebsite">#CCD5AE</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteLight">#E9EDC9</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteDark">#B5C99A</SolidColorBrush>
@@ -382,6 +425,15 @@
                     <SolidColorBrush x:Key="AccentWebsiteMuted">#D4A373</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteSurface">#4A524A</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteGlow">#CCD5AE20</SolidColorBrush>
+
+                    <!-- Error - Tea-Green Red -->
+                    <SolidColorBrush x:Key="AccentError">#F38BA8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorLight">#FFB3C7</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorDark">#E37A92</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorBg">#FEE2E2</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorMuted">#FFD1DC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorSurface">#9D1D35</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorGlow">#F38BA820</SolidColorBrush>
 
                     <!-- Tea-Green Sidebar Theme (Light) -->
                     <SolidColorBrush x:Key="SidebarIconMuted">#CCD5AE</SolidColorBrush>
@@ -398,9 +450,9 @@
             <Color x:Key="ColorBorder">#2D3748</Color>
             <Color x:Key="ColorText">#FFFFFF</Color>
             <Color x:Key="ColorMuted">#E5E5E5</Color>
-            <Color x:Key="ColorAccentFtp">#52B788</Color>
-            <Color x:Key="ColorAccentMailchimp">#48CAE4</Color>
-            <Color x:Key="ColorAccentSql">#FAD643</Color>
+            <Color x:Key="ColorAccentFtp">#6b8e6b</Color>
+            <Color x:Key="ColorAccentMailchimp">#48a9c9</Color>
+            <Color x:Key="ColorAccentSql">#e6c55c</Color>
             <Color x:Key="ColorAccentWebsite">#A78BFA</Color>
         </ResourceDictionary>
     </Application.Resources>

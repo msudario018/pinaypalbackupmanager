@@ -8,15 +8,17 @@
             <!-- Header -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,20">
                 <PathIcon Data="M12,1L8,5H11V14H13V5H16M18,23H6C4.89,23 4,22.1 4,21V9A2,2 0 0,1 6,7H9V9H6V21H18V9H15V7H18A2,2 0 0,1 20,9V21A2,2 0 0,1 18,23Z" 
-                        Width="32" Height="32" Foreground="#FAD643"/>
+                        Width="32" Height="32" Foreground="{DynamicResource AccentWarning}"/>
                 <TextBlock Text="Invite Codes" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
             </StackPanel>
             
             <!-- Timer Info -->
             <Border Grid.Row="1" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                    <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
-                             Width="18" Height="18" Foreground="{DynamicResource AppManilaTime}"/>
+                    <Grid Width="20" Height="20" VerticalAlignment="Center">
+                        <Ellipse Fill="{DynamicResource AppSurface}" Stroke="{DynamicResource AppBorder}" StrokeThickness="1"/>
+                        <Path Name="TimerArc" Stroke="{DynamicResource AccentWebsite}" StrokeThickness="2" Fill="Transparent"/>
+                    </Grid>
                     <TextBlock Text="Auto-rotates every 5 minutes" FontSize="12" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
@@ -29,12 +31,12 @@
                     <StackPanel Grid.Row="1" Spacing="20" VerticalAlignment="Center">
                         <TextBox Name="TxtInviteCode" IsReadOnly="True" 
                                  Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
-                                 FontSize="28" FontWeight="Bold" Foreground="#52B788" 
+                                 FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}" 
                                  HorizontalAlignment="Center" VerticalAlignment="Center"
                                  Padding="20,12" CornerRadius="8" MinWidth="250"
                                  HorizontalContentAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-                            <Button Name="BtnCopy" Background="{DynamicResource AppManilaTime}" Foreground="#000000" 
+                            <Button Name="BtnCopy" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" 
                                     Padding="20,10" CornerRadius="8" FontWeight="SemiBold">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" 
@@ -42,7 +44,7 @@
                                     <TextBlock Text="Copy" FontSize="12"/>
                                 </StackPanel>
                             </Button>
-                            <Button Name="BtnRegenerate" Background="#FAD643" Foreground="#000000" 
+                            <Button Name="BtnRegenerate" Background="{DynamicResource AccentWarning}" Foreground="{DynamicResource AppText}" 
                                     Padding="20,10" CornerRadius="8" FontWeight="SemiBold">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" 

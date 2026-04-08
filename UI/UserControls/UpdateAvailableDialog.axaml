@@ -8,19 +8,19 @@
             <!-- Header with Icon -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,15">
                 <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M11,17H13V11H11V17Z" 
-                        Width="32" Height="32" Foreground="{DynamicResource AccentSql}"/>
+                        Width="32" Height="32" Foreground="{DynamicResource AccentWarning}"/>
                 <TextBlock Text="Update Available" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
             </StackPanel>
             
             <!-- Version Info -->
             <TextBlock Grid.Row="1" Name="TxtVersion" Text="Version: v2.6.14" FontSize="16" FontWeight="SemiBold" 
-                       Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                       Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
             
             <!-- Changelog Content -->
             <Border Grid.Row="2" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15" Margin="0,0,0,20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="150">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="What's New:" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                        <TextBlock Text="What's New:" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}"/>
                         <TextBlock Name="TxtChangelog" Text="" Foreground="{DynamicResource AppText}" FontSize="11" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -28,7 +28,7 @@
             
             <!-- Buttons -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
-                <Button Name="BtnYes" Content="Yes" Background="{DynamicResource AccentFtp}" Foreground="#000000" 
+                <Button Name="BtnYes" Content="Yes" Background="{DynamicResource AccentSuccess}" Foreground="{DynamicResource AppText}" 
                         Padding="40,10" CornerRadius="8" FontWeight="Bold"/>
                 <Button Name="BtnNo" Content="No" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" 
                         Padding="40,10" CornerRadius="8" FontWeight="Bold"/>

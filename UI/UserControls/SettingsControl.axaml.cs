@@ -150,14 +150,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new CredentialsDialog();
                 var window = new Window
                 {
+                    Title = "Edit Credentials",
                     Content = dialog,
-                    Width = 520,
-                    Height = 620,
+                    Width = 500,
+                    Height = 600,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };
@@ -194,14 +193,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 var dialog = new PathsDialog();
                 var window = new Window
                 {
+                    Title = "Edit Backup Paths",
                     Content = dialog,
                     Width = 500,
-                    Height = 470,
+                    Height = 450,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaTitleBarHeightHint = 0,
                     Topmost = true,
                     Background = Avalonia.Media.Brushes.Transparent
                 };

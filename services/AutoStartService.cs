@@ -1,7 +1,7 @@
+#if WINDOWS
 using System;
 using System.Diagnostics;
 using Microsoft.Win32;
-using System.Runtime.Versioning;
 
 namespace PinayPalBackupManager.Services
 {
@@ -10,7 +10,6 @@ namespace PinayPalBackupManager.Services
         private const string AppName = "PinayPalBackupManager";
         private const string RegKey  = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
-        [SupportedOSPlatform("windows")]
         public static bool IsEnabled()
         {
             try
@@ -21,7 +20,6 @@ namespace PinayPalBackupManager.Services
             catch { return false; }
         }
 
-        [SupportedOSPlatform("windows")]
         public static void Enable()
         {
             try
@@ -34,7 +32,6 @@ namespace PinayPalBackupManager.Services
             catch { }
         }
 
-        [SupportedOSPlatform("windows")]
         public static void Disable()
         {
             try
@@ -45,10 +42,21 @@ namespace PinayPalBackupManager.Services
             catch { }
         }
 
-        [SupportedOSPlatform("windows")]
         public static void SetEnabled(bool enabled)
         {
             if (enabled) Enable(); else Disable();
         }
     }
 }
+#else
+namespace PinayPalBackupManager.Services
+{
+    public static class AutoStartService
+    {
+        public static bool IsEnabled() => false;
+        public static void Enable() { }
+        public static void Disable() { }
+        public static void SetEnabled(bool enabled) { }
+    }
+}
+#endif

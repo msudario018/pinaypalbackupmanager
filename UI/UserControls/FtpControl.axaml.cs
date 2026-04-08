@@ -81,7 +81,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "SYNCING...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#6b8e6b");
 
             // Report global backup progress
             _manager?.ReportBackupProgress("FTP", 0, "SYNCING...");
@@ -191,7 +191,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "COMPLETE";
-                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#52B788");
+                            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#6b8e6b");
                         });
                         // Report global backup progress complete
                         _manager?.ReportBackupProgress("FTP", 100, "COMPLETE");
@@ -217,7 +217,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -230,7 +230,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         txtStatus.Text = "CANCELLED";
-                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                        txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -291,12 +291,12 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             var txtFile = this.FindControl<TextBlock>("TxtFile")!;
             txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#6b8e6b");
             txtFile.Text = "Status: Comparing local vs remote...";
             
             string statusText = "SYNC CHECK";
             string detailText = "Status: Idle";
-            string colorHex = "#C77DFF";
+            string colorHex = "#6C7086";
             string toastTitle = "FTP";
             string toastMessage = "Sync check finished.";
             string toastType = "Info";
@@ -340,7 +340,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "REMOTE EMPTY";
                         detailText = "Status: No PinayPal .tar backup found on server.";
-                        colorHex = "#FAD643";
+                        colorHex = "#dad7cd";
                         toastMessage = "Remote has no PinayPal backups.";
                         toastType = "Warning";
                         return;
@@ -372,7 +372,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         statusText = "LATEST";
                         detailText = $"Local has latest remote: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC)";
-                        colorHex = "#52B788";
+                        colorHex = "#6b8e6b";
                         toastMessage = "Local backup is up to date.";
                         toastType = "Info";
                         return;
@@ -380,11 +380,29 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     if (hasRemoteFileLocally && localSize != remoteSize)
                     {
-                        statusText = "SIZE MISMATCH";
-                        detailText = $"Remote: {remoteLatest.Name} ({remoteSize:n0} bytes) | Local: {localSize:n0} bytes)";
-                        colorHex = "#FAD643";
-                        toastMessage = "Remote file exists locally but size differs.";
+                        // Auto-delete mismatched file and trigger resync
+                        try
+                        {
+                            File.Delete(matchingLocal.FullName);
+                            LogService.WriteLiveLog($"SYNC CHECK: Deleted mismatched file {matchingLocal.FullName} (size: {localSize:n0} bytes, expected: {remoteSize:n0} bytes)", BackupConfig.FtpLogFile, "Warning", "MANUAL");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"SYNC CHECK: Failed to delete mismatched file: {ex.Message}", BackupConfig.FtpLogFile, "Error", "MANUAL");
+                        }
+
+                        statusText = "RESYNCING";
+                        detailText = $"Deleted mismatched file. Remote: {remoteLatest.Name} ({remoteSize:n0} bytes)";
+                        colorHex = "#e6c55c";
+                        toastMessage = "Size mismatch detected. Deleted local file and starting resync...";
                         toastType = "Warning";
+
+                        // Trigger auto-resync after a short delay
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1000);
+                            await StartBackupAsync("AUTO-RESYNC");
+                        });
                         return;
                     }
 
@@ -398,7 +416,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             statusText = "LATEST";
                             detailText = $"Local matches remote: {localLatest.Name} (recent sync)";
-                            colorHex = "#52B788";
+                            colorHex = "#6b8e6b";
                             toastMessage = "Local backup is up to date.";
                             toastType = "Info";
                             return;
@@ -406,7 +424,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
 
                     statusText = "OUTDATED";
-                    detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC) | Local latest: {localLatest.Name} ({localLatest.LastWriteTimeUtc:MM/dd HH:mm} UTC)";
+                    detailText = $"Remote latest: {remoteLatest?.Name ?? "unknown"} ({remoteLatest?.LastWriteTime:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd HH:mm} UTC) | Local latest: {localLatest?.Name ?? "unknown"} ({localLatest?.LastWriteTimeUtc:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd HH:mm} UTC)";
                     colorHex = "#F38BA8";
                     toastMessage = "Remote backup is newer than local.";
                     toastType = "Warning";
@@ -439,7 +457,14 @@ namespace PinayPalBackupManager.UI.UserControls
             if (allowAutoSync && statusText == "OUTDATED")
             {
                 SetBusy(false);
-                _ = StartBackupAsync("AUTO-SYNC");
+                bool confirm = await NotificationService.ConfirmAsync(
+                    "Remote backup is newer than local. Do you want to sync now?",
+                    "Sync Now?"
+                );
+                if (confirm)
+                {
+                    _ = StartBackupAsync("AUTO-SYNC");
+                }
                 return;
             }
 
@@ -456,7 +481,7 @@ namespace PinayPalBackupManager.UI.UserControls
             SetBusy(true);
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "TESTING CONNECTION...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#C77DFF");
+            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#6b8e6b");
 
             using var ftp = new FtpService();
             string decryptedPass = SecurityService.GetDecryptedFtpPassword();
@@ -466,7 +491,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 LogService.WriteLiveLog("TEST SUCCESS: Connection Verified.", BackupConfig.FtpLogFile, "Information", "MANUAL");
                 txtStatus.Text = "TEST SUCCESS";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#52B788");
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#6b8e6b");
             }
             else
             {
@@ -523,7 +548,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtStatus != null)
             {
                 txtStatus.Text = "CANCELLING...";
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#FAD643");
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F9E2AF");
             }
         }
 
