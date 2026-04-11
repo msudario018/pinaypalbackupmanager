@@ -13,7 +13,16 @@ namespace PinayPalBackupManager.Services
     public static class AuthService
     {
         private static string _dbPath = string.Empty;
-        public static AppUser? CurrentUser { get; private set; }
+        private static AppUser? _currentUser;
+        public static AppUser? CurrentUser
+        {
+            get => _currentUser;
+            private set
+            {
+                Console.WriteLine($"[AuthService] CurrentUser SET: from {_currentUser?.Username} to {value?.Username}");
+                _currentUser = value;
+            }
+        }
         public static event Action<AppUser?>? OnUserChanged;
 
         public static void Initialize()
@@ -21,6 +30,13 @@ namespace PinayPalBackupManager.Services
             AppDataPaths.MigrateKnownFiles();
             _dbPath = AppDataPaths.GetPath("users.db");
             EnsureDatabase();
+            
+            // Set connection string for FirebaseUserService
+            FirebaseUserService.ConnectionString = ConnectionString;
+            
+            // Firebase sync listener disabled by default to prevent interference with local user data
+            // It can be manually started if needed for bidirectional sync
+            // _ = Task.Run(async () => await FirebaseUserService.StartUserSyncListenerAsync());
             
             // Firebase will be initialized on-demand to avoid blocking
             Console.WriteLine("[AuthService] Firebase ready for on-demand initialization");
@@ -71,7 +87,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Register the very first user as Admin (auto-active). Subsequent users need a valid invite code.
         /// </summary>
-        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
+        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
@@ -86,12 +102,11 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(inviteCode))
                     return (false, "Invite code is required.");
 
-                // Local validation only (avoid UI thread blocking)
-                var storedCode = GetInviteCode();
-                bool isValid = string.Equals(inviteCode.Trim(), storedCode, StringComparison.Ordinal);
+                // Validate invite code via Firebase
+                bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode.Trim());
                 
                 if (!isValid)
-                    return (false, "Invalid invite code.");
+                    return (false, "Invalid or expired invite code.");
             }
 
             var salt = GenerateSalt();
@@ -107,31 +122,33 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@u", username.Trim());
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
-                cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
-                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
+                var role = isFirstUser ? "Admin" : "User";
+                var status = isFirstUser ? "Active" : "Pending";
+                cmd.Parameters.AddWithValue("@r", role);
+                cmd.Parameters.AddWithValue("@st", status);
                 cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
+
+                Console.WriteLine($"[AuthService] REGISTER: Username={username}, Role={role}, Status={status}, IsFirstUser={isFirstUser}");
 
                 if (isFirstUser)
                 {
                     RotateInviteCode();
                 }
-
-                // Sync new user to Firebase (fire-and-forget, don't block UI)
-                var newUser = GetUserByUsername(username.Trim());
-                if (newUser != null)
+                else
                 {
-                    _ = Task.Run(async () =>
+                    // Mark invite code as used
+                    if (!string.IsNullOrWhiteSpace(inviteCode))
                     {
-                        try
-                        {
-                            await FirebaseUserService.SyncUserAsync(newUser);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[AuthService] Failed to sync new user to Firebase: {ex.Message}");
-                        }
-                    });
+                        await FirebaseInviteService.UseInviteCodeAsync(inviteCode.Trim(), username.Trim());
+                    }
+                }
+
+                // Sync user to Firebase for Flutter app
+                var user = GetUserByUsername(username);
+                if (user != null)
+                {
+                    await FirebaseUserService.SyncUserAsync(user);
                 }
 
                 return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
@@ -147,42 +164,26 @@ namespace PinayPalBackupManager.Services
                 return (false, $"An unexpected error occurred: {ex.Message}");
             }
         }
+        
+        /// <summary>
+        /// Synchronous wrapper for backward compatibility
+        /// </summary>
+        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
+        {
+            try
+            {
+                return RegisterAsync(username, password, inviteCode).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Registration error: {ex.Message}");
+            }
+        }
 
         public static async Task<(bool success, string message)> LoginAsync(string username, string password)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, "Username and password are required.");
-
-            // First, try to sync user status from Firebase to get latest approval status
-            // This is especially important for pending users who were just approved
-            try
-            {
-                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync();
-                var localUser = GetUserByUsername(username.Trim());
-                
-                if (localUser != null)
-                {
-                    // Check if user exists in Firebase and sync status if needed
-                    var firebaseUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(localUser.Username, StringComparison.OrdinalIgnoreCase));
-                    if (firebaseUser != null && firebaseUser.Status != localUser.Status)
-                    {
-                        // Update local status to match Firebase
-                        using var conn = new SqliteConnection(ConnectionString);
-                        conn.Open();
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
-                        cmd.Parameters.AddWithValue("@s", firebaseUser.Status);
-                        cmd.Parameters.AddWithValue("@id", localUser.Id);
-                        cmd.ExecuteNonQuery();
-                        Console.WriteLine($"[AuthService] Synced status from Firebase for {username}: {localUser.Status} -> {firebaseUser.Status}");
-                        localUser.Status = firebaseUser.Status;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Pre-login sync failed: {ex.Message}");
-            }
 
             using var conn2 = new SqliteConnection(ConnectionString);
             conn2.Open();
@@ -199,6 +200,7 @@ namespace PinayPalBackupManager.Services
             }
 
             var user = ReadUser(reader);
+            Console.WriteLine($"[AuthService] LOGIN: Username={user.Username}, Role={user.Role}, Status={user.Status}, Id={user.Id}");
 
             if (user.Status == "Disabled")
                 return (false, "Account is disabled. Contact the admin.");
@@ -209,8 +211,7 @@ namespace PinayPalBackupManager.Services
             if (user.Status == "Pending")
                 return (false, "Account is pending approval.");
 
-            var hash = HashPassword(password, user.Salt);
-            if (!string.Equals(hash, user.PasswordHash, StringComparison.Ordinal))
+            if (!VerifyPassword(password, user.Salt, user.PasswordHash))
             {
                 // Track failed login
                 _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
@@ -218,6 +219,7 @@ namespace PinayPalBackupManager.Services
             }
 
             CurrentUser = user;
+            Console.WriteLine($"[AuthService] LOGIN SUCCESS: CurrentUser set to {user.Username} with Role={user.Role}");
             OnUserChanged?.Invoke(user);
             
             // Track successful login
@@ -242,8 +244,10 @@ namespace PinayPalBackupManager.Services
         public static bool LoginById(int userId)
         {
             var user = GetUserById(userId);
+            Console.WriteLine($"[AuthService] LOGINBYID: UserId={userId}, User={user?.Username}, Role={user?.Role}, Status={user?.Status}");
             if (user == null || user.Status != "Active") return false;
             CurrentUser = user;
+            Console.WriteLine($"[AuthService] LOGINBYID SUCCESS: CurrentUser set to {user.Username} with Role={user.Role}");
             OnUserChanged?.Invoke(user);
             return true;
         }
@@ -256,33 +260,6 @@ namespace PinayPalBackupManager.Services
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, null, "Username and password are required.");
-
-            // Sync user status from Firebase first
-            try
-            {
-                var firebaseUsers = await FirebaseUserService.GetAllUsersAsync();
-                var localUser = GetUserByUsername(username.Trim());
-                
-                if (localUser != null)
-                {
-                    var firebaseUser = firebaseUsers.FirstOrDefault(u => u.Username.Equals(localUser.Username, StringComparison.OrdinalIgnoreCase));
-                    if (firebaseUser != null && firebaseUser.Status != localUser.Status)
-                    {
-                        using var conn = new SqliteConnection(ConnectionString);
-                        conn.Open();
-                        using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id";
-                        cmd.Parameters.AddWithValue("@s", firebaseUser.Status);
-                        cmd.Parameters.AddWithValue("@id", localUser.Id);
-                        cmd.ExecuteNonQuery();
-                        localUser.Status = firebaseUser.Status;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Pre-login sync failed: {ex.Message}");
-            }
 
             using var conn2 = new SqliteConnection(ConnectionString);
             conn2.Open();
@@ -308,8 +285,7 @@ namespace PinayPalBackupManager.Services
             if (user.Status == "Pending")
                 return (false, null, "Account is pending approval.");
 
-            var hash = HashPassword(password, user.Salt);
-            if (!string.Equals(hash, user.PasswordHash, StringComparison.Ordinal))
+            if (!VerifyPassword(password, user.Salt, user.PasswordHash))
             {
                 _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
                 return (false, null, "Invalid username or password.");
@@ -330,6 +306,9 @@ namespace PinayPalBackupManager.Services
 
         public static void Logout()
         {
+            var stackTrace = System.Environment.StackTrace;
+            Console.WriteLine($"[AuthService] LOGOUT: CurrentUser was {CurrentUser?.Username} with Role={CurrentUser?.Role}");
+            Console.WriteLine($"[AuthService] LOGOUT STACK TRACE:\n{stackTrace}");
             CurrentUser = null;
             OnUserChanged?.Invoke(null);
         }
@@ -438,7 +417,7 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    await FirebaseInviteService.SetInviteCodeAsync(newCode);
+                    await FirebaseInviteService.GenerateInviteCodeAsync(newCode);
                     Console.WriteLine($"[AuthService] Firebase invite code updated: {newCode}");
                 }
                 catch (Exception ex)
@@ -569,88 +548,19 @@ namespace PinayPalBackupManager.Services
 
         /// <summary>
         /// Sync remote users from Firebase to local database
-        /// Call this periodically or when admin opens user management
+        /// COMPLETELY DISABLED for debugging - local database only
         /// </summary>
         public static async Task SyncRemoteUsersAsync()
         {
-            try
-            {
-                var remoteUsers = await FirebaseUserService.GetAllUsersAsync();
-                var localUsers = GetAllUsers();
-                var localUsernames = new HashSet<string>(localUsers.Select(u => u.Username.ToLower()));
-                
-                foreach (var remoteUser in remoteUsers)
-                {
-                    // Skip deleted users - don't re-add them
-                    if (remoteUser.Status == "Deleted")
-                    {
-                        Console.WriteLine($"[AuthService] Skipping deleted remote user: {remoteUser.Username}");
-                        continue;
-                    }
-                    
-                    // Skip if user already exists locally
-                    if (localUsernames.Contains(remoteUser.Username.ToLower()))
-                    {
-                        // Update status if different - compare timestamps to use most recent
-                        var localUser = localUsers.First(u => u.Username.Equals(remoteUser.Username, StringComparison.OrdinalIgnoreCase));
-                        if (localUser.Status != remoteUser.Status)
-                        {
-                            // Simple conflict resolution: prefer "Active" over "Pending"
-                            // This prevents approved users from being reverted to pending
-                            bool shouldUpdateRemote = true;
-                            if (localUser.Status == "Active" && remoteUser.Status == "Pending")
-                            {
-                                // Local has Active, remote still has Pending - don't downgrade
-                                shouldUpdateRemote = false;
-                                Console.WriteLine($"[AuthService] Keeping local Active status for {remoteUser.Username}");
-                            }
-                            
-                            if (shouldUpdateRemote)
-                            {
-                                await SetUserStatusAsync(localUser.Id, remoteUser.Status);
-                                Console.WriteLine($"[AuthService] Updated user status from remote: {remoteUser.Username} -> {remoteUser.Status}");
-                            }
-                        }
-                        continue;
-                    }
-                    
-                    // Add remote user to local database (without password - they'll need to reset)
-                    using var conn = new SqliteConnection(ConnectionString);
-                    conn.Open();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
-                                        VALUES (@u, @h, @s, @r, @st, @c)";
-                    cmd.Parameters.AddWithValue("@u", remoteUser.Username);
-                    cmd.Parameters.AddWithValue("@h", "REMOTE_USER"); // Placeholder - user needs to set password
-                    cmd.Parameters.AddWithValue("@s", "REMOTE_USER");
-                    cmd.Parameters.AddWithValue("@r", remoteUser.Role);
-                    cmd.Parameters.AddWithValue("@st", remoteUser.Status);
-                    cmd.Parameters.AddWithValue("@c", remoteUser.CreatedAt.ToString("o"));
-                    
-                    try
-                    {
-                        cmd.ExecuteNonQuery();
-                        Console.WriteLine($"[AuthService] Added remote user: {remoteUser.Username}");
-                    }
-                    catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
-                    {
-                        // User already exists (race condition)
-                        Console.WriteLine($"[AuthService] Remote user already exists: {remoteUser.Username}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthService] Failed to sync remote users: {ex.Message}");
-            }
+            Console.WriteLine("[AuthService] SyncRemoteUsersAsync completely disabled - local database only");
+            return;
         }
 
         public static bool VerifyPassword(int userId, string password)
         {
             var user = GetUserById(userId);
             if (user == null) return false;
-            var hash = HashPassword(password, user.Salt);
-            return string.Equals(hash, user.PasswordHash, StringComparison.Ordinal);
+            return VerifyPassword(password, user.Salt, user.PasswordHash);
         }
 
         public static bool ChangePassword(int userId, string newPassword)
@@ -784,20 +694,42 @@ namespace PinayPalBackupManager.Services
 
         private static string GenerateSalt()
         {
-            var bytes = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
-            return Convert.ToBase64String(bytes);
+            // Use timestamp-based salt for Flutter app compatibility
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(timestamp.ToString()));
         }
 
         private static string HashPassword(string password, string salt)
         {
+            // Use SHA256 with salt for Flutter app compatibility
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var combined = password + salt;
+            var bytes = Encoding.UTF8.GetBytes(combined);
+            var hash = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hash);
+        }
+        
+        private static string HashPasswordPBKDF2(string password, string salt)
+        {
+            // Old PBKDF2 method for backward compatibility with existing users
             using var pbkdf2 = new Rfc2898DeriveBytes(
                 Encoding.UTF8.GetBytes(password),
                 Convert.FromBase64String(salt),
                 100_000,
                 HashAlgorithmName.SHA256);
             return Convert.ToBase64String(pbkdf2.GetBytes(32));
+        }
+        
+        private static bool VerifyPassword(string password, string salt, string storedHash)
+        {
+            // Try SHA256 first (new method for Flutter app)
+            var sha256Hash = HashPassword(password, salt);
+            if (string.Equals(sha256Hash, storedHash, StringComparison.Ordinal))
+                return true;
+            
+            // Fallback to PBKDF2 (old method for existing PC app users)
+            var pbkdf2Hash = HashPasswordPBKDF2(password, salt);
+            return string.Equals(pbkdf2Hash, storedHash, StringComparison.Ordinal);
         }
 
         private static string GenerateInviteCode()

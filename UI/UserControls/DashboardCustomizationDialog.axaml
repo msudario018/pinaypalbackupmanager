@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.DashboardCustomizationDialog">
+    <Border Padding="20">
+        <StackPanel Spacing="16">
+            <TextBlock Text="Customize Dashboard" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+            <TextBlock Text="Choose which sections to display on the dashboard" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+            
+            <CheckBox Name="ChkQuickStats" Content="Quick Stats" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkSchedule" Content="Schedule Overview" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkServiceCards" Content="Service Cards" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkHealth" Content="Backup Health" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkOperations" Content="Operations" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkStorage" Content="Storage Breakdown" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkRecentActivity" Content="Recent Activity" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <CheckBox Name="ChkSystemLogs" Content="System Logs" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            
+            <Button Name="BtnApply" Content="Apply" HorizontalAlignment="Stretch" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,8" FontSize="12" Cursor="Hand"/>
+        </StackPanel>
+    </Border>
+</UserControl>

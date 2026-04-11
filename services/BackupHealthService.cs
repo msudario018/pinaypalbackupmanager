@@ -129,8 +129,11 @@ namespace PinayPalBackupManager.Services
                 score.TrendText = "Stable";
             }
 
-            // Find critical alerts (failures older than 2 hours)
-            var criticalThreshold = now.AddHours(-2);
+            // Find critical alerts (failures older than threshold from Firebase or default 2 hours)
+            var criticalThresholdHours = ConfigService.GetHealthThreshold("critical") > 0 
+                ? ConfigService.GetHealthThreshold("critical") 
+                : 2;
+            var criticalThreshold = now.AddHours(-criticalThresholdHours);
             foreach (var service in services)
             {
                 var logFile = GetLogFile(service);

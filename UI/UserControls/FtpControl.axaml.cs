@@ -26,6 +26,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 _manager.OnFtpAutoSyncRequested += () => {
                     if (!_isBusy) Avalonia.Threading.Dispatcher.UIThread.Post(async () => await StartBackupAsync("AUTO-SYNC"));
                 };
+                _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
+                _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
             }
             
             // Click handlers for all buttons
@@ -44,7 +46,7 @@ namespace PinayPalBackupManager.UI.UserControls
             };
             this.FindControl<Button>("BtnViewLog")!.Click += (s, e) => { if (File.Exists(BackupConfig.FtpLogFile)) { System.Diagnostics.Process.Start("notepad.exe", BackupConfig.FtpLogFile); NotificationService.ShowBackupToast("FTP", "Opened log file.", "Info"); } };
 
-            LogService.OnNewLogEntry += (entry, file) => { 
+            LogService.OnNewLogEntry += (entry, file) => {
                 if (file == BackupConfig.FtpLogFile) {
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         var textBox = this.FindControl<TextBox>("TxtLogs")!;
@@ -55,6 +57,35 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             };
             LoadInitialLogs();
+        }
+
+        private void OnAutoScanTimersReset()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
+                if (txtAuto != null && _manager != null)
+                {
+                    var now = DateTime.Now;
+                    var diff = _manager.NextFtpAutoScan - now;
+                    txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                }
+            });
+        }
+
+        private void OnDailyScheduleUpdated()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var txtDaily = this.FindControl<TextBlock>("TxtNextDaily");
+                if (txtDaily != null)
+                {
+                    var now = DateTime.Now;
+                    var mnlTime = now.AddHours(15); // UTC-7 to UTC+8 is +15 hours
+                    var diff = BackupManager.NextFtpDailySyncMnl - mnlTime;
+                    txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                }
+            });
         }
 
         private void LoadInitialLogs()
@@ -195,6 +226,10 @@ namespace PinayPalBackupManager.UI.UserControls
                         });
                         // Report global backup progress complete
                         _manager?.ReportBackupProgress("FTP", 100, "COMPLETE");
+                        // Update Firebase timestamp
+                        _ = SystemStatusService.UpdateFtpBackupTimestampAsync();
+                        // Write backup history to Firebase
+                        _ = SystemStatusService.WriteBackupHistoryAsync("ftp", "success");
                     }
                     else
                     {

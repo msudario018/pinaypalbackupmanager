@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.UserManagementControl"
+             xmlns:vm="clr-namespace:PinayPalBackupManager.UI.UserControls">
+    <ScrollViewer>
+        <StackPanel Spacing="20">
+            <!-- Invite Codes Section -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="INVITE CODES" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,10"/>
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Generate new invite codes for user registration" Foreground="{DynamicResource AppText}" FontSize="13"/>
+                            <TextBlock Text="Codes are validated against Firebase" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Name="BtnGenerateInviteCode" Classes="Primary" Content="GENERATE CODE" Padding="12,8" Margin="10,0,0,0"/>
+                    </Grid>
+                    
+                    <Separator Margin="0,5"/>
+                    
+                    <TextBlock Text="Active Invite Codes" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                    <ListBox Name="LstInviteCodes" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="10" MinHeight="150" MaxHeight="300">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:InviteCodeViewModel">
+                                <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding Code}" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                                        <TextBlock Text="{Binding CreatedAt}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding IsUsed}" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center" Margin="10,0"/>
+                                    <Button Grid.Column="2" Name="BtnDeleteInviteCode" Classes="Danger" Content="Delete" Padding="8,4" FontSize="10" Margin="5,0,0,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <Button Name="BtnRefreshInviteCodes" Content="REFRESH CODES" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,6" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
+                </StackPanel>
+            </Border>
+
+            <!-- User Management Section -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="USER MANAGEMENT" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}" Margin="0,0,0,10"/>
+                    
+                    <TextBlock Text="All Users" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                    <ListBox Name="LstUsers" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="10" MinHeight="200" MaxHeight="400">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:UserViewModel">
+                                <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="0,6">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="{Binding username}" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                                        <TextBlock Text="{Binding role}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding status}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0"/>
+                                    <Button Grid.Column="2" Name="BtnApproveUser" Classes="Success" Content="Approve" Padding="8,4" FontSize="10" Margin="5,0,0,0" IsVisible="{Binding is_pending}"/>
+                                    <Button Grid.Column="3" Name="BtnDisableUser" Classes="Warning" Content="Disable" Padding="8,4" FontSize="10" Margin="5,0,0,0" IsVisible="{Binding is_active}"/>
+                                    <Button Grid.Column="4" Name="BtnEnableUser" Classes="Success" Content="Enable" Padding="8,4" FontSize="10" Margin="5,0,0,0" IsVisible="{Binding is_disabled}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <Button Name="BtnRefreshUsers" Content="REFRESH USERS" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,6" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
+                </StackPanel>
+            </Border>
+
+            <!-- User Actions Section -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="USER ACTIONS" FontWeight="Bold" Foreground="{DynamicResource AccentWarning}" Margin="0,0,0,10"/>
+                    
+                    <Grid ColumnDefinitions="*, *">
+                        <Button Grid.Column="0" Name="BtnChangePassword" Content="CHANGE PASSWORD" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="15,12" Margin="0,0,5,0"/>
+                        <Button Grid.Column="1" Name="BtnChangeUsername" Content="CHANGE USERNAME" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="15,12" Margin="5,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

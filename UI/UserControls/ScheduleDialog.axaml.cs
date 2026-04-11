@@ -112,7 +112,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (status != null) { status.Text = "Reset to defaults — click Save to apply"; status.Foreground = Brush.Parse("#dad7cd"); }
         }
 
-        private void SaveAndClose()
+        private async void SaveAndClose()
         {
             try
             {
@@ -133,8 +133,19 @@ namespace PinayPalBackupManager.UI.UserControls
                 s.SqlAutoScanMinutes      = Parse(GetTb("SqlScanMinutes"), 15, 0, 59);
 
                 ConfigService.SaveSchedule();
-                ConfigService.Load();
-                LogService.WriteSystemLog("Schedule configuration updated", "Information", "SETTINGS");
+
+                var scheduleSuccess = await FirebaseRemoteService.SaveBackupScheduleAsync(ConfigService.GetFirebaseSchedule());
+                var autoScanSuccess = await FirebaseRemoteService.SaveAutoScanAsync(ConfigService.GetFirebaseAutoScan());
+
+                if (scheduleSuccess && autoScanSuccess)
+                {
+                    LogService.WriteSystemLog("Schedule configuration updated and synced to Firebase", "Information", "SETTINGS");
+                }
+                else
+                {
+                    LogService.WriteSystemLog("Schedule configuration updated but Firebase sync failed", "Warning", "SETTINGS");
+                }
+
                 Close(true);
             }
             catch (Exception ex)

@@ -13,6 +13,7 @@ namespace PinayPalBackupManager.Services
             {
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(SessionFile, userId.ToString());
+                Console.WriteLine($"[SessionService] Session saved for user ID: {userId}");
             }
             catch { }
         }
@@ -21,9 +22,17 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                if (!File.Exists(SessionFile)) return null;
+                if (!File.Exists(SessionFile)) 
+                {
+                    Console.WriteLine("[SessionService] No session file found");
+                    return null;
+                }
                 var text = File.ReadAllText(SessionFile).Trim();
-                if (int.TryParse(text, out int id)) return id;
+                if (int.TryParse(text, out int id))
+                {
+                    Console.WriteLine($"[SessionService] Session loaded for user ID: {id}");
+                    return id;
+                }
             }
             catch { }
             return null;
@@ -34,7 +43,10 @@ namespace PinayPalBackupManager.Services
             try
             {
                 if (File.Exists(SessionFile))
+                {
                     File.Delete(SessionFile);
+                    Console.WriteLine("[SessionService] Session cleared");
+                }
             }
             catch { }
         }

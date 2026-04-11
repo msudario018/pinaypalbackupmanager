@@ -9,7 +9,7 @@
         Foreground="{DynamicResource AppText}"
         Icon="/Assets/logo.ico">
     
-    <Grid ColumnDefinitions="72, *" RowDefinitions="Auto, *, Auto, 40">
+    <Grid ColumnDefinitions="180, *" RowDefinitions="Auto, *, Auto, 40">
         <!-- Sidebar -->
         <Border Grid.Column="0" Grid.RowSpan="4" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder2}" BorderThickness="0,0,1,0" Opacity="0.95">
                 <Border.Effect>
@@ -23,45 +23,71 @@
                 </Border>
 
                 <!-- Navigation Buttons -->
-                <StackPanel Name="Sidebar" Grid.Row="1" Spacing="2" Margin="10,12,10,0" VerticalAlignment="Top">
-                    <Button Classes="SideBtn" Tag="Home" ToolTip.Tip="Dashboard">
-                        <PathIcon Data="{StaticResource HomeIcon}" Width="18" Height="18" Foreground="{DynamicResource AppMuted}"/>
+                <StackPanel Name="Sidebar" Grid.Row="1" Spacing="4" Margin="10,12,10,0" VerticalAlignment="Top">
+                    <Button Classes="SideBtn" Tag="Home" ToolTip.Tip="Dashboard" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource HomeIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Home" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                     <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="4,4"/>
-                    <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync">
-                        <PathIcon Data="{StaticResource CloudIcon}" Width="18" Height="18" Foreground="{DynamicResource AppMuted}"/>
+                    <Button Classes="SideBtn" Tag="FTP" ToolTip.Tip="FTP Sync" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource CloudIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Website Backup" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
-                    <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp">
-                        <PathIcon Data="{StaticResource MailIcon}" Width="18" Height="18" Foreground="{DynamicResource AppMuted}"/>
+                    <Button Classes="SideBtn" Tag="Mailchimp" ToolTip.Tip="Mailchimp" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource MailIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Mailchimp Backup" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
-                    <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup">
-                        <PathIcon Data="{StaticResource DatabaseIcon}" Width="18" Height="18" Foreground="{DynamicResource AppMuted}"/>
+                    <Button Classes="SideBtn" Tag="SQL" ToolTip.Tip="SQL Backup" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource DatabaseIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="SQL Backup" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                     <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="4,8"/>
-                    <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings">
-                        <PathIcon Data="{StaticResource SettingsIcon}" Width="18" Height="18" Foreground="{DynamicResource AppMuted}"/>
+                    <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource SettingsIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Settings" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Name="BtnUserManagement" Classes="SideBtn" Tag="UserManagement" ToolTip.Tip="User Management" IsVisible="False" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M12,16A4,4 0 0,1 16,12A4,4 0 0,1 12,8A4,4 0 0,1 8,12A4,4 0 0,1 12,16M12,18C6.5,18 2,15.3 2,12C2,8.7 6.5,6 12,6C17.5,6 22,8.7 22,12C22,15.3 17.5,18 12,18Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Users" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                 </StackPanel>
 
                 <!-- Customize Tabs Button -->
                 <Button Name="BtnCustomizeTabs" Grid.Row="2" Classes="SideBtn" ToolTip.Tip="Customize Tab Order"
-                        HorizontalAlignment="Center" Margin="10,4,10,0" Cursor="Hand">
-                    <PathIcon Data="M3,15H21V13H3V15M3,19H21V17H3V19M3,11H21V9H3V11M3,5V7H21V5H3Z"
-                              Width="16" Height="16" Foreground="{DynamicResource AppMuted}"/>
+                        Margin="10,4,10,0" Cursor="Hand" Padding="12,0">
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <PathIcon Data="M3,15H21V13H3V15M3,19H21V17H3V19M3,11H21V9H3V11M3,5V7H21V5H3Z"
+                                  Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                        <TextBlock Text="Customize" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
 
                 <!-- Profile Section -->
                 <Border Grid.Row="3" Padding="0,10" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0">
-                    <Button Name="BtnProfile" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center"
-                            CornerRadius="12" ToolTip.Tip="Profile" Cursor="Hand">
-                        <Grid Width="36" Height="36">
-                            <Ellipse Name="AvatarImageBg" Width="36" Height="36" Fill="{DynamicResource AppSurface}"/>
-                            <Image Name="AvatarImage" Width="36" Height="36" Stretch="UniformToFill" IsVisible="False">
-                                <Image.Clip>
-                                    <EllipseGeometry Rect="0,0,36,36"/>
-                                </Image.Clip>
-                            </Image>
-                        </Grid>
+                    <Button Name="BtnProfile" Classes="SideBtn" ToolTip.Tip="Profile" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Grid Width="32" Height="32">
+                                <Ellipse Name="AvatarImageBg" Width="32" Height="32" Fill="{DynamicResource AppSurface}"/>
+                                <Image Name="AvatarImage" Width="32" Height="32" Stretch="UniformToFill" IsVisible="False">
+                                    <Image.Clip>
+                                        <EllipseGeometry Rect="0,0,32,32"/>
+                                    </Image.Clip>
+                                </Image>
+                            </Grid>
+                            <TextBlock Text="Profile" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                 </Border>
             </Grid>
@@ -213,9 +239,9 @@
     <Window.Styles>
         <!-- Sidebar Button Animations -->
         <Style Selector="Button.SideBtn">
-            <Setter Property="Width" Value="48"/>
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="12"/>

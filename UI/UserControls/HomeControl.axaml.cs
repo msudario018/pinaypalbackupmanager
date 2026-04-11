@@ -67,6 +67,9 @@ namespace PinayPalBackupManager.UI.UserControls
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
             _manager = manager;
 
+            _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
+            _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
+
             _manager.OnHealthUpdate += OnHealthUpdate;
             _manager.OnTimeUpdate += OnTimeUpdate;
             _manager.OnBackupProgress += OnBackupProgress;
@@ -112,6 +115,9 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnRefreshHealth")!.Click += (_, _) => _ = LoadHealthDashboardAsync();
             this.FindControl<Button>("BtnClearSystemLogs")!.Click += (_, _) => ClearSystemLogs();
             this.FindControl<Button>("BtnRefreshSystemLogs")!.Click += (_, _) => _ = LoadSystemLogsAsync();
+            this.FindControl<Button>("BtnViewLogsInNotepad")!.Click += (_, _) => ViewLogsInNotepad();
+            this.FindControl<Button>("BtnRefreshFirebaseLogs")!.Click += (_, _) => _ = LoadFirebaseLogsAsync();
+            this.FindControl<Button>("BtnViewFirebaseLogs")!.Click += (_, _) => ViewLogsInNotepad();
 
             UpdateGreeting();
             UpdateDailySchedule();
@@ -128,9 +134,15 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Subscribe to system log events
             LogService.OnNewLogEntry += OnNewSystemLogEntry;
-            
+
+            // Subscribe to schedule changes from Firebase
+            ConfigService.OnScheduleChanged += OnScheduleChangedFromFirebase;
+
             // Load system logs
             _ = LoadSystemLogsAsync();
+
+            // Load Firebase logs
+            _ = LoadFirebaseLogsAsync();
             
             // Initialize new dashboard features
             _ = UpdateSystemStatusAsync();
@@ -326,6 +338,28 @@ namespace PinayPalBackupManager.UI.UserControls
             });
         }
 
+        private void OnAutoScanTimersReset()
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var now = DateTime.Now;
+                SetTimer("FtpNextScan", _manager.NextFtpAutoScan, now);
+                SetTimer("MailchimpNextScan", _manager.NextMailchimpAutoScan, now);
+                SetTimer("SqlNextScan", _manager.NextSqlAutoScan, now);
+                UpdateScheduleOverview(now);
+            });
+        }
+
+        private void OnDailyScheduleUpdated()
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var now = DateTime.Now;
+                UpdateScheduleOverview(now);
+                UpdateDailySchedule(now.AddHours(15));
+            });
+        }
+
         private void OnHealthUpdate(List<BackupHealthReport> reports)
         {
             if (!_autoPinged) { _autoPinged = true; _ = PingAllAsync(); }
@@ -456,9 +490,16 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 var now = mnlNow ?? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
                     TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                SetSched("SchedFtp", BackupManager.NextFtpDailySyncMnl, now);
-                SetSched("SchedMailchimp", BackupManager.NextMailchimpDailySyncMnl, now);
-                SetSched("SchedSql", BackupManager.NextSqlDailySyncMnl, now);
+
+                var ftpNext = BackupManager.NextFtpDailySyncMnl;
+                var mcNext = BackupManager.NextMailchimpDailySyncMnl;
+                var sqlNext = BackupManager.NextSqlDailySyncMnl;
+
+                LogService.WriteSystemLog($"[HOMECTRL] UpdateDailySchedule - FTP: {ftpNext:HH:mm}, MC: {mcNext:HH:mm}, SQL: {sqlNext:HH:mm}", "Information", "SYSTEM");
+
+                SetSched("SchedFtp", ftpNext, now);
+                SetSched("SchedMailchimp", mcNext, now);
+                SetSched("SchedSql", sqlNext, now);
             }
             catch { }
         }
@@ -1619,13 +1660,8 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             if (serviceScores == null)
             {
-                // Initialize with default values if no data
-                serviceScores = new Dictionary<string, int>
-                {
-                    {"FTP", 0},
-                    {"Mailchimp", 0},
-                    {"SQL", 0}
-                };
+                // Don't set default values - leave as "SCANNING..." until actual data arrives
+                return;
             }
 
             int healthyCount = 0;
@@ -1656,6 +1692,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Update services OK text
             Set("ServicesHealthText", $"{healthyCount}/3 healthy");
+            Set("StatServicesOk", healthyCount.ToString());
         }
 
         private void SetDot(string controlName, string color)
@@ -1908,7 +1945,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 100);
                     var logText = string.Join("\n", logs);
-                    
+
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
@@ -1921,6 +1958,36 @@ namespace PinayPalBackupManager.UI.UserControls
                 catch (Exception ex)
                 {
                     LogService.WriteLiveLog($"[SYSTEM] Error loading system logs: {ex.Message}", "", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private async Task LoadFirebaseLogsAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var allLogs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 200);
+                    var firebaseLogs = allLogs
+                        .Where(l => l.Contains("FIREBASE") || l.Contains("CONFIG") || l.Contains("QUICK_ACTIONS"))
+                        .Take(50)
+                        .ToList();
+
+                    var logText = firebaseLogs.Count > 0 ? string.Join("\n", firebaseLogs) : "No Firebase-related logs available.";
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var firebaseLogsText = this.FindControl<TextBlock>("FirebaseLogsText");
+                        if (firebaseLogsText != null)
+                        {
+                            firebaseLogsText.Text = logText;
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[SYSTEM] Error loading Firebase logs: {ex.Message}", "", "Error", "SYSTEM");
                 }
             });
         }
@@ -1939,24 +2006,80 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
+        private void ViewLogsInNotepad()
+        {
+            try
+            {
+                var logPath = AppDataPaths.SystemLogPath;
+                if (File.Exists(logPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "notepad.exe",
+                        Arguments = logPath,
+                        UseShellExecute = true
+                    });
+                    NotificationService.ShowBackupToast("System Logs", "Opening logs in Notepad...", "Info");
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("System Logs", "Log file not found.", "Error");
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("System Logs", $"Failed to open logs: {ex.Message}", "Error");
+            }
+        }
+
         private void OnNewSystemLogEntry(string logEntry, string logFile)
         {
             // Only update if it's a system log
             if (logFile == AppDataPaths.SystemLogPath)
             {
+                // Check if log is Firebase-related
+                bool isFirebaseLog = logEntry.Contains("FIREBASE") || logEntry.Contains("CONFIG") || logEntry.Contains("QUICK_ACTIONS");
+
                 Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
-                    if (systemLogsText != null)
+                    if (isFirebaseLog)
                     {
-                        var currentText = systemLogsText.Text;
-                        var newText = $"{logEntry}\n{currentText}";
-                        // Keep only last 100 lines to prevent memory issues
-                        var lines = newText.Split('\n').Take(100);
-                        systemLogsText.Text = string.Join("\n", lines);
+                        // Update Firebase logs display
+                        var firebaseLogsText = this.FindControl<TextBlock>("FirebaseLogsText");
+                        if (firebaseLogsText != null)
+                        {
+                            var currentText = firebaseLogsText.Text;
+                            var newText = $"{logEntry}\n{currentText}";
+                            // Keep only last 50 lines to prevent memory issues
+                            var lines = newText.Split('\n').Take(50);
+                            firebaseLogsText.Text = string.Join("\n", lines);
+                        }
+                    }
+                    else
+                    {
+                        // Update system logs display
+                        var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
+                        if (systemLogsText != null)
+                        {
+                            var currentText = systemLogsText.Text;
+                            var newText = $"{logEntry}\n{currentText}";
+                            // Keep only last 100 lines to prevent memory issues
+                            var lines = newText.Split('\n').Take(100);
+                            systemLogsText.Text = string.Join("\n", lines);
+                        }
                     }
                 });
             }
+        }
+
+        private void OnScheduleChangedFromFirebase()
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                UpdateDailySchedule();
+                UpdateSchedSummary();
+                LogService.WriteSystemLog("[HOMECTRL] UI refreshed after Firebase schedule change", "Information", "SYSTEM");
+            });
         }
 
         protected override void OnUnloaded(RoutedEventArgs e)
@@ -1965,6 +2088,7 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Unsubscribe from log events
             LogService.OnNewLogEntry -= OnNewSystemLogEntry;
+            ConfigService.OnScheduleChanged -= OnScheduleChangedFromFirebase;
             
             // Hide auto-refresh indicators
             Dispatcher.UIThread.InvokeAsync(() =>

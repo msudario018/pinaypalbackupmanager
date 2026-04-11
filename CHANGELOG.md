@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.0] - 2026-04-12
+
+### Added
+- **HTTP File Download Server**: Built-in HTTP server for mobile app file downloads
+  - Configurable port (default 8080) via HttpServerSettings in appsettings.json
+  - GET /download/{filename} endpoint to serve backup files
+  - Automatic MIME type detection for different file types (zip, sql, csv, json, etc.)
+  - Security: filename validation to prevent path traversal attacks
+  - Searches all backup directories (FTP, SQL, Mailchimp) for requested files
+- **Firebase Connection Status**: Real-time PC connection status updates
+  - Updates Firebase at users/{username}/connection.json every 15 seconds
+  - Includes status (online/offline), lastSeen timestamp, ipAddress, and port
+  - Mobile app can construct download URLs using Firebase data
+  - Automatic status change to "offline" when server stops
+- **Connection Status Notification**: Toast notification when PC comes online
+  - Shows "PC Online" with server URL when HTTP server starts
+  - Only notifies once per session to prevent spam
+- **URL Reservation Support**: Helper methods for setting up URL reservations
+  - GetUrlReservationCommand() - generates netsh command for admin setup
+  - GetUrlRemovalCommand() - generates netsh command for cleanup
+  - Automatic fallback to localhost-only mode if admin privileges unavailable
+  - Warning notification when running in localhost-only mode
+
+### Fixed
+- **HTTP Server Access Denied**: Graceful fallback to localhost when binding to all interfaces fails
+- **Firebase Logging**: Enhanced logging for connection status updates with detailed error messages
+
+### Improved
+- **Mobile Integration**: PC app now fully supports mobile app file downloads via HTTP
+- **Network Flexibility**: Supports both all-interfaces binding (requires admin/URL reservation) and localhost-only fallback
+- **Configuration**: HTTP server settings can be configured in appsettings.json
+
 ## [2.8.9] - 2026-04-09
 
 ### Added

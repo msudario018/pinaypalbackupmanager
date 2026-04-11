@@ -158,7 +158,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
                 };
 
                 dialog.OnSave += async (sender, e) =>
@@ -201,7 +203,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
                 };
 
                 dialog.OnSave += async (sender, e) =>

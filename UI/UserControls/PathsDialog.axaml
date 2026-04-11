@@ -4,16 +4,9 @@
              Width="500" Height="450">
     
     <Border Background="{DynamicResource AppCard}" CornerRadius="12" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="30">
-        <Grid RowDefinitions="Auto, *, Auto">
-            <!-- Header -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,0,0,25">
-                <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" 
-                        Width="32" Height="32" Foreground="{DynamicResource AccentSuccess}"/>
-                <TextBlock Text="Backup Paths" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
-            </StackPanel>
-            
+        <Grid RowDefinitions="*, Auto">
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20">
                     <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
                         <StackPanel Spacing="10">
@@ -68,7 +61,7 @@
             </ScrollViewer>
             
             <!-- Buttons -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="15" Margin="0,20,0,0">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="15" Margin="0,20,0,0">
                 <Button Name="BtnCancel" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="25,12" CornerRadius="8" FontWeight="SemiBold"/>
                 <Button Name="BtnSave" Content="Save Paths" Background="{DynamicResource AccentSuccess}" Foreground="{DynamicResource AppText}" Padding="25,12" CornerRadius="8" FontWeight="Bold"/>
             </StackPanel>

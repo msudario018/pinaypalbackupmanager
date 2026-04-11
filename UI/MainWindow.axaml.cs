@@ -32,7 +32,9 @@ namespace PinayPalBackupManager.UI
         private readonly SqlControl _sqlControl;
         private readonly SettingsControl _settingsControl;
         private readonly ProfileControl _profileControl;
+        private readonly UserManagementControl _userManagementControl;
         private DispatcherTimer? _activeProcessMonitorTimer;
+        private DispatcherTimer? _firebasePollTimer;
         private bool _allowClose;
 #pragma warning disable CS0649
         private DispatcherTimer? _toastTimer;
@@ -103,6 +105,7 @@ namespace PinayPalBackupManager.UI
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _profileControl = new ProfileControl();
+            _userManagementControl = new UserManagementControl();
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;
@@ -118,6 +121,17 @@ namespace PinayPalBackupManager.UI
             };
             _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
             _activeProcessMonitorTimer.Start();
+
+            // Start Firebase polling timer (fallback for real-time listener)
+            _firebasePollTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _firebasePollTimer.Tick += async (sender, e) =>
+            {
+                await FirebaseRemoteService.PollScheduleUpdatesAsync();
+                await FirebaseRemoteService.PollCommandsAsync();
+            };
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
             // Setup button click handlers
@@ -315,15 +329,81 @@ namespace PinayPalBackupManager.UI
                     FirebaseRemoteService.Initialize(databaseUrl, username);
                     LogService.WriteSystemLog("[MAINWINDOW] FirebaseRemoteService initialized", "Information", "SYSTEM");
                     await RealtimeMonitoringService.AddLogAsync("Info", "FirebaseRemoteService initialized", "MAINWINDOW");
+
+                    // Start Firebase polling timer
+                    _firebasePollTimer?.Start();
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase polling timer started", "Information", "SYSTEM");
+                    
+                    // Initialize SystemStatusService to write system_status to Firebase
+                    SystemStatusService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] SystemStatusService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "SystemStatusService initialized", "MAINWINDOW");
+                    
+                    // Initialize FileDownloadService for HTTP file downloads
+                    if (ConfigService.Current.HttpServer.Enabled)
+                    {
+                        var backupDir = ConfigService.Current.Paths.FtpLocalFolder;
+                        FileDownloadService.Initialize(username, backupDir, ConfigService.Current.HttpServer.Port);
+                        await FileDownloadService.StartAsync();
+                        LogService.WriteSystemLog("[MAINWINDOW] FileDownloadService started", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "FileDownloadService started", "MAINWINDOW");
+                    }
                     
                     // Listen for remote commands
-                    FirebaseRemoteService.ListenForCommands((commandType, commandId) => 
+                    FirebaseRemoteService.ListenForCommands((commandType, commandId, data) => 
                     {
-                        _ = ExecuteRemoteCommandAsync(commandType, commandId);
+                        _ = ExecuteRemoteCommandAsync(commandType, commandId, data);
                     });
                     
                     // Listen for quick actions
                     ListenForQuickActions();
+                    
+                    // Load Firebase schedule and health thresholds
+                    await LoadFirebaseSettingsAsync();
+                    
+                    // Subscribe to real-time Firebase updates
+                    FirebaseRemoteService.OnScheduleUpdated += (schedule) =>
+                    {
+                        if (schedule != null)
+                        {
+                            LogService.WriteSystemLog("[MAINWINDOW] OnScheduleUpdated triggered - resetting BackupManager timers", "Information", "SYSTEM");
+                            ConfigService.MergeFirebaseSchedule(schedule);
+                            _backupManager?.ResetAutoScanTimers();
+                            _backupManager?.FireDailyScheduleUpdated();
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+
+                    FirebaseRemoteService.OnHealthThresholdsUpdated += (thresholds) =>
+                    {
+                        if (thresholds != null)
+                        {
+                            ConfigService.MergeFirebaseHealthThresholds(thresholds);
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+
+                    FirebaseRemoteService.OnCommandReceived += (commandType, commandId) =>
+                    {
+                        LogService.WriteSystemLog($"[MAINWINDOW] Firebase command received: {commandType}", "Information", "SYSTEM");
+                        _ = ExecuteRemoteCommandAsync(commandType, commandId ?? "", null);
+                    };
+
+                    FirebaseRemoteService.OnAutoScanUpdated += (autoScan) =>
+                    {
+                        if (autoScan != null)
+                        {
+                            ConfigService.MergeFirebaseAutoScan(autoScan);
+                            _backupManager?.ResetAutoScanTimers();
+                            _backupManager?.FireAutoScanTimersReset();
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+
+                    // Start real-time listeners
+                    FirebaseRemoteService.ListenForScheduleUpdates();
+                    FirebaseRemoteService.ListenForHealthThresholdUpdates();
+                    FirebaseRemoteService.ListenForAutoScanUpdates();
                     
                     LogService.WriteSystemLog("[FIREBASE] Remote control initialized", "Information", "SYSTEM");
                     await RealtimeMonitoringService.AddLogAsync("Info", "Remote control initialized", "MAINWINDOW");
@@ -339,6 +419,49 @@ namespace PinayPalBackupManager.UI
                 LogService.WriteSystemLog($"[FIREBASE] Initialization error: {ex.Message}", "Error", "SYSTEM");
                 await RealtimeMonitoringService.AddLogAsync("Error", $"Initialization error: {ex.Message}", "MAINWINDOW");
             }
+        }
+
+        private async Task LoadFirebaseSettingsAsync()
+        {
+            try
+            {
+                LogService.WriteSystemLog("[MAINWINDOW] Loading Firebase settings...", "Information", "SYSTEM");
+
+                var schedule = await FirebaseRemoteService.GetBackupScheduleAsync();
+                if (schedule != null)
+                {
+                    ConfigService.MergeFirebaseSchedule(schedule);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule loaded", "Information", "SYSTEM");
+                }
+
+                var thresholds = await FirebaseRemoteService.GetHealthThresholdsAsync();
+                if (thresholds != null)
+                {
+                    ConfigService.MergeFirebaseHealthThresholds(thresholds);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds loaded", "Information", "SYSTEM");
+                }
+
+                var autoScan = await FirebaseRemoteService.GetAutoScanSettingsAsync();
+                if (autoScan != null)
+                {
+                    ConfigService.MergeFirebaseAutoScan(autoScan);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan loaded", "Information", "SYSTEM");
+                }
+
+                // Reset auto scan timers after loading settings
+                _backupManager?.ResetAutoScanTimers();
+                _backupManager?.FireDailyScheduleUpdated();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Failed to load Firebase settings: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public async Task RefreshFirebaseSettingsAsync()
+        {
+            LogService.WriteSystemLog("[MAINWINDOW] Manual Firebase settings refresh triggered", "Information", "SYSTEM");
+            await LoadFirebaseSettingsAsync();
         }
 
                 
@@ -611,6 +734,10 @@ namespace PinayPalBackupManager.UI
                     case "Settings":
                         NotificationService.ShowBackupToast("Tab", "Switched to Settings", "Info");
                         ShowControl(_settingsControl);
+                        break;
+                    case "UserManagement":
+                        NotificationService.ShowBackupToast("Tab", "Switched to User Management", "Info");
+                        ShowControl(_userManagementControl);
                         break;
                 }
             }
@@ -955,6 +1082,7 @@ namespace PinayPalBackupManager.UI
             }
 
             _backupManager.Stop();
+            FileDownloadService.Stop();
             base.OnClosing(e);
         }
 
@@ -1164,13 +1292,26 @@ namespace PinayPalBackupManager.UI
 
             
             // Listen for auth changes
-            AuthService.OnUserChanged += (user) => UpdateProfileDisplay();
+            AuthService.OnUserChanged += (user) => 
+            {
+                UpdateProfileDisplay();
+                UpdateUserManagementButtonVisibility();
+            };
         }
 
         private void UpdateProfileDisplay()
         {
             // Profile display simplified - only avatar shown in sidebar
             LoadSidebarAvatar();
+        }
+
+        private void UpdateUserManagementButtonVisibility()
+        {
+            var btnUserManagement = this.FindControl<Button>("BtnUserManagement");
+            if (btnUserManagement != null)
+            {
+                btnUserManagement.IsVisible = AuthService.IsAdmin;
+            }
         }
 
         private void LoadSidebarAvatar()
@@ -1202,7 +1343,7 @@ namespace PinayPalBackupManager.UI
             }
         }
 
-        private async Task ExecuteRemoteCommandAsync(string commandType, string commandId)
+        private async Task ExecuteRemoteCommandAsync(string commandType, string commandId, string? data)
         {
             await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "running");
             await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 0, "Starting operation...", "", "", "");
@@ -1212,6 +1353,107 @@ namespace PinayPalBackupManager.UI
             {
                 switch (commandType)
                 {
+                    case BackupCommandTypes.TriggerFtpBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "FTP");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.TriggerMailchimpBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "Mailchimp");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.StartFullBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.TriggerSqlBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "SQL");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.PauseBackups:
+                        _backupManager.IsPaused = true;
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups paused remotely", "REMOTE");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups paused");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups paused successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.ResumeBackups:
+                        _backupManager.IsPaused = false;
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups resumed remotely", "REMOTE");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups resumed");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups resumed successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.SyncFiles:
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backup files sync triggered remotely", "REMOTE");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Syncing backup files...", "", "", "");
+                        await RealtimeMonitoringService.SyncBackupFilesAsync();
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backup files synced");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backup files synced successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.DeleteBackupFile:
+                        await RealtimeMonitoringService.AddLogAsync("Info", $"Delete backup file requested: {data}", "REMOTE");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Deleting backup file...", "", "", "");
+                        
+                        // Parse file path from data
+                        if (!string.IsNullOrEmpty(data))
+                        {
+                            try
+                            {
+                                if (File.Exists(data))
+                                {
+                                    File.Delete(data);
+                                    await RealtimeMonitoringService.AddLogAsync("Info", $"Deleted backup file: {data}", "REMOTE");
+                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "File deleted");
+                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "File deleted successfully", "", "", "");
+                                }
+                                else
+                                {
+                                    await RealtimeMonitoringService.AddLogAsync("Error", $"File not found: {data}", "REMOTE");
+                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "File not found");
+                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "File not found", "", "", "");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to delete file: {ex.Message}", "REMOTE");
+                                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
+                                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
+                            }
+                        }
+                        else
+                        {
+                            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "No file path provided");
+                            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "No file path provided", "", "", "");
+                        }
+                        break;
+                        
                     case "ftp_sync":
                         await RealtimeMonitoringService.AddActivityAsync("sync_check", "FTP", "FTP sync check started");
                         await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing FTP sync...", "", "", "");
@@ -1351,9 +1593,23 @@ namespace PinayPalBackupManager.UI
 
                             foreach (var action in quickActions)
                             {
-                                if (action.Object?.Action == "emergency_stop" && action.Object?.Status == "pending")
+                                if (action.Object?.Status == "pending")
                                 {
-                                    await HandleEmergencyStopAsync(action.Key);
+                                    switch (action.Object?.Action)
+                                    {
+                                        case "emergency_stop":
+                                            await HandleEmergencyStopAsync(action.Key);
+                                            break;
+                                        case "trigger_ftp_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "ftp");
+                                            break;
+                                        case "trigger_sql_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "sql");
+                                            break;
+                                        case "trigger_mailchimp_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "mailchimp");
+                                            break;
+                                    }
                                 }
                             }
                             
@@ -1407,6 +1663,71 @@ namespace PinayPalBackupManager.UI
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[QUICK_ACTIONS] Emergency stop failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        private async Task HandleBackupTriggerAsync(string actionId, string service)
+        {
+            try
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Backup trigger for {service} from Flutter app", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddActivityAsync("backup_triggered", service, $"{service.ToUpper()} backup triggered from Flutter app");
+
+                // Trigger the appropriate backup
+                switch (service.ToLower())
+                {
+                    case "ftp":
+                        if (_ftpControl != null && !_ftpControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ftpControl.StartBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] FTP backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                    case "sql":
+                        if (_sqlControl != null && !_sqlControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _sqlControl.StartBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] SQL backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                    case "mailchimp":
+                        if (_mailchimpControl != null && !_mailchimpControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _mailchimpControl.StartFullBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] Mailchimp backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                }
+
+                NotificationService.ShowBackupToast("Remote Trigger", $"{service.ToUpper()} backup triggered from Flutter app.", "Info");
+
+                // Update action status
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+
+                if (username != null)
+                {
+                    await database
+                        .Child("users")
+                        .Child(username)
+                        .Child("quick_actions")
+                        .Child(actionId)
+                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Failed to handle backup trigger for {service}: {ex.Message}", "Error", "SYSTEM");
             }
         }
 

@@ -26,6 +26,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 _manager.OnMailchimpAutoSyncRequested += () => {
                     if (!_isBusy) Avalonia.Threading.Dispatcher.UIThread.Post(async () => await StartFullBackupAsync("AUTO-SYNC"));
                 };
+                _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
+                _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
             }
             
             this.FindControl<Button>("BtnRunFull")!.Click += async (s, e) => { NotificationService.ShowBackupToast("Mailchimp", "Starting full backup...", "Info"); await StartFullBackupAsync(); };
@@ -47,7 +49,7 @@ namespace PinayPalBackupManager.UI.UserControls
             };
             this.FindControl<Button>("BtnViewLog")!.Click += (s, e) => { if (File.Exists(BackupConfig.McLogFile)) { System.Diagnostics.Process.Start("notepad.exe", BackupConfig.McLogFile); NotificationService.ShowBackupToast("Mailchimp", "Opened log file.", "Info"); } };
 
-            LogService.OnNewLogEntry += (entry, file) => { 
+            LogService.OnNewLogEntry += (entry, file) => {
                 if (file == BackupConfig.McLogFile) {
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         var textBox = this.FindControl<TextBox>("TxtLogs")!;
@@ -58,6 +60,35 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             };
             LoadInitialLogs();
+        }
+
+        private void OnAutoScanTimersReset()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
+                if (txtAuto != null && _manager != null)
+                {
+                    var now = DateTime.Now;
+                    var diff = _manager.NextMailchimpAutoScan - now;
+                    txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                }
+            });
+        }
+
+        private void OnDailyScheduleUpdated()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var txtDaily = this.FindControl<TextBlock>("TxtNextDaily");
+                if (txtDaily != null)
+                {
+                    var now = DateTime.Now;
+                    var mnlTime = now.AddHours(15); // UTC-7 to UTC+8 is +15 hours
+                    var diff = BackupManager.NextMailchimpDailySyncMnl - mnlTime;
+                    txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                }
+            });
         }
 
         private void LoadInitialLogs()
@@ -156,7 +187,14 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (!_abortRequested) LogService.WriteLiveLog("COMPLETE: Full Mailchimp session finished successfully.", BackupConfig.McLogFile, "Information", trigger);
                     });
                     // Report global backup progress
-                    if (!_abortRequested) _manager?.ReportBackupProgress("Mailchimp", 100, "COMPLETE");
+                    if (!_abortRequested)
+                    {
+                        _manager?.ReportBackupProgress("Mailchimp", 100, "COMPLETE");
+                        // Update Firebase timestamp
+                        _ = SystemStatusService.UpdateMailchimpBackupTimestampAsync();
+                        // Write backup history to Firebase
+                        _ = SystemStatusService.WriteBackupHistoryAsync("mailchimp", "success");
+                    }
                     else _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
                 }
                 catch (OperationCanceledException)

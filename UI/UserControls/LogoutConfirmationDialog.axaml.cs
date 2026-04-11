@@ -18,12 +18,21 @@ namespace PinayPalBackupManager.UI.UserControls
             
             if (btnCancel != null)
             {
-                btnCancel.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
+                btnCancel.Click += (s, e) => 
+                {
+                    Console.WriteLine("[LogoutConfirmationDialog] CANCEL button clicked");
+                    OnCancel?.Invoke(this, EventArgs.Empty);
+                };
             }
             
             if (btnLogout != null)
             {
-                btnLogout.Click += (s, e) => OnLogoutConfirmed?.Invoke(this, EventArgs.Empty);
+                btnLogout.Click += (s, e) => 
+                {
+                    Console.WriteLine("[LogoutConfirmationDialog] LOGOUT button clicked");
+                    Console.WriteLine($"[LogoutConfirmationDialog] Stack trace: {System.Environment.StackTrace}");
+                    OnLogoutConfirmed?.Invoke(this, EventArgs.Empty);
+                };
             }
         }
     }

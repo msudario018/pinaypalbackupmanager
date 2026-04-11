@@ -13,6 +13,7 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         public event Action? OnAvatarChanged;
         public event Action? OnLogoutRequested;
+        private static DateTime _lastLoginTime = DateTime.MinValue;
 
         public ProfileControl()
         {
@@ -28,6 +29,10 @@ namespace PinayPalBackupManager.UI.UserControls
             // Listen for auth changes
             AuthService.OnUserChanged += (user) =>
             {
+                if (user != null)
+                {
+                    _lastLoginTime = DateTime.Now;
+                }
                 UpdateProfileDisplay();
                 LoadAvatarImage();
             };
@@ -119,25 +124,24 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnDeleteAccount = this.FindControl<Button>("BtnDeleteAccount");
             var txtDeleteAdminNote = this.FindControl<TextBlock>("TxtDeleteAdminNote");
 
-            if (AuthService.CurrentUser != null)
+            var currentUser = AuthService.CurrentUser;
+            Console.WriteLine($"[ProfileControl] UpdateProfileDisplay: CurrentUser={currentUser?.Username}, Role={currentUser?.Role}, IsAdmin={AuthService.IsAdmin}");
+
+            if (currentUser != null)
             {
-                var user = AuthService.CurrentUser;
-                txtUsername!.Text = user.Username;
-                txtUserRole!.Text = user.Role;
-                txtUserStatus!.Text = user.Status == "Active" ? "✓ Active" : user.Status;
-                txtUserStatus!.Foreground = user.Status == "Active" 
-                    ? Avalonia.Media.Brush.Parse("#588157") 
-                    : Avalonia.Media.Brush.Parse("#F38BA8");
-                
-                txtAccountType!.Text = user.Role == "Admin" ? "Administrator" : "Standard";
-                txtMemberSince!.Text = user.CreatedAt.ToString("MMM dd, yyyy");
-                
+                txtUsername!.Text = currentUser.Username;
+                txtUserRole!.Text = currentUser.Role;
+                txtUserStatus!.Text = "● Online";
+                txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#588157");
+                txtAccountType!.Text = currentUser.Role;
+                txtMemberSince!.Text = currentUser.CreatedAt.ToString("MMM dd, yyyy");
+
                 // Show admin section only to admins
                 adminSection!.IsVisible = AuthService.IsAdmin;
 
                 // Disable delete for admins and show note
-                if (btnDeleteAccount != null) btnDeleteAccount.IsEnabled = !string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase);
-                if (txtDeleteAdminNote != null) txtDeleteAdminNote.IsVisible = string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase);
+                if (btnDeleteAccount != null) btnDeleteAccount.IsEnabled = !string.Equals(currentUser.Role, "Admin", StringComparison.OrdinalIgnoreCase);
+                if (txtDeleteAdminNote != null) txtDeleteAdminNote.IsVisible = string.Equals(currentUser.Role, "Admin", StringComparison.OrdinalIgnoreCase);
             }
             else
             {
@@ -454,6 +458,8 @@ namespace PinayPalBackupManager.UI.UserControls
         private async Task ShowLogoutConfirmation()
         {
             const string dialogKey = "logout_confirmation";
+            
+            Console.WriteLine("[ProfileControl] ShowLogoutConfirmation CALLED - CurrentUser={AuthService.CurrentUser?.Username}");
             
             // Check if dialog already open
             if (NotificationService.IsDialogOpen(dialogKey))

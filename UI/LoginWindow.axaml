@@ -31,16 +31,6 @@
 
                 <TextBlock Name="TxtLoginError" Text="" Foreground="{DynamicResource AccentError}" FontSize="11" TextWrapping="Wrap"/>
 
-                <!-- 2FA Code Input (shown when 2FA is required) -->
-                <StackPanel Name="Panel2FA" Spacing="6" IsVisible="False">
-                    <TextBlock Text="Two-Factor Authentication" Foreground="{DynamicResource AccentFtp}" FontSize="11" FontWeight="Bold"/>
-                    <TextBox Name="Txt2FACode" Watermark="6-digit code or recovery code"/>
-                    <TextBlock Text="Lost your phone? Enter a recovery code instead" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
-                    <TextBlock Name="Txt2FAError" Text="" Foreground="{DynamicResource AccentError}" FontSize="10"/>
-                    <Button Name="BtnVerify2FA" Content="VERIFY CODE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Background="{DynamicResource AccentFtp}" Foreground="#000000" FontWeight="Bold" Padding="10" CornerRadius="8"/>
-                </StackPanel>
-
                 <Button Name="BtnLogin" Content="SIGN IN" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         Background="{DynamicResource AccentWebsite}" Foreground="#000000" FontWeight="Bold" Padding="10" CornerRadius="8"/>
 
@@ -53,6 +43,29 @@
                     <Button Name="BtnShowRegister" Content="Register" Classes="Link" Foreground="{DynamicResource AccentWebsite}" FontSize="11" 
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"/>
                 </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 2FA Panel -->
+        <Border Grid.Row="1" Name="TwoFactorPanel" IsVisible="False" Margin="24,16" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="24">
+            <StackPanel Spacing="12" VerticalAlignment="Center">
+                <TextBlock Text="TWO-FACTOR AUTHENTICATION" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" FontSize="13" Margin="0,0,0,4"/>
+                <TextBlock Text="Enter the 6-digit code from your authenticator app" Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
+
+                <TextBox Name="Txt2FACode" Watermark="6-digit code or recovery code" FontSize="14" Padding="12,10"/>
+
+                <CheckBox Name="ChkRememberDevice" Content="Remember this device for 30 days" Classes="Modern"
+                          Foreground="{DynamicResource AppMuted}" FontSize="11"
+                          HorizontalAlignment="Center"/>
+
+                <TextBlock Name="Txt2FAError" Text="" Foreground="{DynamicResource AccentError}" FontSize="10" TextWrapping="Wrap"/>
+                <TextBlock Text="Lost your phone? Enter a recovery code instead" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+
+                <Button Name="BtnVerify2FA" Content="VERIFY CODE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Background="{DynamicResource AccentFtp}" Foreground="#000000" FontWeight="Bold" Padding="10" CornerRadius="8"/>
+
+                <Button Name="BtnBackToLogin" Content="BACK" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" FontWeight="Bold" Padding="10" CornerRadius="8"/>
             </StackPanel>
         </Border>
 

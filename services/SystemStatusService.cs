@@ -168,7 +168,17 @@ namespace PinayPalBackupManager.Services
                 // If we have existing data, preserve all other fields
                 if (currentSnapshot != null)
                 {
-                    var existingData = currentSnapshot as Dictionary<string, object>;
+                    Dictionary<string, object>? existingData = null;
+
+                    if (currentSnapshot is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        existingData = jObject.ToObject<Dictionary<string, object>>();
+                    }
+                    else if (currentSnapshot is Dictionary<string, object> dict)
+                    {
+                        existingData = dict;
+                    }
+
                     if (existingData != null)
                     {
                         foreach (var kvp in existingData)
@@ -193,6 +203,235 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[SYSTEM_STATUS] Backup times update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public static async Task UpdateFtpBackupTimestampAsync()
+        {
+            if (!_isInitialized || _database == null || _username == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+
+                // First, get the current complete system status to preserve everything
+                var currentSnapshot = await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .OnceSingleAsync<object>();
+
+                var updateData = new Dictionary<string, object>
+                {
+                    ["lastFtpBackup"] = mnlTimestamp,
+                    ["lastUpdated"] = DateTime.UtcNow.ToString("o")
+                };
+
+                // If we have existing data, preserve all other fields
+                if (currentSnapshot != null)
+                {
+                    Dictionary<string, object>? existingData = null;
+
+                    if (currentSnapshot is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        existingData = jObject.ToObject<Dictionary<string, object>>();
+                    }
+                    else if (currentSnapshot is Dictionary<string, object> dict)
+                    {
+                        existingData = dict;
+                    }
+
+                    if (existingData != null)
+                    {
+                        foreach (var kvp in existingData)
+                        {
+                            // Don't overwrite the backup time we're updating
+                            if (!updateData.ContainsKey(kvp.Key))
+                            {
+                                updateData[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                }
+
+                await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .PutAsync(updateData);
+
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] FTP backup timestamp updated: {mnlTimestamp}", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] FTP backup timestamp update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public static async Task UpdateSqlBackupTimestampAsync()
+        {
+            if (!_isInitialized || _database == null || _username == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+
+                // First, get the current complete system status to preserve everything
+                var currentSnapshot = await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .OnceSingleAsync<object>();
+
+                var updateData = new Dictionary<string, object>
+                {
+                    ["lastSqlBackup"] = mnlTimestamp,
+                    ["lastUpdated"] = DateTime.UtcNow.ToString("o")
+                };
+
+                // If we have existing data, preserve all other fields
+                if (currentSnapshot != null)
+                {
+                    Dictionary<string, object>? existingData = null;
+
+                    if (currentSnapshot is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        existingData = jObject.ToObject<Dictionary<string, object>>();
+                    }
+                    else if (currentSnapshot is Dictionary<string, object> dict)
+                    {
+                        existingData = dict;
+                    }
+
+                    if (existingData != null)
+                    {
+                        foreach (var kvp in existingData)
+                        {
+                            // Don't overwrite the backup time we're updating
+                            if (!updateData.ContainsKey(kvp.Key))
+                            {
+                                updateData[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                }
+
+                await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .PutAsync(updateData);
+
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] SQL backup timestamp updated: {mnlTimestamp}", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] SQL backup timestamp update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public static async Task UpdateMailchimpBackupTimestampAsync()
+        {
+            if (!_isInitialized || _database == null || _username == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
+                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+
+                // First, get the current complete system status to preserve everything
+                var currentSnapshot = await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .OnceSingleAsync<object>();
+
+                var updateData = new Dictionary<string, object>
+                {
+                    ["lastMcBackup"] = mnlTimestamp,
+                    ["lastUpdated"] = DateTime.UtcNow.ToString("o")
+                };
+
+                // If we have existing data, preserve all other fields
+                if (currentSnapshot != null)
+                {
+                    Dictionary<string, object>? existingData = null;
+
+                    if (currentSnapshot is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        existingData = jObject.ToObject<Dictionary<string, object>>();
+                    }
+                    else if (currentSnapshot is Dictionary<string, object> dict)
+                    {
+                        existingData = dict;
+                    }
+
+                    if (existingData != null)
+                    {
+                        foreach (var kvp in existingData)
+                        {
+                            // Don't overwrite the backup time we're updating
+                            if (!updateData.ContainsKey(kvp.Key))
+                            {
+                                updateData[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                }
+
+                await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("system_status")
+                    .PutAsync(updateData);
+
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Mailchimp backup timestamp updated: {mnlTimestamp}", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Mailchimp backup timestamp update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public static async Task WriteBackupHistoryAsync(string type, string status)
+        {
+            if (!_isInitialized || _database == null || _username == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var backupRecord = new
+                {
+                    type = type,
+                    status = status,
+                    timestamp = DateTime.UtcNow.ToString("o")
+                };
+
+                await _database
+                    .Child("users")
+                    .Child(_username)
+                    .Child("backups")
+                    .PostAsync(backupRecord);
+
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Backup history written: {type} - {status}", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Backup history write failed: {ex.Message}", "Error", "SYSTEM");
             }
         }
 
@@ -252,7 +491,17 @@ namespace PinayPalBackupManager.Services
 
                 if (snapshot != null)
                 {
-                    var data = snapshot as Dictionary<string, object>;
+                    Dictionary<string, object>? data = null;
+
+                    if (snapshot is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        data = jObject.ToObject<Dictionary<string, object>>();
+                    }
+                    else if (snapshot is Dictionary<string, object> dict)
+                    {
+                        data = dict;
+                    }
+
                     if (data != null)
                     {
                         foreach (var kvp in data)

@@ -56,6 +56,7 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - TLS fingerprint verification for secure connections
 - Settings persistence across app updates
 - Auto-start on Windows startup option
+- HTTP server for mobile app file downloads
 
 ## Installation
 
@@ -88,6 +89,19 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **Daily Sync Times**: Configurable Manila time for daily scheduled backups
 - **Auto-Start**: Option to start application with Windows
 
+### HTTP Server Settings
+- **Port**: HTTP server port for file downloads (default: 8080)
+- **Enabled**: Toggle HTTP server on/off
+- Configure in `appsettings.json` or `appsettings.local.json`:
+  ```json
+  {
+    "HttpServer": {
+      "Port": 8080,
+      "Enabled": true
+    }
+  }
+  ```
+
 ## Usage
 
 ### Quick Start
@@ -113,6 +127,60 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **Credentials**: Manage FTP, SQL, and Mailchimp credentials
 - **Schedule**: Set auto-scan intervals and daily sync times
 - **General**: Configure auto-start and view app version
+
+## HTTP File Download Server
+
+The PC app includes a built-in HTTP server for mobile app file downloads.
+
+### Features
+- **Download Endpoint**: GET `/download/{filename}` serves backup files
+- **Automatic MIME Type Detection**: Supports zip, sql, csv, json, pdf, txt, and more
+- **Security**: Filename validation prevents path traversal attacks
+- **Firebase Integration**: Updates connection status every 15 seconds
+- **Network Support**: Binds to all network interfaces for mobile access
+
+### Network Configuration
+
+**Option 1 - Run as Administrator**
+Right-click the application and select "Run as administrator"
+
+**Option 2 - Add URL Reservation (Recommended)**
+Run PowerShell as Administrator and execute:
+```powershell
+netsh http add urlacl url=http://+:8080/ user=YOUR_DOMAIN\YOUR_USERNAME
+```
+
+To remove the reservation later:
+```powershell
+netsh http delete urlacl url=http://+:8080/
+```
+
+**Fallback Mode**
+If admin privileges are unavailable, the server automatically falls back to localhost-only mode. A warning notification will appear, and mobile devices on the same network cannot connect.
+
+### Firebase Connection Status
+
+The app updates Firebase at `users/{username}/connection.json` with:
+```json
+{
+  "status": "online",
+  "lastSeen": "2025-04-12T03:00:00.000Z",
+  "ipAddress": "192.168.1.10",
+  "port": "8080"
+}
+```
+
+Mobile apps can construct download URLs using this data:
+```
+http://{ipAddress}:{port}/download/{filename}
+```
+
+### Firewall Configuration
+
+Allow inbound connections on the HTTP server port through Windows Firewall:
+```powershell
+New-NetFirewallRule -DisplayName "PinayPal Backup Manager" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
+```
 
 ### User Management (Admin Only)
 - View and manage registered users

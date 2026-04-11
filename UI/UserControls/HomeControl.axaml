@@ -460,7 +460,7 @@
             </Border>
 
             <!-- Quick Stats Row -->
-            <Grid ColumnDefinitions="*, *, *">
+            <Grid ColumnDefinitions="*, *">
                 <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="10" Padding="16,12">
                     <StackPanel Spacing="4">
                         <TextBlock Text="TOTAL FILES" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
@@ -475,45 +475,7 @@
                         <TextBlock Text="total backup size" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="2" Margin="8,0,0,0" Classes="background-card" CornerRadius="10" Padding="16,12">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="SERVICES OK" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
-                        <TextBlock Name="StatServicesOk" Text="-" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
-                        <TextBlock Name="ServicesHealthText" Text="out of 3 services" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
-                    </StackPanel>
-                </Border>
             </Grid>
-
-            <!-- Services Status Summary -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="SERVICES STATUS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
-                    
-                    <Grid ColumnDefinitions="*, *, *">
-                        <StackPanel Grid.Column="0" Spacing="4">
-                            <Grid ColumnDefinitions="Auto, *">
-                                <Ellipse Grid.Column="0" Name="FtpHealthDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Grid.Column="1" Text="FTP" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            </Grid>
-                            <TextBlock Name="FtpHealthStatus" Text="Checking..." FontSize="9" Foreground="{DynamicResource AppMuted}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <Grid ColumnDefinitions="Auto, *">
-                                <Ellipse Grid.Column="0" Name="McHealthDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            </Grid>
-                            <TextBlock Name="McHealthStatus" Text="Checking..." FontSize="9" Foreground="{DynamicResource AppMuted}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4">
-                            <Grid ColumnDefinitions="Auto, *">
-                                <Ellipse Grid.Column="0" Name="SqlHealthDot" Width="8" Height="8" Fill="#6C7086" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Grid.Column="1" Text="SQL" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            </Grid>
-                            <TextBlock Name="SqlHealthStatus" Text="Checking..." FontSize="9" Foreground="{DynamicResource AppMuted}"/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
 
             <!-- Backup Size Breakdown -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
@@ -662,6 +624,28 @@
                 </Grid>
             </Border>
 
+            <!-- Firebase Sync Status -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto, 6, Auto">
+                        <TextBlock Grid.Column="0" Text="FIREBASE SYNC STATUS" FontSize="11" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="BtnRefreshFirebaseLogs" Content="Refresh"
+                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
+                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                        <Button Grid.Column="3" Name="BtnViewFirebaseLogs" Content="View All Logs"
+                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
+                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                    </Grid>
+                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12" Height="150">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock Name="FirebaseLogsText" FontFamily="Consolas, Courier New, monospace" FontSize="10"
+                                       Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap" Text="Loading Firebase sync logs..."/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- Storage Usage + Daily Schedule Row -->
             <Grid ColumnDefinitions="*, *">
 
@@ -740,13 +724,16 @@
             <!-- Terminal / System Logs -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
                 <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*, Auto, 6, Auto">
+                    <Grid ColumnDefinitions="*, Auto, 6, Auto, 6, Auto">
                         <TextBlock Grid.Column="0" Text="SYSTEM LOGS" FontSize="11" FontWeight="Bold"
                                    Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" Name="BtnClearSystemLogs" Content="Clear"
                                 Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
                                 CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
                         <Button Grid.Column="3" Name="BtnRefreshSystemLogs" Content="Refresh"
+                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
+                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
+                        <Button Grid.Column="5" Name="BtnViewLogsInNotepad" Content="View in Notepad"
                                 Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
                                 CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
                     </Grid>

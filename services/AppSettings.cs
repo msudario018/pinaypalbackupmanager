@@ -8,6 +8,7 @@ namespace PinayPalBackupManager.Services
         public MailchimpSettings Mailchimp { get; set; } = new();
         public ScheduleSettings Schedule { get; set; } = new();
         public OperationSettings Operation { get; set; } = new();
+        public HttpServerSettings HttpServer { get; set; } = new();
     }
 
     public sealed class OperationSettings
@@ -62,5 +63,11 @@ namespace PinayPalBackupManager.Services
         public int MailchimpAutoScanMinutes { get; set; } = 0;
         public int SqlAutoScanHours { get; set; } = 2;
         public int SqlAutoScanMinutes { get; set; } = 15;
+    }
+
+    public sealed class HttpServerSettings
+    {
+        public int Port { get; set; } = 8080;
+        public bool Enabled { get; set; } = true;
     }
 }
