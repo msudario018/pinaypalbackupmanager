@@ -15,11 +15,11 @@ namespace PinayPalBackupManager.Services
 
         public void Initialize(string host, string user, string password, string fingerprint, int port = 21)
         {
-            LogService.WriteLiveLog($"FTP INIT: Connecting to server on port {port}", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+            LogService.WriteLiveLog($"FTP INIT: Connecting to server on port {port}", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
             
             if (string.IsNullOrEmpty(password))
             {
-                LogService.WriteLiveLog("FTP INIT WARNING: Password is empty after decryption!", BackupConfig.FtpLogFile, "Warning", "SYSTEM");
+                LogService.WriteLiveLog("FTP INIT WARNING: Password is empty after decryption!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
             }
 
             _options = new SessionOptions
@@ -38,12 +38,12 @@ namespace PinayPalBackupManager.Services
         {
             if (_session != null && _session.Opened) 
             {
-                LogService.WriteLiveLog("FTP CONNECT: Session already open.", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                LogService.WriteLiveLog("FTP CONNECT: Session already open.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                 return true;
             }
             if (_options == null) 
             {
-                LogService.WriteLiveLog("FTP CONNECT ERROR: Options not initialized.", BackupConfig.FtpLogFile, "Error", "SYSTEM");
+                LogService.WriteLiveLog("FTP CONNECT ERROR: Options not initialized.", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                 return false;
             }
 
@@ -51,18 +51,18 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    LogService.WriteLiveLog("FTP CONNECT: Opening session...", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                    LogService.WriteLiveLog("FTP CONNECT: Opening session...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                     _session = new Session();
                     _session.FileTransferProgress += Session_FileTransferProgress;
                     _session.Open(_options);
-                    LogService.WriteLiveLog("FTP CONNECT: Session opened successfully.", BackupConfig.FtpLogFile, "Information", "SYSTEM");
+                    LogService.WriteLiveLog("FTP CONNECT: Session opened successfully.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    LogService.WriteLiveLog($"FTP CONNECTION FAILED: {ex.Message}", BackupConfig.FtpLogFile, "Error", "SYSTEM");
+                    LogService.WriteLiveLog($"FTP CONNECTION FAILED: {ex.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     if (ex.InnerException != null)
-                        LogService.WriteLiveLog($"FTP INNER ERROR: {ex.InnerException.Message}", BackupConfig.FtpLogFile, "Error", "SYSTEM");
+                        LogService.WriteLiveLog($"FTP INNER ERROR: {ex.InnerException.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     return false;
                 }
             });

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.2] - 2026-04-17
+
+### Fixed
+- **Mailchimp Storage Display**: Fixed naming mismatch causing blank storage value
+  - Changed `StorageMc` to `StorageMailchimp` to match XAML control names
+- **SQL Stats Detection**: Fixed "---" showing for SQL in PER SERVICE stats
+  - Added detection for "complete" (without 'd') and "SUCCESS" patterns
+  - Added `SESSION: Finished` log entry for SQL backups
+- **AVG Duration Calculation**: Fixed average duration not showing for backups
+  - Added "SUCCESS:" pattern to duration detection logic
+- **Invite Code Format**: Changed from timestamp-based codes to 8-character alphanumeric
+  - New format example: `9B2BC39B` instead of `CODE-1776291903129-3491`
+  - Added cleanup button to delete old-format invite codes from Firebase
+- **SQL Connection Logs**: Moved SQL connection logs to system logs dashboard
+  - FTP and SQL connection logs now appear in home dashboard system logs
+
+### Code Quality
+- Fixed null reference warning in BackupManager.cs (FileInfo nullable)
+- Fixed obsolete API warning in FirebaseUserService.cs (DeleteUserAsync)
+
 ## [2.9.0] - 2026-04-12
 
 ### Added

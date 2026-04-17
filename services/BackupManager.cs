@@ -389,7 +389,7 @@ namespace PinayPalBackupManager.Services
                     
                     sql.Initialize(BackupConfig.FtpHost, BackupConfig.SqlUser, decryptedPass, BackupConfig.SqlTlsFingerprint);
 
-                    FileInfo localLatest;
+                    FileInfo? localLatest;
                     try
                     {
                         localLatest = await Task.Run(() => new DirectoryInfo(BackupConfig.SqlLocalFolder)

@@ -530,7 +530,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     Set("StorageFtp", FormatSize(ftpSize));
-                    Set("StorageMc", FormatSize(mcSize));
+                    Set("StorageMailchimp", FormatSize(mcSize));
                     Set("StorageSql", FormatSize(sqlSize));
                     Set("StorageTotal", FormatSize(totalSize));
                     Set("StatStorage", $"{FormatSize(totalSize)}/{FormatSize(totalDiskSpace)}");
@@ -547,7 +547,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     double sqlPercent = totalSize > 0 ? (double)sqlSize / totalSize * 100 : 0;
 
                     SetBar("StorageFtpBar", ftpSize, maxSize);
-                    SetBar("StorageMcBar", mcSize, maxSize);
+                    SetBar("StorageMailchimpBar", mcSize, maxSize);
                     SetBar("StorageSqlBar", sqlSize, maxSize);
 
                     // Update breakdown section progress bars
@@ -1105,7 +1105,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             if (dayIdx >= 0 && dayIdx < 7) { dayHasActivity[dayIdx] = true; if (level.Equals("ERROR", StringComparison.OrdinalIgnoreCase)) dayHasError[dayIdx] = true; }
 
                             if (msg.Contains("SESSION: Starting", StringComparison.OrdinalIgnoreCase)) sessionStart = ts;
-                            if ((msg.Contains("SESSION: Finished", StringComparison.OrdinalIgnoreCase) || msg.Contains("completed", StringComparison.OrdinalIgnoreCase)) && sessionStart != null)
+                            if ((msg.Contains("SESSION: Finished", StringComparison.OrdinalIgnoreCase) || msg.Contains("completed", StringComparison.OrdinalIgnoreCase) || msg.Contains("SUCCESS:", StringComparison.OrdinalIgnoreCase)) && sessionStart != null)
                             {
                                 durations.Add((ts - sessionStart.Value).TotalSeconds);
                                 sessionStart = null;
@@ -1131,8 +1131,10 @@ namespace PinayPalBackupManager.UI.UserControls
                             if (!TryParseLogLine(line, out var ts, out var lv, out var msg)) continue;
                             if (ts < cutoff) continue;
                             bool isResult = msg.Contains("completed", StringComparison.OrdinalIgnoreCase)
+                                         || msg.Contains("complete", StringComparison.OrdinalIgnoreCase)
                                          || msg.Contains("SUCCESS:", StringComparison.OrdinalIgnoreCase)
-                                         || msg.Contains("COMPLETE:", StringComparison.OrdinalIgnoreCase);
+                                         || msg.Contains("COMPLETE:", StringComparison.OrdinalIgnoreCase)
+                                         || msg.Contains("SUCCESS", StringComparison.OrdinalIgnoreCase);
                             if (isResult) { tot++; if (!lv.Equals("ERROR", StringComparison.OrdinalIgnoreCase)) ok++; }
                         }
                     }

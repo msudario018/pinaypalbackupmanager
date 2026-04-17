@@ -35,7 +35,10 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                     
-                    <Button Name="BtnRefreshInviteCodes" Content="REFRESH CODES" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,6" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
+                    <Grid ColumnDefinitions="Auto, Auto" HorizontalAlignment="Left">
+                        <Button Name="BtnRefreshInviteCodes" Content="REFRESH CODES" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,6" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnCleanupOldCodes" Content="CLEANUP OLD CODES" Classes="Danger" Margin="10,0,0,0" Padding="12,6" FontSize="11" Cursor="Hand" Click="OnCleanupOldCodesClick"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

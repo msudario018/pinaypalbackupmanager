@@ -734,11 +734,12 @@ namespace PinayPalBackupManager.Services
 
         private static string GenerateInviteCode()
         {
-            var bytes = new byte[6];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
-            // Produce a readable 8-char uppercase code
-            return Convert.ToHexString(bytes).Substring(0, 8).ToUpperInvariant();
+            // Generate 8-character alphanumeric code (A-Z, 0-9)
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            var code = new string(Enumerable.Repeat(chars, 8)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+            return code;
         }
     }
 }

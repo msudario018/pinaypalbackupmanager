@@ -124,6 +124,28 @@ namespace PinayPalBackupManager.UI.UserControls
             NotificationService.ShowBackupToast("Invite Codes", "Refreshed", "Info");
         }
 
+        private async void OnCleanupOldCodesClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var deletedCount = await FirebaseInviteService.DeleteOldFormatCodesAsync();
+                if (deletedCount > 0)
+                {
+                    NotificationService.ShowBackupToast("Invite Codes", $"Deleted {deletedCount} old-format codes", "Success");
+                    await LoadInviteCodesAsync();
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("Invite Codes", "No old-format codes found", "Info");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserManagement] Error cleaning up old codes: {ex.Message}");
+                NotificationService.ShowBackupToast("Invite Codes", "Error cleaning up codes", "Error");
+            }
+        }
+
         private async void OnDeleteInviteCodeClick(object? sender, RoutedEventArgs e)
         {
             try

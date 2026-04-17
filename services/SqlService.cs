@@ -17,11 +17,11 @@ namespace PinayPalBackupManager.Services
 
         public void Initialize(string host, string user, string password, string fingerprint)
         {
-            LogService.WriteLiveLog($"SQL INIT: Connecting to database server", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+            LogService.WriteLiveLog($"SQL INIT: Connecting to database server", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
             
             if (string.IsNullOrEmpty(password))
             {
-                LogService.WriteLiveLog("SQL INIT WARNING: Password is empty after decryption!", BackupConfig.SqlLogFile, "Warning", "SYSTEM");
+                LogService.WriteLiveLog("SQL INIT WARNING: Password is empty after decryption!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
             }
 
             _options = new SessionOptions
@@ -40,12 +40,12 @@ namespace PinayPalBackupManager.Services
         {
             if (_session != null && _session.Opened) 
             {
-                LogService.WriteLiveLog("SQL CONNECT: Session already open.", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+                LogService.WriteLiveLog("SQL CONNECT: Session already open.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                 return true;
             }
             if (_options == null) 
             {
-                LogService.WriteLiveLog("SQL CONNECT ERROR: Options not initialized.", BackupConfig.SqlLogFile, "Error", "SYSTEM");
+                LogService.WriteLiveLog("SQL CONNECT ERROR: Options not initialized.", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                 return false;
             }
 
@@ -53,18 +53,18 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    LogService.WriteLiveLog("SQL CONNECT: Opening session...", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+                    LogService.WriteLiveLog("SQL CONNECT: Opening session...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                     _session = new Session();
                     _session.FileTransferProgress += Session_FileTransferProgress;
                     _session.Open(_options);
-                    LogService.WriteLiveLog("SQL CONNECT: Session opened successfully.", BackupConfig.SqlLogFile, "Information", "SYSTEM");
+                    LogService.WriteLiveLog("SQL CONNECT: Session opened successfully.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    LogService.WriteLiveLog($"SQL CONNECTION FAILED: {ex.Message}", BackupConfig.SqlLogFile, "Error", "SYSTEM");
+                    LogService.WriteLiveLog($"SQL CONNECTION FAILED: {ex.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     if (ex.InnerException != null)
-                        LogService.WriteLiveLog($"SQL INNER ERROR: {ex.InnerException.Message}", BackupConfig.SqlLogFile, "Error", "SYSTEM");
+                        LogService.WriteLiveLog($"SQL INNER ERROR: {ex.InnerException.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     return false;
                 }
             });

@@ -52,7 +52,7 @@ namespace PinayPalBackupManager.Services
         }
         
         /// <summary>
-        /// Generate a new invite code
+        /// Generate a new invite code (8-character alphanumeric)
         /// </summary>
         public static async Task<string> GenerateInviteCodeAsync(string createdBy = "admin")
         {
@@ -60,9 +60,11 @@ namespace PinayPalBackupManager.Services
             
             try
             {
-                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var random = new Random().Next(1000, 9999);
-                var code = $"CODE-{timestamp}-{random}";
+                // Generate 8-character alphanumeric code
+                const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                var random = new Random();
+                var code = new string(Enumerable.Repeat(chars, 8)
+                    .Select(s => s[random.Next(s.Length)]).ToArray());
                 
                 var data = new InviteCodeData
                 {
@@ -236,6 +238,49 @@ namespace PinayPalBackupManager.Services
         public static async Task<bool> IsAvailableAsync()
         {
             return await EnsureInitializedAsync();
+        }
+        
+        /// <summary>
+        /// Delete all old-format invite codes (those starting with CODE-)
+        /// </summary>
+        public static async Task<int> DeleteOldFormatCodesAsync()
+        {
+            if (!await EnsureInitializedAsync()) return 0;
+            
+            int deletedCount = 0;
+            
+            try
+            {
+                var response = await _httpClient.GetAsync($"{FirebaseUrl}{InviteCodesPath}.json");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    if (!string.IsNullOrEmpty(json) && json != "null")
+                    {
+                        var codeDict = JsonSerializer.Deserialize<Dictionary<string, InviteCodeData>>(json);
+                        if (codeDict != null)
+                        {
+                            foreach (var code in codeDict.Keys.Where(k => k.StartsWith("CODE-")))
+                            {
+                                var deleteResponse = await _httpClient.DeleteAsync($"{FirebaseUrl}{InviteCodesPath}/{code}.json");
+                                if (deleteResponse.IsSuccessStatusCode)
+                                {
+                                    deletedCount++;
+                                    Console.WriteLine($"[FirebaseInvite] Deleted old-format code: {code}");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Console.WriteLine($"[FirebaseInvite] Deleted {deletedCount} old-format invite codes");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FirebaseInvite] Failed to delete old-format codes: {ex.Message}");
+            }
+            
+            return deletedCount;
         }
     }
 }

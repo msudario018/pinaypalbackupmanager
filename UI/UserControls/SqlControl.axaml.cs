@@ -311,6 +311,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             txtStatus.Text = "COMPLETE";
                             txtStatus.Foreground = Avalonia.Media.Brush.Parse("#588157");
                         });
+                        LogService.WriteLiveLog("SESSION: Finished Full SQL Backup.", BackupConfig.SqlLogFile, "Information", trigger);
                         // Report global backup progress complete
                         _manager?.ReportBackupProgress("SQL", 100, "COMPLETE");
                         // Update Firebase timestamp

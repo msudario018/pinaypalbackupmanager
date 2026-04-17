@@ -528,7 +528,7 @@ namespace PinayPalBackupManager.Services
                 var user = AuthService.GetUserByUsername(username);
                 if (user != null)
                 {
-                    AuthService.DeleteUser(user.Id);
+                    _ = AuthService.DeleteUserAsync(user.Id);
                     Console.WriteLine($"[FirebaseUser] Removed user from local DB: {username}");
                 }
             }
