@@ -2,7 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.9.2] - 2026-04-17
+## [2.9.5] - 2026-04-26
+
+### Fixed
+- **Run All Checks Busy State**: Fixed all services showing "busy but nothing running" issue
+  - Added try/finally blocks to SyncCheckAsync in FTP, Mailchimp, and SQL controls
+  - SetBusy(false) now always executes even if exceptions occur
+- **Service Status Cards**: Fixed cards showing "Healthy" when backup is outdated
+  - Cards now check both health score AND backup freshness (last backup time)
+  - Shows "Outdated" (yellow) if backup is > 48 hours old, regardless of health score
+- **Time Since Last Backup**: Fixed incorrect time display for backup timestamps
+  - Now displays in Manila time (UTC+8) consistently
+  - Shows "Today" (green) for same-day backups instead of "2.7d ago"
+  - Shows "Yesterday" for backups from previous day
+- **Global Backup Progress**: Fixed progress bar stuck at 100% after backup completion
+  - Progress now automatically resets to "No active backups" after 10 seconds of inactivity
+  - Displays service name in status (e.g., "FTP: Uploading file..." instead of just "Uploading file...")
+
+### Added
+- **Credentials Export/Import**: Added ability to export and import encrypted credentials
+  - Export saves all credentials to encrypted .ppenc file using AES-256
+  - Import loads and decrypts credentials from .ppenc file
+  - User must click Save to apply imported credentials
+  - Added Export/Import buttons to Credentials dialog with status messages
 
 ### Fixed
 - **Mailchimp Storage Display**: Fixed naming mismatch causing blank storage value

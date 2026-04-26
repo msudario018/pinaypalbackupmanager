@@ -309,6 +309,9 @@ namespace PinayPalBackupManager.UI
                 LogService.WriteSystemLog("[MAINWINDOW] InitializeFirebaseRemoteControl started", "Information", "SYSTEM");
                 await RealtimeMonitoringService.AddLogAsync("Info", "InitializeFirebaseRemoteControl started", "MAINWINDOW");
                 
+                // Set initial status in SettingsControl
+                _settingsControl.UpdateHealthStatus("Initializing Firebase Remote Control...", false);
+                
                 var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
                 var username = AuthService.CurrentUser?.Username;
                 
@@ -407,17 +410,26 @@ namespace PinayPalBackupManager.UI
                     
                     LogService.WriteSystemLog("[FIREBASE] Remote control initialized", "Information", "SYSTEM");
                     await RealtimeMonitoringService.AddLogAsync("Info", "Remote control initialized", "MAINWINDOW");
+                    
+                    // Update SettingsControl health status
+                    _settingsControl.UpdateHealthStatus("Remote Control Active (Firebase Connected)", false);
                 }
                 else
                 {
                     LogService.WriteSystemLog("[FIREBASE] Failed to initialize remote control - no username", "Error", "SYSTEM");
                     await RealtimeMonitoringService.AddLogAsync("Error", "Failed to initialize remote control - no username", "MAINWINDOW");
+                    
+                    // Update SettingsControl health status with error
+                    _settingsControl.UpdateHealthStatus("Initialization Failed - No Username", true);
                 }
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[FIREBASE] Initialization error: {ex.Message}", "Error", "SYSTEM");
                 await RealtimeMonitoringService.AddLogAsync("Error", $"Initialization error: {ex.Message}", "MAINWINDOW");
+                
+                // Update SettingsControl health status with error
+                _settingsControl.UpdateHealthStatus($"Error: {ex.Message}", true);
             }
         }
 
@@ -808,19 +820,19 @@ namespace PinayPalBackupManager.UI
             
             if (!_ftpControl.IsBusy) tasks.Add(Task.Run(async () => 
             {
-                try { await _ftpControl.TriggerSyncCheckAsync(); return ("FTP", true); }
+                try { var success = await _ftpControl.TriggerSyncCheckAsync(); return ("FTP", success); }
                 catch { return ("FTP", false); }
             }));
             
             if (!_mailchimpControl.IsBusy) tasks.Add(Task.Run(async () => 
             {
-                try { await _mailchimpControl.TriggerSyncCheckAsync(); return ("Mailchimp", true); }
+                try { var success = await _mailchimpControl.TriggerSyncCheckAsync(); return ("Mailchimp", success); }
                 catch { return ("Mailchimp", false); }
             }));
             
             if (!_sqlControl.IsBusy) tasks.Add(Task.Run(async () => 
             {
-                try { await _sqlControl.TriggerSyncCheckAsync(); return ("SQL", true); }
+                try { var success = await _sqlControl.TriggerSyncCheckAsync(); return ("SQL", success); }
                 catch { return ("SQL", false); }
             }));
             
@@ -843,7 +855,7 @@ namespace PinayPalBackupManager.UI
             }
             else
             {
-                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{tasks.Count} succeeded).", "Info");
+                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{tasks.Count} succeeded).", "Success");
             }
         }
 

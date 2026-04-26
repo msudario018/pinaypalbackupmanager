@@ -316,7 +316,7 @@ namespace PinayPalBackupManager.UI.UserControls
             SetBusy(false);
         }
 
-        private async Task SyncCheckAsync(bool allowAutoSync = true)
+        private async Task<bool> SyncCheckAsync(bool allowAutoSync = true)
         {
             SetBusy(true);
             
@@ -336,25 +336,27 @@ namespace PinayPalBackupManager.UI.UserControls
             string toastMessage = "Sync check finished.";
             string toastType = "Info";
 
-            await Task.Run(async () =>
+            try
             {
-                try
+                await Task.Run(async () =>
                 {
-                    using var ftp = new FtpService();
-                    string decryptedPass = SecurityService.GetDecryptedFtpPassword();
-                    ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
-
-                    LogService.WriteLiveLog("SYNC CHECK: Comparing local vs remote latest backup...", BackupConfig.FtpLogFile, "Information", "MANUAL");
-
-                    if (!await ftp.ConnectAsync())
+                    try
                     {
-                        statusText = "CONNECTION FAILED";
-                        detailText = "Status: Unable to connect to FTP.";
-                        colorHex = "#F38BA8";
-                        toastMessage = "Sync check failed: connection error.";
-                        toastType = "Error";
-                        return;
-                    }
+                        using var ftp = new FtpService();
+                        string decryptedPass = SecurityService.GetDecryptedFtpPassword();
+                        ftp.Initialize(BackupConfig.FtpHost, BackupConfig.FtpUser, decryptedPass, BackupConfig.FtpTlsFingerprint, BackupConfig.FtpPort);
+
+                        LogService.WriteLiveLog("SYNC CHECK: Comparing local vs remote latest backup...", BackupConfig.FtpLogFile, "Information", "MANUAL");
+
+                        if (!await ftp.ConnectAsync())
+                        {
+                            statusText = "CONNECTION FAILED";
+                            detailText = "Status: Unable to connect to FTP.";
+                            colorHex = "#F38BA8";
+                            toastMessage = "Sync check failed: connection error.";
+                            toastType = "Error";
+                            return;
+                        }
 
                     var remoteLatest = ftp.ListFiles("/")
                         .Where(f => !f.IsDirectory)
@@ -500,7 +502,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     _ = StartBackupAsync("AUTO-SYNC");
                 }
-                return;
+                return false;
             }
 
             if (_manager != null)
@@ -508,7 +510,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 _ = _manager.RunHealthCheckAsync();
             }
 
-            SetBusy(false);
+            return statusText == "LATEST";
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"SYNC CHECK ERROR: {ex.Message}", BackupConfig.FtpLogFile, "Error", "MANUAL");
+                statusText = "ERROR";
+                return false;
+            }
+            finally
+            {
+                SetBusy(false);
+            }
         }
 
         private async Task TestFtpAsync()
@@ -538,7 +551,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
-        public Task TriggerSyncCheckAsync() => SyncCheckAsync();
+        public Task<bool> TriggerSyncCheckAsync() => SyncCheckAsync();
 
         private static string CheckIntegrity(string folder)
         {

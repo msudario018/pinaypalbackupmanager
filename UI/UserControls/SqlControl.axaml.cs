@@ -402,46 +402,49 @@ namespace PinayPalBackupManager.UI.UserControls
             SetBusy(false);
         }
 
-        private async Task SyncCheckAsync(bool allowAutoSync = true)
+        private async Task<bool> SyncCheckAsync(bool allowAutoSync = true)
         {
             SetBusy(true);
-            var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
-            var txtFile = this.FindControl<TextBlock>("TxtFile")!;
             
-            // Set initial status to prevent showing old status during comparison
-            txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#e6c55c");
-            txtFile.Text = "Status: Comparing local vs remote...";
-            
-            string statusText = "SYNC CHECK";
-            string detailText = "Status: Idle";
-            string colorHex = "#6C7086";
-            string toastMessage = "Sync check finished.";
-            string toastType = "Info";
-
-            await Task.Run(async () =>
+            try
             {
-                try
+                var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
+                var txtFile = this.FindControl<TextBlock>("TxtFile")!;
+                
+                // Set initial status to prevent showing old status during comparison
+                txtStatus.Text = "SYNC CHECK...";
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#e6c55c");
+                txtFile.Text = "Status: Comparing local vs remote...";
+                
+                string statusText = "SYNC CHECK";
+                string detailText = "Status: Idle";
+                string colorHex = "#6C7086";
+                string toastMessage = "Sync check finished.";
+                string toastType = "Info";
+
+                await Task.Run(async () =>
                 {
-                    // Reload config to ensure we have latest settings
-                    ConfigService.Load();
-                    
-                    using var sql = new SqlService();
-                    string decryptedPass = SecurityService.GetDecryptedSqlPassword();
-                    sql.Initialize(BackupConfig.FtpHost, BackupConfig.SqlUser, decryptedPass, BackupConfig.SqlTlsFingerprint);
-
-                    LogService.WriteLiveLog("SYNC CHECK: Comparing local vs remote latest .sql backup...", BackupConfig.SqlLogFile, "Information", "MANUAL");
-                    LogService.WriteLiveLog($"SYNC CHECK: Using remote path: {BackupConfig.SqlRemotePath}", BackupConfig.SqlLogFile, "Information", "MANUAL");
-
-                    if (!await sql.ConnectAsync())
+                    try
                     {
-                        statusText = "CONNECTION FAILED";
-                        detailText = "Status: Unable to connect to SQL FTP.";
-                        colorHex = "#F38BA8";
-                        toastMessage = "Sync check failed: connection error.";
-                        toastType = "Error";
-                        return;
-                    }
+                        // Reload config to ensure we have latest settings
+                        ConfigService.Load();
+                        
+                        using var sql = new SqlService();
+                        string decryptedPass = SecurityService.GetDecryptedSqlPassword();
+                        sql.Initialize(BackupConfig.FtpHost, BackupConfig.SqlUser, decryptedPass, BackupConfig.SqlTlsFingerprint);
+
+                        LogService.WriteLiveLog("SYNC CHECK: Comparing local vs remote latest .sql backup...", BackupConfig.SqlLogFile, "Information", "MANUAL");
+                        LogService.WriteLiveLog($"SYNC CHECK: Using remote path: {BackupConfig.SqlRemotePath}", BackupConfig.SqlLogFile, "Information", "MANUAL");
+
+                        if (!await sql.ConnectAsync())
+                        {
+                            statusText = "CONNECTION FAILED";
+                            detailText = "Status: Unable to connect to SQL FTP.";
+                            colorHex = "#F38BA8";
+                            toastMessage = "Sync check failed: connection error.";
+                            toastType = "Error";
+                            return;
+                        }
 
                     // --- CLEANUP LOGIC ---
                     var retentionDays = ConfigService.Current.Operation.RetentionDays;
@@ -633,7 +636,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     _ = StartBackupAsync("AUTO-SYNC");
                 }
-                return;
+                return false;
             }
 
             // Run health check after sync check completes
@@ -642,7 +645,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 _ = _manager.RunHealthCheckAsync();
             }
 
-            SetBusy(false);
+            return statusText == "LATEST";
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"SYNC CHECK ERROR: {ex.Message}", BackupConfig.SqlLogFile, "Error", "MANUAL");
+                return false;
+            }
+            finally
+            {
+                SetBusy(false);
+            }
         }
 
         private async Task TestSqlAsync()
@@ -672,7 +685,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
-        public Task TriggerSyncCheckAsync() => SyncCheckAsync(allowAutoSync: true);
+        public Task<bool> TriggerSyncCheckAsync() => SyncCheckAsync(allowAutoSync: true);
 
         private static string CheckIntegrity(string folder)
         {

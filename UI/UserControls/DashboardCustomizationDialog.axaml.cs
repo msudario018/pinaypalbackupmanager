@@ -1,5 +1,6 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using PinayPalBackupManager.Models;
@@ -11,11 +12,11 @@ namespace PinayPalBackupManager.UI.UserControls
         public event Action<DashboardCustomization>? OnApply;
         
         private DashboardCustomization _settings = new DashboardCustomization();
+        private CheckBox? _compactCheckBox;
 
         public DashboardCustomizationDialog()
         {
             InitializeComponent();
-            LoadCurrentSettings();
         }
 
         private void InitializeComponent()
@@ -34,11 +35,7 @@ namespace PinayPalBackupManager.UI.UserControls
             applyButton.Click += (_, _) => 
             {
                 // Read checkbox value before applying
-                var compactCheckBox = this.FindControl<CheckBox>("CompactModeCheckBox");
-                if (compactCheckBox != null)
-                {
-                    _settings.CompactMode = compactCheckBox.IsChecked == true;
-                }
+                _settings.CompactMode = _compactCheckBox?.IsChecked == true;
                 
                 // Save settings
                 DashboardCustomization.Save(_settings);
@@ -62,9 +59,46 @@ namespace PinayPalBackupManager.UI.UserControls
                 parentWindow?.Close();
             };
 
-            var compactCheckBox = new CheckBox
+            var closeButton = new Button
             {
-                Name = "CompactModeCheckBox",
+                Content = "✕",
+                Background = Avalonia.Media.Brushes.Transparent,
+                Foreground = Brush.Parse("#F38BA8"),
+                BorderThickness = new Avalonia.Thickness(0),
+                CornerRadius = new Avalonia.CornerRadius(4),
+                Padding = new Avalonia.Thickness(8, 4),
+                FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                Cursor = Avalonia.Input.Cursor.Parse("Hand")
+            };
+            closeButton.Click += (_, _) => 
+            {
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                parentWindow?.Close();
+            };
+
+            var headerPanel = new Grid
+            {
+                ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("*, Auto"),
+                Margin = new Avalonia.Thickness(0, 0, 0, 10),
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Dashboard Customization",
+                        FontSize = 20,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = Brush.Parse("#CBA6F7"),
+                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                    },
+                    closeButton
+                }
+            };
+            Grid.SetColumn(closeButton, 1);
+
+            _compactCheckBox = new CheckBox
+            {
                 Content = "Compact Mode",
                 FontSize = 13,
                 FontWeight = FontWeight.SemiBold,
@@ -78,20 +112,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 Spacing = 16,
                 Children =
                 {
-                    new TextBlock
-                    {
-                        Text = "Dashboard Customization",
-                        FontSize = 20,
-                        FontWeight = FontWeight.Bold,
-                        Foreground = Brush.Parse("#CBA6F7"),
-                        Margin = new Avalonia.Thickness(0, 0, 0, 10)
-                    },
+                    headerPanel,
                     new TextBlock
                     {
                         Text = "Choose which sections to show and your preferred view mode.",
                         FontSize = 12,
                         Foreground = Brush.Parse("#6C7086"),
-                        Margin = new Avalonia.Thickness(0, 0, 0, 20)
+                        Margin = new Avalonia.Thickness(0, 0, 0, 10)
                     },
                     CreateSectionToggle("System Status Overview", nameof(_settings.ShowSystemStatus)),
                     CreateSectionToggle("Quick Stats Cards", nameof(_settings.ShowQuickStats)),
@@ -113,7 +140,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         CornerRadius = new Avalonia.CornerRadius(8),
                         Padding = new Avalonia.Thickness(12),
                         Margin = new Avalonia.Thickness(0, 10, 0, 0),
-                        Child = compactCheckBox
+                        Child = _compactCheckBox
                     },
                     new StackPanel
                     {
@@ -153,7 +180,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         {
                             Text = label,
                             FontSize = 13,
-                            Foreground = Brush.Parse("#6C7086"),
+                            Foreground = Brush.Parse("#CDD6F4"),
                             VerticalAlignment = VerticalAlignment.Center
                         }
                     }
@@ -167,10 +194,9 @@ namespace PinayPalBackupManager.UI.UserControls
             _settings = DashboardCustomization.Load();
             
             // Update UI to reflect loaded settings
-            var compactCheckBox = this.FindControl<CheckBox>("CompactModeCheckBox");
-            if (compactCheckBox != null)
+            if (_compactCheckBox != null)
             {
-                compactCheckBox.IsChecked = _settings.CompactMode;
+                _compactCheckBox.IsChecked = _settings.CompactMode;
             }
         }
     }

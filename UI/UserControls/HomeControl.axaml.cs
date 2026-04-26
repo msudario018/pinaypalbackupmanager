@@ -9,6 +9,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using PinayPalBackupManager.Models;
 using PinayPalBackupManager.Services;
 
@@ -313,8 +314,12 @@ namespace PinayPalBackupManager.UI.UserControls
             });
         }
 
+        private DateTime _lastBackupProgressUpdate = DateTime.MinValue;
+
         private void OnBackupProgress(string service, int percent, string status)
         {
+            _lastBackupProgressUpdate = DateTime.UtcNow;
+            
             Dispatcher.UIThread.InvokeAsync(() =>
             {
                 var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
@@ -328,7 +333,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 if (progressText != null)
                 {
-                    progressText.Text = status;
+                    progressText.Text = $"{service}: {status}";
                 }
 
                 if (progressPercent != null)
@@ -336,6 +341,37 @@ namespace PinayPalBackupManager.UI.UserControls
                     progressPercent.Text = percent + "%";
                 }
             });
+        }
+
+        private void ResetGlobalBackupProgressIfIdle()
+        {
+            // Reset progress bar if no backup activity for 10 seconds
+            if ((DateTime.UtcNow - _lastBackupProgressUpdate).TotalSeconds > 10 && _lastBackupProgressUpdate != DateTime.MinValue)
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
+                    var progressText = this.FindControl<TextBlock>("BackupProgressText");
+                    var progressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
+
+                    if (progressBar != null)
+                    {
+                        progressBar.Value = 0;
+                    }
+
+                    if (progressText != null)
+                    {
+                        progressText.Text = "No active backups";
+                    }
+
+                    if (progressPercent != null)
+                    {
+                        progressPercent.Text = "0%";
+                    }
+                    
+                    _lastBackupProgressUpdate = DateTime.MinValue;
+                });
+            }
         }
 
         private void OnAutoScanTimersReset()
@@ -886,6 +922,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void UpdateActiveProcessDisplay()
         {
+            // Check if global backup progress should be reset (no activity for 10 seconds)
+            ResetGlobalBackupProgressIfIdle();
+            
             var activeProcessesText = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
             Dispatcher.UIThread.Post(() =>
             {
@@ -1017,7 +1056,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btn != null) 
             {
                 btn.Content = _compactMode ? "⊞ Expand" : "⊟ Compact";
-                btn.Foreground = _compactMode ? Brush.Parse("#588157") : Brush.Parse("{DynamicResource AppMuted}");
+                btn.Foreground = _compactMode ? Brush.Parse("#588157") : Brushes.Gray;
             }
             
             // Save the compact mode setting
@@ -1621,7 +1660,11 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             foreach (var log in logs)
             {
-                if (log.Contains("COMPLETE") || log.Contains("COMPLETE:") || log.Contains("SUCCESS") || log.Contains("SUCCESS:") || log.Contains("DOWNLOAD COMPLETE"))
+                // Case-insensitive check for completion keywords
+                var logUpper = log.ToUpperInvariant();
+                if (logUpper.Contains("COMPLETE") || logUpper.Contains("COMPLETE:") || 
+                    logUpper.Contains("SUCCESS") || logUpper.Contains("SUCCESS:") || 
+                    logUpper.Contains("DOWNLOAD COMPLETE"))
                 {
                     // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
                     var match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
@@ -1640,22 +1683,50 @@ namespace PinayPalBackupManager.UI.UserControls
             return null;
         }
 
+        private static DateTime GetManilaNow() => DateTime.UtcNow.AddHours(8);
+
+        private static DateTime ToManilaTime(DateTime localTime)
+        {
+            // Log timestamps are in local time (UTC-7 from GetTzDate)
+            // Convert to UTC first, then to Manila (UTC+8)
+            // UTC-7 to UTC = +7, UTC to UTC+8 = +8, total = +15
+            return localTime.AddHours(15);
+        }
+
         private string GetTimeAgoText(DateTime? time)
         {
             if (!time.HasValue) return "Never";
-            var diff = DateTime.Now - time.Value;
-            if (diff.TotalMinutes < 60) return $"{diff.TotalMinutes:F0}m ago";
-            if (diff.TotalHours < 24) return $"{diff.TotalHours:F1}h ago";
-            return $"{diff.TotalDays:F1}d ago";
+            
+            var manilaNow = GetManilaNow();
+            var manilaBackupTime = ToManilaTime(time.Value);
+            
+            // Check if same day in Manila time
+            if (manilaBackupTime.Date == manilaNow.Date)
+                return "Today";
+            
+            // Check if yesterday
+            if (manilaBackupTime.Date == manilaNow.Date.AddDays(-1))
+                return "Yesterday";
+            
+            var diff = manilaNow - manilaBackupTime;
+            if (diff.TotalHours < 24) return $"{diff.TotalHours:F0}h ago";
+            if (diff.TotalDays < 7) return $"{diff.TotalDays:F0}d ago";
+            return $"{diff.TotalDays / 7:F0}w ago";
         }
 
         private IBrush GetTimeAgoColor(DateTime? time)
         {
             if (!time.HasValue) return Brush.Parse("#6C7086");
-            var diff = DateTime.Now - time.Value;
-            if (diff.TotalHours < 6) return Brush.Parse("#588157");
-            if (diff.TotalHours < 24) return Brush.Parse("#dad7cd");
-            return Brush.Parse("#F38BA8");
+            
+            var manilaNow = GetManilaNow();
+            var manilaBackupTime = ToManilaTime(time.Value);
+            
+            // Green for today, warning for yesterday, red for older
+            if (manilaBackupTime.Date == manilaNow.Date)
+                return Brush.Parse("#588157"); // Green - today
+            if (manilaBackupTime.Date == manilaNow.Date.AddDays(-1))
+                return Brush.Parse("#dad7cd"); // Light gray - yesterday
+            return Brush.Parse("#F38BA8"); // Red - older
         }
 
         private void UpdateServicesStatusSummary(Dictionary<string, int> serviceScores)
@@ -1668,33 +1739,54 @@ namespace PinayPalBackupManager.UI.UserControls
 
             int healthyCount = 0;
             
-            // FTP
+            // Get last backup times to check freshness
+            var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 50);
+            var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 50);
+            var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 50);
+            
+            var ftpLastTime = GetLastBackupTime(ftpLogs);
+            var mcLastTime = GetLastBackupTime(mcLogs);
+            var sqlLastTime = GetLastBackupTime(sqlLogs);
+            
+            // FTP - check both health score AND freshness
             int ftpScore = serviceScores.GetValueOrDefault("FTP", 0);
-            string ftpStatus = ftpScore >= 80 ? "Healthy" : ftpScore >= 50 ? "Warning" : ftpScore > 0 ? "Critical" : "No Data";
-            string ftpColor = ftpScore >= 80 ? "#588157" : ftpScore >= 50 ? "#dad7cd" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
+            bool ftpIsStale = IsBackupStale(ftpLastTime);
+            string ftpStatus = ftpIsStale ? "Outdated" : ftpScore >= 80 ? "Healthy" : ftpScore >= 50 ? "Warning" : ftpScore > 0 ? "Critical" : "No Data";
+            string ftpColor = ftpIsStale ? "#e6c55c" : ftpScore >= 80 ? "#588157" : ftpScore >= 50 ? "#dad7cd" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
             Set("FtpStatusText", ftpStatus);
             SetDot("FtpStatusDot", ftpColor);
-            if (ftpScore >= 80) healthyCount++;
+            if (ftpScore >= 80 && !ftpIsStale) healthyCount++;
 
-            // Mailchimp
+            // Mailchimp - check both health score AND freshness
             int mcScore = serviceScores.GetValueOrDefault("Mailchimp", 0);
-            string mcStatus = mcScore >= 80 ? "Healthy" : mcScore >= 50 ? "Warning" : mcScore > 0 ? "Critical" : "No Data";
-            string mcColor = mcScore >= 80 ? "#00b4d8" : mcScore >= 50 ? "#caf0f8" : mcScore > 0 ? "#F38BA8" : "#6C7086";
+            bool mcIsStale = IsBackupStale(mcLastTime);
+            string mcStatus = mcIsStale ? "Outdated" : mcScore >= 80 ? "Healthy" : mcScore >= 50 ? "Warning" : mcScore > 0 ? "Critical" : "No Data";
+            string mcColor = mcIsStale ? "#e6c55c" : mcScore >= 80 ? "#00b4d8" : mcScore >= 50 ? "#caf0f8" : mcScore > 0 ? "#F38BA8" : "#6C7086";
             Set("MailchimpStatusText", mcStatus);
             SetDot("MailchimpStatusDot", mcColor);
-            if (mcScore >= 80) healthyCount++;
+            if (mcScore >= 80 && !mcIsStale) healthyCount++;
 
-            // SQL
+            // SQL - check both health score AND freshness
             int sqlScore = serviceScores.GetValueOrDefault("SQL", 0);
-            string sqlStatus = sqlScore >= 80 ? "Healthy" : sqlScore >= 50 ? "Warning" : sqlScore > 0 ? "Critical" : "No Data";
-            string sqlColor = sqlScore >= 80 ? "#fad643" : sqlScore >= 50 ? "#ffe169" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
+            bool sqlIsStale = IsBackupStale(sqlLastTime);
+            string sqlStatus = sqlIsStale ? "Outdated" : sqlScore >= 80 ? "Healthy" : sqlScore >= 50 ? "Warning" : sqlScore > 0 ? "Critical" : "No Data";
+            string sqlColor = sqlIsStale ? "#e6c55c" : sqlScore >= 80 ? "#fad643" : sqlScore >= 50 ? "#ffe169" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
             Set("SqlStatusText", sqlStatus);
             SetDot("SqlStatusDot", sqlColor);
-            if (sqlScore >= 80) healthyCount++;
+            if (sqlScore >= 80 && !sqlIsStale) healthyCount++;
 
             // Update services OK text
             Set("ServicesHealthText", $"{healthyCount}/3 healthy");
             Set("StatServicesOk", healthyCount.ToString());
+        }
+
+        private bool IsBackupStale(DateTime? lastBackupTime, double thresholdHours = 48)
+        {
+            if (!lastBackupTime.HasValue) return true;
+            var manilaNow = GetManilaNow();
+            var manilaBackupTime = ToManilaTime(lastBackupTime.Value);
+            var diff = manilaNow - manilaBackupTime;
+            return diff.TotalHours > thresholdHours;
         }
 
         private void SetDot(string controlName, string color)
@@ -1832,13 +1924,17 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             var dialog = new DashboardCustomizationDialog();
             
-            var window = new Window
+            Window? dialogWindow = null;
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+            
+            dialogWindow = new Window
             {
                 Title = "Customize Dashboard",
                 Width = 500,
                 Height = 600,
                 CanResize = false,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                SystemDecorations = SystemDecorations.BorderOnly,
                 Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
                 Content = dialog
             };
@@ -1846,13 +1942,28 @@ namespace PinayPalBackupManager.UI.UserControls
             dialog.OnApply += (settings) =>
             {
                 ApplyDashboardCustomization(settings);
-                window.Close();
+                dialogWindow?.Close();
             };
             
-            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+            // Minimize dialog when parent is minimized
             if (parentWindow != null)
             {
-                window.ShowDialog(parentWindow);
+                parentWindow.PropertyChanged += (_, e) =>
+                {
+                    if (e.Property == Window.WindowStateProperty)
+                    {
+                        if (parentWindow.WindowState == WindowState.Minimized)
+                        {
+                            dialogWindow.WindowState = WindowState.Minimized;
+                        }
+                        else if (dialogWindow.WindowState == WindowState.Minimized)
+                        {
+                            dialogWindow.WindowState = WindowState.Normal;
+                        }
+                    }
+                };
+                
+                dialogWindow.ShowDialog(parentWindow);
             }
         }
 
@@ -1861,30 +1972,32 @@ namespace PinayPalBackupManager.UI.UserControls
             // Apply visibility settings
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var systemStatus = this.FindControl<Border>(string.Empty);
-                var quickStats = this.FindControl<Grid>(string.Empty);
-                var timeSinceBackup = this.FindControl<Border>(string.Empty);
+                // Apply visibility to named controls
+                var alertBanner = this.FindControl<Border>("AlertBanner");
+                if (alertBanner != null) alertBanner.IsVisible = settings.ShowSystemStatus;
+
+                var quickStats = this.FindControl<Grid>("QuickStatsGrid");
+                if (quickStats != null) quickStats.IsVisible = settings.ShowQuickStats;
+
                 var recentErrors = this.FindControl<Border>("RecentErrorsPanel");
+                if (recentErrors != null) recentErrors.IsVisible = settings.ShowRecentErrors;
+
                 var serviceCards = this.FindControl<Grid>("ServiceCardsSection");
-                var healthDashboard = this.FindControl<Border>(string.Empty);
-                var operations = this.FindControl<Border>(string.Empty);
-                var connectivity = this.FindControl<Border>(string.Empty);
-                var statsReporting = this.FindControl<Border>(string.Empty);
-                var scheduleAdjustment = this.FindControl<Border>(string.Empty);
-                var storageUsage = this.FindControl<Border>(string.Empty);
-                var dailySchedule = this.FindControl<Border>(string.Empty);
-                var recentActivity = this.FindControl<Border>(string.Empty);
-                var systemLogs = this.FindControl<Border>(string.Empty);
+                if (serviceCards != null) serviceCards.IsVisible = settings.ShowServiceCards;
+
+                var criticalAlerts = this.FindControl<Border>("CriticalAlertsPanel");
+                if (criticalAlerts != null) criticalAlerts.IsVisible = settings.ShowHealthDashboard;
                 
                 // Apply compact mode
-                if (settings.CompactMode)
+                _compactMode = settings.CompactMode;
+                ApplyCompactMode(_compactMode);
+                
+                // Update compact button text
+                var btnCompact = this.FindControl<Button>("BtnCompactToggle");
+                if (btnCompact != null)
                 {
-                    // Reduce padding and font sizes for compact view
-                    ApplyCompactMode(true);
-                }
-                else
-                {
-                    ApplyCompactMode(false);
+                    btnCompact.Content = _compactMode ? "⊞ Expand" : "⊟ Compact";
+                    btnCompact.Foreground = _compactMode ? Brush.Parse("#588157") : Brushes.Gray;
                 }
                 
                 NotificationService.ShowBackupToast("Dashboard", "Customization applied.", "Success");
@@ -1894,46 +2007,20 @@ namespace PinayPalBackupManager.UI.UserControls
         private void ApplyCompactMode(bool compact)
         {
             // Toggle compact mode by adjusting margins, spacing, and font sizes
-            var mainStackPanel = this.FindControl<StackPanel>(null);
+            // Find the main StackPanel inside the ScrollViewer (first child is ScrollViewer)
+            var scrollViewer = this.Content as ScrollViewer;
+            var mainStackPanel = scrollViewer?.Content as StackPanel;
             if (mainStackPanel != null)
             {
                 mainStackPanel.Spacing = compact ? 8 : 16;
-            }
+                mainStackPanel.Margin = compact ? new Avalonia.Thickness(12, 12, 16, 16) : new Avalonia.Thickness(16, 16, 24, 24);
 
-            // Adjust padding on cards
-            var cards = this.FindControl<StackPanel>(null)?.Children.OfType<Border>().ToList();
-            if (cards != null)
-            {
-                foreach (var card in cards)
+                // Find all Border elements (cards) in the main panel
+                foreach (var border in mainStackPanel.Children.OfType<Border>())
                 {
-                    if (card.Padding is Avalonia.Thickness padding)
+                    if (border.Padding is Avalonia.Thickness padding)
                     {
-                        card.Padding = compact ? new Avalonia.Thickness(12) : new Avalonia.Thickness(16);
-                    }
-                }
-            }
-
-            // Adjust font sizes on headers
-            var headers = this.FindControl<StackPanel>(null)?.Children.OfType<TextBlock>()
-                .Where(tb => tb.FontSize >= 18).ToList();
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    header.FontSize = compact ? header.FontSize * 0.85 : header.FontSize;
-                }
-            }
-
-            // Adjust margins on sections
-            var sections = this.FindControl<StackPanel>(null)?.Children.OfType<Border>()
-                .Where(b => b.Name != null && b.Name.Contains("Panel")).ToList();
-            if (sections != null)
-            {
-                foreach (var section in sections)
-                {
-                    if (section.Margin is Avalonia.Thickness margin)
-                    {
-                        section.Margin = compact ? new Avalonia.Thickness(0, 8, 0, 0) : new Avalonia.Thickness(0, 16, 0, 0);
+                        border.Padding = compact ? new Avalonia.Thickness(12) : new Avalonia.Thickness(16);
                     }
                 }
             }

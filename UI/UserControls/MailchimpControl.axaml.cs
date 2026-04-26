@@ -283,7 +283,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
-        public Task TriggerSyncCheckAsync() => SyncCheckAsync();
+        public Task<bool> TriggerSyncCheckAsync() => SyncCheckAsync();
 
         private static string CheckIntegrity(string folder)
         {
@@ -324,113 +324,125 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private async Task SyncCheckAsync(bool allowAutoSync = true)
+        private async Task<bool> SyncCheckAsync(bool allowAutoSync = true)
         {
             SetBusy(true);
             
-            // Reload config to ensure we have latest settings
-            ConfigService.Load();
-            
-            var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
-            var txtFile = this.FindControl<TextBlock>("TxtFile")!;
-            txtStatus.Text = "SYNC CHECK...";
-            txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
-            txtFile.Text = "Status: Checking local data freshness...";
-
-            string statusText = "SYNC CHECK";
-            string detailText = "Status: Idle";
-            string colorHex = "#6C7086";
-            string toastMessage = "Sync check finished.";
-            string toastType = "Info";
-
-            await Task.Run(() =>
+            try
             {
-                try
+                // Reload config to ensure we have latest settings
+                ConfigService.Load();
+                
+                var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
+                var txtFile = this.FindControl<TextBlock>("TxtFile")!;
+                txtStatus.Text = "SYNC CHECK...";
+                txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
+                txtFile.Text = "Status: Checking local data freshness...";
+
+                string statusText = "SYNC CHECK";
+                string detailText = "Status: Idle";
+                string colorHex = "#6C7086";
+                string toastMessage = "Sync check finished.";
+                string toastType = "Info";
+
+                await Task.Run(() =>
                 {
-                    if (!Directory.Exists(BackupConfig.MailchimpFolder))
+                    try
                     {
-                        statusText = "FOLDER MISSING";
-                        detailText = "Status: Mailchimp folder not found.";
+                        if (!Directory.Exists(BackupConfig.MailchimpFolder))
+                        {
+                            statusText = "FOLDER MISSING";
+                            detailText = "Status: Mailchimp folder not found.";
+                            colorHex = "#F38BA8";
+                            toastMessage = "Mailchimp local folder is missing.";
+                            toastType = "Error";
+                            return;
+                        }
+
+                        var nowUtc = DateTime.UtcNow;
+                        var freshWindowUtc = nowUtc.AddHours(-25);
+                        var allFiles = new DirectoryInfo(BackupConfig.MailchimpFolder).GetFiles("*", SearchOption.AllDirectories).ToList();
+
+                        if (allFiles.Count == 0)
+                        {
+                            statusText = "OUTDATED";
+                            detailText = "Status: No local Mailchimp data found.";
+                            colorHex = "#F38BA8";
+                            toastMessage = "No Mailchimp data found locally.";
+                            toastType = "Warning";
+                            return;
+                        }
+
+                        static DateTime GetFreshnessUtc(FileInfo file) =>
+                            file.LastWriteTimeUtc > file.CreationTimeUtc ? file.LastWriteTimeUtc : file.CreationTimeUtc;
+
+                        var latestFile = allFiles.OrderByDescending(GetFreshnessUtc).First();
+                        var freshnessUtc = GetFreshnessUtc(latestFile);
+                        if (freshnessUtc < freshWindowUtc)
+                        {
+                            statusText = "OUTDATED";
+                            detailText = $"Latest data: {freshnessUtc:MM/dd HH:mm} UTC (Older than 24h)";
+                            colorHex = "#F38BA8";
+                            toastMessage = "Mailchimp data is older than 24 hours.";
+                            toastType = "Warning";
+                        }
+                        else
+                        {
+                            statusText = "LATEST";
+                            detailText = $"Local data is fresh: {freshnessUtc:MM/dd HH:mm} UTC";
+                            colorHex = "#588157";
+                            toastMessage = "Mailchimp data is up to date.";
+                            toastType = "Info";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        statusText = "SYNC CHECK ERROR";
+                        detailText = $"Status: {ex.Message}";
                         colorHex = "#F38BA8";
-                        toastMessage = "Mailchimp local folder is missing.";
+                        toastMessage = $"Sync check error: {ex.Message}";
                         toastType = "Error";
-                        return;
                     }
+                });
 
-                    var nowUtc = DateTime.UtcNow;
-                    var freshWindowUtc = nowUtc.AddHours(-25);
-                    var allFiles = new DirectoryInfo(BackupConfig.MailchimpFolder).GetFiles("*", SearchOption.AllDirectories).ToList();
-
-                    if (allFiles.Count == 0)
-                    {
-                        statusText = "OUTDATED";
-                        detailText = "Status: No local Mailchimp data found.";
-                        colorHex = "#F38BA8";
-                        toastMessage = "No Mailchimp data found locally.";
-                        toastType = "Warning";
-                        return;
-                    }
-
-                    static DateTime GetFreshnessUtc(FileInfo file) =>
-                        file.LastWriteTimeUtc > file.CreationTimeUtc ? file.LastWriteTimeUtc : file.CreationTimeUtc;
-
-                    var latestFile = allFiles.OrderByDescending(GetFreshnessUtc).First();
-                    var freshnessUtc = GetFreshnessUtc(latestFile);
-                    if (freshnessUtc < freshWindowUtc)
-                    {
-                        statusText = "OUTDATED";
-                        detailText = $"Latest data: {freshnessUtc:MM/dd HH:mm} UTC (Older than 24h)";
-                        colorHex = "#F38BA8";
-                        toastMessage = "Mailchimp data is older than 24 hours.";
-                        toastType = "Warning";
-                    }
-                    else
-                    {
-                        statusText = "LATEST";
-                        detailText = $"Local data is fresh: {freshnessUtc:MM/dd HH:mm} UTC";
-                        colorHex = "#588157";
-                        toastMessage = "Mailchimp data is up to date.";
-                        toastType = "Info";
-                    }
-                }
-                catch (Exception ex)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    statusText = "SYNC CHECK ERROR";
-                    detailText = $"Status: {ex.Message}";
-                    colorHex = "#F38BA8";
-                    toastMessage = $"Sync check error: {ex.Message}";
-                    toastType = "Error";
+                    txtStatus.Text = statusText;
+                    txtStatus.Foreground = Avalonia.Media.Brush.Parse(colorHex);
+                    txtFile.Text = detailText;
+                });
+                NotificationService.ShowBackupToast("Mailchimp", toastMessage, toastType);
+
+                if (allowAutoSync && statusText == "OUTDATED")
+                {
+                    SetBusy(false);
+                    bool confirm = await NotificationService.ConfirmAsync(
+                        "Mailchimp data is outdated. Do you want to sync now?",
+                        "Sync Now?"
+                    );
+                    if (confirm)
+                    {
+                        _ = StartFullBackupAsync("AUTO-SYNC");
+                    }
+                    return false;
                 }
-            });
 
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                if (_manager != null)
+                {
+                    _ = _manager.RunHealthCheckAsync();
+                }
+
+                return statusText == "LATEST";
+            }
+            catch (Exception ex)
             {
-                txtStatus.Text = statusText;
-                txtStatus.Foreground = Avalonia.Media.Brush.Parse(colorHex);
-                txtFile.Text = detailText;
-            });
-            NotificationService.ShowBackupToast("Mailchimp", toastMessage, toastType);
-
-            if (allowAutoSync && statusText == "OUTDATED")
+                LogService.WriteSystemLog($"[MAILCHIMP] Sync check error: {ex.Message}", "Error", "SYSTEM");
+                return false;
+            }
+            finally
             {
                 SetBusy(false);
-                bool confirm = await NotificationService.ConfirmAsync(
-                    "Mailchimp data is outdated. Do you want to sync now?",
-                    "Sync Now?"
-                );
-                if (confirm)
-                {
-                    _ = StartFullBackupAsync("AUTO-SYNC");
-                }
-                return;
             }
-
-            if (_manager != null)
-            {
-                _ = _manager.RunHealthCheckAsync();
-            }
-
-            SetBusy(false);
         }
 
         private void SetBusy(bool busy)
