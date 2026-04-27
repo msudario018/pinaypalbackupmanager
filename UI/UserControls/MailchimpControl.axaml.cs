@@ -283,6 +283,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         public bool IsBusy => _isBusy;
+        public void ResetBusy() => SetBusy(false);
         public Task<bool> TriggerSyncCheckAsync() => SyncCheckAsync();
 
         private static string CheckIntegrity(string folder)

@@ -209,7 +209,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 Title = "Change Password",
                 Content = dialog,
                 SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
                 Topmost = true,
@@ -221,15 +221,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 SystemDecorations = SystemDecorations.None
             };
 
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
             dialog.OnPasswordChanged += (sender, e) =>
             {
                 window.Close();
+                UpdateProfileDisplay();
                 NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
             };
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
-            window.Show();
+            window.ShowDialog(parentWindow);
         }
 
         private void ShowChangeUsernameDialog()
@@ -246,7 +249,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 Title = "Change Username",
                 Content = dialog,
                 SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
                 Topmost = true,
@@ -258,6 +261,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 SystemDecorations = SystemDecorations.None
             };
 
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
             dialog.OnUsernameChanged += (sender, e) =>
             {
                 window.Close();
@@ -267,7 +272,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
-            window.Show();
+            window.ShowDialog(parentWindow);
         }
 
         private async System.Threading.Tasks.Task UploadAvatar()
@@ -395,13 +400,11 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaTitleBarHeightHint = 0
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 dialog.OnClose += (sender, e) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -441,13 +444,11 @@ namespace PinayPalBackupManager.UI.UserControls
                     Background = Avalonia.Media.Brushes.Transparent
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 dialog.OnClose += (sender, e) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -486,6 +487,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Background = Avalonia.Media.Brushes.Transparent
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 dialog.OnLogoutConfirmed += (sender, e) =>
                 {
                     window.Close();
@@ -494,11 +497,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -516,7 +515,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Title = "Two-Factor Authentication",
                 SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Background = Avalonia.Media.Brushes.Transparent,
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
@@ -529,8 +528,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 Content = dialog
             };
 
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
             dialog.OnClose += (s, e) => window.Close();
-            window.Show();
+            window.ShowDialog(parentWindow);
         }
 
         private void ShowLoginHistoryDialog()
@@ -543,7 +544,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Title = "Login History",
                 SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Background = Avalonia.Media.Brushes.Transparent,
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
@@ -556,8 +557,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 Content = dialog
             };
 
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
             dialog.OnClose += (s, e) => window.Close();
-            window.Show();
+            window.ShowDialog(parentWindow);
         }
 
         private async Task ShowDeleteAccountDialog()

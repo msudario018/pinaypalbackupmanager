@@ -108,17 +108,17 @@ namespace PinayPalBackupManager.Services
                 if (now >= NextFtpAutoScan)
                 {
                     _lastFtpAutoReset = now;
-                    _ = RunHealthCheckAsync(true);
+                    OnFtpAutoSyncRequested?.Invoke();
                 }
                 else if (now >= NextMailchimpAutoScan)
                 {
                     _lastMailchimpAutoReset = now;
-                    _ = RunHealthCheckAsync(true);
+                    OnMailchimpAutoSyncRequested?.Invoke();
                 }
                 else if (now >= NextSqlAutoScan)
                 {
                     _lastSqlAutoReset = now;
-                    _ = RunHealthCheckAsync(true);
+                    OnSqlAutoSyncRequested?.Invoke();
                 }
             }
 
@@ -130,21 +130,21 @@ namespace PinayPalBackupManager.Services
                 {
                     _lastFtpDailyRunMnlDate = todayMnl;
                     LogService.WriteLiveLog("DAILY FTP SYNC TRIGGERED (MANILA 10 PM)", BackupConfig.FtpLogFile, "Information", "SYSTEM");
-                    _ = RunHealthCheckAsync(true);
+                    OnFtpAutoSyncRequested?.Invoke();
                 }
 
                 if (mnlTime.Hour == BackupConfig.MailchimpDailySyncHourMnl && mnlTime.Minute == BackupConfig.MailchimpDailySyncMinuteMnl && _lastMailchimpDailyRunMnlDate != todayMnl)
                 {
                     _lastMailchimpDailyRunMnlDate = todayMnl;
                     LogService.WriteLiveLog("DAILY MAILCHIMP BACKUP TRIGGERED (MANILA 6 PM)", BackupConfig.McLogFile, "Information", "SYSTEM");
-                    _ = RunHealthCheckAsync(true);
+                    OnMailchimpAutoSyncRequested?.Invoke();
                 }
 
                 if (mnlTime.Hour == BackupConfig.SqlDailySyncHourMnl && mnlTime.Minute == BackupConfig.SqlDailySyncMinuteMnl && _lastSqlDailyRunMnlDate != todayMnl)
                 {
                     _lastSqlDailyRunMnlDate = todayMnl;
                     LogService.WriteLiveLog("DAILY SQL BACKUP TRIGGERED (MANILA 5 PM)", BackupConfig.SqlLogFile, "Information", "SYSTEM");
-                    _ = RunHealthCheckAsync(true);
+                    OnSqlAutoSyncRequested?.Invoke();
                 }
             }
         }

@@ -1924,10 +1924,9 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             var dialog = new DashboardCustomizationDialog();
             
-            Window? dialogWindow = null;
             var parentWindow = TopLevel.GetTopLevel(this) as Window;
             
-            dialogWindow = new Window
+            var dialogWindow = new Window
             {
                 Title = "Customize Dashboard",
                 Width = 500,
@@ -1945,26 +1944,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 dialogWindow?.Close();
             };
             
-            // Minimize dialog when parent is minimized
-            if (parentWindow != null)
-            {
-                parentWindow.PropertyChanged += (_, e) =>
-                {
-                    if (e.Property == Window.WindowStateProperty)
-                    {
-                        if (parentWindow.WindowState == WindowState.Minimized)
-                        {
-                            dialogWindow.WindowState = WindowState.Minimized;
-                        }
-                        else if (dialogWindow.WindowState == WindowState.Minimized)
-                        {
-                            dialogWindow.WindowState = WindowState.Normal;
-                        }
-                    }
-                };
-                
-                dialogWindow.ShowDialog(parentWindow);
-            }
+            dialogWindow.ShowDialog(parentWindow);
         }
 
         private void ApplyDashboardCustomization(DashboardCustomization settings)

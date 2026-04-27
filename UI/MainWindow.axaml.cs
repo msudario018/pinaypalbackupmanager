@@ -573,14 +573,19 @@ namespace PinayPalBackupManager.UI
             dialog.OnOk += (sender, e) => window.Close();
 
             // Get the main window as owner
-            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
+            var mainWindow = GetMainWindow();
 
             if (mainWindow != null)
             {
                 await window.ShowDialog(mainWindow);
             }
+        }
+
+        public static Window? GetMainWindow()
+        {
+            return Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
         }
 
         private static string BuildChangelogSummary(string markdown)
@@ -814,35 +819,52 @@ namespace PinayPalBackupManager.UI
 
         private async Task RunAllChecksAsync()
         {
-            NotificationService.ShowBackupToast("Dashboard", "Running parallel sync check on all services...", "Info");
+            // Ensure notifications are enabled for this operation
+            NotificationService.EnableNotifications();
             
-            var tasks = new List<Task<(string service, bool success)>>();
+            // Reset any stuck busy states before running checks
+            if (_ftpControl.IsBusy) _ftpControl.ResetBusy();
+            if (_mailchimpControl.IsBusy) _mailchimpControl.ResetBusy();
+            if (_sqlControl.IsBusy) _sqlControl.ResetBusy();
             
-            if (!_ftpControl.IsBusy) tasks.Add(Task.Run(async () => 
+            NotificationService.ShowBackupToast("Dashboard", "Running sequential sync check on all services...", "Info");
+            
+            var results = new List<(string service, bool success)>();
+            
+            // Run checks one by one sequentially
+            try
             {
-                try { var success = await _ftpControl.TriggerSyncCheckAsync(); return ("FTP", success); }
-                catch { return ("FTP", false); }
-            }));
-            
-            if (!_mailchimpControl.IsBusy) tasks.Add(Task.Run(async () => 
+                NotificationService.ShowBackupToast("Dashboard", "Checking FTP...", "Info");
+                var ftpSuccess = await _ftpControl.TriggerSyncCheckAsync();
+                results.Add(("FTP", ftpSuccess));
+            }
+            catch
             {
-                try { var success = await _mailchimpControl.TriggerSyncCheckAsync(); return ("Mailchimp", success); }
-                catch { return ("Mailchimp", false); }
-            }));
-            
-            if (!_sqlControl.IsBusy) tasks.Add(Task.Run(async () => 
-            {
-                try { var success = await _sqlControl.TriggerSyncCheckAsync(); return ("SQL", success); }
-                catch { return ("SQL", false); }
-            }));
-            
-            if (tasks.Count == 0)
-            {
-                NotificationService.ShowBackupToast("Dashboard", "All services are busy. Try again later.", "Warning");
-                return;
+                results.Add(("FTP", false));
             }
             
-            var results = await Task.WhenAll(tasks);
+            try
+            {
+                NotificationService.ShowBackupToast("Dashboard", "Checking Mailchimp...", "Info");
+                var mailchimpSuccess = await _mailchimpControl.TriggerSyncCheckAsync();
+                results.Add(("Mailchimp", mailchimpSuccess));
+            }
+            catch
+            {
+                results.Add(("Mailchimp", false));
+            }
+            
+            try
+            {
+                NotificationService.ShowBackupToast("Dashboard", "Checking SQL...", "Info");
+                var sqlSuccess = await _sqlControl.TriggerSyncCheckAsync();
+                results.Add(("SQL", sqlSuccess));
+            }
+            catch
+            {
+                results.Add(("SQL", false));
+            }
+            
             var successCount = results.Count(r => r.success);
             var failedServices = results.Where(r => !r.success).Select(r => r.service).ToList();
             
@@ -851,11 +873,11 @@ namespace PinayPalBackupManager.UI
             
             if (failedServices.Count > 0)
             {
-                NotificationService.ShowBackupToast("Dashboard", $"Checks complete. {successCount}/{tasks.Count} succeeded. Failed: {string.Join(", ", failedServices)}", "Warning");
+                NotificationService.ShowBackupToast("Dashboard", $"Checks complete. {successCount}/{results.Count} succeeded. Failed: {string.Join(", ", failedServices)}", "Warning");
             }
             else
             {
-                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{tasks.Count} succeeded).", "Success");
+                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{results.Count} succeeded).", "Success");
             }
         }
 
@@ -1767,8 +1789,7 @@ namespace PinayPalBackupManager.UI
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None,
-                Content = dialog
+                SystemDecorations = SystemDecorations.None
             };
 
             dialog.OnPasswordChanged += (s, e) =>

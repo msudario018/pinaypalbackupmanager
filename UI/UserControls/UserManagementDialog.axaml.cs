@@ -309,11 +309,11 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaTitleBarHeightHint = 0
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 btnClose.Click += (_, _) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                    await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -383,6 +383,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaTitleBarHeightHint = 0
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 btnCancel.Click += (_, _) => window.Close();
                 btnChange.Click += (_, _) =>
                 {
@@ -405,9 +407,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                    await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -473,6 +473,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaTitleBarHeightHint = 0
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 btnCancel.Click += (_, _) => window.Close();
                 btnChange.Click += (_, _) =>
                 {
@@ -494,9 +496,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                    await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow);
             }
             finally
             {

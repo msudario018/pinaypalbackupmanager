@@ -170,7 +170,9 @@ namespace PinayPalBackupManager.UI.UserControls
         private static string EncryptString(string plainText)
         {
             using var aes = Aes.Create();
-            aes.Key = Key[..32];
+            var keyBytes = new byte[32];
+            Array.Copy(Key, keyBytes, Math.Min(Key.Length, 32));
+            aes.Key = keyBytes;
             aes.GenerateIV();
             
             using var encryptor = aes.CreateEncryptor();
@@ -190,7 +192,9 @@ namespace PinayPalBackupManager.UI.UserControls
             var fullCipher = Convert.FromBase64String(cipherText);
             
             using var aes = Aes.Create();
-            aes.Key = Key[..32];
+            var keyBytes = new byte[32];
+            Array.Copy(Key, keyBytes, Math.Min(Key.Length, 32));
+            aes.Key = keyBytes;
             
             // Extract IV (first 16 bytes)
             var iv = new byte[16];

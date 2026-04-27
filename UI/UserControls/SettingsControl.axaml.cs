@@ -178,6 +178,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 dialog.OnSave += async (sender, e) =>
                 {
                     await SaveSettingsAsync(dialog.GetSettings(), "Credentials saved.");
@@ -187,11 +189,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
+                await window.ShowDialog(parentWindow);
             }
             finally
             {
@@ -223,6 +221,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
                 };
 
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
                 dialog.OnSave += async (sender, e) =>
                 {
                     await SaveSettingsAsync(dialog.GetSettings(), "Paths saved.");
@@ -232,11 +232,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                var parentWindow = TopLevel.GetTopLevel(this) as Window;
-                if (parentWindow != null)
-                {
-                    await window.ShowDialog(parentWindow);
-                }
+                await window.ShowDialog(parentWindow);
             }
             finally
             {

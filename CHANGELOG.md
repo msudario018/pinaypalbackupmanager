@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.6] - 2026-04-27
+
+### Fixed
+- **Run All Checks**: Changed from parallel execution to sequential execution
+  - Now checks services one by one (FTP → Mailchimp → SQL)
+  - Shows individual notification for each service being checked
+  - Prevents conflicts and ensures proper order of operations
+- **Auto Scan**: Fixed auto scan to trigger actual sync operations
+  - Changed from calling RunHealthCheckAsync to firing OnFtpAutoSyncRequested, OnMailchimpAutoSyncRequested, OnSqlAutoSyncRequested events
+  - Auto scan now triggers actual backup operations instead of just health checks
+  - Daily sync schedule also fixed to trigger actual sync operations
+- **Dialog Minimization**: Fixed all popup dialogs to minimize when main window is minimized
+  - Removed direct Owner property assignments (protected member access error)
+  - Dialogs now use ShowDialog(parentWindow) which handles ownership automatically
+  - Fixed in MainWindow, SettingsControl, ProfileControl, HomeControl, UserManagementDialog, ConfirmDialog, and UpdateService
+- **Credentials Export**: Fixed export error "specified argument was out of range"
+  - Replaced slice operator Key[..32] with Array.Copy for safer key handling
+  - Fixed in both EncryptString and DecryptString methods
+
 ## [2.9.5] - 2026-04-26
 
 ### Fixed
