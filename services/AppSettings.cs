@@ -17,6 +17,10 @@ namespace PinayPalBackupManager.Services
         public bool AutoStartWindows { get; set; } = false;
         public bool StartMinimized { get; set; } = false;
         public bool NotificationSound { get; set; } = true;
+        public bool ThemeAutoSchedule { get; set; } = false;
+        public int ThemeDarkHour { get; set; } = 18; // 6 PM
+        public int ThemeLightHour { get; set; } = 6; // 6 AM
+        public string Language { get; set; } = "en";
     }
 
     public sealed class PathsSettings
@@ -65,6 +69,15 @@ namespace PinayPalBackupManager.Services
         public int MailchimpAutoScanMinutes { get; set; } = 0;
         public int SqlAutoScanHours { get; set; } = 2;
         public int SqlAutoScanMinutes { get; set; } = 15;
+        
+        // Schedule days (0 = Sunday, 1 = Monday, etc.) - empty means every day
+        public bool ScheduleSunday { get; set; } = true;
+        public bool ScheduleMonday { get; set; } = true;
+        public bool ScheduleTuesday { get; set; } = true;
+        public bool ScheduleWednesday { get; set; } = true;
+        public bool ScheduleThursday { get; set; } = true;
+        public bool ScheduleFriday { get; set; } = true;
+        public bool ScheduleSaturday { get; set; } = true;
     }
 
     public sealed class HttpServerSettings

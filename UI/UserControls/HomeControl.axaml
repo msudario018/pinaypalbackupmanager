@@ -1,5 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="clr-namespace:PinayPalBackupManager.UI.UserControls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="PinayPalBackupManager.UI.UserControls.HomeControl">
     <UserControl.Styles>
         <Style Selector="Ellipse.pulse">
@@ -36,9 +40,9 @@
             <!-- Header -->
             <Grid ColumnDefinitions="*, Auto">
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Name="TxtGreeting" Text="Dashboard" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <ui:LocalizedTextBlock Key="dashboard_title" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                        <ui:LocalizedTextBlock Key="dashboard_subtitle" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                         <Border Name="RetryQueueBadge" IsVisible="False" Background="{DynamicResource AccentError}" CornerRadius="8" Padding="6,2">
                             <TextBlock Name="TxtRetryQueue" Text="0 retries pending" FontSize="10" FontWeight="Bold" Foreground="White"/>
                         </Border>
@@ -705,6 +709,50 @@
                                 CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
                     </Grid>
                     <StackPanel Name="ActivityList" Spacing="4"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Activity Heatmap -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="ACTIVITY HEATMAP (LAST 52 WEEKS)" FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
+                    
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                            <TextBlock Grid.Column="0" Text="Less" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            <StackPanel Grid.Column="1" Name="HeatmapContainer" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="More" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                        </Grid>
+                        
+                        <!-- Month labels -->
+                        <Grid ColumnDefinitions="*, *, *, *, *, *, *, *, *, *, *, *" Name="MonthLabelsContainer" Margin="0,8,0,0"/>
+                        
+                        <!-- Day labels -->
+                        <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,4,0,0">
+                            <TextBlock Text="Mon" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="Wed" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="Fri" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                            <TextBlock Text="Sun" FontSize="9" Foreground="{DynamicResource AppMuted}" Width="20" TextAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <Grid ColumnDefinitions="Auto, *" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" Name="HeatmapSummary" Text="0 backups in the last year" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                        <TextBlock Grid.Column="1" Name="HeatmapStreak" Text="Current streak: 0 days" FontSize="12" Foreground="{DynamicResource AppMuted}" HorizontalAlignment="Right"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Backup History Calendar -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="BACKUP HISTORY (LAST 30 DAYS)" FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
+                    <WrapPanel Name="BackupCalendar"></WrapPanel>
                 </StackPanel>
             </Border>
 

@@ -63,6 +63,49 @@
                     </Grid>
                 </Border>
                 
+                <!-- User Statistics Section -->
+                <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
+                    <StackPanel Spacing="20">
+                        <TextBlock Text="USER STATISTICS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                        
+                        <Grid ColumnDefinitions="*, *, *">
+                            <Border Grid.Column="0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,5,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Total Backups" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtTotalBackups" Text="0" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="5,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Success Rate" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtSuccessRate" Text="100%" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="5,0,0,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Account Age" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtAccountAge" Text="0 days" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        
+                        <Grid ColumnDefinitions="*, *">
+                            <Border Grid.Column="0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,5,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Storage Used" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtStorageUsed" Text="0 MB" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="5,0,0,0">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Last Backup" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtLastBackup" Text="Never" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
                 <!-- Admin Section (only visible to admins) -->
                 <Border Name="AdminSection" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" IsVisible="False">
                     <StackPanel Spacing="20">

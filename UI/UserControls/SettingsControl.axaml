@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:PinayPalBackupManager.UI.UserControls"
              x:Class="PinayPalBackupManager.UI.UserControls.SettingsControl">
     <ScrollViewer>
         <StackPanel Spacing="20">
@@ -28,6 +29,17 @@
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
                     <CheckBox Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkThemeAutoSchedule" Content="Auto Theme Schedule (Dark at 6PM, Light at 6AM)" Foreground="{DynamicResource AppText}" Margin="0,8,0,0"/>
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <ui:LocalizedTextBlock Key="language" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <ui:LocalizedTextBlock Key="language_description" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" Name="CmbLanguage" Width="140" SelectedIndex="0" VerticalAlignment="Center">
+                            <ComboBoxItem Content="English"/>
+                            <ComboBoxItem Content="Filipino"/>
+                        </ComboBox>
+                    </Grid>
                     <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="Backup Retention" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
@@ -37,6 +49,7 @@
                         <TextBlock Grid.Column="2" Text="days" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                     </Grid>
                     <Button Name="BtnSaveRetention" Content="Save Retention Policy" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
+                    <Button Name="BtnExportLogs" Content="Export Logs (ZIP)" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 

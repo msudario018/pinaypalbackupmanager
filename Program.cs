@@ -33,6 +33,7 @@ namespace PinayPalBackupManager
                 VelopackApp.Build().Run();
 
                 ConfigService.Load();
+                Services.LocalizationService.Load();
                 AuthService.Initialize();
 
                 var services = new ServiceCollection();

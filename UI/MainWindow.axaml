@@ -51,6 +51,18 @@
                         </StackPanel>
                     </Button>
                     <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="4,8"/>
+                    <Button Classes="SideBtn" Tag="Verification" ToolTip.Tip="Backup Verification" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M9,12L11,14L15,10M21,12C21,16.97 16.97,21 12,21C7.03,21 3,16.97 3,12C3,7.03 7.03,3 12,3C16.97,3 21,7.03 21,12M12,5C8.13,5 5,8.13 5,12C5,15.87 8.13,19 12,19C15.87,19 19,15.87 19,12C19,8.13 15.87,5 12,5Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Verification" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="Statistics" ToolTip.Tip="Statistics Dashboard" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M22,21H2V3H4V19H6V10H10V19H12V6H16V19H18V14H22V21Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Statistics" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource SettingsIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
@@ -154,7 +166,7 @@
                                 </Button>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="VERSION" Foreground="{DynamicResource AppSubtext}" FontSize="8" FontWeight="Bold" HorizontalAlignment="Right"/>
-                                    <TextBlock Name="TxtVersionBadge" Text="v..." FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
+                                    <TextBlock Name="TxtVersionBadge" Text="v2.9.8" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

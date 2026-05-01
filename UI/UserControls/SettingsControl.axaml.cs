@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.Runtime.Versioning;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using PinayPalBackupManager.Services;
 using PinayPalBackupManager.Models;
@@ -58,6 +59,35 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Load Theme Auto Schedule setting
+            var chkThemeAutoSchedule = this.FindControl<CheckBox>("ChkThemeAutoSchedule");
+            if (chkThemeAutoSchedule != null)
+            {
+                chkThemeAutoSchedule.IsChecked = ConfigService.Current.Operation.ThemeAutoSchedule;
+                chkThemeAutoSchedule.IsCheckedChanged += (_, _) => 
+                {
+                    ConfigService.Current.Operation.ThemeAutoSchedule = chkThemeAutoSchedule.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Theme auto schedule " + (chkThemeAutoSchedule.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Load Language setting
+            var cmbLanguage = this.FindControl<ComboBox>("CmbLanguage");
+            if (cmbLanguage != null)
+            {
+                cmbLanguage.SelectedIndex = ConfigService.Current.Operation.Language == "fil" ? 1 : 0;
+                cmbLanguage.SelectionChanged += (_, _) => 
+                {
+                    var lang = cmbLanguage.SelectedIndex == 1 ? "fil" : "en";
+                    System.Diagnostics.Debug.WriteLine($"[Language] Changing to: {lang} (index: {cmbLanguage.SelectedIndex})");
+                    ConfigService.Current.Operation.Language = lang;
+                    ConfigService.SaveOperation();
+                    Services.LocalizationService.SetLanguage(lang);
+                    NotificationService.ShowBackupToast("Settings", "Language changed to " + Services.LocalizationService.GetLanguageName(lang), "Info");
+                };
+            }
+
             var btnShowInfo = this.FindControl<Button>("BtnShowSystemInfo");
             if (btnShowInfo != null)
             {
@@ -104,6 +134,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     LogService.WriteSystemLog($"Retention days changed to {days} days", "Information", "SETTINGS");
                 }
                 else NotificationService.ShowBackupToast("Retention", "Enter a value between 1 and 365 days.", "Warning");
+            };
+
+            // Export Logs
+            var btnExportLogs = this.FindControl<Button>("BtnExportLogs");
+            if (btnExportLogs != null)
+            {
+                btnExportLogs.Click += async (_, _) => await ExportLogsAsync();
             };
 
             // Set version dynamically
@@ -389,6 +426,56 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             }
             catch { }
+        }
+        
+        private async Task ExportLogsAsync()
+        {
+            try
+            {
+                var tempZip = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"pinaypal-logs-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
+                
+                using var zipStream = new System.IO.FileStream(tempZip, System.IO.FileMode.Create);
+                using var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create);
+                
+                var logDirs = new[]
+                {
+                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "logs"),
+                    System.IO.Path.Combine(AppContext.BaseDirectory, "logs")
+                };
+                
+                foreach (var logDir in logDirs)
+                {
+                    if (System.IO.Directory.Exists(logDir))
+                    {
+                        foreach (var file in System.IO.Directory.GetFiles(logDir, "*.log", System.IO.SearchOption.AllDirectories))
+                        {
+                            var entryName = file.Substring(logDir.Length + 1).Replace('\\', '/');
+                            archive.CreateEntryFromFile(file, "logs/" + entryName);
+                        }
+                    }
+                }
+                
+                // Add config info
+                var configEntry = archive.CreateEntry("config-info.txt");
+                using var writer = new System.IO.StreamWriter(configEntry.Open());
+                await writer.WriteLineAsync($"PinayPal Backup Manager - Log Export");
+                await writer.WriteLineAsync($"Exported: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                await writer.WriteLineAsync($"Version: {BackupConfig.AppVersion}");
+                await writer.WriteLineAsync($"");
+                await writer.WriteLineAsync($"FTP Log: {BackupConfig.FtpLogFile}");
+                await writer.WriteLineAsync($"Mailchimp Log: {BackupConfig.McLogFile}");
+                await writer.WriteLineAsync($"SQL Log: {BackupConfig.SqlLogFile}");
+                
+                NotificationService.ShowBackupToast("Export", "Logs exported successfully!", "Info");
+                LogService.WriteSystemLog($"Logs exported to {tempZip}", "Information", "SETTINGS");
+                
+                // Open the folder containing the zip
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{tempZip}\"");
+            }
+            catch (Exception ex)
+            {
+                NotificationService.ShowBackupToast("Export", $"Failed to export logs: {ex.Message}", "Error");
+            }
         }
     }
 }

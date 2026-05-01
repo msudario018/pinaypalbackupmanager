@@ -32,6 +32,8 @@ namespace PinayPalBackupManager.UI
         private readonly SqlControl _sqlControl;
         private readonly SettingsControl _settingsControl;
         private readonly ProfileControl _profileControl;
+        private readonly VerificationControl _verificationControl;
+        private readonly StatisticsControl _statisticsControl;
         private readonly UserManagementControl _userManagementControl;
         private DispatcherTimer? _activeProcessMonitorTimer;
         private DispatcherTimer? _firebasePollTimer;
@@ -140,6 +142,8 @@ namespace PinayPalBackupManager.UI
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _profileControl = new ProfileControl();
+            _verificationControl = new VerificationControl();
+            _statisticsControl = new StatisticsControl();
             _userManagementControl = new UserManagementControl();
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
             _profileControl.OnLogoutRequested += () => {
@@ -156,6 +160,11 @@ namespace PinayPalBackupManager.UI
             };
             _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
             _activeProcessMonitorTimer.Start();
+
+            // Start theme auto schedule timer (check every minute)
+            var themeTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+            themeTimer.Tick += (_, _) => Services.ThemeService.AutoCheckAndApply();
+            themeTimer.Start();
 
             // Start Firebase polling timer (fallback for real-time listener)
             _firebasePollTimer = new DispatcherTimer
@@ -798,6 +807,14 @@ namespace PinayPalBackupManager.UI
                         NotificationService.ShowBackupToast("Tab", "Switched to SQL", "Info");
                         ShowControl(_sqlControl);
                         break;
+                    case "Verification":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Verification", "Info");
+                        ShowControl(_verificationControl);
+                        break;
+                    case "Statistics":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Statistics", "Info");
+                        ShowControl(_statisticsControl);
+                        break;
                     case "Settings":
                         NotificationService.ShowBackupToast("Tab", "Switched to Settings", "Info");
                         ShowControl(_settingsControl);
@@ -1363,10 +1380,24 @@ namespace PinayPalBackupManager.UI
                 tray.ToolTipText = "PinayPal Backup Manager";
                 tray.Clicked += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
                 var menu = new Avalonia.Controls.NativeMenu();
+                
+                // Backup Now
+                var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Backup Now" };
+                backupItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); _ = RunAllBackupsParallelAsync(); });
+                
+                // Open Dashboard
+                var dashboardItem = new Avalonia.Controls.NativeMenuItem { Header = "Open Dashboard" };
+                dashboardItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); });
+                
                 var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show" };
                 showItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
+                
                 var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit" };
                 exitItem.Click += (_, _) => { _allowClose = true; Close(); };
+                
+                menu.Items.Add(backupItem);
+                menu.Items.Add(dashboardItem);
+                menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
                 menu.Items.Add(showItem);
                 menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
                 menu.Items.Add(exitItem);

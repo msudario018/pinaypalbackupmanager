@@ -32,6 +32,7 @@ namespace PinayPalBackupManager.Services
         public event Action? OnSqlAutoSyncRequested;
         public event Action? OnAutoScanTimersReset;
         public event Action? OnDailyScheduleUpdated;
+        public event Action<string, bool>? OnBackupCompleted; // service, success
 
         public static TimeSpan FtpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.FtpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.FtpAutoScanMinutes);
         public static TimeSpan MailchimpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.MailchimpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.MailchimpAutoScanMinutes);
@@ -582,7 +583,30 @@ namespace PinayPalBackupManager.Services
             var mnl = GetManilaDate();
             var next = new DateTime(mnl.Year, mnl.Month, mnl.Day, hour, minute, 0);
             if (next <= mnl) next = next.AddDays(1);
+            
+            // Skip non-scheduled days
+            while (!IsScheduledDay(next.DayOfWeek))
+            {
+                next = next.AddDays(1);
+            }
+            
             return next;
+        }
+        
+        private static bool IsScheduledDay(DayOfWeek day)
+        {
+            var schedule = ConfigService.Current.Schedule;
+            return day switch
+            {
+                DayOfWeek.Sunday => schedule.ScheduleSunday,
+                DayOfWeek.Monday => schedule.ScheduleMonday,
+                DayOfWeek.Tuesday => schedule.ScheduleTuesday,
+                DayOfWeek.Wednesday => schedule.ScheduleWednesday,
+                DayOfWeek.Thursday => schedule.ScheduleThursday,
+                DayOfWeek.Friday => schedule.ScheduleFriday,
+                DayOfWeek.Saturday => schedule.ScheduleSaturday,
+                _ => true
+            };
         }
 
         private static void EnsureFoldersExist()

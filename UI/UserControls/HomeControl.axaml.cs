@@ -144,6 +144,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _ = UpdateQuickStatsAsync();
             _ = UpdateTimeSinceLastBackupAsync();
             _ = LoadRecentErrorsAsync();
+            UpdateActivityHeatmap();
             
             // Initialize service status immediately
             UpdateServicesStatusSummary(null);
@@ -861,6 +862,94 @@ namespace PinayPalBackupManager.UI.UserControls
                         list.Children.Add(row);
                     }
                 });
+            });
+            
+            // Also update backup calendar
+            UpdateBackupCalendar();
+        }
+        
+        private void UpdateBackupCalendar()
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    var calendar = this.FindControl<WrapPanel>("BackupCalendar");
+                    if (calendar == null) return;
+                    
+                    // Get logs from last 30 days
+                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 500);
+                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 500);
+                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 500);
+                    var allLogs = ftpLogs.Concat(mcLogs).Concat(sqlLogs).ToList();
+                    
+                    // Group by date
+                    var dateStats = new Dictionary<string, (int success, int failed)>();
+                    for (int i = 0; i < 30; i++)
+                    {
+                        var date = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd");
+                        dateStats[date] = (0, 0);
+                    }
+                    
+                    foreach (var log in allLogs)
+                    {
+                        if (log.Contains("COMPLETE") || log.Contains("SUCCESS"))
+                        {
+                            foreach (var date in dateStats.Keys)
+                            {
+                                if (log.Contains(date))
+                                {
+                                    var (s, f) = dateStats[date];
+                                    dateStats[date] = (s + 1, f);
+                                }
+                            }
+                        }
+                        if (log.Contains("ERROR") || log.Contains("FAILED"))
+                        {
+                            foreach (var date in dateStats.Keys)
+                            {
+                                if (log.Contains(date))
+                                {
+                                    var (s, f) = dateStats[date];
+                                    dateStats[date] = (s, f + 1);
+                                }
+                            }
+                        }
+                    }
+                    
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        calendar.Children.Clear();
+                        foreach (var date in dateStats.OrderBy(d => d.Key))
+                        {
+                            var (success, failed) = date.Value;
+                            var color = success > 0 && failed == 0 ? "#A6E3A1" :  // Green - all success
+                                        success > 0 && failed > 0 ? "#F9E2AF" :   // Yellow - mixed
+                                        failed > 0 ? "#F38BA8" :                  // Red - all failed
+                                        "#313244";                                 // Gray - no activity
+                            
+                            var day = int.Parse(date.Key.Substring(8, 2));
+                            var cell = new Border
+                            {
+                                Width = 24, Height = 24,
+                                Background = Brush.Parse(color),
+                                CornerRadius = new Avalonia.CornerRadius(4),
+                                Margin = new Avalonia.Thickness(2),
+                                Child = new TextBlock
+                                {
+                                    Text = day.ToString(),
+                                    FontSize = 9,
+                                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                                    Foreground = Brush.Parse(success > 0 || failed > 0 ? "#1E1E2E" : "#6C7086")
+                                }
+                            };
+                            ToolTip.SetTip(cell, $"{date.Key}: {success} success, {failed} failed");
+                            calendar.Children.Add(cell);
+                        }
+                    });
+                }
+                catch { }
             });
         }
 
@@ -2267,7 +2356,187 @@ namespace PinayPalBackupManager.UI.UserControls
                 LogService.WriteSystemLog("[HOMECTRL] UI refreshed after Firebase schedule change", "Information", "SYSTEM");
             });
         }
-
+        
+        private void UpdateActivityHeatmap()
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    // Get all backup logs from the last 52 weeks (reduced from 5000 for performance)
+                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 2000);
+                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 2000);
+                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 2000);
+                    var allLogs = ftpLogs.Concat(mcLogs).Concat(sqlLogs).ToList();
+                    
+                    // Calculate date range (52 weeks ago to today)
+                    var endDate = DateTime.Today;
+                    var startDate = endDate.AddDays(-52 * 7);
+                    var totalDays = (endDate - startDate).Days + 1;
+                    
+                    // Count backups per day
+                    var dailyCounts = new Dictionary<DateTime, int>();
+                    for (int i = 0; i < totalDays; i++)
+                    {
+                        var date = startDate.AddDays(i);
+                        dailyCounts[date] = 0;
+                    }
+                    
+                    foreach (var log in allLogs)
+                    {
+                        if (log.Contains("COMPLETE") || log.Contains("SUCCESS"))
+                        {
+                            if (TryParseLogLine(log, out var timestamp, out _, out _))
+                            {
+                                var date = timestamp.Date;
+                                if (dailyCounts.ContainsKey(date))
+                                    dailyCounts[date]++;
+                            }
+                        }
+                    }
+                    
+                    // Calculate statistics
+                    var totalBackups = dailyCounts.Values.Sum();
+                    var maxCount = dailyCounts.Values.Max();
+                    var currentStreak = CalculateCurrentStreak(dailyCounts, endDate);
+                    
+                    // Generate heatmap data (52 weeks × 7 days)
+                    var heatmapData = new List<List<int>>();
+                    for (int week = 0; week < 52; week++)
+                    {
+                        var weekData = new List<int>();
+                        for (int day = 0; day < 7; day++)
+                        {
+                            var date = startDate.AddDays(week * 7 + day);
+                            weekData.Add(dailyCounts.ContainsKey(date) ? dailyCounts[date] : 0);
+                        }
+                        heatmapData.Add(weekData);
+                    }
+                    
+                    // Update UI with batching for better performance
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var container = this.FindControl<StackPanel>("HeatmapContainer");
+                        var monthLabels = this.FindControl<Grid>("MonthLabelsContainer");
+                        var summary = this.FindControl<TextBlock>("HeatmapSummary");
+                        var streak = this.FindControl<TextBlock>("HeatmapStreak");
+                        
+                        // Update summary text first
+                        if (summary != null)
+                            summary.Text = $"{totalBackups} backups in the last year";
+                        
+                        if (streak != null)
+                            streak.Text = $"Current streak: {currentStreak} days";
+                        
+                        if (container != null)
+                        {
+                            container.Children.Clear();
+                            
+                            // Pre-create all cells to minimize UI updates
+                            var weekColumns = new List<StackPanel>();
+                            for (int week = 0; week < 52; week++)
+                            {
+                                var weekColumn = new StackPanel { Orientation = Avalonia.Layout.Orientation.Vertical, Spacing = 2 };
+                                var weekCells = new List<Border>();
+                                
+                                for (int day = 0; day < 7; day++)
+                                {
+                                    var count = week < heatmapData.Count && day < heatmapData[week].Count 
+                                        ? heatmapData[week][day] : 0;
+                                    
+                                    var color = GetHeatmapColor(count, maxCount);
+                                    var cell = new Border
+                                    {
+                                        Width = 11,
+                                        Height = 11,
+                                        Background = new SolidColorBrush(Color.Parse(color)),
+                                        CornerRadius = new Avalonia.CornerRadius(2)
+                                    };
+                                    ToolTip.SetTip(cell, $"Day {week * 7 + day + 1}: {count} backup(s)");
+                                    
+                                    weekCells.Add(cell);
+                                }
+                                
+                                // Add all cells at once
+                                foreach (var cell in weekCells)
+                                    weekColumn.Children.Add(cell);
+                                    
+                                weekColumns.Add(weekColumn);
+                            }
+                            
+                            // Add all week columns at once
+                            foreach (var weekColumn in weekColumns)
+                                container.Children.Add(weekColumn);
+                        }
+                        
+                        if (monthLabels != null)
+                        {
+                            monthLabels.Children.Clear();
+                            var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+                            var startMonth = startDate.Month;
+                            
+                            var monthLabelsList = new List<TextBlock>();
+                            for (int i = 0; i < 12; i++)
+                            {
+                                var monthIndex = (startMonth + i - 1) % 12;
+                                var label = new TextBlock
+                                {
+                                    Text = months[monthIndex],
+                                    FontSize = 9,
+                                    Foreground = new SolidColorBrush(Color.Parse("#6E7681")),
+                                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+                                };
+                                Grid.SetColumn(label, i);
+                                monthLabelsList.Add(label);
+                            }
+                            
+                            foreach (var label in monthLabelsList)
+                                monthLabels.Children.Add(label);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Home] Error updating heatmap: {ex.Message}");
+                }
+            });
+        }
+        
+        private static int CalculateCurrentStreak(Dictionary<DateTime, int> dailyCounts, DateTime endDate)
+        {
+            var streak = 0;
+            var currentDate = endDate;
+            
+            while (currentDate >= endDate.AddDays(-52 * 7))
+            {
+                if (dailyCounts.ContainsKey(currentDate) && dailyCounts[currentDate] > 0)
+                    streak++;
+                else
+                    break;
+                    
+                currentDate = currentDate.AddDays(-1);
+            }
+            
+            return streak;
+        }
+        
+        private static string GetHeatmapColor(int count, int maxCount)
+        {
+            if (count == 0) return "#161B22"; // No activity
+            if (maxCount == 0) return "#0E4429"; // Default green
+            
+            var intensity = (double)count / maxCount;
+            
+            return intensity switch
+            {
+                < 0.25 => "#0E4429",  // Light green
+                < 0.5 => "#006D32",   // Medium green
+                < 0.75 => "#26A641",  // Bright green
+                _ => "#39D353"       // Brightest green
+            };
+        }
+        
+        
         protected override void OnUnloaded(RoutedEventArgs e)
         {
             base.OnUnloaded(e);

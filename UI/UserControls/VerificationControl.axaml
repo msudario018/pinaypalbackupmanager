@@ -1,0 +1,200 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:PinayPalBackupManager.UI.UserControls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="PinayPalBackupManager.UI.UserControls.VerificationControl">
+    
+    <UserControl.Styles>
+        <Style Selector="Border.status-card">
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+        </Style>
+        <Style Selector="TextBlock.status-title">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtext}"/>
+        </Style>
+        <Style Selector="TextBlock.status-value">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="ProgressBar.verification-progress">
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="20" Margin="20">
+            
+            <!-- Header -->
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="BACKUP VERIFICATION" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Monitor file integrity and detect corruption" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <Button Name="BtnVerifyAll" Content="Verify All" Background="{DynamicResource AccentWebsite}" Foreground="White"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                    <Button Name="BtnGenerateChecksums" Content="Generate Checksums" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                    <Button Name="BtnExportReport" Content="Export Report" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Status Overview -->
+            <Grid ColumnDefinitions="*, *, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
+                <Border Grid.Column="0" Margin="0,0,8,0" Classes="status-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Total Files" Classes="status-title"/>
+                        <TextBlock Name="TxtTotalFiles" Text="0" Classes="status-value" Foreground="{DynamicResource AppText}"/>
+                        <ProgressBar Name="ProgressTotal" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AppMuted}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Margin="0,0,8,0" Classes="status-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Valid Files" Classes="status-title"/>
+                        <TextBlock Name="TxtValidFiles" Text="0" Classes="status-value" Foreground="{DynamicResource AccentFtp}"/>
+                        <ProgressBar Name="ProgressValid" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentFtp}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Margin="0,0,8,0" Classes="status-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Corrupted Files" Classes="status-title"/>
+                        <TextBlock Name="TxtCorruptedFiles" Text="0" Classes="status-value" Foreground="{DynamicResource AccentError}"/>
+                        <ProgressBar Name="ProgressCorrupted" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentError}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="3" Classes="status-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Missing Files" Classes="status-title"/>
+                        <TextBlock Name="TxtMissingFiles" Text="0" Classes="status-value" Foreground="{DynamicResource AccentMailchimp}"/>
+                        <ProgressBar Name="ProgressMissing" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentMailchimp}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Service Status -->
+            <Border Classes="status-card">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="SERVICE VERIFICATION STATUS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                    
+                    <Grid Name="ServiceStatusGrid" ColumnDefinitions="*, *, *">
+                        <!-- FTP Service -->
+                        <Border Grid.Column="0" Margin="0,0,12,0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentFtp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="FTP / Website" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtFtpStatus" Text="✓ OK" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBlock Grid.Column="0" Text="Files Verified" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                        <TextBlock Grid.Column="1" Name="TxtFtpVerified" Text="0/0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                    </Grid>
+                                    <ProgressBar Name="FtpProgressBar" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentFtp}"/>
+                                </StackPanel>
+                                <StackPanel Name="FtpIssuesList" Spacing="4"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Mailchimp Service -->
+                        <Border Grid.Column="1" Margin="0,0,12,0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentMailchimp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtMcStatus" Text="✓ OK" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBlock Grid.Column="0" Text="Files Verified" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                        <TextBlock Grid.Column="1" Name="TxtMcVerified" Text="0/0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                    </Grid>
+                                    <ProgressBar Name="McProgressBar" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentMailchimp}"/>
+                                </StackPanel>
+                                <StackPanel Name="McIssuesList" Spacing="4"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- SQL Service -->
+                        <Border Grid.Column="2" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentSql}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="SQL / Database" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtSqlStatus" Text="✓ OK" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBlock Grid.Column="0" Text="Files Verified" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                        <TextBlock Grid.Column="1" Name="TxtSqlVerified" Text="0/0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                    </Grid>
+                                    <ProgressBar Name="SqlProgressBar" Classes="verification-progress" Value="0" Maximum="100" Foreground="{DynamicResource AccentSql}"/>
+                                </StackPanel>
+                                <StackPanel Name="SqlIssuesList" Spacing="4"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Verification Results -->
+            <Border Classes="status-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Grid.Column="0" Text="DETAILED VERIFICATION RESULTS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                        <Button Grid.Column="1" Name="BtnRefreshResults" Content="Refresh" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                                BorderThickness="0" CornerRadius="6" Padding="12,6" FontSize="11" Cursor="Hand"/>
+                    </Grid>
+                    
+                    <!-- Filter Options -->
+                    <Grid ColumnDefinitions="Auto, Auto, Auto, *">
+                        <CheckBox Grid.Column="0" Name="ChkShowValid" Content="Show Valid" IsChecked="True" Margin="0,0,12,0"/>
+                        <CheckBox Grid.Column="1" Name="ChkShowCorrupted" Content="Show Corrupted" IsChecked="True" Margin="0,0,12,0"/>
+                        <CheckBox Grid.Column="2" Name="ChkShowMissing" Content="Show Missing" IsChecked="True" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="3" Name="TxtFilterCount" Text="0 files displayed" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </Grid>
+                    
+                    <!-- Results List -->
+                    <ScrollViewer Height="300" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <ListBox Name="VerificationDataGrid" Background="{DynamicResource AppCard}" BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="local:VerificationItem">
+                                    <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8" Margin="0,2">
+                                        <Grid ColumnDefinitions="200, 80, 100, 80, 120, 150, *">
+                                            <TextBlock Grid.Column="0" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Service}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource AppText}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding FileSizeFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding CreatedFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding HashShort}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" FontFamily="Consolas"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding FilePath}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
+            <!-- Recent Alerts -->
+            <Border Name="AlertsSection" Classes="status-card" IsVisible="False">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="RECENT CORRUPTION ALERTS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentError}"/>
+                    <StackPanel Name="AlertsList" Spacing="8"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

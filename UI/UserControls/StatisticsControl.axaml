@@ -1,0 +1,254 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:PinayPalBackupManager.UI.UserControls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="PinayPalBackupManager.UI.UserControls.StatisticsControl">
+    
+    <UserControl.Styles>
+        <Style Selector="Border.stats-card">
+            <Setter Property="Background" Value="{DynamicResource AppCard}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+        </Style>
+        <Style Selector="TextBlock.stats-title">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtext}"/>
+        </Style>
+        <Style Selector="TextBlock.stats-value">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Border.chart-container">
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,8,0,0"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="20" Margin="20">
+            
+            <!-- Header -->
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="BACKUP STATISTICS DASHBOARD" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Analyze backup trends and performance metrics" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <Button Name="BtnRefreshStats" Content="Refresh" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                    <Button Name="BtnExportStats" Content="Export Report" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                    <Button Name="BtnDateRange" Content="Last 30 Days" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Overview Cards -->
+            <Grid ColumnDefinitions="*, *, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
+                <Border Grid.Column="0" Margin="0,0,8,0" Classes="stats-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Total Backups" Classes="stats-title"/>
+                        <TextBlock Name="TxtTotalBackups" Text="0" Classes="stats-value" Foreground="{DynamicResource AppText}"/>
+                        <TextBlock Name="TxtBackupsTrend" Text="↑ 0%" FontSize="12" Foreground="{DynamicResource AccentFtp}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Margin="0,0,8,0" Classes="stats-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Success Rate" Classes="stats-title"/>
+                        <TextBlock Name="TxtSuccessRate" Text="0%" Classes="stats-value" Foreground="{DynamicResource AccentFtp}"/>
+                        <TextBlock Name="TxtSuccessTrend" Text="↑ 0%" FontSize="12" Foreground="{DynamicResource AccentFtp}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Margin="0,0,8,0" Classes="stats-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Avg. Duration" Classes="stats-title"/>
+                        <TextBlock Name="TxtAvgDuration" Text="0s" Classes="stats-value" Foreground="{DynamicResource AccentMailchimp}"/>
+                        <TextBlock Name="TxtDurationTrend" Text="↓ 0%" FontSize="12" Foreground="{DynamicResource AccentMailchimp}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="3" Classes="stats-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Storage Used" Classes="stats-title"/>
+                        <TextBlock Name="TxtStorageUsed" Text="0 MB" Classes="stats-value" Foreground="{DynamicResource AccentSql}"/>
+                        <TextBlock Name="TxtStorageTrend" Text="↑ 0%" FontSize="12" Foreground="{DynamicResource AccentSql}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Charts Section -->
+            <Grid ColumnDefinitions="*, *" RowDefinitions="*, *" MaxWidth="1200" HorizontalAlignment="Stretch">
+                <!-- Backup Volume Chart -->
+                <Border Grid.Row="0" Grid.Column="0" Margin="0,0,8,0" Classes="stats-card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="BACKUP VOLUME TRENDS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                        <Border Classes="chart-container" Height="250">
+                            <Canvas Name="BackupVolumeCanvas" Background="Transparent"/>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentFtp}"/>
+                                <TextBlock Text="FTP" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentMailchimp}"/>
+                                <TextBlock Text="Mailchimp" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentSql}"/>
+                                <TextBlock Text="SQL" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Success Rate Chart -->
+                <Border Grid.Row="0" Grid.Column="1" Classes="stats-card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="SUCCESS RATE TRENDS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                        <Border Classes="chart-container" Height="250">
+                            <Canvas Name="SuccessRateCanvas" Background="Transparent"/>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="#A6E3A1"/>
+                                <TextBlock Text="Success" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="#F38BA8"/>
+                                <TextBlock Text="Failed" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Storage Growth Chart -->
+                <Border Grid.Row="1" Grid.Column="0" Margin="0,8,8,0" Classes="stats-card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="STORAGE GROWTH" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                        <Border Classes="chart-container" Height="250">
+                            <Canvas Name="StorageGrowthCanvas" Background="Transparent"/>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentSql}"/>
+                                <TextBlock Text="Total Storage" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Performance Metrics Chart -->
+                <Border Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Classes="stats-card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="PERFORMANCE METRICS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                        <Border Classes="chart-container" Height="250">
+                            <Canvas Name="PerformanceCanvas" Background="Transparent"/>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentFtp}"/>
+                                <TextBlock Text="Avg Duration" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Rectangle Width="12" Height="12" Fill="{DynamicResource AccentMailchimp}"/>
+                                <TextBlock Text="Peak Duration" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Service Breakdown -->
+            <Border Classes="stats-card">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="SERVICE BREAKDOWN" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
+                    
+                    <Grid ColumnDefinitions="*, *, *" MaxWidth="1200">
+                        <!-- FTP Statistics -->
+                        <Border Grid.Column="0" Margin="0,0,12,0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentFtp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="FTP / Website" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtFtpStatus" Text="Active" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                                <Grid ColumnDefinitions="*, *" RowDefinitions="*, *, *, *">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Backups:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtFtpTotal" Text="0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Success Rate:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtFtpSuccess" Text="0%" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Avg Duration:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtFtpDuration" Text="0s" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Storage Used:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtFtpStorage" Text="0 MB" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Mailchimp Statistics -->
+                        <Border Grid.Column="1" Margin="0,0,12,0" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentMailchimp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtMcStatus" Text="Active" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                                <Grid ColumnDefinitions="*, *" RowDefinitions="*, *, *, *">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Backups:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtMcTotal" Text="0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Success Rate:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtMcSuccess" Text="0%" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Avg Duration:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtMcDuration" Text="0s" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Storage Used:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtMcStorage" Text="0 MB" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- SQL Statistics -->
+                        <Border Grid.Column="2" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{DynamicResource AccentSql}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="SQL / Database" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtSqlStatus" Text="Active" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                                <Grid ColumnDefinitions="*, *" RowDefinitions="*, *, *, *">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Backups:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtSqlTotal" Text="0" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Success Rate:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtSqlSuccess" Text="0%" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Avg Duration:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtSqlDuration" Text="0s" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                    
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Storage Used:" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtSqlStorage" Text="0 MB" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

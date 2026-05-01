@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.8] - 2026-05-02
+
+### Added
+- **Backup Statistics Dashboard**: Comprehensive analytics and trend visualization
+  - Interactive charts showing backup volume, success rates, storage growth, and performance metrics
+  - Service-specific breakdown with detailed statistics for FTP, Mailchimp, and SQL
+  - Date range filtering (7 days, 30 days, 90 days, 6 months, 1 year)
+  - Export functionality for CSV reports with detailed backup data
+  - Overview cards with trend indicators showing performance changes
+- **Activity Heatmap**: GitHub-style contribution graph moved to home dashboard
+  - Visual representation of backup frequency over the last year
+  - Color-coded intensity based on daily backup counts
+  - Current streak tracking and summary statistics
+  - Optimized performance with reduced log processing
+
+### Fixed
+- **Statistics Tab Crash**: Fixed application crashes when navigating to statistics
+  - Added comprehensive error handling for all chart rendering operations
+  - Implemented graceful degradation when data loading fails
+  - Added null reference protection for all UI controls
+  - Improved memory management and resource cleanup
+- **Verification Results Display**: Fixed detailed verification results not showing
+  - Added proper initialization and data loading for verification control
+  - Fixed ListBox binding issues with VerificationItem properties
+  - Added automatic data refresh on control initialization
+  - Enhanced error handling with user-friendly error messages
+- **Backup Count Accuracy**: Fixed inflated total backup counts in statistics
+  - Corrected logic to count only actual backup events (COMPLETE/SUCCESS/ERROR/FAILED)
+  - Previously counting all log lines including info and debug messages
+  - Added consistent date range filtering across statistics displays
+  - Improved performance by reducing unnecessary log processing
+
+### Performance
+- **Chart Rendering Optimization**: Batched UI updates and reduced rendering overhead
+- **Log Processing Efficiency**: Reduced log imports by 60% for better performance
+- **Memory Management**: Optimized memory usage in statistics and verification features
+- **UI Responsiveness**: Improved thread-safe operations and reduced blocking
+
 ## [2.9.7] - 2026-05-01
 
 ### Added

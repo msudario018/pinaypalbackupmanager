@@ -66,5 +66,28 @@ namespace PinayPalBackupManager.Services
             }
             catch { }
         }
+        
+        public static void AutoCheckAndApply()
+        {
+            if (!ConfigService.Current.Operation.ThemeAutoSchedule) return;
+            
+            var hour = DateTime.Now.Hour;
+            var darkHour = ConfigService.Current.Operation.ThemeDarkHour;
+            var lightHour = ConfigService.Current.Operation.ThemeLightHour;
+            
+            bool shouldBeDark;
+            if (darkHour > lightHour)
+                shouldBeDark = hour >= darkHour || hour < lightHour;
+            else
+                shouldBeDark = hour >= darkHour && hour < lightHour;
+            
+            if (shouldBeDark != IsDark)
+            {
+                IsDark = shouldBeDark;
+                Apply();
+                Save();
+                OnThemeChanged?.Invoke(IsDark);
+            }
+        }
     }
 }
