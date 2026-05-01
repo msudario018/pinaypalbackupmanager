@@ -75,6 +75,40 @@ namespace PinayPalBackupManager.UI
 
             NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
 
+            // Keyboard shortcuts
+            this.KeyDown += (s, e) =>
+            {
+                var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
+                
+                if (ctrl && e.Key == Avalonia.Input.Key.B)
+                {
+                    // Ctrl+B - Backup All (parallel)
+                    _ = RunAllBackupsParallelAsync();
+                    e.Handled = true;
+                }
+                else if (ctrl && e.Key == Avalonia.Input.Key.T)
+                {
+                    // Ctrl+T - Test All (ping all)
+                    _ = RunAllChecksAsync();
+                    e.Handled = true;
+                }
+                else if (ctrl && e.Key == Avalonia.Input.Key.R)
+                {
+                    // Ctrl+R - Retry Failed
+                    _ = RunAllChecksAsync();
+                    e.Handled = true;
+                }
+                else if (e.Key == Avalonia.Input.Key.Escape)
+                {
+                    // Esc - Emergency Stop
+                    if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                    if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                    if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                    NotificationService.ShowBackupToast("Emergency Stop", "All running tasks have been cancelled.", "Warning");
+                    e.Handled = true;
+                }
+            };
+
             SetupSystemTray();
 
             // Handle window state changes for layout optimization
@@ -86,6 +120,7 @@ namespace PinayPalBackupManager.UI
             _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
             _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
             _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
+            _homeControl.OnRunAllBackupsParallel += () => _ = RunAllBackupsParallelAsync();
             _homeControl.OnFtpSyncCheck += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.PerformSyncCheck(); };
             _homeControl.OnFtpQuickBackup += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.StartBackupFromShell(); };
             _homeControl.OnMailchimpSyncCheck += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.PerformSyncCheck(); };
@@ -131,6 +166,8 @@ namespace PinayPalBackupManager.UI
             {
                 await FirebaseRemoteService.PollScheduleUpdatesAsync();
                 await FirebaseRemoteService.PollCommandsAsync();
+                // Update connection status
+                UpdateConnectionStatus(true); // Firebase is connected if we can poll
             };
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
@@ -242,6 +279,10 @@ namespace PinayPalBackupManager.UI
                     // Stop real-time monitoring service
                     RealtimeMonitoringService.Stop();
                     
+                    // Stop backup retention and retry services
+                    BackupRetentionService.Stop();
+                    BackupRetryService.Stop();
+                    
                     // Stop backup manager
                     _backupManager?.Stop();
                     
@@ -341,6 +382,15 @@ namespace PinayPalBackupManager.UI
                     SystemStatusService.Initialize(databaseUrl, username);
                     LogService.WriteSystemLog("[MAINWINDOW] SystemStatusService initialized", "Information", "SYSTEM");
                     await RealtimeMonitoringService.AddLogAsync("Info", "SystemStatusService initialized", "MAINWINDOW");
+                    
+                    // Initialize Backup Retention Auto-Cleanup Service
+                    BackupRetentionService.Initialize();
+                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetentionService initialized", "Information", "SYSTEM");
+                    
+                    // Initialize Backup Retry Service with auto-retry on failure
+                    BackupRetryService.Initialize();
+                    BackupRetryService.OnRetryDue += OnRetryDue;
+                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetryService initialized", "Information", "SYSTEM");
                     
                     // Initialize FileDownloadService for HTTP file downloads
                     if (ConfigService.Current.HttpServer.Enabled)
@@ -881,6 +931,70 @@ namespace PinayPalBackupManager.UI
             }
         }
 
+        /// <summary>
+        /// Handles automatic retry when BackupRetryService triggers a retry.
+        /// </summary>
+        private async void OnRetryDue(string service)
+        {
+            try
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry triggered for {service}", "Information", "SYSTEM");
+                
+                switch (service)
+                {
+                    case "FTP":
+                        if (_ftpControl != null && !_ftpControl.IsBusy)
+                        {
+                            await _ftpControl.RunBackupTaskAsync("AUTO-RETRY");
+                        }
+                        break;
+                    case "Mailchimp":
+                        if (_mailchimpControl != null && !_mailchimpControl.IsBusy)
+                        {
+                            await _mailchimpControl.RunBackupTaskAsync("AUTO-RETRY");
+                        }
+                        break;
+                    case "SQL":
+                        if (_sqlControl != null && !_sqlControl.IsBusy)
+                        {
+                            await _sqlControl.RunBackupTaskAsync("AUTO-RETRY");
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry failed for {service}: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        /// <summary>
+        /// Runs all three backups in parallel using Task.WhenAll.
+        /// </summary>
+        private async Task RunAllBackupsParallelAsync()
+        {
+            if (_ftpControl == null || _mailchimpControl == null || _sqlControl == null) return;
+            
+            NotificationService.ShowBackupToast("Dashboard", "Starting parallel backup for all services...", "Info");
+            LogService.WriteSystemLog("[MAINWINDOW] Starting parallel backup for all services", "Information", "SYSTEM");
+            
+            var startTime = DateTime.Now;
+            
+            // Run all backups in parallel
+            await Task.WhenAll(
+                _ftpControl.RunBackupTaskAsync("PARALLEL"),
+                _mailchimpControl.RunBackupTaskAsync("PARALLEL"),
+                _sqlControl.RunBackupTaskAsync("PARALLEL")
+            );
+            
+            var duration = DateTime.Now - startTime;
+            LogService.WriteSystemLog($"[MAINWINDOW] Parallel backup completed in {duration.TotalMinutes:F1} minutes", "Information", "SYSTEM");
+            NotificationService.ShowBackupToast("Dashboard", $"All backups completed in {duration.TotalMinutes:F1}m", "Success");
+            
+            // Run health check after all backups complete
+            await _backupManager.RunHealthCheckAsync();
+        }
+
         private static IBrush GetAccentBrushForControl(UserControl control)
         {
             if (control is HomeControl) return Brush.Parse("#FCA311");
@@ -1139,6 +1253,10 @@ namespace PinayPalBackupManager.UI
 
             // Stop real-time monitoring service
             RealtimeMonitoringService.Stop();
+            
+            // Stop backup retention and retry services
+            BackupRetentionService.Stop();
+            BackupRetryService.Stop();
 
             NotificationService.ShowBackupToast("Exiting", anyBusy ? "Closing app and cancelling running tasks." : "Closing app.", anyBusy ? "Warning" : "Info");
 
@@ -1264,6 +1382,22 @@ namespace PinayPalBackupManager.UI
             {
                 var icon = this.FindControl<TextBlock>("TxtThemeIcon");
                 if (icon != null) icon.Text = ThemeService.IsDark ? "☀" : "🌙";
+            });
+        }
+        
+        private void UpdateConnectionStatus(bool isOnline)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var dot = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("ConnectionDot");
+                var text = this.FindControl<TextBlock>("ConnectionText");
+                if (dot != null && text != null)
+                {
+                    dot.Fill = isOnline 
+                        ? Avalonia.Media.Brush.Parse("#6b8e6b")  // Green
+                        : Avalonia.Media.Brush.Parse("#F38BA8"); // Red
+                    text.Text = isOnline ? "Online" : "Offline";
+                }
             });
         }
 

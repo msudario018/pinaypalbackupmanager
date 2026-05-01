@@ -57,6 +57,14 @@ namespace PinayPalBackupManager
             };
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
+            
+            // Start minimized if configured and auto-logged in
+            if (ConfigService.Current.Operation.StartMinimized && loginWindow == null)
+            {
+                mainWindow.WindowState = Avalonia.Controls.WindowState.Minimized;
+                mainWindow.ShowInTaskbar = true;
+            }
+            
             loginWindow?.Close();
         }
     }

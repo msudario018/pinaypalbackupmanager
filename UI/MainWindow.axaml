@@ -4,6 +4,7 @@
         x:Class="PinayPalBackupManager.UI.MainWindow"
         Title="PinayPal Backup Manager"
         Width="1000" Height="850"
+        MinWidth="900" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
         Foreground="{DynamicResource AppText}"
@@ -98,7 +99,7 @@
             <Border.Effect>
                 <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="10" Opacity="0.1"/>
             </Border.Effect>
-                <Grid ColumnDefinitions="*, *, *">
+                <Grid ColumnDefinitions="Auto, *, Auto">
                     <!-- US Time Badge -->
                     <Border Grid.Column="0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -139,6 +140,12 @@
                                 Background="{DynamicResource AppCard}" BorderThickness="0" CornerRadius="20" Padding="10,6">
                             <TextBlock Name="TxtThemeIcon" Text="☀" FontSize="15" VerticalAlignment="Center"/>
                         </Button>
+                        <Border Name="ConnectionStatus" ToolTip.Tip="Firebase Connection Status" Background="{DynamicResource AppCard}" CornerRadius="20" Padding="10,6">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Name="ConnectionDot" Width="8" Height="8" Fill="#6b8e6b" VerticalAlignment="Center"/>
+                                <TextBlock Name="ConnectionText" Text="Online" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
                         <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" Padding="14,6">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <Button Name="BtnSystemInfo" Classes="Ghost" VerticalAlignment="Center" Cursor="Hand">

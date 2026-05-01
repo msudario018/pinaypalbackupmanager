@@ -2,20 +2,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.DashboardCustomizationDialog">
     <Border Padding="20">
-        <StackPanel Spacing="16">
-            <TextBlock Text="Customize Dashboard" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
-            <TextBlock Text="Choose which sections to display on the dashboard" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+        <Grid RowDefinitions="Auto, *, Auto">
+            <StackPanel Grid.Row="0" Spacing="4">
+                <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Grid.Column="0" Text="Customize Dashboard" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <Button Grid.Column="1" Name="BtnClose" Content="✕" Background="Transparent" Foreground="{DynamicResource AppMuted}" BorderThickness="0" FontSize="16" Padding="8,4" Cursor="Hand"/>
+                </Grid>
+                <TextBlock Text="Choose which sections to display on the dashboard" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+            </StackPanel>
             
-            <CheckBox Name="ChkQuickStats" Content="Quick Stats" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkSchedule" Content="Schedule Overview" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkServiceCards" Content="Service Cards" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkHealth" Content="Backup Health" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkOperations" Content="Operations" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkStorage" Content="Storage Breakdown" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkRecentActivity" Content="Recent Activity" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
-            <CheckBox Name="ChkSystemLogs" Content="System Logs" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            <StackPanel Grid.Row="1" Spacing="12" Margin="0,16,0,0">
+                <CheckBox Name="ChkQuickStats" Content="Quick Stats" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkSchedule" Content="Schedule Overview" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkServiceCards" Content="Service Cards" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkHealth" Content="Backup Health" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkOperations" Content="Operations" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkStorage" Content="Storage Breakdown" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+                <CheckBox Name="ChkRecentActivity" Content="Recent Activity" IsChecked="True" Foreground="{DynamicResource AppSubtext}"/>
+            </StackPanel>
             
-            <Button Name="BtnApply" Content="Apply" HorizontalAlignment="Stretch" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,8" FontSize="12" Cursor="Hand"/>
-        </StackPanel>
+            <Button Grid.Row="2" Name="BtnApply" Content="Apply" HorizontalAlignment="Stretch" Background="{DynamicResource AccentWebsite}" Foreground="#1E1E2E" BorderThickness="0" CornerRadius="8" Padding="12,10" FontSize="12" FontWeight="SemiBold" Cursor="Hand" Margin="0,16,0,0"/>
+        </Grid>
     </Border>
 </UserControl>

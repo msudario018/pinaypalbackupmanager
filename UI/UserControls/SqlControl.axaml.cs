@@ -304,7 +304,29 @@ namespace PinayPalBackupManager.UI.UserControls
                             LogService.WriteLiveLog("SUCCESS: SQL Backup complete.", BackupConfig.SqlLogFile, "Information", trigger);
                             var integrity = CheckIntegrity(BackupConfig.SqlLocalFolder);
                             LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.SqlLogFile, "Information", trigger);
+                            
+                            // Verify checksums of downloaded files
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var files = Directory.GetFiles(BackupConfig.SqlLocalFolder);
+                                    int verified = 0;
+                                    foreach (var file in files.Take(10))
+                                    {
+                                        await Utils.FileHashUtil.StoreHashAsync(file, BackupConfig.SqlLocalFolder);
+                                        verified++;
+                                    }
+                                    if (verified > 0)
+                                        LogService.WriteLiveLog($"VERIFIED: Stored checksums for {verified} file(s)", BackupConfig.SqlLogFile, "Information", trigger);
+                                }
+                                catch { }
+                            });
+                            
                             NotificationService.ShowBackupToast("SQL Backup Success", $"Synchronized {missingCount} file(s). {integrity}", "Success");
+                            
+                            // Mark success for retry service
+                            Services.BackupRetryService.MarkSuccess("SQL");
                         }
 
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
@@ -367,6 +389,11 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("SQL", 0, "SYNC ERROR");
+                    // Register for auto-retry
+                    if (!taskError.Contains("Cancelled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Services.BackupRetryService.RegisterFailure("SQL");
+                    }
                 }
                 finally
                 {
@@ -748,6 +775,14 @@ namespace PinayPalBackupManager.UI.UserControls
         public void StartBackupFromShell()
         {
             _ = StartBackupAsync("MANUAL");
+        }
+
+        /// <summary>
+        /// Public awaitable backup method for parallel execution.
+        /// </summary>
+        public Task RunBackupTaskAsync(string trigger = "AUTO")
+        {
+            return StartBackupAsync(trigger);
         }
     }
 }

@@ -37,12 +37,17 @@
             <Grid ColumnDefinitions="*, Auto">
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Name="TxtGreeting" Text="Dashboard" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
-                    <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Name="TxtSubtitle" Text="System health overview" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                        <Border Name="RetryQueueBadge" IsVisible="False" Background="{DynamicResource AccentError}" CornerRadius="8" Padding="6,2">
+                            <TextBlock Name="TxtRetryQueue" Text="0 retries pending" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Name="BtnViewAllBackups" Content="View All Backups" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
+                            BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand" ToolTip.Tip="Open backup folder"/>
                     <Button Name="BtnCustomizeDashboard" Content="Customize" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
-                            BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand"/>
-                    <Button Name="BtnCompactToggle" Content="Compact" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
                             BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand"/>
                     <Border Name="DashHealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Padding="14,8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -51,9 +56,9 @@
                                        Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <Button Name="BtnRunAllChecks" Content="Run All Checks" Background="{DynamicResource AppMuted}" Foreground="{DynamicResource AccentWebsite}"
+                    <Button Name="BtnRunAllChecks" Content="Run All" Background="{DynamicResource AccentWebsite}" Foreground="#1E1E2E"
                             BorderThickness="0" CornerRadius="20" Padding="14,8" FontSize="11"
-                            FontWeight="SemiBold" Cursor="Hand"/>
+                            FontWeight="SemiBold" Cursor="Hand" ToolTip.Tip="Run parallel backup for all services"/>
                 </StackPanel>
             </Grid>
 
@@ -71,7 +76,7 @@
 
             <!-- System Status Overview -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="16">
-                <Grid ColumnDefinitions="*, *, *, Auto">
+                <Grid Name="SystemStatusGrid" ColumnDefinitions="*, *, *, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                         <TextBlock Text="Uptime" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                         <TextBlock Name="SystemUptime" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
@@ -94,15 +99,23 @@
             <!-- Quick Stats Cards -->
             <Grid Name="QuickStatsGrid" ColumnDefinitions="*, *, *" MaxWidth="1200" HorizontalAlignment="Stretch" Margin="0,8,0,0">
                 <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="10" Padding="14">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="Backups Today" FontSize="9" Foreground="{DynamicResource AccentFtp}"/>
-                        <TextBlock Name="StatBackupsToday" Text="0" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="Backups Today" FontSize="9" Foreground="{DynamicResource AccentFtp}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Name="StatBackupsToday" Text="0" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                                <TextBlock Name="TrendBackups" Text="" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" Margin="4,0,0,2"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                 </Border>
                 <Border Grid.Column="1" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="10" Padding="14">
                     <StackPanel Spacing="4">
                         <TextBlock Text="Success Rate (24h)" FontSize="9" Foreground="{DynamicResource AccentWebsite}"/>
-                        <TextBlock Name="StatSuccessRate" Text="100%" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Name="StatSuccessRate" Text="100%" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                            <TextBlock Name="TrendSuccessRate" Text="" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" Margin="4,0,0,2"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="2" Background="{DynamicResource AppCard}" CornerRadius="10" Padding="14">
@@ -115,7 +128,7 @@
 
             <!-- Time Since Last Backup -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="16">
-                <Grid ColumnDefinitions="*, *">
+                <Grid Name="TimeSinceGrid" ColumnDefinitions="*, *">
                     <StackPanel Grid.Column="0" Spacing="6">
                         <TextBlock Text="Time Since Last Backup" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" Margin="0,0,0,4"/>
@@ -159,7 +172,7 @@
                         <TextBlock Grid.Column="1" Name="NextBackupCountdown" Text="Next in: --" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                     </Grid>
                     
-                    <Grid ColumnDefinitions="*, *, *">
+                    <Grid Name="ScheduleOverviewGrid" ColumnDefinitions="*, *, *">
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="FTP" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentFtp}"/>
                             <Grid ColumnDefinitions="Auto, *">
@@ -185,6 +198,14 @@
                             <TextBlock Name="SqlScheduleStatus" Text="Scheduled" FontSize="8" Foreground="{DynamicResource AppVeryMuted}"/>
                         </StackPanel>
                     </Grid>
+                    
+                    <!-- Upcoming Backups Preview -->
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12" Margin="0,4,0,0">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="UPCOMING" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5"/>
+                            <StackPanel Name="UpcomingBackupsList" Spacing="4"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
 
@@ -216,11 +237,11 @@
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="FtpLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="FtpLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="FtpNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="FtpNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                         </StackPanel>
 
@@ -232,23 +253,11 @@
                             <Button Name="BtnFtpQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
-                        <!-- File Browser -->
-                        <Grid ColumnDefinitions="*, Auto">
-                            <Button Name="BtnGoFtp" Content="Open FTP Tab" HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                    FontWeight="SemiBold" Cursor="Hand"/>
-                            <Button Grid.Column="1" Name="BtnFtpFiles" Content="Files" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
-                        </Grid>
-                        <Border Name="FtpFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
-                            <StackPanel Spacing="4">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Name="BtnFtpOpenFolder" Content="Open Folder" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
-                                </Grid>
-                                <StackPanel Name="FtpFileList" Spacing="2"/>
-                            </StackPanel>
-                        </Border>
+                        <!-- Open Tab -->
+                        <Button Name="BtnGoFtp" Content="Open FTP Tab" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
 
@@ -277,11 +286,11 @@
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="MailchimpLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="MailchimpNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="MailchimpNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                         </StackPanel>
 
@@ -293,22 +302,11 @@
                             <Button Name="BtnMcQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
-                        <Grid ColumnDefinitions="*, Auto">
-                            <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab" HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                    FontWeight="SemiBold" Cursor="Hand"/>
-                            <Button Grid.Column="1" Name="BtnMcFiles" Content="Files" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
-                        </Grid>
-                        <Border Name="McFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
-                            <StackPanel Spacing="4">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Name="BtnMcOpenFolder" Content="Open Folder" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
-                                </Grid>
-                                <StackPanel Name="McFileList" Spacing="2"/>
-                            </StackPanel>
-                        </Border>
+                        <!-- Open Tab -->
+                        <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
 
@@ -337,11 +335,11 @@
                         <StackPanel Spacing="6">
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Last sync" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="SqlLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="SqlLastSync" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                             <Grid ColumnDefinitions="70, *">
                                 <TextBlock Grid.Column="0" Text="Next scan" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                <TextBlock Grid.Column="1" Name="SqlNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                <TextBlock Grid.Column="1" Name="SqlNextScan" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding $self.Text}"/>
                             </Grid>
                         </StackPanel>
 
@@ -353,22 +351,11 @@
                             <Button Name="BtnSqlQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
-                        <Grid ColumnDefinitions="*, Auto">
-                            <Button Name="BtnGoSql" Content="Open SQL Tab" HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                    BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
-                                    FontWeight="SemiBold" Cursor="Hand"/>
-                            <Button Grid.Column="1" Name="BtnSqlFiles" Content="Files" Background="{DynamicResource AppBorder}" BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11" Cursor="Hand" Margin="6,0,0,0" ToolTip.Tip="Browse backup files"/>
-                        </Grid>
-                        <Border Name="SqlFileBrowser" IsVisible="False" Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="10,8">
-                            <StackPanel Spacing="4">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="RECENT FILES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Name="BtnSqlOpenFolder" Content="Open Folder" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="9" Cursor="Hand"/>
-                                </Grid>
-                                <StackPanel Name="SqlFileList" Spacing="2"/>
-                            </StackPanel>
-                        </Border>
+                        <!-- Open Tab -->
+                        <Button Name="BtnGoSql" Content="Open SQL Tab" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -383,7 +370,7 @@
                     </Grid>
                     
                     <!-- Health Score -->
-                    <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Grid Name="HealthDashboardGrid" ColumnDefinitions="Auto, *, Auto">
                         <Border Grid.Column="0" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20,16" Margin="0,0,16,0" VerticalAlignment="Center">
                             <StackPanel Spacing="4">
                                 <TextBlock Name="HealthScoreText" Text="-" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" HorizontalAlignment="Center" Padding="4,2"/>
@@ -435,7 +422,7 @@
                             <Button Name="BtnEmergencyStop" Content="Stop All" Background="{DynamicResource AppCard}" Foreground="#F38BA8" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" FontWeight="SemiBold" Cursor="Hand"/>
                         </StackPanel>
                     </Grid>
-                    <Grid ColumnDefinitions="*, *, *">
+                    <Grid Name="OperationsGrid" ColumnDefinitions="*, *, *">
                         <Button Name="BtnBackupAll" Grid.Column="0" Margin="0,0,6,0" Content="Backup All" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
                         <Button Name="BtnTestAllConn" Grid.Column="1" Margin="3,0" Content="Test All" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
                         <Button Name="BtnRetryFailed" Grid.Column="2" Margin="6,0,0,0" Content="Retry Failed" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
@@ -460,7 +447,7 @@
             </Border>
 
             <!-- Quick Stats Row -->
-            <Grid ColumnDefinitions="*, *">
+            <Grid Name="QuickStatsRowGrid" ColumnDefinitions="*, *">
                 <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="10" Padding="16,12">
                     <StackPanel Spacing="4">
                         <TextBlock Text="TOTAL FILES" FontSize="9" Foreground="{DynamicResource AppMuted}" FontWeight="Bold" LetterSpacing="1"/>
@@ -481,7 +468,7 @@
             <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="STORAGE BREAKDOWN" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5"/>
-                    <Grid ColumnDefinitions="*, Auto">
+                    <Grid Name="StorageBreakdownGrid" ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="8">
                             <Grid ColumnDefinitions="Auto, Auto, *">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#588157" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -528,7 +515,7 @@
             </Border>
 
             <!-- Connectivity + Stats Row -->
-            <Grid ColumnDefinitions="*, *">
+            <Grid Name="ConnectivityStatsGrid" ColumnDefinitions="*, *">
 
                 <!-- Connectivity -->
                 <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
@@ -647,7 +634,7 @@
             </Border>
 
             <!-- Storage Usage + Daily Schedule Row -->
-            <Grid ColumnDefinitions="*, *">
+            <Grid Name="StorageScheduleGrid" ColumnDefinitions="*, *">
 
                 <!-- Storage Usage -->
                 <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
@@ -721,28 +708,33 @@
                 </StackPanel>
             </Border>
 
-            <!-- Terminal / System Logs -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
-                <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*, Auto, 6, Auto, 6, Auto">
-                        <TextBlock Grid.Column="0" Text="SYSTEM LOGS" FontSize="11" FontWeight="Bold"
-                                   Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Name="BtnClearSystemLogs" Content="Clear"
-                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
-                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
-                        <Button Grid.Column="3" Name="BtnRefreshSystemLogs" Content="Refresh"
-                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
-                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
-                        <Button Grid.Column="5" Name="BtnViewLogsInNotepad" Content="View in Notepad"
-                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0"
-                                CornerRadius="8" Padding="10,5" FontSize="10" Cursor="Hand"/>
-                    </Grid>
-                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12" Height="200">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock Name="SystemLogsText" FontFamily="Consolas, Courier New, monospace" FontSize="10" 
-                                       Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap" Text="Loading system logs..."/>
-                        </ScrollViewer>
-                    </Border>
+            <!-- Keyboard Shortcuts Footer -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="10" Padding="12,8" Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Background="{DynamicResource AppBorder}" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="Ctrl+B" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                        </Border>
+                        <TextBlock Text="Backup All" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Background="{DynamicResource AppBorder}" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="Ctrl+T" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                        </Border>
+                        <TextBlock Text="Test All" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Background="{DynamicResource AppBorder}" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="Ctrl+R" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                        </Border>
+                        <TextBlock Text="Retry Failed" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Background="{DynamicResource AppBorder}" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="Esc" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                        </Border>
+                        <TextBlock Text="Emergency Stop" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

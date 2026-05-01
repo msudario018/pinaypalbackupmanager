@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.7] - 2026-05-01
+
+### Added
+- **Dashboard Cleanup**: Removed redundant UI elements from home dashboard
+  - Removed "Run All Checks" button - consolidated into "Run All" dropdown
+  - Removed duplicate "Files" buttons from each service card
+  - Removed System Logs section (accessible via Settings)
+  - Added "View All Backups" button in header
+  - Added Keyboard Shortcuts footer (Ctrl+B, Ctrl+T, Ctrl+R, Esc)
+- **Customize Dialog Fix**: Fixed customize popup dialog issues
+  - Added close button (✕)
+  - Removed title bar
+  - Removed System Logs option (section was removed)
+- **Keyboard Shortcuts**: Added global keyboard shortcuts
+  - Ctrl+B: Run parallel backup for all services
+  - Ctrl+T: Test all connections
+  - Ctrl+R: Retry failed services
+  - Esc: Emergency stop (cancel all running tasks)
+- **Retry Queue Status**: Added pending auto-retries display in dashboard header
+- **Connection Status Indicator**: Added Firebase online/offline indicator in sidebar
+- **Start Minimized Option**: Added "Start Minimized to Tray" setting in Settings
+- **Notification Sound Toggle**: Added "Play Sound on Backup Complete" setting in Settings
+- **Quick Stats Trend Arrows**: Added ↑↓→ indicators showing change vs yesterday
+- **Scheduled Backup Preview**: Added "UPCOMING" section showing next 3 scheduled backups
+
+### Fixed
+- **Backup Retention Service**: Added missing using directive for models
+- **FileHashUtil**: Added missing using directive for Dictionary
+- **HomeControl**: Fixed NullReferenceException for deleted Compact button
+
 ## [2.9.6] - 2026-04-27
 
 ### Fixed

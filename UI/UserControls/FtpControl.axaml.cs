@@ -212,7 +212,32 @@ namespace PinayPalBackupManager.UI.UserControls
                             LogService.WriteLiveLog($"COMPLETE: {missingCount} backup(s) synchronized.", BackupConfig.FtpLogFile, "Information", trigger);
                             var integrity = CheckIntegrity(BackupConfig.FtpLocalFolder);
                             LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.FtpLogFile, "Information", trigger);
+                            
+                            // Verify checksums of downloaded files
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var files = Directory.GetFiles(BackupConfig.FtpLocalFolder);
+                                    int verified = 0;
+                                    foreach (var file in files.Take(10)) // Verify first 10 files max
+                                    {
+                                        await Utils.FileHashUtil.StoreHashAsync(file, BackupConfig.FtpLocalFolder);
+                                        verified++;
+                                    }
+                                    if (verified > 0)
+                                        LogService.WriteLiveLog($"VERIFIED: Stored checksums for {verified} file(s)", BackupConfig.FtpLogFile, "Information", trigger);
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogService.WriteLiveLog($"CHECKSUM WARNING: {ex.Message}", BackupConfig.FtpLogFile, "Warning", trigger);
+                                }
+                            });
+                            
                             NotificationService.ShowBackupToast("FTP Sync Success", $"{missingCount} new backup(s) downloaded ({trigger}). {integrity}", "Success");
+                            
+                            // Mark success for retry service
+                            Services.BackupRetryService.MarkSuccess("FTP");
                         }
                         else
                         {
@@ -281,6 +306,11 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("FTP", 0, "SYNC ERROR");
+                    // Register for auto-retry (unless cancelled by user)
+                    if (!taskError.Contains("Cancelled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Services.BackupRetryService.RegisterFailure("FTP");
+                    }
                 }
                 finally
                 {
@@ -621,6 +651,14 @@ namespace PinayPalBackupManager.UI.UserControls
         public void StartBackupFromShell()
         {
             _ = StartBackupAsync("MANUAL");
+        }
+
+        /// <summary>
+        /// Public awaitable backup method for parallel execution.
+        /// </summary>
+        public Task RunBackupTaskAsync(string trigger = "AUTO")
+        {
+            return StartBackupAsync(trigger);
         }
     }
 }

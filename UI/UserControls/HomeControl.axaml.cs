@@ -35,6 +35,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public event Action? OnNavigateMailchimp;
         public event Action? OnNavigateSql;
         public event Action? OnRunAllChecks;
+        public event Action? OnRunAllBackupsParallel;
         public event Action? OnEmergencyStop;
         public event Action? OnFtpSyncCheck;
         public event Action? OnFtpQuickBackup;
@@ -83,7 +84,11 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnGoFtp")!.Click += (_, _) => OnNavigateFtp?.Invoke();
             this.FindControl<Button>("BtnGoMailchimp")!.Click += (_, _) => OnNavigateMailchimp?.Invoke();
             this.FindControl<Button>("BtnGoSql")!.Click += (_, _) => OnNavigateSql?.Invoke();
-            this.FindControl<Button>("BtnRunAllChecks")!.Click += (_, _) => OnRunAllChecks?.Invoke();
+            
+            // Run All - triggers parallel backup
+            this.FindControl<Button>("BtnRunAllChecks")!.Click += (_, _) => OnRunAllBackupsParallel?.Invoke();
+            
+            this.FindControl<Button>("BtnViewAllBackups")!.Click += (_, _) => OpenFolder(BackupConfig.FtpLocalFolder);
             this.FindControl<Button>("BtnRefreshActivity")!.Click += (_, _) => LoadRecentActivity();
 
             // Quick action buttons
@@ -96,27 +101,16 @@ namespace PinayPalBackupManager.UI.UserControls
 
             this.FindControl<Button>("BtnPingAll")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnOpenSchedule")!.Click += async (_, _) => await OpenScheduleDialogAsync();
-            this.FindControl<Button>("BtnBackupAll")!.Click += async (_, _) => await RunAllBackupsAsync();
+            this.FindControl<Button>("BtnBackupAll")!.Click += async (_, _) => OnRunAllBackupsParallel?.Invoke();
             this.FindControl<Button>("BtnTestAllConn")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnRetryFailed")!.Click += (_, _) => { SetOpStatus("Retrying all services...", "#dad7cd"); OnRunAllChecks?.Invoke(); SetOpStatus("Retry triggered. Check service tabs for results.", "#588157"); };
-            this.FindControl<Button>("BtnCompactToggle")!.Click += (_, _) => ToggleCompactMode();
             this.FindControl<Button>("BtnEmergencyStop")!.Click += (_, _) => { OnEmergencyStop?.Invoke(); SetOpStatus("Emergency stop sent to all services.", "#F38BA8"); };
             this.FindControl<Button>("BtnMaintenanceToggle")!.Click += (_, _) => ToggleMaintenance();
             this.FindControl<Button>("BtnCustomizeDashboard")!.Click += (_, _) => ShowDashboardCustomization();
             this.FindControl<Button>("BtnClearErrors")!.Click += (_, _) => ClearRecentErrors();
             this.FindControl<Button>("BtnExportCsv")!.Click += (_, _) => ExportActivityCsv();
 
-            this.FindControl<Button>("BtnFtpFiles")!.Click += (_, _) => ToggleFileBrowser("Ftp", BackupConfig.FtpLocalFolder);
-            this.FindControl<Button>("BtnMcFiles")!.Click  += (_, _) => ToggleFileBrowser("Mc",  BackupConfig.MailchimpFolder);
-            this.FindControl<Button>("BtnSqlFiles")!.Click += (_, _) => ToggleFileBrowser("Sql", BackupConfig.SqlLocalFolder);
-            this.FindControl<Button>("BtnFtpOpenFolder")!.Click += (_, _) => OpenFolder(BackupConfig.FtpLocalFolder);
-            this.FindControl<Button>("BtnMcOpenFolder")!.Click  += (_, _) => OpenFolder(BackupConfig.MailchimpFolder);
-            this.FindControl<Button>("BtnSqlOpenFolder")!.Click += (_, _) => OpenFolder(BackupConfig.SqlLocalFolder);
-
             this.FindControl<Button>("BtnRefreshHealth")!.Click += (_, _) => _ = LoadHealthDashboardAsync();
-            this.FindControl<Button>("BtnClearSystemLogs")!.Click += (_, _) => ClearSystemLogs();
-            this.FindControl<Button>("BtnRefreshSystemLogs")!.Click += (_, _) => _ = LoadSystemLogsAsync();
-            this.FindControl<Button>("BtnViewLogsInNotepad")!.Click += (_, _) => ViewLogsInNotepad();
             this.FindControl<Button>("BtnRefreshFirebaseLogs")!.Click += (_, _) => _ = LoadFirebaseLogsAsync();
             this.FindControl<Button>("BtnViewFirebaseLogs")!.Click += (_, _) => ViewLogsInNotepad();
 
@@ -475,20 +469,28 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void UpdateScheduleOverview(DateTime now)
         {
-            // Update schedule times for each service
-            Set("FtpScheduleTime", _manager.NextFtpAutoScan.ToString("hh:mm tt"));
-            Set("McScheduleTime", _manager.NextMailchimpAutoScan.ToString("hh:mm tt"));
-            Set("SqlScheduleTime", _manager.NextSqlAutoScan.ToString("hh:mm tt"));
+            // Show configured daily schedule times (already in Manila time)
+            var ftpTime = new DateTime(1, 1, 1, BackupConfig.FtpDailySyncHourMnl, BackupConfig.FtpDailySyncMinuteMnl, 0);
+            var mcTime = new DateTime(1, 1, 1, BackupConfig.MailchimpDailySyncHourMnl, BackupConfig.MailchimpDailySyncMinuteMnl, 0);
+            var sqlTime = new DateTime(1, 1, 1, BackupConfig.SqlDailySyncHourMnl, BackupConfig.SqlDailySyncMinuteMnl, 0);
 
-            // Calculate countdown to next backup
-            var nextBackup = new[] { _manager.NextFtpAutoScan, _manager.NextMailchimpAutoScan, _manager.NextSqlAutoScan }
-                .Where(d => d > now)
+            // Update schedule times for each service (Manila time)
+            Set("FtpScheduleTime", ftpTime.ToString("hh:mm tt"));
+            Set("McScheduleTime", mcTime.ToString("hh:mm tt"));
+            Set("SqlScheduleTime", sqlTime.ToString("hh:mm tt"));
+
+            // Use Manila time for countdown calculation
+            var manilaNow = DateTime.UtcNow.AddHours(8);
+
+            // Calculate countdown to next daily backup
+            var nextBackup = new[] { BackupManager.NextFtpDailySyncMnl, BackupManager.NextMailchimpDailySyncMnl, BackupManager.NextSqlDailySyncMnl }
+                .Where(d => d > manilaNow)
                 .OrderBy(d => d)
                 .FirstOrDefault();
 
             if (nextBackup != default)
             {
-                var diff = nextBackup - now;
+                var diff = nextBackup - manilaNow;
                 string countdown;
                 if (diff.TotalHours < 1)
                     countdown = $"{diff.TotalMinutes:F0}m";
@@ -504,10 +506,55 @@ namespace PinayPalBackupManager.UI.UserControls
                 Set("NextBackupCountdown", "Next in: --");
             }
 
-            // Update status based on whether the service is due
-            Set("FtpScheduleStatus", _manager.NextFtpAutoScan <= now ? "Due now" : "Scheduled");
-            Set("McScheduleStatus", _manager.NextMailchimpAutoScan <= now ? "Due now" : "Scheduled");
-            Set("SqlScheduleStatus", _manager.NextSqlAutoScan <= now ? "Due now" : "Scheduled");
+            // Status is always "Scheduled" for configured daily times
+            Set("FtpScheduleStatus", "Scheduled");
+            Set("McScheduleStatus", "Scheduled");
+            Set("SqlScheduleStatus", "Scheduled");
+            
+            // Update upcoming backups preview
+            UpdateUpcomingBackupsPreview(manilaNow);
+        }
+        
+        private void UpdateUpcomingBackupsPreview(DateTime manilaNow)
+        {
+            try
+            {
+                var upcomingList = this.FindControl<StackPanel>("UpcomingBackupsList");
+                if (upcomingList == null) return;
+                
+                upcomingList.Children.Clear();
+                
+                // Get next 3 upcoming backups
+                var allBackups = new[]
+                {
+                    (Service: "FTP", Time: BackupManager.NextFtpDailySyncMnl, Color: "#CBA6F7"),
+                    (Service: "Mailchimp", Time: BackupManager.NextMailchimpDailySyncMnl, Color: "#F5C2E7"),
+                    (Service: "SQL", Time: BackupManager.NextSqlDailySyncMnl, Color: "#94E2D5")
+                }
+                .Where(b => b.Time > manilaNow)
+                .OrderBy(b => b.Time)
+                .Take(3)
+                .ToList();
+                
+                foreach (var backup in allBackups)
+                {
+                    var diff = backup.Time - manilaNow;
+                    var timeStr = diff.TotalHours < 1 ? $"in {diff.TotalMinutes:F0}m" :
+                                  diff.TotalHours < 24 ? $"in {diff.TotalHours:F1}h" :
+                                  $"in {diff.TotalDays:F0}d";
+                    
+                    var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
+                    row.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 6, Height = 6, Fill = Avalonia.Media.Brush.Parse(backup.Color), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+                    row.Children.Add(new TextBlock { Text = $"{backup.Service} {timeStr}", FontSize = 10, Foreground = Avalonia.Media.Brush.Parse("#A6ADC8") });
+                    upcomingList.Children.Add(row);
+                }
+                
+                if (allBackups.Count == 0)
+                {
+                    upcomingList.Children.Add(new TextBlock { Text = "No upcoming backups scheduled", FontSize = 10, Foreground = Avalonia.Media.Brush.Parse("#6C7086") });
+                }
+            }
+            catch { }
         }
 
         private void UpdateDailySchedule(DateTime? mnlNow = null)
@@ -530,8 +577,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 var ftpNext = BackupManager.NextFtpDailySyncMnl;
                 var mcNext = BackupManager.NextMailchimpDailySyncMnl;
                 var sqlNext = BackupManager.NextSqlDailySyncMnl;
-
-                LogService.WriteSystemLog($"[HOMECTRL] UpdateDailySchedule - FTP: {ftpNext:HH:mm}, MC: {mcNext:HH:mm}, SQL: {sqlNext:HH:mm}", "Information", "SYSTEM");
 
                 SetSched("SchedFtp", ftpNext, now);
                 SetSched("SchedMailchimp", mcNext, now);
@@ -907,12 +952,12 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 var quickStatsGrid = this.FindControl<Grid>("QuickStatsGrid");
                 var serviceCardsGrid = this.FindControl<Grid>("ServiceCardsSection");
-                
+
                 if (quickStatsGrid != null)
                 {
                     quickStatsGrid.MaxWidth = isMaximized ? double.PositiveInfinity : 1200;
                 }
-                
+
                 if (serviceCardsGrid != null)
                 {
                     serviceCardsGrid.MaxWidth = isMaximized ? double.PositiveInfinity : 1200;
@@ -1429,11 +1474,44 @@ namespace PinayPalBackupManager.UI.UserControls
                 await UpdateQuickStatsAsync();
                 await UpdateTimeSinceLastBackupAsync();
                 await LoadRecentErrorsAsync();
+                UpdateRetryQueueStatus();
             };
             _dashboardRefreshTimer.AutoReset = true;
             _dashboardRefreshTimer.Start();
             
+            // Initial update
+            UpdateRetryQueueStatus();
+            
             LogService.WriteLiveLog("[DASHBOARD] Auto-refresh started (30s interval)", "", "Information", "SYSTEM");
+        }
+        
+        private void UpdateRetryQueueStatus()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    var retries = Services.BackupRetryService.GetPendingRetries();
+                    var badge = this.FindControl<Border>("RetryQueueBadge");
+                    var text = this.FindControl<TextBlock>("TxtRetryQueue");
+                    
+                    if (badge != null && text != null)
+                    {
+                        if (retries.Count > 0)
+                        {
+                            badge.IsVisible = true;
+                            text.Text = retries.Count == 1 
+                                ? $"1 retry: {retries[0].Service} at {retries[0].NextRetry}"
+                                : $"{retries.Count} retries pending";
+                        }
+                        else
+                        {
+                            badge.IsVisible = false;
+                        }
+                    }
+                }
+                catch { }
+            });
         }
 
         private async Task UpdateSystemStatusAsync()
@@ -1588,17 +1666,51 @@ namespace PinayPalBackupManager.UI.UserControls
                                      totalBytes >= 1048576 ? $"{totalBytes / 1048576.0:F1} MB" :
                                      totalBytes >= 1024 ? $"{totalBytes / 1024.0:F0} KB" : "0 B";
 
+                    // Calculate trends by comparing with yesterday
+                    int yesterdayBackups = 0;
+                    double yesterdaySuccessRate = 100.0;
+                    var yesterday = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+                    var yesterdayLogs = allLogs.Where(l => l.Contains(yesterday));
+                    foreach (var log in yesterdayLogs)
+                    {
+                        if (log.Contains("COMPLETE") || log.Contains("SUCCESS"))
+                            yesterdayBackups++;
+                    }
+                    if (yesterdayBackups > 0)
+                    {
+                        var yesterdayFailed = yesterdayLogs.Count(l => l.Contains("ERROR") || l.Contains("FAILED"));
+                        yesterdaySuccessRate = ((double)(yesterdayBackups - yesterdayFailed) / yesterdayBackups) * 100;
+                    }
+
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         var backupsTodayText = this.FindControl<TextBlock>("StatBackupsToday");
                         var successRateText = this.FindControl<TextBlock>("StatSuccessRate");
                         var failedBackupsText = this.FindControl<TextBlock>("StatFailedBackups");
                         var storageUsedText = this.FindControl<TextBlock>("StatStorageUsed");
+                        var trendBackups = this.FindControl<TextBlock>("TrendBackups");
+                        var trendSuccessRate = this.FindControl<TextBlock>("TrendSuccessRate");
 
                         if (backupsTodayText != null) backupsTodayText.Text = backupsToday.ToString();
                         if (successRateText != null) successRateText.Text = $"{successRate:F0}%";
                         if (failedBackupsText != null) failedBackupsText.Text = failedBackups.ToString();
                         if (storageUsedText != null) storageUsedText.Text = storageUsed;
+                        
+                        // Update trend arrows
+                        if (trendBackups != null)
+                        {
+                            var diff = backupsToday - yesterdayBackups;
+                            if (diff > 0) { trendBackups.Text = "↑" + diff; trendBackups.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
+                            else if (diff < 0) { trendBackups.Text = "↓" + Math.Abs(diff); trendBackups.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
+                            else { trendBackups.Text = "→"; trendBackups.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
+                        }
+                        if (trendSuccessRate != null)
+                        {
+                            var diff = successRate - yesterdaySuccessRate;
+                            if (diff > 0) { trendSuccessRate.Text = "↑" + diff.ToString("F0"); trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
+                            else if (diff < 0) { trendSuccessRate.Text = "↓" + Math.Abs(diff).ToString("F0"); trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
+                            else { trendSuccessRate.Text = "→"; trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -1709,9 +1821,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 return "Yesterday";
             
             var diff = manilaNow - manilaBackupTime;
-            if (diff.TotalHours < 24) return $"{diff.TotalHours:F0}h ago";
-            if (diff.TotalDays < 7) return $"{diff.TotalDays:F0}d ago";
-            return $"{diff.TotalDays / 7:F0}w ago";
+            // Use absolute value to handle any timezone/clock issues
+            var totalHours = Math.Abs(diff.TotalHours);
+            var totalDays = Math.Abs(diff.TotalDays);
+            
+            if (totalHours < 24) return $"{totalHours:F0}h ago";
+            if (totalDays < 7) return $"{totalDays:F0}d ago";
+            return $"{totalDays / 7:F0}w ago";
         }
 
         private IBrush GetTimeAgoColor(DateTime? time)
@@ -1729,7 +1845,7 @@ namespace PinayPalBackupManager.UI.UserControls
             return Brush.Parse("#F38BA8"); // Red - older
         }
 
-        private void UpdateServicesStatusSummary(Dictionary<string, int> serviceScores)
+        private void UpdateServicesStatusSummary(Dictionary<string, int>? serviceScores)
         {
             if (serviceScores == null)
             {
@@ -1944,7 +2060,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 dialogWindow?.Close();
             };
             
-            dialogWindow.ShowDialog(parentWindow);
+            if (parentWindow != null)
+                dialogWindow.ShowDialog(parentWindow);
         }
 
         private void ApplyDashboardCustomization(DashboardCustomization settings)

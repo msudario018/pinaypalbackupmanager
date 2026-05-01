@@ -86,6 +86,7 @@ namespace PinayPalBackupManager.Services
                 CanResize = false,
                 ShowInTaskbar = false,
                 Topmost = true,
+                SystemDecorations = SystemDecorations.BorderOnly,
                 Background = Avalonia.Media.Brushes.Transparent
             };
 

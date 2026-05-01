@@ -593,7 +593,7 @@ namespace PinayPalBackupManager.Services
                 if (int.TryParse(output.Trim(), out int count))
                     return count.ToString();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Fallback to simple method if PowerShell fails
                 try

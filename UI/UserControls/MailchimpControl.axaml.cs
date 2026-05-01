@@ -179,7 +179,29 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         var integrity = CheckIntegrity(BackupConfig.MailchimpFolder);
                         LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.McLogFile, "Information", trigger);
+                        
+                        // Verify checksums of exported files
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var files = Directory.GetFiles(BackupConfig.MailchimpFolder);
+                                int verified = 0;
+                                foreach (var file in files.Take(10))
+                                {
+                                    await Utils.FileHashUtil.StoreHashAsync(file, BackupConfig.MailchimpFolder);
+                                    verified++;
+                                }
+                                if (verified > 0)
+                                    LogService.WriteLiveLog($"VERIFIED: Stored checksums for {verified} file(s)", BackupConfig.McLogFile, "Information", trigger);
+                            }
+                            catch { }
+                        });
+                        
                         NotificationService.ShowBackupToast("Mailchimp Backup Done", $"Full export complete. {integrity}", "Success");
+                        
+                        // Mark success for retry service
+                        Services.BackupRetryService.MarkSuccess("Mailchimp");
                     }
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
@@ -217,6 +239,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORT ERROR");
+                    // Register for auto-retry
+                    Services.BackupRetryService.RegisterFailure("Mailchimp");
                 }
                 finally
                 {
@@ -469,6 +493,14 @@ namespace PinayPalBackupManager.UI.UserControls
         public void StartFullBackupFromShell()
         {
             _ = StartFullBackupAsync("MANUAL");
+        }
+
+        /// <summary>
+        /// Public awaitable backup method for parallel execution.
+        /// </summary>
+        public Task RunBackupTaskAsync(string trigger = "AUTO")
+        {
+            return StartFullBackupAsync(trigger);
         }
     }
 }

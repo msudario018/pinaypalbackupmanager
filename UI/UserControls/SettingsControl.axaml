@@ -26,7 +26,9 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,6"/>
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
-                    <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4,0,0">
+                    <CheckBox Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="Backup Retention" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                             <TextBlock Text="Days to keep old backup files before auto-delete" Foreground="{DynamicResource AppMuted}" FontSize="10"/>

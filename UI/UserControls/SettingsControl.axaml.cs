@@ -32,6 +32,32 @@ namespace PinayPalBackupManager.UI.UserControls
             chkStartup.IsChecked = IsStartupEnabled();
             chkStartup.IsCheckedChanged += ToggleStartup;
 
+            // Load Start Minimized setting
+            var chkStartMinimized = this.FindControl<CheckBox>("ChkStartMinimized");
+            if (chkStartMinimized != null)
+            {
+                chkStartMinimized.IsChecked = ConfigService.Current.Operation.StartMinimized;
+                chkStartMinimized.IsCheckedChanged += (_, _) => 
+                {
+                    ConfigService.Current.Operation.StartMinimized = chkStartMinimized.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Start minimized " + (chkStartMinimized.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Load Notification Sound setting
+            var chkNotificationSound = this.FindControl<CheckBox>("ChkNotificationSound");
+            if (chkNotificationSound != null)
+            {
+                chkNotificationSound.IsChecked = ConfigService.Current.Operation.NotificationSound;
+                chkNotificationSound.IsCheckedChanged += (_, _) => 
+                {
+                    ConfigService.Current.Operation.NotificationSound = chkNotificationSound.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Notification sound " + (chkNotificationSound.IsChecked == true ? "enabled" : "muted"), "Info");
+                };
+            }
+
             var btnShowInfo = this.FindControl<Button>("BtnShowSystemInfo");
             if (btnShowInfo != null)
             {

@@ -15,6 +15,8 @@ namespace PinayPalBackupManager.Services
     {
         public int RetentionDays { get; set; } = 7;
         public bool AutoStartWindows { get; set; } = false;
+        public bool StartMinimized { get; set; } = false;
+        public bool NotificationSound { get; set; } = true;
     }
 
     public sealed class PathsSettings
