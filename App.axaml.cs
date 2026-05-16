@@ -4,24 +4,72 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using PinayPalBackupManager.Services;
 using PinayPalBackupManager.UI;
+using System.Threading.Tasks;
 
 namespace PinayPalBackupManager
 {
     public partial class App : Application
     {
-        public override void Initialize()
+        public override async void Initialize()
         {
-            AvaloniaXamlLoader.Load(this);
+            // XAML is loaded automatically by Avalonia 11
+            
+            // Initialize environment configuration
+            EnvironmentConfigService.Initialize();
+            
+            // Initialize authentication service
+            await AuthService.InitializeAsync();
         }
 
         public override void OnFrameworkInitializationCompleted()
         {
+            // Initialize security enhancements
+            InitializeSecurity();
+            
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                ShowLogin(desktop);
+                // Check if this is the first run
+                if (ConfigService.IsFirstRun())
+                {
+                    ShowSetupWizard(desktop);
+                }
+                else
+                {
+                    ShowLogin(desktop);
+                }
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        private void InitializeSecurity()
+        {
+            try
+            {
+                // Initialize configuration encryption
+                Console.WriteLine("[App] Initializing security enhancements...");
+                
+                // Check if configuration needs encryption
+                if (!SecurityService.IsConfigurationEncrypted())
+                {
+                    Console.WriteLine("[App] Encrypting sensitive configuration data...");
+                    SecurityService.EncryptSensitiveConfiguration();
+                }
+                else
+                {
+                    Console.WriteLine("[App] Configuration already encrypted");
+                }
+                
+                // Initialize HTTP client factory
+                var httpClientFactory = HttpClientFactory.Instance;
+                Console.WriteLine("[App] HTTP client factory initialized with connection pooling");
+                
+                Console.WriteLine("[App] Security initialization completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[App] Security initialization failed: {ex.Message}");
+            }
         }
 
         private void ShowLogin(IClassicDesktopStyleApplicationLifetime desktop)
@@ -66,6 +114,17 @@ namespace PinayPalBackupManager
             }
             
             loginWindow?.Close();
+        }
+
+        private void ShowSetupWizard(IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            // Setup wizard disabled - show main window directly
+            ShowMainWindow(desktop, null);
+            
+            // var wizard = new SetupWizardWindow();
+            // wizard.OnSetupComplete += () => ShowMainWindow(desktop, null);
+            // desktop.MainWindow = wizard;
+            // wizard.Show();
         }
     }
 }

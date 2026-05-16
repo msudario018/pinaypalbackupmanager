@@ -11,12 +11,105 @@ namespace PinayPalBackupManager.Services
     {
         public static string GetDecryptedFtpPassword()
         {
-            return ConfigService.Current.Ftp.Password;
+            var encryptedPassword = ConfigService.Current.Ftp.Password;
+            
+            // Check if password is encrypted (Base64 format)
+            if (ConfigEncryptionService.IsEncrypted(encryptedPassword))
+            {
+                return ConfigEncryptionService.Decrypt(encryptedPassword);
+            }
+            
+            // Return as-is if not encrypted (backward compatibility)
+            return encryptedPassword;
         }
 
         public static string GetDecryptedSqlPassword()
         {
-            return ConfigService.Current.Sql.Password;
+            var encryptedPassword = ConfigService.Current.Sql.Password;
+            
+            // Check if password is encrypted (Base64 format)
+            if (ConfigEncryptionService.IsEncrypted(encryptedPassword))
+            {
+                return ConfigEncryptionService.Decrypt(encryptedPassword);
+            }
+            
+            // Return as-is if not encrypted (backward compatibility)
+            return encryptedPassword;
+        }
+
+        /// <summary>
+        /// Encrypts sensitive configuration values
+        /// </summary>
+        public static void EncryptSensitiveConfiguration()
+        {
+            try
+            {
+                var config = ConfigService.Current;
+                bool needsUpdate = false;
+                var configPath = AppDataPaths.GetExistingOrCurrentPath("appsettings.json");
+
+                // Encrypt FTP password if not already encrypted
+                if (!string.IsNullOrEmpty(config.Ftp.Password) && 
+                    !ConfigEncryptionService.IsEncrypted(config.Ftp.Password))
+                {
+                    config.Ftp.Password = ConfigEncryptionService.Encrypt(config.Ftp.Password);
+                    needsUpdate = true;
+                    Console.WriteLine("[SecurityService] Encrypted FTP password");
+                }
+
+                // Encrypt SQL password if not already encrypted
+                if (!string.IsNullOrEmpty(config.Sql.Password) && 
+                    !ConfigEncryptionService.IsEncrypted(config.Sql.Password))
+                {
+                    config.Sql.Password = ConfigEncryptionService.Encrypt(config.Sql.Password);
+                    needsUpdate = true;
+                    Console.WriteLine("[SecurityService] Encrypted SQL password");
+                }
+
+                // Encrypt Mailchimp API key if not already encrypted
+                if (!string.IsNullOrEmpty(config.Mailchimp.ApiKey) && 
+                    !ConfigEncryptionService.IsEncrypted(config.Mailchimp.ApiKey))
+                {
+                    config.Mailchimp.ApiKey = ConfigEncryptionService.Encrypt(config.Mailchimp.ApiKey);
+                    needsUpdate = true;
+                    Console.WriteLine("[SecurityService] Encrypted Mailchimp API key");
+                }
+
+                if (needsUpdate)
+                {
+                    ConfigService.SaveOperation();
+                    ConfigService.SaveSchedule();
+                    ConfigService.SaveHttpServerSettings();
+                    Console.WriteLine("[SecurityService] Configuration encryption completed");
+                }
+                else
+                {
+                    Console.WriteLine("[SecurityService] Configuration already encrypted");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SecurityService] Failed to encrypt configuration: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Validates if all sensitive configuration values are encrypted
+        /// </summary>
+        public static bool IsConfigurationEncrypted()
+        {
+            var config = ConfigService.Current;
+            
+            bool ftpEncrypted = string.IsNullOrEmpty(config.Ftp.Password) || 
+                               ConfigEncryptionService.IsEncrypted(config.Ftp.Password);
+            
+            bool sqlEncrypted = string.IsNullOrEmpty(config.Sql.Password) || 
+                               ConfigEncryptionService.IsEncrypted(config.Sql.Password);
+            
+            bool mailchimpEncrypted = string.IsNullOrEmpty(config.Mailchimp.ApiKey) || 
+                                     ConfigEncryptionService.IsEncrypted(config.Mailchimp.ApiKey);
+            
+            return ftpEncrypted && sqlEncrypted && mailchimpEncrypted;
         }
 
         private static string DecryptPowerShellString(string encryptedStr, byte[] key, string logFile)

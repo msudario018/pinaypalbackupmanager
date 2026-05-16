@@ -40,13 +40,13 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 try
                 {
-                    await AuthService.SyncRemoteUsersAsync();
-                    // Refresh UI after sync
+                    // Firebase sync disabled - local database only
+                    // Refresh UI
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => RefreshUserListUI());
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[UserManagementDialog] Failed to sync remote users: {ex.Message}");
+                    Console.WriteLine($"[UserManagementDialog] Failed to refresh user list: {ex.Message}");
                 }
             });
 
@@ -313,7 +313,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 btnClose.Click += (_, _) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -392,7 +392,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     var confirm = txtConfirm.Text ?? "";
                     if (string.IsNullOrWhiteSpace(newPass)) { txtError.Text = "Please enter a new password."; txtError.IsVisible = true; return; }
                     if (newPass != confirm) { txtError.Text = "Passwords do not match."; txtError.IsVisible = true; return; }
-                    if (newPass.Length < 4) { txtError.Text = "Password must be at least 4 characters."; txtError.IsVisible = true; return; }
+                    if (newPass.Length < 8) { txtError.Text = "Password must be at least 8 characters."; txtError.IsVisible = true; return; }
 
                     var changed = AuthService.ChangePassword(userId, newPass);
                     if (changed)
@@ -407,7 +407,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
 
-                await window.ShowDialog(parentWindow);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -496,7 +496,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {

@@ -19,6 +19,16 @@ namespace PinayPalBackupManager.Services
         private static TimeSpan _lastCpuTime = TimeSpan.Zero;
         private static DateTime _lastCpuSampleTime = DateTime.MinValue;
         private static DateTime _appStartTime = DateTime.MinValue;
+        
+        // Advanced monitoring features
+        private static readonly Dictionary<string, AlertRule> _alertRules = new();
+        private static readonly Queue<MonitoringEvent> _eventHistory = new();
+        private static readonly object _monitoringLock = new();
+        private static System.Timers.Timer? _alertCheckTimer;
+        
+        public static event Action<Alert>? OnAlertTriggered;
+        public static event Action<MonitoringEvent>? OnMonitoringEvent;
+        public static event Action<SystemMetrics>? OnMetricsUpdated;
 
         public static void Initialize(string databaseUrl, string username)
         {
@@ -28,6 +38,14 @@ namespace PinayPalBackupManager.Services
                 _username = username;
                 _isInitialized = true;
                 _appStartTime = DateTime.UtcNow;
+                
+                // Initialize default alert rules
+                InitializeDefaultAlertRules();
+                
+                // Start alert checking timer
+                _alertCheckTimer = new System.Timers.Timer(30000); // Check every 30 seconds
+                _alertCheckTimer.Elapsed += CheckAlerts;
+                _alertCheckTimer.Start();
 
                 // Start connection status monitoring (heartbeat every 30 seconds as per Flutter requirements)
                 _connectionTimer = new System.Timers.Timer(30000); // 30 seconds
@@ -613,5 +631,420 @@ namespace PinayPalBackupManager.Services
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] Error stopping services: {ex.Message}", "Error", "SYSTEM");
             }
         }
+        
+        private static void InitializeDefaultAlertRules()
+        {
+            // CPU usage alert
+            _alertRules["cpu_high"] = new AlertRule
+            {
+                Id = "cpu_high",
+                Name = "High CPU Usage",
+                Metric = "cpu",
+                Threshold = 80.0,
+                Operator = AlertOperator.GreaterThan,
+                Severity = AlertSeverity.Warning,
+                CooldownMinutes = 5,
+                Message = "CPU usage is above 80%"
+            };
+            
+            // Memory usage alert
+            _alertRules["memory_high"] = new AlertRule
+            {
+                Id = "memory_high",
+                Name = "High Memory Usage",
+                Metric = "memory",
+                Threshold = 85.0,
+                Operator = AlertOperator.GreaterThan,
+                Severity = AlertSeverity.Warning,
+                CooldownMinutes = 5,
+                Message = "Memory usage is above 85%"
+            };
+            
+            // Disk space alert
+            _alertRules["disk_low"] = new AlertRule
+            {
+                Id = "disk_low",
+                Name = "Low Disk Space",
+                Metric = "disk",
+                Threshold = 10.0,
+                Operator = AlertOperator.LessThan,
+                Severity = AlertSeverity.Critical,
+                CooldownMinutes = 10,
+                Message = "Available disk space is below 10%"
+            };
+        }
+        
+        public static void AddAlertRule(AlertRule rule)
+        {
+            lock (_monitoringLock)
+            {
+                _alertRules[rule.Id] = rule;
+                LogService.WriteSystemLog($"[REALTIME_MONITORING] Alert rule added: {rule.Id}", "Information", "SYSTEM");
+            }
+        }
+        
+        public static void RemoveAlertRule(string ruleId)
+        {
+            lock (_monitoringLock)
+            {
+                if (_alertRules.Remove(ruleId))
+                {
+                    LogService.WriteSystemLog($"[REALTIME_MONITORING] Alert rule removed: {ruleId}", "Information", "SYSTEM");
+                }
+            }
+        }
+        
+        public static List<AlertRule> GetAlertRules()
+        {
+            lock (_monitoringLock)
+            {
+                return _alertRules.Values.ToList();
+            }
+        }
+        
+        public static List<MonitoringEvent> GetRecentEvents(int count = 50)
+        {
+            lock (_monitoringLock)
+            {
+                return _eventHistory.TakeLast(count).ToList();
+            }
+        }
+        
+        private static async void CheckAlerts(object? sender, ElapsedEventArgs e)
+        {
+            if (!_isInitialized) return;
+            
+            try
+            {
+                var metrics = await GetSystemMetricsAsync();
+                OnMetricsUpdated?.Invoke(metrics);
+                
+                lock (_monitoringLock)
+                {
+                    foreach (var rule in _alertRules.Values)
+                    {
+                        if (ShouldTriggerAlert(rule, metrics))
+                        {
+                            var alert = new Alert
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                RuleId = rule.Id,
+                                RuleName = rule.Name,
+                                Severity = rule.Severity,
+                                Message = rule.Message,
+                                Timestamp = DateTime.UtcNow,
+                                Metrics = metrics
+                            };
+                            
+                            OnAlertTriggered?.Invoke(alert);
+                            
+                            // Add to event history
+                            var monitoringEvent = new MonitoringEvent
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                Type = EventType.Alert,
+                                Severity = rule.Severity,
+                                Message = $"Alert: {rule.Name} - {rule.Message}",
+                                Timestamp = DateTime.UtcNow,
+                                Data = new Dictionary<string, object>
+                                {
+                                    ["ruleId"] = rule.Id,
+                                    ["cpu"] = metrics.CpuUsage,
+                                    ["memory"] = metrics.MemoryUsage,
+                                    ["disk"] = metrics.DiskUsage
+                                }
+                            };
+                            
+                            _eventHistory.Enqueue(monitoringEvent);
+                            
+                            // Keep event history manageable
+                            while (_eventHistory.Count > 1000)
+                            {
+                                _eventHistory.Dequeue();
+                            }
+                            
+                            LogService.WriteSystemLog($"[REALTIME_MONITORING] Alert triggered: {rule.Name}", rule.Severity.ToString(), "SYSTEM");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[REALTIME_MONITORING] Error checking alerts: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+        
+        private static bool ShouldTriggerAlert(AlertRule rule, SystemMetrics metrics)
+        {
+            // Check cooldown
+            if (rule.LastTriggered.HasValue && 
+                DateTime.UtcNow - rule.LastTriggered.Value < TimeSpan.FromMinutes(rule.CooldownMinutes))
+            {
+                return false;
+            }
+            
+            var value = rule.Metric.ToLower() switch
+            {
+                "cpu" => metrics.CpuUsage,
+                "memory" => metrics.MemoryUsage,
+                "disk" => metrics.DiskUsage,
+                _ => 0.0
+            };
+            
+            var triggered = rule.Operator switch
+            {
+                AlertOperator.GreaterThan => value > rule.Threshold,
+                AlertOperator.LessThan => value < rule.Threshold,
+                AlertOperator.Equals => Math.Abs(value - rule.Threshold) < 0.1,
+                _ => false
+            };
+            
+            if (triggered)
+            {
+                rule.LastTriggered = DateTime.UtcNow;
+            }
+            
+            return triggered;
+        }
+        
+        public static void LogMonitoringEvent(EventType type, AlertSeverity severity, string message, Dictionary<string, object>? data = null)
+        {
+            lock (_monitoringLock)
+            {
+                var monitoringEvent = new MonitoringEvent
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Type = type,
+                    Severity = severity,
+                    Message = message,
+                    Timestamp = DateTime.UtcNow,
+                    Data = data ?? new Dictionary<string, object>()
+                };
+                
+                _eventHistory.Enqueue(monitoringEvent);
+                OnMonitoringEvent?.Invoke(monitoringEvent);
+                
+                // Keep event history manageable
+                while (_eventHistory.Count > 1000)
+                {
+                    _eventHistory.Dequeue();
+                }
+            }
+        }
+        
+        private static async Task<SystemMetrics> GetSystemMetricsAsync()
+        {
+            try
+            {
+                // Get CPU usage using Performance Counter
+                var cpuUsage = GetCpuUsage();
+                
+                // Get memory usage
+                var memoryUsage = GetMemoryUsage();
+                
+                // Get network details
+                var networkDetails = await SystemMonitorService.GetNetworkDetailsAsync();
+                
+                // Get disk I/O
+                var diskIo = await SystemMonitorService.GetDiskIoAsync();
+                
+                // Parse network values (simplified)
+                var networkBytesSent = ParseNetworkBytes(networkDetails.upload);
+                var networkBytesReceived = ParseNetworkBytes(networkDetails.download);
+                
+                // Parse disk usage (simplified)
+                var diskUsage = ParseDiskUsage(diskIo);
+                
+                var metrics = new SystemMetrics
+                {
+                    Timestamp = DateTime.UtcNow,
+                    CpuUsage = cpuUsage,
+                    MemoryUsage = memoryUsage,
+                    DiskUsage = diskUsage,
+                    NetworkBytesSent = networkBytesSent,
+                    NetworkBytesReceived = networkBytesReceived
+                };
+                
+                return metrics;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[REALTIME_MONITORING] Error getting system metrics: {ex.Message}", "Error", "SYSTEM");
+                
+                return new SystemMetrics
+                {
+                    Timestamp = DateTime.UtcNow,
+                    CpuUsage = 0,
+                    MemoryUsage = 0,
+                    DiskUsage = 0,
+                    NetworkBytesSent = 0,
+                    NetworkBytesReceived = 0
+                };
+            }
+        }
+        
+        private static double GetCpuUsage()
+        {
+            try
+            {
+                if (!OperatingSystem.IsWindows())
+                    return 0;
+                    
+                using var proc = Process.GetCurrentProcess();
+                using var counter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+                return counter.NextValue();
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        
+        private static double GetMemoryUsage()
+        {
+            try
+            {
+                if (!OperatingSystem.IsWindows())
+                    return 0;
+                    
+                using var proc = Process.GetCurrentProcess();
+                var memory = proc.WorkingSet64;
+                var totalMemory = GC.GetTotalMemory(false);
+                var availableMemory = memory;
+                
+                // Get system memory using Performance Counter
+                using var counter = new System.Diagnostics.PerformanceCounter("Memory", "Available MBytes");
+                var availableMB = counter.NextValue();
+                
+                // Estimate total memory (simplified)
+                var totalMB = availableMB + (memory / 1024 / 1024);
+                var usedMB = totalMB - availableMB;
+                
+                return totalMB > 0 ? (usedMB / totalMB) * 100 : 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        
+        private static long ParseNetworkBytes(string networkValue)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(networkValue)) return 0;
+                
+                // Parse values like "1.5 MB/s" or "500 KB/s"
+                var parts = networkValue.Split(' ');
+                if (parts.Length >= 2 && double.TryParse(parts[0], out var value))
+                {
+                    var unit = parts[1].ToUpper();
+                    return unit switch
+                    {
+                        var u when u.Contains("GB") => (long)(value * 1024 * 1024 * 1024),
+                        var u when u.Contains("MB") => (long)(value * 1024 * 1024),
+                        var u when u.Contains("KB") => (long)(value * 1024),
+                        _ => (long)value
+                    };
+                }
+            }
+            catch
+            {
+                // Ignore parsing errors
+            }
+            
+            return 0;
+        }
+        
+        private static double ParseDiskUsage(string diskIoValue)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(diskIoValue)) return 0;
+                
+                // Parse values like "10.5 MB/s" - convert to percentage (simplified)
+                var parts = diskIoValue.Split(' ');
+                if (parts.Length >= 2 && double.TryParse(parts[0], out var value))
+                {
+                    // Convert disk I/O to a percentage (arbitrary scaling)
+                    return Math.Min(value / 10, 100); // Scale to 0-100%
+                }
+            }
+            catch
+            {
+                // Ignore parsing errors
+            }
+            
+            return 0;
+        }
+    }
+    
+    public class AlertRule
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Metric { get; set; } = string.Empty;
+        public double Threshold { get; set; }
+        public AlertOperator Operator { get; set; }
+        public AlertSeverity Severity { get; set; }
+        public int CooldownMinutes { get; set; } = 5;
+        public string Message { get; set; } = string.Empty;
+        public DateTime? LastTriggered { get; set; }
+    }
+    
+    public class Alert
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RuleId { get; set; } = string.Empty;
+        public string RuleName { get; set; } = string.Empty;
+        public AlertSeverity Severity { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public SystemMetrics Metrics { get; set; } = new();
+    }
+    
+    public class MonitoringEvent
+    {
+        public string Id { get; set; } = string.Empty;
+        public EventType Type { get; set; }
+        public AlertSeverity Severity { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public Dictionary<string, object> Data { get; set; } = new();
+    }
+    
+    public class SystemMetrics
+    {
+        public double CpuUsage { get; set; }
+        public double MemoryUsage { get; set; }
+        public double DiskUsage { get; set; }
+        public long NetworkBytesSent { get; set; }
+        public long NetworkBytesReceived { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+    
+    public enum AlertOperator
+    {
+        GreaterThan,
+        LessThan,
+        Equals
+    }
+    
+    public enum AlertSeverity
+    {
+        Info,
+        Warning,
+        Critical
+    }
+    
+    public enum EventType
+    {
+        Alert,
+        SystemStart,
+        SystemStop,
+        BackupStart,
+        BackupComplete,
+        BackupFailed,
+        Error
     }
 }

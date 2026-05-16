@@ -19,19 +19,27 @@ namespace PinayPalBackupManager.Utils
         /// </summary>
         public static async Task<string> ComputeMd5Async(string filePath)
         {
-            if (!File.Exists(filePath))
+            // Validate file path to prevent path traversal
+            var pathValidation = InputValidationService.ValidateFilePath(filePath);
+            if (!pathValidation.isValid)
+            {
+                LogService.WriteSystemLog($"[HASH] Invalid file path: {pathValidation.error}", "Error", "SYSTEM");
+                return string.Empty;
+            }
+            
+            if (!File.Exists(pathValidation.sanitized))
                 return string.Empty;
 
             try
             {
                 using var md5 = MD5.Create();
-                await using var stream = File.OpenRead(filePath);
+                await using var stream = File.OpenRead(pathValidation.sanitized);
                 var hash = await md5.ComputeHashAsync(stream);
                 return Convert.ToHexString(hash).ToLowerInvariant();
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[HASH] Failed to compute MD5 for {Path.GetFileName(filePath)}: {ex.Message}", "Error", "SYSTEM");
+                LogService.WriteSystemLog($"[HASH] Failed to compute MD5 for {Path.GetFileName(pathValidation.sanitized)}: {ex.Message}", "Error", "SYSTEM");
                 return string.Empty;
             }
         }
@@ -41,19 +49,27 @@ namespace PinayPalBackupManager.Utils
         /// </summary>
         public static async Task<string> ComputeSha256Async(string filePath)
         {
-            if (!File.Exists(filePath))
+            // Validate file path to prevent path traversal
+            var pathValidation = InputValidationService.ValidateFilePath(filePath);
+            if (!pathValidation.isValid)
+            {
+                LogService.WriteSystemLog($"[HASH] Invalid file path: {pathValidation.error}", "Error", "SYSTEM");
+                return string.Empty;
+            }
+            
+            if (!File.Exists(pathValidation.sanitized))
                 return string.Empty;
 
             try
             {
                 using var sha256 = SHA256.Create();
-                await using var stream = File.OpenRead(filePath);
+                await using var stream = File.OpenRead(pathValidation.sanitized);
                 var hash = await sha256.ComputeHashAsync(stream);
                 return Convert.ToHexString(hash).ToLowerInvariant();
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[HASH] Failed to compute SHA256 for {Path.GetFileName(filePath)}: {ex.Message}", "Error", "SYSTEM");
+                LogService.WriteSystemLog($"[HASH] Failed to compute SHA256 for {Path.GetFileName(pathValidation.sanitized)}: {ex.Message}", "Error", "SYSTEM");
                 return string.Empty;
             }
         }
@@ -65,12 +81,19 @@ namespace PinayPalBackupManager.Utils
         /// </summary>
         public static async Task<VerifyResult> VerifyFileAsync(string filePath, string folder)
         {
-            if (!File.Exists(filePath))
+            // Validate file path to prevent path traversal
+            var pathValidation = InputValidationService.ValidateFilePath(filePath);
+            if (!pathValidation.isValid)
+            {
+                return new VerifyResult { IsVerified = false, Message = pathValidation.error };
+            }
+            
+            if (!File.Exists(pathValidation.sanitized))
                 return new VerifyResult { IsVerified = false, Message = "File not found" };
 
             var manifestPath = GetManifestPath(folder);
-            var fileName = Path.GetFileName(filePath);
-            var fileInfo = new FileInfo(filePath);
+            var fileName = Path.GetFileName(pathValidation.sanitized);
+            var fileInfo = new FileInfo(pathValidation.sanitized);
 
             // Load existing manifest
             var manifest = await LoadManifestAsync(manifestPath);
@@ -78,7 +101,7 @@ namespace PinayPalBackupManager.Utils
             if (!manifest.TryGetValue(fileName, out var storedEntry))
             {
                 // No prior hash - compute and store
-                var hash = await ComputeMd5Async(filePath);
+                var hash = await ComputeMd5Async(pathValidation.sanitized);
                 if (string.IsNullOrEmpty(hash))
                     return new VerifyResult { IsVerified = false, Message = "Hash computation failed" };
 
@@ -98,7 +121,7 @@ namespace PinayPalBackupManager.Utils
             if (storedEntry.Size != fileInfo.Length || storedEntry.Modified != fileInfo.LastWriteTimeUtc)
             {
                 // Re-compute hash
-                var currentHash = await ComputeMd5Async(filePath);
+                var currentHash = await ComputeMd5Async(pathValidation.sanitized);
                 if (currentHash != storedEntry.Hash)
                 {
                     // File changed - update manifest
@@ -136,13 +159,15 @@ namespace PinayPalBackupManager.Utils
         /// </summary>
         public static async Task StoreHashAsync(string filePath, string folder)
         {
-            if (!File.Exists(filePath))
+            // Validate file path to prevent path traversal
+            var pathValidation = InputValidationService.ValidateFilePath(filePath);
+            if (!pathValidation.isValid || !File.Exists(pathValidation.sanitized))
                 return;
 
             var manifestPath = GetManifestPath(folder);
-            var fileName = Path.GetFileName(filePath);
-            var fileInfo = new FileInfo(filePath);
-            var hash = await ComputeMd5Async(filePath);
+            var fileName = Path.GetFileName(pathValidation.sanitized);
+            var fileInfo = new FileInfo(pathValidation.sanitized);
+            var hash = await ComputeMd5Async(pathValidation.sanitized);
 
             if (string.IsNullOrEmpty(hash))
                 return;

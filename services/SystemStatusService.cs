@@ -14,14 +14,17 @@ namespace PinayPalBackupManager.Services
         private static string? _username;
         private static bool _isInitialized = false;
         private static System.Timers.Timer? _updateTimer;
+        private static readonly object _lock = new object();
 
         public static void Initialize(string databaseUrl, string username)
         {
-            try
+            lock (_lock)
             {
-                _database = new FirebaseClient(databaseUrl);
-                _username = username;
-                _isInitialized = true;
+                try
+                {
+                    _database = new FirebaseClient(databaseUrl);
+                    _username = username;
+                    _isInitialized = true;
                 
                 // Start automatic updates every 30 seconds
                 _updateTimer = new System.Timers.Timer(30000); // 30 seconds
@@ -29,14 +32,15 @@ namespace PinayPalBackupManager.Services
                 _updateTimer.AutoReset = true;
                 _updateTimer.Start();
                 
-                LogService.WriteSystemLog($"[SYSTEM_STATUS] Initialized for user: {username}", "Information", "SYSTEM");
-                
-                // Initial update
-                _ = Task.Run(async () => await UpdateSystemStatusAsync());
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[SYSTEM_STATUS] Initialization failed: {ex.Message}", "Error", "SYSTEM");
+                    LogService.WriteSystemLog($"[SYSTEM_STATUS] Initialized for user: {username}", "Information", "SYSTEM");
+                    
+                    // Initial update
+                    _ = Task.Run(async () => await UpdateSystemStatusAsync());
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[SYSTEM_STATUS] Initialization failed: {ex.Message}", "Error", "SYSTEM");
+                }
             }
         }
 
@@ -569,7 +573,10 @@ namespace PinayPalBackupManager.Services
                         return $"{uptime.Days}d {uptime.Hours}h";
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting uptime: {ex.Message}", "Error", "SYSTEM");
+            }
 
             return "Unknown";
         }
@@ -616,7 +623,10 @@ namespace PinayPalBackupManager.Services
                         return userProcesses.ToString();
                     }
                 }
-                catch { }
+                catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting uptime: {ex.Message}", "Error", "SYSTEM");
+            }
             }
 
             return "3"; // Default fallback
@@ -631,7 +641,10 @@ namespace PinayPalBackupManager.Services
                 double freeGB = freeSpace / (1024.0 * 1024.0 * 1024.0);
                 return $"{freeGB:F1} GB";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting uptime: {ex.Message}", "Error", "SYSTEM");
+            }
 
             return "Unknown";
         }

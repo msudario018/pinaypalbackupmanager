@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Velopack;
@@ -10,7 +11,7 @@ namespace PinayPalBackupManager
     class Program
     {
         [STAThread]
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             AppDataPaths.MigrateKnownFiles();
             var logPath = AppDataPaths.GetPath("startup.log");
@@ -34,7 +35,37 @@ namespace PinayPalBackupManager
 
                 ConfigService.Load();
                 Services.LocalizationService.Load();
-                AuthService.Initialize();
+                await AuthService.InitializeAsync();
+
+                // Initialize environment and new services
+                try
+                {
+                    EnvironmentConfigService.Initialize();
+                    ErrorReportingService.Initialize();
+                    PerformanceMetricsService.Initialize();
+                    BackupHistoryService.Initialize();
+                    BackupSchedulingService.Initialize();
+                    
+                    // Initialize additional services that have Initialize methods
+                    BackupRetentionService.Initialize();
+                    BackupRetryService.Initialize();
+                    
+                    // Services requiring database URL and username
+                    var currentUser = AuthService.CurrentUser;
+                    var dbUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                    var username = currentUser?.Username ?? "system";
+                    
+                    RealtimeMonitoringService.Initialize(dbUrl, username);
+                    SystemStatusService.Initialize(dbUrl, username);
+                    FirebaseRemoteService.Initialize(dbUrl, username);
+                    
+                    // Services requiring specific parameters
+                    FileDownloadService.Initialize(username, AppDataPaths.CurrentDirectory);
+                }
+                catch (Exception ex)
+                {
+                    File.AppendAllText(logPath, $"[{DateTime.Now}] Service initialization error: {ex}\n");
+                }
 
                 var services = new ServiceCollection();
                 services.AddSingleton<Services.BackupManager>();

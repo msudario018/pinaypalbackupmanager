@@ -5,6 +5,120 @@
     <Application.Styles>
         <FluentTheme />
 
+        <!-- GLASSMORPHISM STYLES -->
+        <!-- Modern Glass Panel Style -->
+        <Style Selector="Border.glass-panel">
+            <Setter Property="Background" Value="#0A000000"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Opacity" Value="0.85"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Glass Panel with Blur Effect -->
+        <Style Selector="Border.glass-panel-blur">
+            <Setter Property="Background" Value="#0F000000"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Opacity" Value="0.9"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Modern Sidebar Glass Style -->
+        <Style Selector="Border.glass-sidebar">
+            <Setter Property="Background" Value="#0D000000"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Opacity" Value="0.92"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Modern Top Bar Glass Style -->
+        <Style Selector="Border.glass-topbar">
+            <Setter Property="Background" Value="#0A000000"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Opacity" Value="0.88"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Modern Status Bar Glass Style -->
+        <Style Selector="Border.glass-statusbar">
+            <Setter Property="Background" Value="#0C000000"/>
+            <Setter Property="BorderBrush" Value="#18FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Opacity" Value="0.9"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Enhanced Drop Shadow for Glass -->
+        <Style Selector="Border.glass-shadow">
+            <Setter Property="BoxShadow" Value="0 4 20 #20000000"/>
+        </Style>
+
+        <!-- Modern Button Glass Style -->
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Opacity" Value="0.8"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Opacity" Value="0.95"/>
+            <Setter Property="RenderTransform" Value="scale(1.02) translateY(-1px)"/>
+        </Style>
+
+        <Style Selector="Button.glass-btn:pressed">
+            <Setter Property="Background" Value="#08FFFFFF"/>
+            <Setter Property="Opacity" Value="0.7"/>
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
         <!-- GLOBAL ANIMATIONS & TRANSITIONS -->
         <!-- Global Button Animations - Optimized for faster theme switching -->
         <Style Selector="Button">

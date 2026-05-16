@@ -13,6 +13,12 @@ namespace PinayPalBackupManager.UI.UserControls
         public event EventHandler? OnClose;
         private string _username;
 
+        public LoginHistoryDialog() : this("")
+        {
+            // Parameterless constructor for XAML runtime loading
+            // Note: This dialog should be instantiated with username parameter
+        }
+
         public LoginHistoryDialog(string username)
         {
             _username = username;

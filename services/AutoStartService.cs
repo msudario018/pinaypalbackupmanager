@@ -29,7 +29,10 @@ namespace PinayPalBackupManager.Services
                 using var key = Registry.CurrentUser.OpenSubKey(RegKey, writable: true);
                 key?.SetValue(AppName, $"\"{exePath}\"");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AUTOSTART] Error enabling auto-start: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static void Disable()
@@ -39,7 +42,10 @@ namespace PinayPalBackupManager.Services
                 using var key = Registry.CurrentUser.OpenSubKey(RegKey, writable: true);
                 key?.DeleteValue(AppName, throwOnMissingValue: false);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AUTOSTART] Error enabling auto-start: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static void SetEnabled(bool enabled)

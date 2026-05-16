@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.ErrorReportViewerControl">
+    <Border Background="#0D1117" CornerRadius="12" Padding="0">
+        <StackPanel Spacing="0">
+            <!-- Header with Close Button -->
+            <Grid Background="#161B22" Height="50" ColumnDefinitions="*, Auto">
+                <TextBlock Grid.Column="0" Text="ERROR REPORTS" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}" FontSize="14" VerticalAlignment="Center" Margin="20,0"/>
+                <Button Name="BtnClose" Grid.Column="1" Content="✕" Classes="Ghost" Width="40" Height="40" Margin="10" FontSize="18" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </Grid>
+
+            <!-- Content -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" Margin="20">
+                    <!-- Header -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Grid.Column="0" Spacing="5">
+                                <TextBlock Name="TxtSummary" Text="Loading..." Foreground="#8B949E" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" Margin="10,0,0,0">
+                                <Button Name="BtnRefresh" Classes="Secondary" Content="Refresh"/>
+                                <Button Name="BtnExport" Classes="Secondary" Content="Export"/>
+                                <Button Name="BtnClearAll" Classes="Secondary" Content="Clear All"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Filters -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="FILTERS" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="Filter:" VerticalAlignment="Center"/>
+                                <ComboBox Name="CmbFilterType" Width="120" SelectedIndex="0">
+                                    <ComboBoxItem Content="All Errors"/>
+                                    <ComboBoxItem Content="Critical Only"/>
+                                    <ComboBoxItem Content="By Source"/>
+                                </ComboBox>
+                                <TextBox Name="TxtFilterSource" Width="150" Watermark="Source name" IsVisible="False"/>
+                                <Button Name="BtnApplyFilter" Classes="Secondary" Content="Apply"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error List -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="ERROR LIST" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="ErrorList" Spacing="10"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error Details -->
+                    <Border Name="BorderErrorDetails" Background="#161B22" CornerRadius="12" Padding="20" IsVisible="False">
+                        <StackPanel Spacing="15">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="ERROR DETAILS" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                                <Button Name="BtnCloseDetails" Grid.Column="1" Classes="Ghost" Content="✕" Width="30" Height="30" FontSize="16" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="ErrorDetailsPanel" Spacing="10"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Height="20"/>
+                </StackPanel>
+            </ScrollViewer>
+        </StackPanel>
+    </Border>
+</UserControl>

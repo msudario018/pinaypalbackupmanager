@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.PerformanceMetricsControl">
+    <Border Background="#0D1117" CornerRadius="12" Padding="0">
+        <StackPanel Spacing="0">
+            <!-- Header with Close Button -->
+            <Grid Background="#161B22" Height="50" ColumnDefinitions="*, Auto">
+                <TextBlock Grid.Column="0" Text="PERFORMANCE METRICS" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}" FontSize="14" VerticalAlignment="Center" Margin="20,0"/>
+                <Button Name="BtnClose" Grid.Column="1" Content="✕" Classes="Ghost" Width="40" Height="40" Margin="10" FontSize="18" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </Grid>
+
+            <!-- Content -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" Margin="20">
+                    <!-- Header -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Grid.Column="0" Spacing="5">
+                                <TextBlock Name="TxtSummary" Text="Loading..." Foreground="#8B949E" FontSize="12"/>
+                            </StackPanel>
+                            <Button Name="BtnRefresh" Grid.Column="1" Classes="Secondary" Content="Refresh" Margin="10,0,0,0"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Backup Success Rates -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="BACKUP SUCCESS RATES" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="SuccessRatePanel" Spacing="10"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Average Backup Times -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="AVERAGE BACKUP TIMES" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="BackupTimePanel" Spacing="10"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric Summaries -->
+                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="METRIC SUMMARIES" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="MetricSummaryPanel" Spacing="10"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Actions -->
+                    <Grid ColumnDefinitions="*, *" Margin="0,0,0,20">
+                        <Button Name="BtnExport" Classes="Secondary" Content="Export Report" HorizontalAlignment="Stretch" Margin="0,0,5,0"/>
+                        <Button Name="BtnClear" Classes="Secondary" Grid.Column="1" Content="Clear Old Metrics (30 days)" HorizontalAlignment="Stretch" Margin="5,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </StackPanel>
+    </Border>
+</UserControl>

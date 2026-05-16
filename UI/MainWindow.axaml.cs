@@ -55,12 +55,6 @@ namespace PinayPalBackupManager.UI
 
             WindowStateService.Restore(this);
 
-            ThemeService.Load();
-            UpdateThemeIcon();
-            ThemeService.OnThemeChanged += _ => UpdateThemeIcon();
-
-            var btnTheme = this.FindControl<Button>("BtnThemeToggle");
-            if (btnTheme != null) btnTheme.Click += (_, _) => { ThemeService.Toggle(); UpdateThemeIcon(); };
 
             var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
             if (btnCustomize != null) 
@@ -161,10 +155,6 @@ namespace PinayPalBackupManager.UI
             _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
             _activeProcessMonitorTimer.Start();
 
-            // Start theme auto schedule timer (check every minute)
-            var themeTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
-            themeTimer.Tick += (_, _) => Services.ThemeService.AutoCheckAndApply();
-            themeTimer.Start();
 
             // Start Firebase polling timer (fallback for real-time listener)
             _firebasePollTimer = new DispatcherTimer
@@ -647,6 +637,101 @@ namespace PinayPalBackupManager.UI
                 : null;
         }
 
+        private async void ShowHealthCheckWindow()
+        {
+            var control = new HealthCheckControl();
+            var window = new Window
+            {
+                Title = "System Health Check",
+                Content = control,
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
+        private async void ShowErrorReportWindow()
+        {
+            var control = new ErrorReportViewerControl();
+            var window = new Window
+            {
+                Title = "Error Reports",
+                Content = control,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
+        private async void ShowPerformanceMetricsWindow()
+        {
+            var control = new PerformanceMetricsControl();
+            var window = new Window
+            {
+                Title = "Performance Metrics",
+                Content = control,
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
+        private async void ShowBackupHistoryWindow()
+        {
+            var control = new BackupHistoryControl();
+            var window = new Window
+            {
+                Title = "Backup History",
+                Content = control,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
+        private async void ShowBackupScheduleWindow()
+        {
+            var control = new BackupScheduleControl();
+            var window = new Window
+            {
+                Title = "Backup Schedules",
+                Content = control,
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
         private static string BuildChangelogSummary(string markdown)
         {
             if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
@@ -822,6 +907,26 @@ namespace PinayPalBackupManager.UI
                     case "UserManagement":
                         NotificationService.ShowBackupToast("Tab", "Switched to User Management", "Info");
                         ShowControl(_userManagementControl);
+                        break;
+                    case "HealthCheck":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Health Check", "Info");
+                        ShowHealthCheckWindow();
+                        break;
+                    case "ErrorReports":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Error Reports", "Info");
+                        ShowErrorReportWindow();
+                        break;
+                    case "PerformanceMetrics":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Performance Metrics", "Info");
+                        ShowPerformanceMetricsWindow();
+                        break;
+                    case "BackupHistory":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Backup History", "Info");
+                        ShowBackupHistoryWindow();
+                        break;
+                    case "BackupSchedule":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Backup Schedule", "Info");
+                        ShowBackupScheduleWindow();
                         break;
                 }
             }
@@ -1407,14 +1512,6 @@ namespace PinayPalBackupManager.UI
             catch { }
         }
 
-        private void UpdateThemeIcon()
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var icon = this.FindControl<TextBlock>("TxtThemeIcon");
-                if (icon != null) icon.Text = ThemeService.IsDark ? "☀" : "🌙";
-            });
-        }
         
         private void UpdateConnectionStatus(bool isOnline)
         {
@@ -2016,7 +2113,7 @@ namespace PinayPalBackupManager.UI
                     if (user == null) return;
 
                     // Copy to app data folder
-                    var avatarFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PinayPalBackupManager", "Avatars");
+                    var avatarFolder = EnvironmentConfigService.GetAvatarsPath();
                     Directory.CreateDirectory(avatarFolder);
 
                     var fileExt = System.IO.Path.GetExtension(filePath);
@@ -2135,7 +2232,7 @@ namespace PinayPalBackupManager.UI
             if (!confirm2) return;
 
             // Delete user
-            var deleted = AuthService.DeleteUser(user.Id);
+            var deleted = await AuthService.DeleteUserAsync(user.Id);
             if (deleted)
             {
                 NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");

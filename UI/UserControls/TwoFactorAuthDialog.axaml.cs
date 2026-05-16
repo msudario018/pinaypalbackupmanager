@@ -23,6 +23,12 @@ namespace PinayPalBackupManager.UI.UserControls
         private Border? _barCountdown;
         private Border? _barParent;
 
+        public TwoFactorAuthDialog() : this(0)
+        {
+            // Parameterless constructor for XAML runtime loading
+            // Note: This dialog should be instantiated with userId parameter
+        }
+
         public TwoFactorAuthDialog(int userId)
         {
             _userId = userId;
@@ -89,8 +95,11 @@ namespace PinayPalBackupManager.UI.UserControls
                 
                 // Show enabled panel
                 panelSetup.IsVisible = false;
-                panelEnabled!.IsVisible = true;
-                UpdateBackupCodes(txtBackupCodes!);
+                if (panelEnabled != null)
+                {
+                    panelEnabled.IsVisible = true;
+                    UpdateBackupCodes(txtBackupCodes!);
+                }
                 
                 NotificationService.ShowBackupToast("Security", "Two-factor authentication enabled!", "Success");
             };
@@ -101,8 +110,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (result)
                 {
                     await TwoFactorAuthService.DisableTfaAsync(_userId);
-                    panelSetup!.IsVisible = true;
-                    panelEnabled.IsVisible = false;
+                    if (panelSetup != null)
+                        panelSetup.IsVisible = true;
+                    if (panelEnabled != null)
+                        panelEnabled.IsVisible = false;
                     
                     // Ensure we have a persistent secret for the next setup
                     _secretKey = TwoFactorAuthService.EnsureSecret(_userId);

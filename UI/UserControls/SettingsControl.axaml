@@ -29,8 +29,7 @@
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
                     <CheckBox Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkThemeAutoSchedule" Content="Auto Theme Schedule (Dark at 6PM, Light at 6AM)" Foreground="{DynamicResource AppText}" Margin="0,8,0,0"/>
-                    <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+                                        <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <ui:LocalizedTextBlock Key="language" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                             <ui:LocalizedTextBlock Key="language_description" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
@@ -92,6 +91,24 @@
                     </Grid>
                     
                     <TextBlock Name="TxtConfigStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Management Tools -->
+            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="MANAGEMENT TOOLS" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
+                    
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Button Name="BtnHealthCheck" Classes="Secondary" Content="Health Check" HorizontalAlignment="Stretch" Margin="0,0,5,0"/>
+                        <Button Name="BtnErrorReports" Classes="Secondary" Grid.Column="1" Content="Error Reports" HorizontalAlignment="Stretch" Margin="5,0,5,0"/>
+                        <Button Name="BtnPerformance" Classes="Secondary" Grid.Column="2" Content="Performance" HorizontalAlignment="Stretch" Margin="5,0,0,0"/>
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*, *">
+                        <Button Name="BtnBackupHistory" Classes="Secondary" Content="Backup History" HorizontalAlignment="Stretch" Margin="0,0,5,0"/>
+                        <Button Name="BtnBackupSchedules" Classes="Secondary" Grid.Column="1" Content="Backup Schedules" HorizontalAlignment="Stretch" Margin="5,0,0,0"/>
+                    </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>

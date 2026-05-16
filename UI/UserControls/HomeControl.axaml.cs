@@ -288,7 +288,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var sub = this.FindControl<TextBlock>("TxtSubtitle");
                 if (sub != null) sub.Text = mnlTime.ToString("dddd, MMMM d · hh:mm tt") + " Manila";
             }
-            catch { }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateGreeting error: {ex.Message}", "", "Warning", "SYSTEM"); }
         }
 
         private void OnTimeUpdate(DateTime now, DateTime mnlTime, DateTime nextFtp, DateTime nextFtpDaily)
@@ -555,7 +555,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     upcomingList.Children.Add(new TextBlock { Text = "No upcoming backups scheduled", FontSize = 10, Foreground = Avalonia.Media.Brush.Parse("#6C7086") });
                 }
             }
-            catch { }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateUpcomingBackups error: {ex.Message}", "", "Warning", "SYSTEM"); }
         }
 
         private void UpdateDailySchedule(DateTime? mnlNow = null)
@@ -583,7 +583,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 SetSched("SchedMailchimp", mcNext, now);
                 SetSched("SchedSql", sqlNext, now);
             }
-            catch { }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateDailySchedule error: {ex.Message}", "", "Warning", "SYSTEM"); }
         }
 
         private async Task UpdateStorageAsync()
@@ -762,7 +762,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 entries.Add((ts, service, level, msg));
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] ParseLog error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 }
 
                 ParseLog(BackupConfig.FtpLogFile, "FTP");
@@ -949,7 +949,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         }
                     });
                 }
-                catch { }
+                catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateCalendarAsync error: {ex.Message}", "", "Warning", "SYSTEM"); }
             });
         }
 
@@ -977,7 +977,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 msg = rest.Trim();
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] TryParseLogLine error: {ex.Message}", "", "Warning", "SYSTEM"); return false; }
         }
 
         private void Set(string name, string value)
@@ -1235,7 +1235,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     SetPing(prefix, "#F38BA8", "Unreachable");
                 }
             }
-            catch { SetPing(prefix, "#F38BA8", "Unreachable"); }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] Ping {prefix} error: {ex.Message}", "", "Warning", "SYSTEM"); SetPing(prefix, "#F38BA8", "Unreachable"); }
         }
 
         private void SetPing(string prefix, string color, string text)
@@ -1289,7 +1289,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 if (lastFailure == null || ts > lastFailure) lastFailure = ts;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] ParseStats error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 }
 
                 // Per-service stats
@@ -1311,7 +1311,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             if (isResult) { tot++; if (!lv.Equals("ERROR", StringComparison.OrdinalIgnoreCase)) ok++; }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] ParseSvc error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 }
 
                 ParseSvc(BackupConfig.FtpLogFile, ref ftpOk, ref ftpTotal);
@@ -1396,7 +1396,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                             .Count(f => f.Name != "backuplog.txt" && f.Name != "backup_log.txt");
                         return $"Last: {timeAgo} · {fileCount} files · newest {size}";
                     }
-                    catch { return ""; }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] GetSummary error: {ex.Message}", "", "Warning", "SYSTEM"); return ""; }
                 }
 
                 var ftpSum = GetSummary(BackupConfig.FtpLocalFolder, BackupConfig.FtpLogFile);
@@ -1446,7 +1446,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     list.Children.Add(row);
                 }
             }
-            catch { list.Children.Add(new TextBlock { Text = "Error reading folder.", FontSize = 9, Foreground = Brush.Parse("#F38BA8") }); }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateRecentBackups error: {ex.Message}", "", "Warning", "SYSTEM"); list.Children.Add(new TextBlock { Text = "Error reading folder.", FontSize = 9, Foreground = Brush.Parse("#F38BA8") }); }
         }
 
         private static void OpenFolder(string folder)
@@ -1456,7 +1456,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (!Directory.Exists(folder)) { Directory.CreateDirectory(folder); }
                 System.Diagnostics.Process.Start("explorer.exe", folder);
             }
-            catch { }
+            catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] OpenFolder error: {ex.Message}", "", "Warning", "SYSTEM"); }
         }
 
         // ── Operations ────────────────────────────────────────────────────────
@@ -1491,13 +1491,13 @@ namespace PinayPalBackupManager.UI.UserControls
                                 lines.Add($"\"{ts:yyyy-MM-dd HH:mm:ss}\",\"{level}\",\"{System.IO.Path.GetFileNameWithoutExtension(logPath)}\",\"{msg.Replace("\"", "'")}\"");
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] ExportLogs error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 }
                 AddLogs(BackupConfig.FtpLogFile);
                 AddLogs(BackupConfig.McLogFile);
                 AddLogs(BackupConfig.SqlLogFile);
 
-                var exportPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                var exportPath = System.IO.Path.Combine(EnvironmentConfigService.GetBackupPath(),
                     $"PinayPal_Activity_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(exportPath, lines);
                 NotificationService.ShowBackupToast("Export", $"Saved to Desktop: {System.IO.Path.GetFileName(exportPath)}", "Success");
@@ -1599,7 +1599,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateBackupHealth error: {ex.Message}", "", "Warning", "SYSTEM"); }
             });
         }
 
@@ -1666,7 +1666,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateStorageAsync error: {ex.Message}", "", "Warning", "SYSTEM"); }
 
                     string storageText = freeSpace >= 1073741824 ? $"{freeSpace / 1073741824.0:F1} GB free" :
                                      freeSpace >= 1048576 ? $"{freeSpace / 1048576.0:F1} MB free" :
@@ -1749,7 +1749,7 @@ namespace PinayPalBackupManager.UI.UserControls
                                 .Sum(f => f.Length);
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] GetFolderSize error: {ex.Message}", "", "Warning", "SYSTEM"); }
 
                     string storageUsed = totalBytes >= 1073741824 ? $"{totalBytes / 1073741824.0:F1} GB" :
                                      totalBytes >= 1048576 ? $"{totalBytes / 1048576.0:F1} MB" :

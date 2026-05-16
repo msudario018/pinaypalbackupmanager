@@ -78,9 +78,8 @@ namespace PinayPalBackupManager.Services
             LogService.WriteLiveLog($"[RETRY] {serviceName} failed after {config.MaxRetries + 1} attempts", "", "Error", "SYSTEM");
             if (lastException != null)
                 throw lastException;
-            
-            // This should never be reached due to the throw above
-            throw lastException;
+            else
+                throw new Exception("Operation failed but no exception details available");
         }
 
         public static async Task ExecuteWithRetryAsync(

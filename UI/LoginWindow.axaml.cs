@@ -16,19 +16,6 @@ namespace PinayPalBackupManager.UI
         public event Action? OnLoginSuccess;
         private CancellationTokenSource? _statusListenerCts;
 
-        private static bool IsDevelopmentMachine()
-        {
-            // Check if running from a development directory
-            var currentDir = Directory.GetCurrentDirectory();
-            var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            
-            // Development indicators
-            return currentDir.Contains("pinaypalbackupmanager") && 
-                   (currentDir.Contains("Debug") || currentDir.Contains("bin") || 
-                    File.Exists(Path.Combine(baseDir, "..", "..", "PinayPalBackupManager.csproj")) ||
-                    File.Exists(Path.Combine(currentDir, "PinayPalBackupManager.csproj")));
-        }
-
         private IBrush GetBrush(string key)
         {
             if (Application.Current?.TryGetResource(key, out var value) == true && value is IBrush b)
@@ -41,54 +28,8 @@ namespace PinayPalBackupManager.UI
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
 
-            bool hasUsers = false;
-            try
-            {
-                hasUsers = AuthService.HasAnyUsers();
-            }
-            catch (Exception ex)
-            {
-                // If database check fails, assume no users (fresh install)
-                Console.WriteLine($"[LoginWindow] Error checking users: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[LoginWindow] Error checking users: {ex}");
-            }
-
-            // If no users exist, check if this is development machine
-            if (!hasUsers)
-            {
-                if (IsDevelopmentMachine())
-                {
-                    // Development machine - show admin setup
-                    ShowRegisterPanel(isFirstUser: true);
-                }
-                else
-                {
-                    // Production machine - create default admin automatically
-                    try
-                    {
-                        var (success, message) = AuthService.Register("admin", "admin123");
-                        Console.WriteLine($"[LoginWindow] Admin creation result: {success}, {message}");
-                        if (!success)
-                        {
-                            Console.WriteLine($"[LoginWindow] Failed to create admin: {message}");
-                            throw new Exception($"Failed to create admin: {message}");
-                        }
-                        
-                        // Show login panel since admin is created
-                        ShowLoginPanel();
-                        
-                        // Update subtitle to show default credentials
-                        var subtitle = this.FindControl<TextBlock>("TxtSubtitle")!;
-                        subtitle.Text = "Default admin created (admin/admin123)";
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[LoginWindow] Failed to create default admin: {ex.Message}");
-                        // Fallback to admin setup
-                        ShowRegisterPanel(isFirstUser: true);
-                    }
-                }
-            }
+            // Note: First-run setup is now handled by SetupWizardWindow
+            // This login window only handles returning users
 
             // Wire buttons
             this.FindControl<Button>("BtnLogin")!.Click += OnLoginClick;

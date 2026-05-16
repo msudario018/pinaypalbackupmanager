@@ -46,6 +46,8 @@
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
                     <Button Name="BtnExportReport" Content="Export Report" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                    <Button Name="BtnRestoreFiles" Content="Restore Files" Background="{DynamicResource AccentFtp}" Foreground="White"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
 
@@ -157,11 +159,14 @@
                     </Grid>
                     
                     <!-- Filter Options -->
-                    <Grid ColumnDefinitions="Auto, Auto, Auto, *">
+                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto">
                         <CheckBox Grid.Column="0" Name="ChkShowValid" Content="Show Valid" IsChecked="True" Margin="0,0,12,0"/>
                         <CheckBox Grid.Column="1" Name="ChkShowCorrupted" Content="Show Corrupted" IsChecked="True" Margin="0,0,12,0"/>
                         <CheckBox Grid.Column="2" Name="ChkShowMissing" Content="Show Missing" IsChecked="True" Margin="0,0,12,0"/>
                         <TextBlock Grid.Column="3" Name="TxtFilterCount" Text="0 files displayed" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="4" Name="BtnSelectAll" Content="Select All" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}" BorderThickness="0" CornerRadius="6" Padding="12,6" FontSize="11" Margin="12,0,6,0" Cursor="Hand"/>
+                        <Button Grid.Column="5" Name="BtnSelectCorrupted" Content="Select Corrupted" Background="{DynamicResource AccentError}" Foreground="White" BorderThickness="0" CornerRadius="6" Padding="12,6" FontSize="11" Margin="0,0,6,0" Cursor="Hand"/>
+                        <Button Grid.Column="6" Name="BtnSelectMissing" Content="Select Missing" Background="{DynamicResource AccentMailchimp}" Foreground="White" BorderThickness="0" CornerRadius="6" Padding="12,6" FontSize="11" Cursor="Hand"/>
                     </Grid>
                     
                     <!-- Results List -->
@@ -170,14 +175,15 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="local:VerificationItem">
                                     <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="12,8" Margin="0,2">
-                                        <Grid ColumnDefinitions="200, 80, 100, 80, 120, 150, *">
-                                            <TextBlock Grid.Column="0" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Service}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource AppText}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding FileSizeFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding CreatedFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
-                                            <TextBlock Grid.Column="5" Text="{Binding HashShort}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" FontFamily="Consolas"/>
-                                            <TextBlock Grid.Column="6" Text="{Binding FilePath}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" TextTrimming="CharacterEllipsis"/>
+                                        <Grid ColumnDefinitions="30, 200, 80, 100, 80, 120, 150, *">
+                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Service}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource AppText}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding FileSizeFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding CreatedFormatted}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding HashShort}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" FontFamily="Consolas"/>
+                                            <TextBlock Grid.Column="7" Text="{Binding FilePath}" FontSize="9" Foreground="{DynamicResource AppVeryMuted}" TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

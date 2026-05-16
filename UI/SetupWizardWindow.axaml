@@ -1,0 +1,351 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="720"
+        x:Class="PinayPalBackupManager.UI.SetupWizardWindow"
+        Title="PinayPal Backup Manager - Setup Wizard"
+        Width="850" Height="750"
+        MinWidth="750" MinHeight="650"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E"
+        Foreground="#CDD6F4">
+
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+        </Style>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+        </Style>
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#89B4FA"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="#F38BA8"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.success">
+            <Setter Property="Foreground" Value="#A6E3A1"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <!-- Header -->
+        <Grid RowDefinitions="Auto,Auto" Grid.Row="0" Margin="24,24,24,8">
+            <TextBlock Text="🚀 PinayPal Backup Manager" FontSize="22" FontWeight="Bold" Foreground="#CDD6F4"/>
+            <TextBlock Text="Setup Wizard" FontSize="13" Foreground="#A6ADC8" Grid.Row="1" Margin="0,4,0,0"/>
+        </Grid>
+
+        <!-- Progress Line -->
+        <Border Grid.Row="1" Height="1" Background="#313244" Margin="24,0"/>
+
+        <!-- Content Area -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="24,16">
+            <Grid MaxWidth="700" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                <!-- Step 1: Admin Account -->
+                <StackPanel x:Name="Step1Admin" IsVisible="True" Spacing="16">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <!-- Icon -->
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="👤" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TxtAdminTitle" Text="Create Administrator Account" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock x:Name="TxtAdminDesc" Text="Set up your admin credentials to manage backup system." 
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Username" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtAdminUsername" Watermark="Enter username (min 3 characters)"/>
+                                    <TextBlock x:Name="ErrorAdminUsername" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Password" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtAdminPassword" PasswordChar="●" Watermark="Enter password (min 8 characters)"/>
+                                    <TextBlock x:Name="ErrorAdminPassword" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Confirm Password" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtAdminPasswordConfirm" PasswordChar="●" Watermark="Re-enter password"/>
+                                    <TextBlock x:Name="ErrorAdminPasswordConfirm" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <StackPanel x:Name="InviteCodePanel" Spacing="6" IsVisible="False">
+                                    <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtInviteCode" Watermark="Enter invite code"/>
+                                    <TextBlock x:Name="ErrorInviteCode" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 2: FTP Configuration -->
+                <StackPanel x:Name="Step2FTP" IsVisible="False" Spacing="12">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="📁" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="FTP Server Configuration" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Configure your FTP server for file backups." 
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <CheckBox x:Name="ChkEnableFTP" Content="Enable FTP backups" IsChecked="True" FontSize="13"/>
+
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="FTP Host" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtFtpHost" Watermark="ftp.example.com or 192.168.1.100"/>
+                                    <TextBlock x:Name="ErrorFtpHost" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <Grid ColumnDefinitions="*,12,*">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <TextBlock Text="Username" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                        <TextBox x:Name="TxtFtpUser" Watermark="FTP username"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="4">
+                                        <TextBlock Text="Password" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                        <TextBox x:Name="TxtFtpPassword" PasswordChar="●" Watermark="FTP password"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Button x:Name="BtnImportFtp" Content="📥 Import from appsettings.json"
+                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Local Backup Folder" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <Grid ColumnDefinitions="*,6,Auto">
+                                        <TextBox x:Name="TxtFtpLocalFolder" Watermark="C:\Backups\FTP" Grid.Column="0"/>
+                                        <Button x:Name="BtnBrowseFtpFolder" Content="Browse" Grid.Column="2" Classes="Secondary" Padding="12,8"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="BtnTestFTP" Content="Test Connection" Classes="Secondary" Padding="16,10"/>
+                                    <TextBlock x:Name="TxtFtpTestResult" Text="" VerticalAlignment="Center" FontSize="12" IsVisible="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 3: SQL Configuration -->
+                <StackPanel x:Name="Step3SQL" IsVisible="False" Spacing="12">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="🗄️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="SQL Database Configuration" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Configure your SQL database for automated backups." 
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <CheckBox x:Name="ChkEnableSQL" Content="Enable SQL backups" IsChecked="True" FontSize="13"/>
+
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="SQL Host" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtSqlHost" Watermark="localhost or 192.168.1.100"/>
+                                    <TextBlock x:Name="ErrorSqlHost" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <Grid ColumnDefinitions="*,12,*">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <TextBlock Text="Username" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                        <TextBox x:Name="TxtSqlUser" Watermark="SQL username"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="4">
+                                        <TextBlock Text="Password" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                        <TextBox x:Name="TxtSqlPassword" PasswordChar="●" Watermark="SQL password"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Button x:Name="BtnImportSql" Content="📥 Import from appsettings.json"
+                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Remote Backup Path" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtSqlRemotePath" Watermark="/backups/sql"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Local Backup Folder" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <Grid ColumnDefinitions="*,6,Auto">
+                                        <TextBox x:Name="TxtSqlLocalFolder" Watermark="C:\Backups\SQL" Grid.Column="0"/>
+                                        <Button x:Name="BtnBrowseSqlFolder" Content="Browse" Grid.Column="2" Classes="Secondary" Padding="12,8"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="BtnTestSQL" Content="Test Connection" Classes="Secondary" Padding="16,10"/>
+                                    <TextBlock x:Name="TxtSqlTestResult" Text="" VerticalAlignment="Center" FontSize="12" IsVisible="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 4: Mailchimp Configuration -->
+                <StackPanel x:Name="Step4Mailchimp" IsVisible="False" Spacing="12">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="📧" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Mailchimp Integration" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Configure Mailchimp for email marketing backups." 
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <CheckBox x:Name="ChkEnableMailchimp" Content="Enable Mailchimp backups" IsChecked="True" FontSize="13"/>
+
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="API Key" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtMcApiKey" Watermark="key-datacenter (e.g., abc123def456-us1)"/>
+                                    <TextBlock x:Name="ErrorMcApiKey" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Audience ID" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtMcAudienceId" Watermark="Your audience ID"/>
+                                    <TextBlock x:Name="ErrorMcAudienceId" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <Button x:Name="BtnImportMailchimp" Content="📥 Import from appsettings.json"
+                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Local Backup Folder" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <Grid ColumnDefinitions="*,6,Auto">
+                                        <TextBox x:Name="TxtMcFolder" Watermark="C:\Backups\Mailchimp" Grid.Column="0"/>
+                                        <Button x:Name="BtnBrowseMcFolder" Content="Browse" Grid.Column="2" Classes="Secondary" Padding="12,8"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="BtnTestMailchimp" Content="Test API" Classes="Secondary" Padding="16,10"/>
+                                    <TextBlock x:Name="TxtMcTestResult" Text="" VerticalAlignment="Center" FontSize="12" IsVisible="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 5: Security & Summary -->
+                <StackPanel x:Name="Step5Security" IsVisible="False" Spacing="12">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="🔒" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Security Settings &amp; Summary" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Review your configuration and complete setup." 
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="10">
+                                <CheckBox x:Name="ChkEncryptConfig" Content="Encrypt sensitive configuration" IsChecked="True" FontSize="13"/>
+                                <CheckBox x:Name="ChkAutoStart" Content="Start automatically with Windows" IsChecked="True" FontSize="13"/>
+                                <CheckBox x:Name="ChkStartMinimized" Content="Start minimized to system tray" IsChecked="False" FontSize="13"/>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Auto-backup interval" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <ComboBox x:Name="CmbAutoInterval" SelectedIndex="1">
+                                        <ComboBoxItem>30 minutes</ComboBoxItem>
+                                        <ComboBoxItem>1 hour</ComboBoxItem>
+                                        <ComboBoxItem>2 hours</ComboBoxItem>
+                                        <ComboBoxItem>4 hours</ComboBoxItem>
+                                        <ComboBoxItem>8 hours</ComboBoxItem>
+                                        <ComboBoxItem>24 hours</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Summary -->
+                            <Border Background="#313244" CornerRadius="8" Padding="16" Margin="0,8,0,0">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Configuration Summary" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                    <TextBlock x:Name="TxtSummaryAdmin" Text="Administrator: (not set)" Foreground="#A6ADC8" FontSize="12"/>
+                                    <TextBlock x:Name="TxtSummaryFTP" Text="FTP: Disabled" Foreground="#A6ADC8" FontSize="12"/>
+                                    <TextBlock x:Name="TxtSummarySQL" Text="SQL: Disabled" Foreground="#A6ADC8" FontSize="12"/>
+                                    <TextBlock x:Name="TxtSummaryMailchimp" Text="Mailchimp: Disabled" Foreground="#A6ADC8" FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Grid Grid.Row="3" RowDefinitions="Auto,Auto" Margin="24,16">
+            <!-- Step Indicators -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                <Ellipse x:Name="StepDot1" Width="12" Height="12" Stroke="#89B4FA" StrokeThickness="2" Fill="#89B4FA"/>
+                <Ellipse x:Name="StepDot2" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
+                <Ellipse x:Name="StepDot3" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
+                <Ellipse x:Name="StepDot4" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
+                <Ellipse x:Name="StepDot5" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
+            </StackPanel>
+
+            <!-- Step Title -->
+            <TextBlock x:Name="TxtStepTitle" Text="Step 1 of 5" HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="12" Grid.Row="1" Margin="0,8,0,0"/>
+
+            <!-- Navigation Buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Grid.Row="0" Grid.RowSpan="2">
+                <Button x:Name="BtnBack" Content="← Back" Classes="Secondary" IsVisible="False" Padding="16,10"/>
+                <Button x:Name="BtnSkip" Content="Skip" Classes="Secondary" IsVisible="True" Padding="16,10"/>
+                <Button x:Name="BtnNext" Content="Next →" Classes="Primary" Padding="16,10"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

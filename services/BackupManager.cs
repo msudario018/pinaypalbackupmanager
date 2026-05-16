@@ -9,7 +9,7 @@ using PinayPalBackupManager.Models;
 
 namespace PinayPalBackupManager.Services
 {
-    public class BackupManager
+    public class BackupManager : IDisposable
     {
         private readonly Timer _mainTimer;
         private int _healthRunning;
@@ -32,8 +32,7 @@ namespace PinayPalBackupManager.Services
         public event Action? OnSqlAutoSyncRequested;
         public event Action? OnAutoScanTimersReset;
         public event Action? OnDailyScheduleUpdated;
-        public event Action<string, bool>? OnBackupCompleted; // service, success
-
+        
         public static TimeSpan FtpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.FtpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.FtpAutoScanMinutes);
         public static TimeSpan MailchimpAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.MailchimpAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.MailchimpAutoScanMinutes);
         public static TimeSpan SqlAutoScanInterval => TimeSpan.FromHours(ConfigService.Current.Schedule.SqlAutoScanHours) + TimeSpan.FromMinutes(ConfigService.Current.Schedule.SqlAutoScanMinutes);
@@ -70,6 +69,12 @@ namespace PinayPalBackupManager.Services
         public void Stop()
         {
             _mainTimer.Stop();
+        }
+
+        public void Dispose()
+        {
+            _mainTimer?.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public void ResetAutoScanTimers()

@@ -78,7 +78,10 @@ namespace PinayPalBackupManager.Services
                     dir = dir.Parent;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Error finding config directory: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static bool IsConfigured()
@@ -135,7 +138,10 @@ namespace PinayPalBackupManager.Services
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Error saving config: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static void SaveHttpServerSettings()
@@ -150,7 +156,10 @@ namespace PinayPalBackupManager.Services
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Error saving HTTP server settings: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static void SaveSchedule()
@@ -175,7 +184,10 @@ namespace PinayPalBackupManager.Services
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Error saving schedule: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static void MergeFirebaseSchedule(Dictionary<string, object>? firebaseSchedule)
@@ -734,6 +746,44 @@ namespace PinayPalBackupManager.Services
 
             if (source.Operation.RetentionDays != 0) target.Operation.RetentionDays = source.Operation.RetentionDays;
             if (source.Operation.AutoStartWindows) target.Operation.AutoStartWindows = true;
+        }
+
+        public static bool IsFirstRun()
+        {
+            var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+            if (!File.Exists(appDataPath))
+                return true;
+
+            try
+            {
+                var settings = ReadFile(appDataPath);
+                return !settings.Operation.SetupCompleted;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        public static void MarkSetupComplete()
+        {
+            Current.Operation.SetupCompleted = true;
+            Save();
+        }
+
+        public static void Save()
+        {
+            try
+            {
+                var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+                var json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                File.WriteAllText(appDataPath, json);
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Failed to save configuration: {ex.Message}", "Error", "SYSTEM");
+            }
         }
     }
 }

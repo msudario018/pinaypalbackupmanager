@@ -254,18 +254,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 NotificationService.ShowBackupToast("User Management", "Error enabling user", "Error");
             }
         }
-
-        private async void OnChangePasswordClick(object? sender, RoutedEventArgs e)
-        {
-            // TODO: Implement password change dialog
-            NotificationService.ShowBackupToast("User Management", "Password change dialog coming soon", "Info");
-        }
-
-        private async void OnChangeUsernameClick(object? sender, RoutedEventArgs e)
-        {
-            // TODO: Implement username change dialog
-            NotificationService.ShowBackupToast("User Management", "Username change dialog coming soon", "Info");
-        }
     }
 }
 

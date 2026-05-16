@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Threading.Tasks;
+using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using MsBox.Avalonia;
@@ -15,6 +18,7 @@ namespace PinayPalBackupManager.Services
     public static class NotificationService
     {
         public static event Action<string, string, string>? OnToast;
+        public static event Action<NotificationChannel, string, string>? OnExternalNotification;
         
         // Track currently open dialogs to prevent multiple popups
         private static readonly HashSet<string> _openDialogs = new();
@@ -27,6 +31,12 @@ namespace PinayPalBackupManager.Services
         // Notification enable/disable control
         private static bool _notificationsEnabled = false;
         private static readonly object _enableLock = new();
+        
+        // External notification settings
+        private static NotificationSettings _settings = new();
+        private static readonly object _settingsLock = new();
+        private static readonly Queue<NotificationMessage> _notificationQueue = new();
+        private static System.Timers.Timer? _queueProcessor;
         
         public static void EnableNotifications()
         {
@@ -234,5 +244,376 @@ namespace PinayPalBackupManager.Services
                 _openDialogs.Remove(dialogKey);
             }
         }
+        
+        // External notification methods
+        public static void ConfigureNotifications(NotificationSettings settings)
+        {
+            lock (_settingsLock)
+            {
+                _settings = settings;
+                
+                // Start queue processor if not already running
+                if (_queueProcessor == null && (settings.EmailEnabled || settings.SmsEnabled))
+                {
+                    _queueProcessor = new System.Timers.Timer(5000); // Process every 5 seconds
+                    _queueProcessor.Elapsed += ProcessNotificationQueue;
+                    _queueProcessor.Start();
+                    
+                    LogService.WriteSystemLog("[NOTIFICATION] External notification service started", "Information", "SYSTEM");
+                }
+                else if (_queueProcessor != null && !settings.EmailEnabled && !settings.SmsEnabled)
+                {
+                    _queueProcessor.Stop();
+                    _queueProcessor.Dispose();
+                    _queueProcessor = null;
+                    
+                    LogService.WriteSystemLog("[NOTIFICATION] External notification service stopped", "Information", "SYSTEM");
+                }
+            }
+        }
+        
+        public static void SendExternalNotification(NotificationChannel channel, string subject, string message, NotificationPriority priority = NotificationPriority.Normal)
+        {
+            if (!IsChannelEnabled(channel)) return;
+            
+            var notification = new NotificationMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                Channel = channel,
+                Subject = subject,
+                Message = message,
+                Priority = priority,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 3
+            };
+            
+            lock (_settingsLock)
+            {
+                _notificationQueue.Enqueue(notification);
+            }
+            
+            // Also trigger event for UI components
+            OnExternalNotification?.Invoke(channel, subject, message);
+            
+            LogService.WriteSystemLog($"[NOTIFICATION] Queued {channel} notification: {subject}", "Information", "SYSTEM");
+        }
+        
+        public static void SendAlert(string title, string message, AlertSeverity severity = AlertSeverity.Warning)
+        {
+            var priority = severity switch
+            {
+                AlertSeverity.Critical => NotificationPriority.High,
+                AlertSeverity.Warning => NotificationPriority.Medium,
+                _ => NotificationPriority.Low
+            };
+            
+            // Send toast notification
+            ShowBackupToast("Alert", title, severity.ToString());
+            
+            // Send external notifications
+            if (_settings.EmailEnabled)
+            {
+                SendExternalNotification(NotificationChannel.Email, $"[{severity}] {title}", message, priority);
+            }
+            
+            if (_settings.SmsEnabled)
+            {
+                SendExternalNotification(NotificationChannel.SMS, $"[{severity}] {title}", message, priority);
+            }
+        }
+        
+        private static async void ProcessNotificationQueue(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            List<NotificationMessage> toProcess;
+            
+            lock (_settingsLock)
+            {
+                toProcess = _notificationQueue.ToList();
+                _notificationQueue.Clear();
+            }
+            
+            foreach (var notification in toProcess)
+            {
+                try
+                {
+                    bool success = notification.Channel switch
+                    {
+                        NotificationChannel.Email => await SendEmailNotification(notification),
+                        NotificationChannel.SMS => await SendSmsNotification(notification),
+                        _ => false
+                    };
+                    
+                    if (!success && notification.RetryCount < notification.MaxRetries)
+                    {
+                        notification.RetryCount++;
+                        lock (_settingsLock)
+                        {
+                            _notificationQueue.Enqueue(notification);
+                        }
+                        
+                        LogService.WriteSystemLog($"[NOTIFICATION] Retrying {notification.Channel} notification (attempt {notification.RetryCount}/{notification.MaxRetries})", "Warning", "SYSTEM");
+                    }
+                    else if (success)
+                    {
+                        LogService.WriteSystemLog($"[NOTIFICATION] {notification.Channel} notification sent successfully: {notification.Subject}", "Information", "SYSTEM");
+                    }
+                    else
+                    {
+                        LogService.WriteSystemLog($"[NOTIFICATION] Failed to send {notification.Channel} notification after {notification.MaxRetries} retries: {notification.Subject}", "Error", "SYSTEM");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[NOTIFICATION] Error processing notification: {ex.Message}", "Error", "SYSTEM");
+                }
+            }
+        }
+        
+        private static async Task<bool> SendEmailNotification(NotificationMessage notification)
+        {
+            try
+            {
+                using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+                {
+                    EnableSsl = _settings.SmtpUseSsl,
+                    Credentials = new NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
+                };
+                
+                var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(_settings.EmailFrom),
+                    Subject = notification.Subject,
+                    Body = $"{notification.Message}\n\nSent at: {notification.CreatedAt:yyyy-MM-dd HH:mm:ss UTC}\nPriority: {notification.Priority}",
+                    IsBodyHtml = false
+                };
+                
+                foreach (var recipient in _settings.EmailRecipients)
+                {
+                    mailMessage.To.Add(recipient);
+                }
+                
+                await client.SendMailAsync(mailMessage);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Email send failed: {ex.Message}", "Error", "SYSTEM");
+                return false;
+            }
+        }
+        
+        private static async Task<bool> SendSmsNotification(NotificationMessage notification)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_settings.SmsApiKey))
+                {
+                    LogService.WriteSystemLog("[NOTIFICATION] SMS API key not configured", "Warning", "SYSTEM");
+                    return false;
+                }
+
+                if (_settings.SmsRecipients.Count == 0)
+                {
+                    LogService.WriteSystemLog("[NOTIFICATION] No SMS recipients configured", "Warning", "SYSTEM");
+                    return false;
+                }
+
+                // Implement Twilio SMS API
+                if (_settings.SmsProvider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
+                {
+                    return await SendTwilioSms(notification);
+                }
+                // Add other SMS providers here (AWS SNS, etc.)
+                else
+                {
+                    LogService.WriteSystemLog($"[NOTIFICATION] Unsupported SMS provider: {_settings.SmsProvider}", "Error", "SYSTEM");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] SMS send failed: {ex.Message}", "Error", "SYSTEM");
+                return false;
+            }
+        }
+
+        private static async Task<bool> SendTwilioSms(NotificationMessage notification)
+        {
+            try
+            {
+                // Parse Twilio credentials from API key (format: "AccountSID:AuthToken:FromNumber")
+                var parts = _settings.SmsApiKey.Split(':');
+                if (parts.Length != 3)
+                {
+                    LogService.WriteSystemLog("[NOTIFICATION] Invalid Twilio API key format. Expected: AccountSID:AuthToken:FromNumber", "Error", "SYSTEM");
+                    return false;
+                }
+
+                var accountSid = parts[0];
+                var authToken = parts[1];
+                var fromNumber = parts[2];
+
+                using var httpClient = new System.Net.Http.HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", 
+                        Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{accountSid}:{authToken}")));
+
+                var successCount = 0;
+                var failureCount = 0;
+
+                foreach (var recipient in _settings.SmsRecipients)
+                {
+                    try
+                    {
+                        var content = new System.Net.Http.FormUrlEncodedContent(new[]
+                        {
+                            new KeyValuePair<string, string>("From", fromNumber),
+                            new KeyValuePair<string, string>("To", recipient),
+                            new KeyValuePair<string, string>("Body", $"{notification.Subject}: {notification.Message}")
+                        });
+
+                        var response = await httpClient.PostAsync(
+                            $"https://api.twilio.com/2010-04-01/Accounts/{accountSid}/Messages.json", 
+                            content);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            successCount++;
+                            LogService.WriteSystemLog($"[NOTIFICATION] SMS sent successfully to {recipient}", "Information", "SYSTEM");
+                        }
+                        else
+                        {
+                            failureCount++;
+                            var errorContent = await response.Content.ReadAsStringAsync();
+                            LogService.WriteSystemLog($"[NOTIFICATION] SMS failed to {recipient}: {errorContent}", "Error", "SYSTEM");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failureCount++;
+                        LogService.WriteSystemLog($"[NOTIFICATION] SMS error to {recipient}: {ex.Message}", "Error", "SYSTEM");
+                    }
+                }
+
+                LogService.WriteSystemLog($"[NOTIFICATION] SMS batch completed: {successCount} success, {failureCount} failures", "Information", "SYSTEM");
+                return successCount > 0 && failureCount == 0;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Twilio SMS error: {ex.Message}", "Error", "SYSTEM");
+                return false;
+            }
+        }
+        
+        private static bool IsChannelEnabled(NotificationChannel channel)
+        {
+            lock (_settingsLock)
+            {
+                return channel switch
+                {
+                    NotificationChannel.Email => _settings.EmailEnabled,
+                    NotificationChannel.SMS => _settings.SmsEnabled,
+                    _ => false
+                };
+            }
+        }
+        
+        public static NotificationSettings GetSettings()
+        {
+            lock (_settingsLock)
+            {
+                return _settings;
+            }
+        }
+        
+        public static void SaveSettings()
+        {
+            try
+            {
+                var settingsPath = System.IO.Path.Combine(AppDataPaths.CurrentDirectory, "notifications.json");
+                var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+                System.IO.File.WriteAllText(settingsPath, json);
+                
+                LogService.WriteSystemLog("[NOTIFICATION] Settings saved", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Failed to save settings: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+        
+        public static void LoadSettings()
+        {
+            try
+            {
+                var settingsPath = System.IO.Path.Combine(AppDataPaths.CurrentDirectory, "notifications.json");
+                if (System.IO.File.Exists(settingsPath))
+                {
+                    var json = System.IO.File.ReadAllText(settingsPath);
+                    var settings = JsonSerializer.Deserialize<NotificationSettings>(json);
+                    
+                    if (settings != null)
+                    {
+                        lock (_settingsLock)
+                        {
+                            _settings = settings;
+                        }
+                        
+                        // Reconfigure with loaded settings
+                        ConfigureNotifications(settings);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Failed to load settings: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+    }
+    
+    public class NotificationSettings
+    {
+        public bool EmailEnabled { get; set; } = false;
+        public bool SmsEnabled { get; set; } = false;
+        public string SmtpHost { get; set; } = string.Empty;
+        public int SmtpPort { get; set; } = 587;
+        public bool SmtpUseSsl { get; set; } = true;
+        public string SmtpUsername { get; set; } = string.Empty;
+        public string SmtpPassword { get; set; } = string.Empty;
+        public string EmailFrom { get; set; } = string.Empty;
+        public List<string> EmailRecipients { get; set; } = new();
+        public List<string> SmsRecipients { get; set; } = new();
+        public string SmsApiKey { get; set; } = string.Empty;
+        public string SmsProvider { get; set; } = "Twilio"; // Twilio, AWS SNS, etc.
+    }
+    
+    public class NotificationMessage
+    {
+        public string Id { get; set; } = string.Empty;
+        public NotificationChannel Channel { get; set; }
+        public string Subject { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public NotificationPriority Priority { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int RetryCount { get; set; }
+        public int MaxRetries { get; set; }
+    }
+    
+    public enum NotificationChannel
+    {
+        Email,
+        SMS,
+        Push,
+        Webhook
+    }
+    
+    public enum NotificationPriority
+    {
+        Low,
+        Normal,
+        Medium,
+        High,
+        Critical
     }
 }

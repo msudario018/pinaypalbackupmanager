@@ -239,7 +239,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
-            window.ShowDialog(parentWindow);
+            window.ShowDialog(parentWindow!);
         }
 
         private void ShowChangeUsernameDialog()
@@ -279,7 +279,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
-            window.ShowDialog(parentWindow);
+            window.ShowDialog(parentWindow!);
         }
 
         private async System.Threading.Tasks.Task UploadAvatar()
@@ -348,7 +348,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var user = AuthService.CurrentUser;
                 if (user != null)
                 {
-                    var userAvatar = AuthService.GetUserAvatar(user.Id);
+                    var userAvatar = AuthService.GetAvatarPath(user.Id);
                     if (!string.IsNullOrWhiteSpace(userAvatar))
                         avatarPath = userAvatar;
                 }
@@ -411,7 +411,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnClose += (sender, e) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -455,7 +455,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnClose += (sender, e) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -504,7 +504,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -538,7 +538,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var parentWindow = TopLevel.GetTopLevel(this) as Window;
 
             dialog.OnClose += (s, e) => window.Close();
-            window.ShowDialog(parentWindow);
+            window.ShowDialog(parentWindow!);
         }
 
         private void ShowLoginHistoryDialog()
@@ -567,7 +567,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var parentWindow = TopLevel.GetTopLevel(this) as Window;
 
             dialog.OnClose += (s, e) => window.Close();
-            window.ShowDialog(parentWindow);
+            window.ShowDialog(parentWindow!);
         }
 
         private async Task ShowDeleteAccountDialog()
@@ -590,7 +590,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (!confirm2) return;
 
             // Delete user
-            var deleted = AuthService.DeleteUser(user.Id);
+            var deleted = await AuthService.DeleteUserAsync(user.Id);
             if (deleted)
             {
                 NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");

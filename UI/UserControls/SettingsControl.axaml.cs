@@ -59,19 +59,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
-            // Load Theme Auto Schedule setting
-            var chkThemeAutoSchedule = this.FindControl<CheckBox>("ChkThemeAutoSchedule");
-            if (chkThemeAutoSchedule != null)
-            {
-                chkThemeAutoSchedule.IsChecked = ConfigService.Current.Operation.ThemeAutoSchedule;
-                chkThemeAutoSchedule.IsCheckedChanged += (_, _) => 
-                {
-                    ConfigService.Current.Operation.ThemeAutoSchedule = chkThemeAutoSchedule.IsChecked == true;
-                    ConfigService.SaveOperation();
-                    NotificationService.ShowBackupToast("Settings", "Theme auto schedule " + (chkThemeAutoSchedule.IsChecked == true ? "enabled" : "disabled"), "Info");
-                };
-            }
-
+            
             // Load Language setting
             var cmbLanguage = this.FindControl<ComboBox>("CmbLanguage");
             if (cmbLanguage != null)
@@ -194,6 +182,37 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             };
             }
+
+            // Management Tools buttons
+            var btnHealthCheck = this.FindControl<Button>("BtnHealthCheck");
+            if (btnHealthCheck != null)
+            {
+                btnHealthCheck.Click += async (s, e) => await ShowHealthCheckDialogAsync();
+            }
+
+            var btnErrorReports = this.FindControl<Button>("BtnErrorReports");
+            if (btnErrorReports != null)
+            {
+                btnErrorReports.Click += async (s, e) => await ShowErrorReportsDialogAsync();
+            }
+
+            var btnPerformance = this.FindControl<Button>("BtnPerformance");
+            if (btnPerformance != null)
+            {
+                btnPerformance.Click += async (s, e) => await ShowPerformanceDialogAsync();
+            }
+
+            var btnBackupHistory = this.FindControl<Button>("BtnBackupHistory");
+            if (btnBackupHistory != null)
+            {
+                btnBackupHistory.Click += async (s, e) => await ShowBackupHistoryDialogAsync();
+            }
+
+            var btnBackupSchedules = this.FindControl<Button>("BtnBackupSchedules");
+            if (btnBackupSchedules != null)
+            {
+                btnBackupSchedules.Click += async (s, e) => await ShowBackupSchedulesDialogAsync();
+            }
         }
 
         /// <summary>
@@ -252,7 +271,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -295,7 +314,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 dialog.OnCancel += (sender, e) => window.Close();
 
-                await window.ShowDialog(parentWindow);
+                await window.ShowDialog(parentWindow!);
             }
             finally
             {
@@ -439,7 +458,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 
                 var logDirs = new[]
                 {
-                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PinayPalBackupManager", "logs"),
+                    EnvironmentConfigService.GetLogPath(),
                     System.IO.Path.Combine(AppContext.BaseDirectory, "logs")
                 };
                 
@@ -475,6 +494,171 @@ namespace PinayPalBackupManager.UI.UserControls
             catch (Exception ex)
             {
                 NotificationService.ShowBackupToast("Export", $"Failed to export logs: {ex.Message}", "Error");
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowHealthCheckDialogAsync()
+        {
+            const string dialogKey = "healthcheck_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var control = new HealthCheckControl();
+                var window = new Window
+                {
+                    Title = "System Health Check",
+                    Content = control,
+                    Width = 600,
+                    Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = true,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowErrorReportsDialogAsync()
+        {
+            const string dialogKey = "errorreports_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var control = new ErrorReportViewerControl();
+                var window = new Window
+                {
+                    Title = "Error Reports",
+                    Content = control,
+                    Width = 700,
+                    Height = 800,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = true,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowPerformanceDialogAsync()
+        {
+            const string dialogKey = "performance_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var control = new PerformanceMetricsControl();
+                var window = new Window
+                {
+                    Title = "Performance Metrics",
+                    Content = control,
+                    Width = 600,
+                    Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = true,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowBackupHistoryDialogAsync()
+        {
+            const string dialogKey = "backuphistory_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var control = new BackupHistoryControl();
+                var window = new Window
+                {
+                    Title = "Backup History",
+                    Content = control,
+                    Width = 700,
+                    Height = 800,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = true,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowBackupSchedulesDialogAsync()
+        {
+            const string dialogKey = "backupschedules_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var control = new BackupScheduleControl();
+                var window = new Window
+                {
+                    Title = "Backup Schedules",
+                    Content = control,
+                    Width = 700,
+                    Height = 800,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = true,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
     }

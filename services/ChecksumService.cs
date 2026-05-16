@@ -278,6 +278,14 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<string> CalculateSHA256Async(string filePath)
         {
+            // Try to get hash from cache first
+            var cachedHash = FileHashCacheService.GetFileHash(filePath);
+            if (cachedHash != null)
+            {
+                return cachedHash.ToUpperInvariant();
+            }
+
+            // Calculate hash if not in cache
             using var sha256 = SHA256.Create();
             using var stream = File.OpenRead(filePath);
             var hash = await sha256.ComputeHashAsync(stream);

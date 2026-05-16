@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.Data.Sqlite;
 using System.Threading.Tasks;
 using PinayPalBackupManager.Models;
+using BCrypt.Net;
 
 namespace PinayPalBackupManager.Services
 {
@@ -14,22 +15,36 @@ namespace PinayPalBackupManager.Services
     {
         private static string _dbPath = string.Empty;
         private static AppUser? _currentUser;
+        private static readonly object _userLock = new object();
+        
         public static AppUser? CurrentUser
         {
-            get => _currentUser;
+            get
+            {
+                lock (_userLock)
+                {
+                    return _currentUser;
+                }
+            }
             private set
             {
-                Console.WriteLine($"[AuthService] CurrentUser SET: from {_currentUser?.Username} to {value?.Username}");
-                _currentUser = value;
+                lock (_userLock)
+                {
+                    _currentUser = value;
+                }
             }
         }
         public static event Action<AppUser?>? OnUserChanged;
 
-        public static void Initialize()
+        public static async Task InitializeAsync()
         {
             AppDataPaths.MigrateKnownFiles();
             _dbPath = AppDataPaths.GetPath("users.db");
+            DatabaseService.Initialize(_dbPath);
             EnsureDatabase();
+            
+            // Initialize password reset service
+            await PasswordResetService.InitializeAsync();
             
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
@@ -39,15 +54,13 @@ namespace PinayPalBackupManager.Services
             // _ = Task.Run(async () => await FirebaseUserService.StartUserSyncListenerAsync());
             
             // Firebase will be initialized on-demand to avoid blocking
-            Console.WriteLine("[AuthService] Firebase ready for on-demand initialization");
         }
 
         private static string ConnectionString => $"Data Source={_dbPath}";
 
         private static void EnsureDatabase()
         {
-            using var conn = new SqliteConnection(ConnectionString);
-            conn.Open();
+            using var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Users (
@@ -63,7 +76,24 @@ namespace PinayPalBackupManager.Services
                 CREATE TABLE IF NOT EXISTS AppConfig (
                     Key TEXT PRIMARY KEY,
                     Value TEXT NOT NULL
-                );";
+                );
+                CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Username TEXT NOT NULL,
+                    AttemptTime TEXT NOT NULL,
+                    IpAddress TEXT
+                );
+                CREATE TABLE IF NOT EXISTS AuditLog (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Action TEXT NOT NULL,
+                    Actor TEXT NOT NULL,
+                    TargetUser TEXT,
+                    Details TEXT,
+                    Timestamp TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_failed_login_username ON FailedLoginAttempts(Username);
+                CREATE INDEX IF NOT EXISTS idx_failed_login_time ON FailedLoginAttempts(AttemptTime);
+                CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON AuditLog(Timestamp);";
             cmd.ExecuteNonQuery();
 
             // Migrate: Add AvatarPath column if not exists
@@ -77,11 +107,10 @@ namespace PinayPalBackupManager.Services
 
         public static bool HasAnyUsers()
         {
-            using var conn = new SqliteConnection(ConnectionString);
-            conn.Open();
+            using var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM Users";
-            return Convert.ToInt64(cmd.ExecuteScalar()) > 0;
+            cmd.CommandText = "SELECT 1 FROM Users LIMIT 1";
+            return cmd.ExecuteReader().HasRows;
         }
 
         /// <summary>
@@ -89,11 +118,31 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
         {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return (false, "Username and password are required.");
+            // Validate username
+            var usernameValidation = InputValidationService.ValidateUsername(username);
+            if (!usernameValidation.isValid)
+                return (false, usernameValidation.error);
+            
+            if (string.IsNullOrWhiteSpace(password))
+                return (false, "Password is required.");
 
-            if (password.Length < 4)
-                return (false, "Password must be at least 4 characters.");
+            // Strong password requirements
+            if (password.Length < 8)
+                return (false, "Password must be at least 8 characters long.");
+            
+            if (!password.Any(char.IsUpper))
+                return (false, "Password must contain at least one uppercase letter.");
+            
+            if (!password.Any(char.IsLower))
+                return (false, "Password must contain at least one lowercase letter.");
+            
+            if (!password.Any(char.IsDigit))
+                return (false, "Password must contain at least one digit.");
+            
+            // Check for special characters
+            var specialChars = "!@#$%^&*()_+-=[]{}|;':\",.<>?";
+            if (!password.Any(c => specialChars.Contains(c)))
+                return (false, "Password must contain at least one special character.");
 
             bool isFirstUser = !HasAnyUsers();
 
@@ -109,27 +158,46 @@ namespace PinayPalBackupManager.Services
                     return (false, "Invalid or expired invite code.");
             }
 
-            var salt = GenerateSalt();
-            var hash = HashPassword(password, salt);
+            // Generate secure hash with BCrypt (includes salt internally)
+            var hash = HashPassword(password, string.Empty);
+            var salt = string.Empty; // BCrypt handles salt internally
 
             try
             {
-                using var conn = new SqliteConnection(ConnectionString);
-                conn.Open();
+                // Insert user into database
+                using var conn = DatabaseService.GetConnection();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
-                                    VALUES (@u, @h, @s, @r, @st, @c)";
-                cmd.Parameters.AddWithValue("@u", username.Trim());
+                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt) VALUES (@u, @h, @s, @r, @st, @ca)";
+                cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
-                var role = isFirstUser ? "Admin" : "User";
-                var status = isFirstUser ? "Active" : "Pending";
-                cmd.Parameters.AddWithValue("@r", role);
-                cmd.Parameters.AddWithValue("@st", status);
-                cmd.Parameters.AddWithValue("@c", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
+                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
+                cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
 
-                Console.WriteLine($"[AuthService] REGISTER: Username={username}, Role={role}, Status={status}, IsFirstUser={isFirstUser}");
+                // Log user creation
+                LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {(isFirstUser ? "Admin" : "User")}, Status: {(isFirstUser ? "Active" : "Pending")}");
+
+                // Sync to Firebase (fire-and-forget, don't block registration)
+                if (!isFirstUser)
+                {
+                    var newUser = GetUserByUsername(usernameValidation.sanitized);
+                    if (newUser != null)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await FirebaseUserService.SyncUserAsync(newUser);
+                            }
+                            catch
+                            {
+                                // Firebase sync failed
+                            }
+                        });
+                    }
+                }
 
                 if (isFirstUser)
                 {
@@ -142,13 +210,6 @@ namespace PinayPalBackupManager.Services
                     {
                         await FirebaseInviteService.UseInviteCodeAsync(inviteCode.Trim(), username.Trim());
                     }
-                }
-
-                // Sync user to Firebase for Flutter app
-                var user = GetUserByUsername(username);
-                if (user != null)
-                {
-                    await FirebaseUserService.SyncUserAsync(user);
                 }
 
                 return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
@@ -182,25 +243,36 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<(bool success, string message)> LoginAsync(string username, string password)
         {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return (false, "Username and password are required.");
+            // Validate username
+            var usernameValidation = InputValidationService.ValidateUsername(username);
+            if (!usernameValidation.isValid)
+                return (false, usernameValidation.error);
+            
+            if (string.IsNullOrWhiteSpace(password))
+                return (false, "Password is required.");
 
-            using var conn2 = new SqliteConnection(ConnectionString);
-            conn2.Open();
+            // Check rate limiting - count failed attempts in last 15 minutes
+            if (IsAccountLocked(usernameValidation.sanitized))
+            {
+                var lockoutTime = GetLockoutTime(usernameValidation.sanitized);
+                return (false, $"Account temporarily locked due to too many failed attempts. Try again in {lockoutTime} minutes.");
+            }
+
+            using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
             cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
-            cmd2.Parameters.AddWithValue("@u", username.Trim());
+            cmd2.Parameters.AddWithValue("@u", usernameValidation.sanitized);
 
             using var reader = cmd2.ExecuteReader();
             if (!reader.Read())
             {
                 // Track failed login (user not found)
-                _ = LoginHistoryService.AddLoginAsync(username.Trim(), false, "User not found");
+                RecordFailedLoginAttempt(usernameValidation.sanitized);
+                _ = LoginHistoryService.AddLoginAsync(usernameValidation.sanitized, false, "User not found");
                 return (false, "Invalid username or password.");
             }
 
             var user = ReadUser(reader);
-            Console.WriteLine($"[AuthService] LOGIN: Username={user.Username}, Role={user.Role}, Status={user.Status}, Id={user.Id}");
 
             if (user.Status == "Disabled")
                 return (false, "Account is disabled. Contact the admin.");
@@ -214,16 +286,31 @@ namespace PinayPalBackupManager.Services
             if (!VerifyPassword(password, user.Salt, user.PasswordHash))
             {
                 // Track failed login
+                RecordFailedLoginAttempt(user.Username);
                 _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
-                return (false, "Invalid username or password.");
+                
+                var failedCount = GetFailedLoginCount(user.Username);
+                if (failedCount >= 5)
+                {
+                    return (false, "Account temporarily locked due to too many failed attempts. Please wait 15 minutes before trying again.");
+                }
+                
+                var remainingAttempts = 5 - failedCount;
+                return (false, $"Invalid username or password. {remainingAttempts} attempts remaining before account lockout.");
             }
 
+            // Clear failed login attempts on successful login
+            ClearFailedLoginAttempts(user.Username);
+            
             CurrentUser = user;
-            Console.WriteLine($"[AuthService] LOGIN SUCCESS: CurrentUser set to {user.Username} with Role={user.Role}");
             OnUserChanged?.Invoke(user);
             
             // Track successful login
             _ = LoginHistoryService.AddLoginAsync(user.Username, true);
+            
+            // Start session timeout monitoring
+            SessionTimeoutService.Start();
+            SessionTimeoutService.OnSessionTimeout += HandleSessionTimeout;
             
             return (true, $"Welcome, {user.Username}!");
         }
@@ -244,10 +331,8 @@ namespace PinayPalBackupManager.Services
         public static bool LoginById(int userId)
         {
             var user = GetUserById(userId);
-            Console.WriteLine($"[AuthService] LOGINBYID: UserId={userId}, User={user?.Username}, Role={user?.Role}, Status={user?.Status}");
             if (user == null || user.Status != "Active") return false;
             CurrentUser = user;
-            Console.WriteLine($"[AuthService] LOGINBYID SUCCESS: CurrentUser set to {user.Username} with Role={user.Role}");
             OnUserChanged?.Invoke(user);
             return true;
         }
@@ -261,8 +346,7 @@ namespace PinayPalBackupManager.Services
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                 return (false, null, "Username and password are required.");
 
-            using var conn2 = new SqliteConnection(ConnectionString);
-            conn2.Open();
+            using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
             cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
             cmd2.Parameters.AddWithValue("@u", username.Trim());
@@ -306,9 +390,20 @@ namespace PinayPalBackupManager.Services
 
         public static void Logout()
         {
-            var stackTrace = System.Environment.StackTrace;
-            Console.WriteLine($"[AuthService] LOGOUT: CurrentUser was {CurrentUser?.Username} with Role={CurrentUser?.Role}");
-            Console.WriteLine($"[AuthService] LOGOUT STACK TRACE:\n{stackTrace}");
+            // Stop session timeout monitoring
+            SessionTimeoutService.Stop();
+            SessionTimeoutService.OnSessionTimeout -= HandleSessionTimeout;
+            
+            CurrentUser = null;
+            OnUserChanged?.Invoke(null);
+        }
+
+        private static void HandleSessionTimeout()
+        {
+            // Log the session timeout
+            LogAuditEvent("SESSION_TIMEOUT", CurrentUser?.Username, "Session expired due to inactivity");
+            
+            // Perform logout
             CurrentUser = null;
             OnUserChanged?.Invoke(null);
         }
@@ -328,16 +423,20 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthService] Failed to get Firebase invite code: {ex.Message}");
+                // Firebase fetch failed, will use local fallback
             }
             
-            // Use Firebase code if available, otherwise fallback to local
+            // Use Firebase code if available, otherwise fallback to local config
             var effectiveCode = !string.IsNullOrEmpty(firebaseCode) ? firebaseCode : GetInviteCodeFromConfig();
-            var hardcodedCode = "PINAYPAL2024";
-            effectiveCode = !string.IsNullOrEmpty(effectiveCode) ? effectiveCode : hardcodedCode;
+            
+            // No hardcoded fallback - if no code is configured, return null
+            if (string.IsNullOrEmpty(effectiveCode))
+            {
+                return string.Empty;
+            }
             
             // Update local database with the effective code
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Value FROM AppConfig WHERE Key = 'InviteCode'";
@@ -350,20 +449,17 @@ namespace PinayPalBackupManager.Services
                 cmd.ExecuteNonQuery();
                 return effectiveCode;
             }
-            
+
             var storedCode = result.ToString() ?? string.Empty;
-            
-            // If Firebase has a different code, update local to match
-            if (!string.IsNullOrEmpty(firebaseCode) && !string.Equals(storedCode, firebaseCode, StringComparison.Ordinal))
+            if (storedCode != effectiveCode)
             {
-                cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
-                cmd.Parameters.AddWithValue("@v", firebaseCode);
+                cmd.CommandText = "UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+                cmd.Parameters.AddWithValue("@v", effectiveCode);
                 cmd.ExecuteNonQuery();
-                Console.WriteLine($"[AuthService] Updated local invite code from Firebase: {firebaseCode}");
-                return firebaseCode;
+                return effectiveCode;
             }
-            
-            return storedCode;
+
+            return effectiveCode;
         }
 
         // Synchronous wrapper for backward compatibility
@@ -375,8 +471,8 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthService] GetInviteCode error: {ex.Message}");
-                return GetInviteCodeFromConfig() ?? "PINAYPAL2024";
+                var configCode = GetInviteCodeFromConfig();
+                return configCode ?? string.Empty;
             }
         }
 
@@ -394,7 +490,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthService] Error reading invite code from config: {ex.Message}");
+                // Config read failed
             }
             
             return string.Empty;
@@ -403,36 +499,39 @@ namespace PinayPalBackupManager.Services
         public static string RotateInviteCode()
         {
             var newCode = GenerateInviteCode();
-            
-            // Update local database
-            using var conn = new SqliteConnection(ConnectionString);
+
+            // Update local database (INSERT or UPDATE)
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"UPDATE AppConfig SET Value = @v WHERE Key = 'InviteCode'";
+            // Try to update first, if no rows affected, insert
+            cmd.CommandText = @"
+                INSERT INTO AppConfig (Key, Value)
+                VALUES ('InviteCode', @v)
+                ON CONFLICT(Key) DO UPDATE SET Value = @v;
+            ";
             cmd.Parameters.AddWithValue("@v", newCode);
             cmd.ExecuteNonQuery();
-            
+
             // Sync to Firebase (fire-and-forget, don't block UI)
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await FirebaseInviteService.GenerateInviteCodeAsync(newCode);
-                    Console.WriteLine($"[AuthService] Firebase invite code updated: {newCode}");
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"[AuthService] Failed to sync invite code to Firebase: {ex.Message}");
+                    // Firebase sync failed
                 }
             });
-            
-            Console.WriteLine($"[AuthService] Invite code rotated: {newCode}");
+
             return newCode;
         }
 
         public static AppUser? GetUserByUsername(string username)
         {
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u COLLATE NOCASE";
@@ -448,7 +547,7 @@ namespace PinayPalBackupManager.Services
         public static List<AppUser> GetAllUsers()
         {
             var users = new List<AppUser>();
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users ORDER BY CreatedAt";
@@ -465,7 +564,7 @@ namespace PinayPalBackupManager.Services
             // Get username first for Firebase sync
             var user = GetUserById(userId);
             
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id AND Role != 'Admin'";
@@ -479,12 +578,14 @@ namespace PinayPalBackupManager.Services
                 try
                 {
                     await FirebaseUserService.UpdateUserStatusAsync(user.Username, status);
-                    Console.WriteLine($"[AuthService] Status synced to Firebase: {user.Username} -> {status}");
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"[AuthService] Failed to sync status change: {ex.Message}");
+                    // Firebase sync failed
                 }
+
+                // Log status change
+                LogAuditEvent("USER_STATUS_CHANGED", user.Username, $"New status: {status}");
             }
             
             return result;
@@ -503,7 +604,7 @@ namespace PinayPalBackupManager.Services
             if (user == null) return false;
             
             // First, mark as deleted in local DB and change password to prevent login
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Status = 'Deleted', PasswordHash = 'DELETED_USER', Salt = 'DELETED_USER' WHERE Id = @id AND Role != 'Admin'";
@@ -516,12 +617,14 @@ namespace PinayPalBackupManager.Services
                 try
                 {
                     await FirebaseUserService.RemoveUserAsync(user.Username);
-                    Console.WriteLine($"[AuthService] User deleted from Firebase: {user.Username}");
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"[AuthService] Failed to sync user deletion to Firebase: {ex.Message}");
+                    // Firebase sync failed
                 }
+
+                // Log user deletion
+                LogAuditEvent("USER_DELETED", user.Username, "User account deleted by admin");
             }
             
             return result;
@@ -535,7 +638,7 @@ namespace PinayPalBackupManager.Services
 
         public static AppUser? GetUserById(int userId)
         {
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Id = @id";
@@ -544,16 +647,6 @@ namespace PinayPalBackupManager.Services
             if (reader.Read())
                 return ReadUser(reader);
             return null;
-        }
-
-        /// <summary>
-        /// Sync remote users from Firebase to local database
-        /// COMPLETELY DISABLED for debugging - local database only
-        /// </summary>
-        public static async Task SyncRemoteUsersAsync()
-        {
-            Console.WriteLine("[AuthService] SyncRemoteUsersAsync completely disabled - local database only");
-            return;
         }
 
         public static bool VerifyPassword(int userId, string password)
@@ -571,7 +664,7 @@ namespace PinayPalBackupManager.Services
             var salt = GenerateSalt();
             var hash = HashPassword(newPassword, salt);
 
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET PasswordHash = @h, Salt = @s WHERE Id = @id";
@@ -582,7 +675,8 @@ namespace PinayPalBackupManager.Services
 
             if (result)
             {
-                Console.WriteLine($"[AuthService] Password changed for user ID {userId}");
+                // Log password change
+                LogAuditEvent("PASSWORD_CHANGED", user.Username, "Password changed by user or admin");
             }
 
             return result;
@@ -595,7 +689,7 @@ namespace PinayPalBackupManager.Services
 
             var oldUsername = user.Username;
 
-            using var conn = new SqliteConnection(ConnectionString);
+            using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Username = @u WHERE Id = @id";
@@ -622,11 +716,14 @@ namespace PinayPalBackupManager.Services
                         if (updatedUser != null)
                             await FirebaseUserService.SyncUserAsync(updatedUser);
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"[AuthService] Failed to sync username change to Firebase: {ex.Message}");
+                        // Firebase sync failed
                     }
                 });
+
+                // Log username change
+                LogAuditEvent("USERNAME_CHANGED", newUsername, $"Changed from: {oldUsername}");
             }
 
             return result;
@@ -636,7 +733,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                using var conn = new SqliteConnection(ConnectionString);
+                using var conn = DatabaseService.GetConnection();
                 conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "UPDATE Users SET AvatarPath = @a WHERE Id = @id";
@@ -644,25 +741,19 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@id", userId);
                 var result = cmd.ExecuteNonQuery() > 0;
 
-                if (result)
-                {
-                    Console.WriteLine($"[AuthService] Avatar updated for user ID {userId}");
-                }
-
                 return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthService] Failed to update avatar: {ex.Message}");
                 return false;
             }
         }
 
-        public static string? GetUserAvatar(int userId)
+        public static string? GetAvatarPath(int userId)
         {
             try
             {
-                using var conn = new SqliteConnection(ConnectionString);
+                using var conn = DatabaseService.GetConnection();
                 conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT AvatarPath FROM Users WHERE Id = @id";
@@ -674,6 +765,12 @@ namespace PinayPalBackupManager.Services
             {
                 return null;
             }
+        }
+
+        [Obsolete("Use GetAvatarPath instead")]
+        public static string? GetUserAvatar(int userId)
+        {
+            return GetAvatarPath(userId);
         }
 
         // ── Helpers ──
@@ -694,19 +791,20 @@ namespace PinayPalBackupManager.Services
 
         private static string GenerateSalt()
         {
-            // Use timestamp-based salt for Flutter app compatibility
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(timestamp.ToString()));
+            // Generate cryptographically secure random salt
+            byte[] salt = new byte[16];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+            }
+            return Convert.ToBase64String(salt);
         }
 
         private static string HashPassword(string password, string salt)
         {
-            // Use SHA256 with salt for Flutter app compatibility
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            var combined = password + salt;
-            var bytes = Encoding.UTF8.GetBytes(combined);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
+            // Use BCrypt for secure password hashing
+            // BCrypt automatically handles salt generation, but we store external salt for compatibility
+            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
         }
         
         private static string HashPasswordPBKDF2(string password, string salt)
@@ -722,14 +820,49 @@ namespace PinayPalBackupManager.Services
         
         private static bool VerifyPassword(string password, string salt, string storedHash)
         {
-            // Try SHA256 first (new method for Flutter app)
-            var sha256Hash = HashPassword(password, salt);
-            if (string.Equals(sha256Hash, storedHash, StringComparison.Ordinal))
-                return true;
+            try
+            {
+                // Try BCrypt first (new secure method)
+                if (BCrypt.Net.BCrypt.Verify(password, storedHash))
+                    return true;
+            }
+            catch
+            {
+                // BCrypt verification failed, try legacy methods
+            }
+            
+            // Fallback to SHA256 (for Flutter app compatibility)
+            try
+            {
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var combined = password + salt;
+                var bytes = Encoding.UTF8.GetBytes(combined);
+                var hash = sha256.ComputeHash(bytes);
+                var sha256Hash = Convert.ToBase64String(hash);
+                if (string.Equals(sha256Hash, storedHash, StringComparison.Ordinal))
+                    return true;
+            }
+            catch
+            {
+                // SHA256 verification failed
+            }
             
             // Fallback to PBKDF2 (old method for existing PC app users)
-            var pbkdf2Hash = HashPasswordPBKDF2(password, salt);
-            return string.Equals(pbkdf2Hash, storedHash, StringComparison.Ordinal);
+            try
+            {
+                using var pbkdf2 = new Rfc2898DeriveBytes(
+                    Encoding.UTF8.GetBytes(password),
+                    Convert.FromBase64String(salt),
+                    100_000,
+                    HashAlgorithmName.SHA256);
+                var pbkdf2Hash = Convert.ToBase64String(pbkdf2.GetBytes(32));
+                return string.Equals(pbkdf2Hash, storedHash, StringComparison.Ordinal);
+            }
+            catch
+            {
+                // All verification methods failed
+                return false;
+            }
         }
 
         private static string GenerateInviteCode()
@@ -741,5 +874,366 @@ namespace PinayPalBackupManager.Services
                 .Select(s => s[random.Next(s.Length)]).ToArray());
             return code;
         }
+
+        // ── Rate Limiting ──
+
+        private static bool IsAccountLocked(string username)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT COUNT(*) FROM FailedLoginAttempts 
+                    WHERE Username = @u 
+                    AND AttemptTime > datetime('now', '-15 minutes')";
+                cmd.Parameters.AddWithValue("@u", username);
+                var count = Convert.ToInt32(cmd.ExecuteScalar());
+                return count >= 5;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static int GetLockoutTime(string username)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT datetime(AttemptTime, '+15 minutes') - datetime('now') as remaining_minutes
+                    FROM FailedLoginAttempts 
+                    WHERE Username = @u 
+                    ORDER BY AttemptTime DESC 
+                    LIMIT 1";
+                cmd.Parameters.AddWithValue("@u", username);
+                var result = cmd.ExecuteScalar();
+                if (result != null && result != DBNull.Value)
+                {
+                    var remaining = Convert.ToInt32(result);
+                    return Math.Max(1, remaining);
+                }
+                return 15;
+            }
+            catch
+            {
+                return 15;
+            }
+        }
+
+        private static void RecordFailedLoginAttempt(string username)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "INSERT INTO FailedLoginAttempts (Username, AttemptTime, IpAddress) VALUES (@u, datetime('now'), NULL)";
+                cmd.Parameters.AddWithValue("@u", username);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                // Ignore errors - rate limiting is a security feature, not critical
+            }
+        }
+
+        private static void ClearFailedLoginAttempts(string username)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "DELETE FROM FailedLoginAttempts WHERE Username = @u";
+                cmd.Parameters.AddWithValue("@u", username);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                // Ignore errors - rate limiting is a security feature, not critical
+            }
+        }
+
+        private static int GetFailedLoginCount(string username)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT COUNT(*) FROM FailedLoginAttempts 
+                    WHERE Username = @u 
+                    AND AttemptTime > datetime('now', '-15 minutes')";
+                cmd.Parameters.AddWithValue("@u", username);
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        public static void ClearFailedLoginAttemptsForUser(string username)
+        {
+            ClearFailedLoginAttempts(username);
+        }
+
+        // ── Audit Logging ──
+
+        private static void LogAuditEvent(string action, string targetUser = null, string details = null)
+        {
+            try
+            {
+                var actor = CurrentUser?.Username ?? "System";
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO AuditLog (Action, Actor, TargetUser, Details, Timestamp)
+                    VALUES (@action, @actor, @target, @details, datetime('now'))";
+                cmd.Parameters.AddWithValue("@action", action);
+                cmd.Parameters.AddWithValue("@actor", actor);
+                cmd.Parameters.AddWithValue("@target", targetUser ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@details", details ?? (object)DBNull.Value);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                // Audit logging should not break application flow
+            }
+        }
+
+        public static List<AuditLogEntry> GetAuditLogs(string targetUser = null, int limit = 100)
+        {
+            var logs = new List<AuditLogEntry>();
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                if (string.IsNullOrEmpty(targetUser))
+                {
+                    cmd.CommandText = @"
+                        SELECT Action, Actor, TargetUser, Details, Timestamp
+                        FROM AuditLog
+                        ORDER BY Timestamp DESC
+                        LIMIT @limit";
+                    cmd.Parameters.AddWithValue("@limit", limit);
+                }
+                else
+                {
+                    cmd.CommandText = @"
+                        SELECT Action, Actor, TargetUser, Details, Timestamp
+                        FROM AuditLog
+                        WHERE TargetUser = @target OR Actor = @target
+                        ORDER BY Timestamp DESC
+                        LIMIT @limit";
+                    cmd.Parameters.AddWithValue("@target", targetUser);
+                    cmd.Parameters.AddWithValue("@limit", limit);
+                }
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    logs.Add(new AuditLogEntry
+                    {
+                        Action = reader.GetString(0),
+                        Actor = reader.GetString(1),
+                        TargetUser = reader.IsDBNull(2) ? null : reader.GetString(2),
+                        Details = reader.IsDBNull(3) ? null : reader.GetString(3),
+                        Timestamp = DateTime.Parse(reader.GetString(4))
+                    });
+                }
+            }
+            catch
+            {
+                // Return empty list on error
+            }
+            return logs;
+        }
+
+        public static void ClearAuditLogs(int daysToKeep = 90)
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "DELETE FROM AuditLog WHERE Timestamp < datetime('now', '-' || @days || ' days')";
+                cmd.Parameters.AddWithValue("@days", daysToKeep);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+
+        /// <summary>
+        /// Request a password reset for a user by username
+        /// </summary>
+        public static async Task<(bool success, string message)> RequestPasswordResetAsync(string username)
+        {
+            // Validate username
+            var usernameValidation = InputValidationService.ValidateUsername(username);
+            if (!usernameValidation.isValid)
+                return (false, usernameValidation.error);
+
+            // Get user by username
+            var user = GetUserByUsername(usernameValidation.sanitized);
+            if (user == null)
+            {
+                // Don't reveal if user exists for security
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Password reset requested for non-existent user: {usernameValidation.sanitized}", "", "Warning", "SYSTEM");
+                return (true, "If the account exists, a password reset link has been sent to the associated email.");
+            }
+
+            // Check if user is active
+            if (user.Status != "Active")
+            {
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Password reset requested for inactive user: {usernameValidation.sanitized}", "", "Warning", "SYSTEM");
+                return (true, "If the account exists and is active, a password reset link has been sent.");
+            }
+
+            try
+            {
+                // Invalidate any existing tokens for this user
+                await PasswordResetService.InvalidateUserTokensAsync(user.Id);
+
+                // Generate new reset token
+                var resetToken = await PasswordResetService.GenerateResetTokenAsync(user.Id);
+
+                // Send password reset email (in production, this would send actual email)
+                var resetLink = await PasswordResetService.SendPasswordResetEmailAsync(user.Username, resetToken);
+
+                // Log the password reset request
+                LogAuditEvent("PASSWORD_RESET_REQUESTED", user.Username, $"Password reset requested");
+
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Password reset requested for user: {usernameValidation.sanitized}", "", "Information", "SYSTEM");
+
+                return (true, "If the account exists, a password reset link has been sent to the associated email.");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Error requesting password reset: {ex.Message}", "", "Error", "SYSTEM");
+                return (false, "An error occurred while requesting password reset. Please try again.");
+            }
+        }
+
+        /// <summary>
+        /// Reset password using a valid reset token
+        /// </summary>
+        public static async Task<(bool success, string message)> ResetPasswordAsync(string token, string newPassword)
+        {
+            // Validate new password
+            if (string.IsNullOrWhiteSpace(newPassword))
+                return (false, "Password is required.");
+
+            if (newPassword.Length < 8)
+                return (false, "Password must be at least 8 characters long.");
+
+            if (!newPassword.Any(char.IsUpper))
+                return (false, "Password must contain at least one uppercase letter.");
+
+            if (!newPassword.Any(char.IsLower))
+                return (false, "Password must contain at least one lowercase letter.");
+
+            if (!newPassword.Any(char.IsDigit))
+                return (false, "Password must contain at least one digit.");
+
+            var specialChars = "!@#$%^&*()_+-=[]{}|;':\",.<>?";
+            if (!newPassword.Any(c => specialChars.Contains(c)))
+                return (false, "Password must contain at least one special character.");
+
+            // Validate token
+            var isValidToken = await PasswordResetService.ValidateTokenAsync(token);
+            if (!isValidToken)
+            {
+                LogService.WriteLiveLog("[PASSWORD_RESET] Invalid or expired reset token", "", "Warning", "SYSTEM");
+                return (false, "Invalid or expired reset token. Please request a new password reset.");
+            }
+
+            // Get user ID from token
+            var userId = await PasswordResetService.GetUserIdByTokenAsync(token);
+            if (userId == null)
+            {
+                LogService.WriteLiveLog("[PASSWORD_RESET] Could not find user for token", "", "Error", "SYSTEM");
+                return (false, "Invalid reset token.");
+            }
+
+            try
+            {
+                // Get user
+                var user = GetUserById(userId.Value);
+                if (user == null)
+                {
+                    LogService.WriteLiveLog($"[PASSWORD_RESET] User not found for ID: {userId}", "", "Error", "SYSTEM");
+                    return (false, "User not found.");
+                }
+
+                // Generate new password hash
+                var newHash = HashPassword(newPassword, string.Empty);
+
+                // Update password in database
+                using var conn = DatabaseService.GetConnection();
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "UPDATE Users SET PasswordHash = @hash WHERE Id = @userId";
+                cmd.Parameters.AddWithValue("@hash", newHash);
+                cmd.Parameters.AddWithValue("@userId", userId.Value);
+                await cmd.ExecuteNonQueryAsync();
+
+                // Mark token as used
+                await PasswordResetService.MarkTokenAsUsedAsync(token);
+
+                // Invalidate all other tokens for this user
+                await PasswordResetService.InvalidateUserTokensAsync(userId.Value);
+
+                // Clear failed login attempts for this user
+                ClearFailedLoginAttemptsForUser(user.Username);
+
+                // Log the password reset
+                LogAuditEvent("PASSWORD_RESET_COMPLETED", user.Username, "Password reset successfully");
+
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Password reset completed for user: {user.Username}", "", "Information", "SYSTEM");
+
+                return (true, "Password has been reset successfully. You can now log in with your new password.");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Error resetting password: {ex.Message}", "", "Error", "SYSTEM");
+                return (false, "An error occurred while resetting password. Please try again.");
+            }
+        }
+
+        /// <summary>
+        /// Clean up expired password reset tokens (should be called periodically)
+        /// </summary>
+        public static async Task CleanupExpiredResetTokensAsync()
+        {
+            try
+            {
+                await PasswordResetService.CleanupExpiredTokensAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[PASSWORD_RESET] Error cleaning up expired tokens: {ex.Message}", "", "Error", "SYSTEM");
+            }
+        }
     }
+}
+
+public class AuditLogEntry
+{
+    public string Action { get; set; } = "";
+    public string Actor { get; set; } = "";
+    public string? TargetUser { get; set; }
+    public string? Details { get; set; }
+    public DateTime Timestamp { get; set; }
 }

@@ -2,6 +2,86 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+
+## [2.10.0] - 2026-05-16
+
+### Added
+- **Main Navigation for Management Controls**: Added 5 new sidebar navigation buttons for controls previously only accessible via Settings:
+  - Health Check - System health monitoring now accessible directly from sidebar
+  - Error Reports - Error log viewing now accessible directly from sidebar
+  - Performance Metrics - Performance monitoring now accessible directly from sidebar
+  - Backup History - Backup history viewing now accessible directly from sidebar
+  - Backup Schedule - Schedule management now accessible directly from sidebar
+- **Navigation Window Methods**: Added proper window wrapper methods for all new navigation controls
+
+### Fixed
+- **Critical SMS Notification Placeholder**: Replaced placeholder SMS implementation with real Twilio SMS API integration
+  - Added Twilio credential parsing from appsettings.json (AccountSID:AuthToken:FromNumber format)
+  - Implemented batch SMS sending for multiple recipients
+  - Added comprehensive error handling and logging
+- **Critical Performance Metrics Fake Data**: Fixed hardcoded 5-minute duration placeholder
+  - Implemented ExtractDurationFromLog() method to parse real durations from backup log files
+  - Added regex patterns to detect actual backup completion times from FTP, SQL, and Mailchimp logs
+  - Performance metrics now show real backup durations instead of fake data
+- **Service Initialization**: Added 11 missing services to Program.cs startup
+  - All services now properly initialized with correct parameters
+  - Fixed build errors by removing Initialize calls for services without such methods
+- **Empty Catch Blocks**: Fixed 16 empty catch blocks across 5 services with proper error logging
+  - ConfigService.cs - Fixed 4 empty catch blocks in FindConfigPaths, SaveOperation, SaveHttpServerSettings, SaveSchedule
+  - AutoStartService.cs - Fixed 2 empty catch blocks in Enable, Disable
+  - SessionService.cs - Fixed 3 empty catch blocks in SaveSession, LoadSession, ClearSession
+  - SystemStatusService.cs - Fixed 3 empty catch blocks in GetUptimeAsync, GetActiveProcessCountAsync, GetDiskSpaceAsync
+  - ThemeService.cs - Fixed 3 empty catch blocks in Load, Save, SaveCustomSettings
+- **Navigation Layout Issues**: Fixed overlapping and cutting in new navigation buttons
+  - Added proper margins (Margin="0,2,0,0") to prevent button overlap
+  - Added TextTrimming (CharacterEllipsis) to prevent text cutoff
+  - Maintained consistent spacing with existing sidebar layout
+
+### Changed
+- **Navigation Accessibility**: All management controls now accessible via main sidebar navigation
+- **Error Handling**: Comprehensive error logging throughout all services
+- **Build Quality**: Maintained 0 errors, 47 warnings
+
+### Technical
+- **Build**: Succeeded with 0 errors, 47 warnings
+- **Dependencies**: No new dependencies added
+- **Compatibility**: Maintained Avalonia 11 compatibility
+
+## [2.9.9] - 2026-05-11
+
+### Added
+- **UI Components for New Backend Services**: Added 5 new management UI components:
+  - Health Check Control - System health monitoring with component checks, resource monitoring, and status reporting
+  - Error Report Viewer - Error log viewing with filtering, detailed error information, and export capabilities
+  - Performance Metrics Control - Performance monitoring with success rates, backup times, and metric summaries
+  - Backup History Control - Backup history viewing with filtering, clearing old entries, and export functionality
+  - Backup Schedule Control - Schedule management with create/edit/delete/enable/disable operations
+
+### Fixed
+- **UI Layout Issues**: Fixed content cutting off and overlapping in management dialogs
+- **Close Button Centering**: Fixed close button hover alignment in all dialogs
+- **Component Grid Layout**: Fixed text rendering overlap in Health Check component
+- **System Resources Display**: Fixed empty System Resources section by implementing dynamic population
+- **Form Scrolling**: Fixed Backup Schedule form being cut off at bottom
+- **Filter Layouts**: Fixed overlapping filter controls in Error Reports and Backup History
+
+### Changed
+- **Dialog Window Sizes**: Increased dimensions for better content visibility:
+  - Health Check: 600x700
+  - Performance Metrics: 600x700
+  - Error Reports: 700x800
+  - Backup History: 700x800
+  - Backup Schedules: 700x800
+- **Window Styling**: Removed title bars and added transparent backgrounds with no chrome
+- **Dark Theme**: Applied consistent dark theme (#0D1117, #161B22) to all management dialogs
+
+### Technical
+- **Build**: Maintained 0 errors, 53 warnings
+- **Dependencies**: No new dependencies added
+- **Compatibility**: Maintained Avalonia 11 compatibility
+
 ## [2.9.8] - 2026-05-02
 
 ### Added

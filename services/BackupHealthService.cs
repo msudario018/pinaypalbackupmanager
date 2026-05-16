@@ -250,23 +250,75 @@ namespace PinayPalBackupManager.Services
                 if (!File.Exists(logFile)) continue;
 
                 var logs = GetRecentLogs(logFile, since);
-                var sessions = logs.Where(l => l.Contains("SESSION:"));
+                
+                // Extract real durations from completion logs
+                var completionLogs = logs.Where(l => 
+                    l.Contains("completed in") || 
+                    l.Contains("finished in") || 
+                    l.Contains("backup completed") ||
+                    l.Contains("BACKUP_PROGRESS] Backup completed") ||
+                    l.Contains("Backup completed successfully"));
 
-                foreach (var session in sessions)
+                foreach (var completionLog in completionLogs)
                 {
-                    // Look for completion logs with timing info
-                    var sessionTime = ParseLogTime(session) ?? DateTime.Now;
-                    // This would need enhancement to extract actual duration from logs
-                    metrics.Add(new PerformanceMetric
+                    var sessionTime = ParseLogTime(completionLog) ?? DateTime.Now;
+                    var duration = ExtractDurationFromLog(completionLog);
+                    
+                    if (duration > TimeSpan.Zero)
                     {
-                        Service = service,
-                        Date = sessionTime,
-                        Duration = TimeSpan.FromMinutes(5) // Placeholder
-                    });
+                        metrics.Add(new PerformanceMetric
+                        {
+                            Service = service,
+                            Date = sessionTime,
+                            Duration = duration
+                        });
+                    }
                 }
             }
 
             return metrics;
+        }
+
+        /// <summary>
+        /// Extract real duration from log entries that contain timing information
+        /// </summary>
+        private static TimeSpan ExtractDurationFromLog(string logLine)
+        {
+            try
+            {
+                // Pattern: "completed in 2.5 minutes" or "completed in 150 seconds"
+                var minutesMatch = System.Text.RegularExpressions.Regex.Match(logLine, @"(\d+\.?\d*)\s*minutes?");
+                if (minutesMatch.Success && double.TryParse(minutesMatch.Groups[1].Value, out var minutes))
+                {
+                    return TimeSpan.FromMinutes(minutes);
+                }
+
+                var secondsMatch = System.Text.RegularExpressions.Regex.Match(logLine, @"(\d+\.?\d*)\s*seconds?");
+                if (secondsMatch.Success && double.TryParse(secondsMatch.Groups[1].Value, out var seconds))
+                {
+                    return TimeSpan.FromSeconds(seconds);
+                }
+
+                // Pattern: "Backup completed successfully: Service (123.45s, 1024 bytes)"
+                var secondsShortMatch = System.Text.RegularExpressions.Regex.Match(logLine, @"\((\d+\.?\d*)s,");
+                if (secondsShortMatch.Success && double.TryParse(secondsShortMatch.Groups[1].Value, out var secondsShort))
+                {
+                    return TimeSpan.FromSeconds(secondsShort);
+                }
+
+                // Pattern: "Backup completed: success in 3.2 min"
+                var minShortMatch = System.Text.RegularExpressions.Regex.Match(logLine, @"in\s+(\d+\.?\d*)\s*min");
+                if (minShortMatch.Success && double.TryParse(minShortMatch.Groups[1].Value, out var minShort))
+                {
+                    return TimeSpan.FromMinutes(minShort);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[BACKUP_HEALTH] Error extracting duration from log: {ex.Message}", "Warning", "SYSTEM");
+            }
+
+            return TimeSpan.Zero; // Return zero if no duration found
         }
 
         private static string GetLogFile(string service)

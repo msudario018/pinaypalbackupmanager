@@ -10,16 +10,16 @@
         Foreground="{DynamicResource AppText}"
         Icon="/Assets/logo.ico">
     
-    <Grid ColumnDefinitions="180, *" RowDefinitions="Auto, *, Auto, 40">
+    <Grid ColumnDefinitions="180, *" RowDefinitions="Auto, *, 40">
         <!-- Sidebar -->
-        <Border Grid.Column="0" Grid.RowSpan="4" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder2}" BorderThickness="0,0,1,0" Opacity="0.95">
+        <Border Grid.Column="0" Grid.RowSpan="2" Classes="glass-sidebar glass-shadow">
                 <Border.Effect>
-                    <DropShadowEffect OffsetX="2" OffsetY="0" BlurRadius="15" Opacity="0.15"/>
+                    <DropShadowEffect OffsetX="3" OffsetY="0" BlurRadius="25" Opacity="0.25"/>
                 </Border.Effect>
             <Grid RowDefinitions="Auto, *, Auto, Auto">
 
                 <!-- Logo Area -->
-                <Border Grid.Row="0" Padding="0,18,0,14" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
+                <Border Grid.Row="0" Padding="0,18,0,14" Classes="glass-panel" CornerRadius="0" BorderThickness="0,0,0,1">
                     <Image Source="/Assets/logo.ico" Width="34" Height="34" HorizontalAlignment="Center"/>
                 </Border>
 
@@ -63,10 +63,41 @@
                             <TextBlock Text="Statistics" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings" Padding="12,0">
+                                        <Button Classes="SideBtn" Tag="Settings" ToolTip.Tip="Settings" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource SettingsIcon}" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
                             <TextBlock Text="Settings" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="4,8"/>
+                    <Button Classes="SideBtn" Tag="HealthCheck" ToolTip.Tip="System Health Check" Padding="12,0" Margin="0,2,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 2,12M12,4A8,8 0 0,1 4,12A8,8 0 0,1 12,20A8,8 0 0,1 12,4M12,6A6,6 0 0,1 6,12A6,6 0 0,1 12,18A6,6 0 0,1 12,6M12,8A4,4 0 0,1 8,12A4,4 0 0,1 12,16A4,4 0 0,1 12,8Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Health Check" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="ErrorReports" ToolTip.Tip="Error Reports" Padding="12,0" Margin="0,2,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M12,2C6.5,2 2,6.5 2,12S6.5,22 12,22 22,17.5 22,12 17.5,2 12,2M12,20C7.59,20 4,16.41 4,12S7.59,4 12,4 20,8.59 20,12 16.41,20 12,20M12,11L8,7H11V11H8V13H11V17H13V13H16V11H13V7H16V11Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Error Reports" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="PerformanceMetrics" ToolTip.Tip="Performance Metrics" Padding="12,0" Margin="0,2,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M22,12L20,10L18,12L20,14L22,12M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,20M12,6A6,6 0 0,1 6,12A6,6 0 0,1 12,18A6,6 0 0,1 12,6M12,8A4,4 0 0,1 8,12A4,4 0 0,1 12,16A4,4 0 0,1 12,8Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Performance" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="BackupHistory" ToolTip.Tip="Backup History" Padding="12,0" Margin="0,2,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M13,3A9,9 0 0,0 4,12A9,9 0 0,0 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3M13,5A7,7 0 0,1 6,12A7,7 0 0,1 13,19A7,7 0 0,1 13,5M13,7A5,5 0 0,1 8,12A5,5 0 0,1 13,17A5,5 0 0,1 13,7M13,9A3,3 0 0,1 10,12A3,3 0 0,1 13,15A3,3 0 0,1 13,9Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Backup History" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="SideBtn" Tag="BackupSchedule" ToolTip.Tip="Backup Schedule" Padding="12,0" Margin="0,2,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2M12,6V12L16,8L12,10L8,8L12,6M12,14A2,2 0 0,1 14,16A2,2 0 0,1 12,18A2,2 0 0,1 10,16A2,2 0 0,1 12,14Z" Width="20" Height="20" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Text="Schedule" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
                     <Button Name="BtnUserManagement" Classes="SideBtn" Tag="UserManagement" ToolTip.Tip="User Management" IsVisible="False" Padding="12,0">
@@ -88,8 +119,8 @@
                 </Button>
 
                 <!-- Profile Section -->
-                <Border Grid.Row="3" Padding="0,10" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0">
-                    <Button Name="BtnProfile" Classes="SideBtn" ToolTip.Tip="Profile" Padding="12,0">
+                <Border Grid.Row="3" Padding="0,10" Classes="glass-panel" CornerRadius="0" BorderThickness="0,1,0,0">
+                    <Button Name="BtnProfile" Classes="SideBtn glass-btn" ToolTip.Tip="Profile" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <Grid Width="32" Height="32">
                                 <Ellipse Name="AvatarImageBg" Width="32" Height="32" Fill="{DynamicResource AppSurface}"/>
@@ -107,13 +138,13 @@
         </Border>
 
         <!-- Top Bar -->
-        <Border Grid.Row="0" Grid.Column="1" Height="54" Background="{DynamicResource AppTopBar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1" Opacity="0.95">
+        <Border Grid.Row="0" Grid.Column="1" Height="54" Classes="glass-topbar glass-shadow">
             <Border.Effect>
-                <DropShadowEffect OffsetX="0" OffsetY="2" BlurRadius="10" Opacity="0.1"/>
+                <DropShadowEffect OffsetX="0" OffsetY="3" BlurRadius="20" Opacity="0.2"/>
             </Border.Effect>
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     <!-- US Time Badge -->
-                    <Border Grid.Column="0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
+                    <Border Grid.Column="0" Classes="glass-panel" CornerRadius="22" HorizontalAlignment="Left" Margin="20,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
                                       Width="10" Height="10" Foreground="#6C7086"/>
@@ -125,7 +156,7 @@
                     </Border>
 
                     <!-- Manila Time Badge -->
-                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" HorizontalAlignment="Center" Margin="0,7" Padding="14,6">
+                    <Border Grid.Column="1" Classes="glass-panel" CornerRadius="22" HorizontalAlignment="Center" Margin="0,7" Padding="14,6">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" 
                                       Width="10" Height="10" Foreground="{DynamicResource AppManilaTime}"/>
@@ -140,27 +171,23 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6" Margin="0,0,16,0">
                         <!-- Bell icon with unread badge -->
                         <Grid>
-                            <Button Name="BtnNotificationCenter" ToolTip.Tip="Notification History" Cursor="Hand"
-                                    Background="{DynamicResource AppCard}" BorderThickness="0" CornerRadius="20" Padding="10,6">
+                            <Button Name="BtnNotificationCenter" Classes="glass-btn" ToolTip.Tip="Notification History" Cursor="Hand"
+                                    CornerRadius="20" Padding="10,6">
                                 <TextBlock Text="🔔" FontSize="13" VerticalAlignment="Center"/>
                             </Button>
                             <Border Name="BellBadge" Background="{DynamicResource AccentError}" CornerRadius="6" Padding="3,1" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False" Margin="0,0,2,0">
                                 <TextBlock Name="BellCount" Text="0" FontSize="8" FontWeight="Bold" Foreground="White"/>
                             </Border>
                         </Grid>
-                        <Button Name="BtnThemeToggle" ToolTip.Tip="Toggle Light/Dark Mode" Cursor="Hand"
-                                Background="{DynamicResource AppCard}" BorderThickness="0" CornerRadius="20" Padding="10,6">
-                            <TextBlock Name="TxtThemeIcon" Text="☀" FontSize="15" VerticalAlignment="Center"/>
-                        </Button>
-                        <Border Name="ConnectionStatus" ToolTip.Tip="Firebase Connection Status" Background="{DynamicResource AppCard}" CornerRadius="20" Padding="10,6">
+                                                <Border Name="ConnectionStatus" Classes="glass-panel" CornerRadius="20" Padding="10,6" ToolTip.Tip="Firebase Connection Status">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Ellipse Name="ConnectionDot" Width="8" Height="8" Fill="#6b8e6b" VerticalAlignment="Center"/>
                                 <TextBlock Name="ConnectionText" Text="Online" FontSize="10" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="22" Padding="14,6">
+                        <Border Classes="glass-panel" CornerRadius="22" Padding="14,6">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <Button Name="BtnSystemInfo" Classes="Ghost" VerticalAlignment="Center" Cursor="Hand">
+                                <Button Name="BtnSystemInfo" Classes="glass-btn" VerticalAlignment="Center" Cursor="Hand">
                                     <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"
                                               Width="10" Height="10" Foreground="{DynamicResource AppSubtext}"/>
                                 </Button>
@@ -178,16 +205,16 @@
         <ContentControl Grid.Row="1" Grid.Column="1" Name="MainContent" Margin="20,20,20,0"/>
 
         <!-- Notification Center Overlay (for click-outside-to-close) -->
-        <Border Name="NotificationOverlay" Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" IsVisible="False"
+        <Border Name="NotificationOverlay" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" IsVisible="False"
                 Background="#00000000" ZIndex="997" 
                 PointerPressed="NotificationOverlay_PointerPressed"/>
                 
         <!-- Notification Center Flyout -->
-        <Border Name="NotificationCenter" Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" IsVisible="False"
+        <Border Name="NotificationCenter" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" IsVisible="False"
                 ZIndex="998" HorizontalAlignment="Right" VerticalAlignment="Top"
                 Margin="0,58,16,0" Width="340"
                 Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12"
-                MaxHeight="420" Opacity="0.98">
+                MaxHeight="450" Opacity="0.98">
             <Border.Effect>
                 <DropShadowEffect OffsetX="-4" OffsetY="4" BlurRadius="20" Opacity="0.15"/>
             </Border.Effect>
@@ -196,16 +223,16 @@
                         <TextBlock Text="NOTIFICATIONS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" Name="BtnClearNotifications" Content="Clear all" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppMuted}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand"/>
                     </Grid>
-                    <uc:NonSwipableScrollViewer Grid.Row="1" MaxHeight="360" Margin="0,0,0,8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="True">
-                        <StackPanel Name="NotificationList" Spacing="2" Margin="8,0,8,8" VerticalAlignment="Top"/>
-                    </uc:NonSwipableScrollViewer>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="True" Padding="0,0,0,8">
+                        <StackPanel Name="NotificationList" Spacing="2" Margin="8,0,8,8"/>
+                    </ScrollViewer>
                 </Grid>
             </Border>
 
         <!-- Bottom Status Bar -->
-        <Border Grid.Row="3" Grid.Column="1" Name="StatusBar" Height="40" Background="{DynamicResource AppSidebar}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,0" Opacity="0.95">
+        <Border Grid.Row="2" Grid.ColumnSpan="2" Name="StatusBar" Height="40" Classes="glass-statusbar glass-shadow">
             <Border.Effect>
-                <DropShadowEffect OffsetX="0" OffsetY="-2" BlurRadius="10" Opacity="0.1"/>
+                <DropShadowEffect OffsetX="0" OffsetY="-3" BlurRadius="20" Opacity="0.2"/>
             </Border.Effect>
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0" Spacing="10">
@@ -213,7 +240,7 @@
                         <TextBlock Name="TxtStatus" Text="SYSTEM READY" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}"/>
                     </StackPanel>
                     
-                    <Border Grid.Column="1" Name="HealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Margin="10,5,20,5" Padding="12,0">
+                    <Border Grid.Column="1" Name="HealthBadge" Classes="glass-panel" CornerRadius="20" Margin="10,5,20,5" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Ellipse Name="HealthIndicator" Width="8" Height="8" Fill="#588157"/>
                             <TextBlock Name="TxtHealth" Text="HEALTH: ALL SYSTEMS OK" VerticalAlignment="Center" FontSize="10" FontWeight="Heavy" Foreground="{DynamicResource AppSubtext}"/>
@@ -223,7 +250,7 @@
             </Border>
 
 
-        <Border Name="StartupOverlay" Grid.RowSpan="4" Grid.Column="1" IsVisible="False" Background="#AA000000" Padding="0" ZIndex="999" Opacity="0.98">
+        <Border Name="StartupOverlay" Grid.RowSpan="3" Grid.Column="1" IsVisible="False" Background="#AA000000" Padding="0" ZIndex="999" Opacity="0.98">
                 <Grid>
                     <Border BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="16"
                             Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"

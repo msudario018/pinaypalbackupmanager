@@ -21,6 +21,8 @@ namespace PinayPalBackupManager.Services
         public int ThemeDarkHour { get; set; } = 18; // 6 PM
         public int ThemeLightHour { get; set; } = 6; // 6 AM
         public string Language { get; set; } = "en";
+        public bool SetupCompleted { get; set; } = false;
+        public int AutoIntervalMinutes { get; set; } = 60;
     }
 
     public sealed class PathsSettings
@@ -36,6 +38,7 @@ namespace PinayPalBackupManager.Services
         public string User { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string TlsFingerprint { get; set; } = string.Empty;
+        public string LocalFolder { get; set; } = string.Empty;
         public int Port { get; set; } = 21;
     }
 
@@ -46,12 +49,14 @@ namespace PinayPalBackupManager.Services
         public string Password { get; set; } = string.Empty;
         public string RemotePath { get; set; } = string.Empty;
         public string TlsFingerprint { get; set; } = string.Empty;
+        public string LocalFolder { get; set; } = string.Empty;
     }
 
     public sealed class MailchimpSettings
     {
         public string ApiKey { get; set; } = string.Empty;
         public string AudienceId { get; set; } = string.Empty;
+        public string Folder { get; set; } = string.Empty;
     }
 
     public sealed class ScheduleSettings

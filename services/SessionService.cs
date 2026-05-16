@@ -15,7 +15,10 @@ namespace PinayPalBackupManager.Services
                 File.WriteAllText(SessionFile, userId.ToString());
                 Console.WriteLine($"[SessionService] Session saved for user ID: {userId}");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SESSION] Error saving session: {ex.Message}", "Error", "SYSTEM");
+            }
         }
 
         public static int? LoadSession()
@@ -34,7 +37,10 @@ namespace PinayPalBackupManager.Services
                     return id;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SESSION] Error saving session: {ex.Message}", "Error", "SYSTEM");
+            }
             return null;
         }
 
@@ -48,7 +54,10 @@ namespace PinayPalBackupManager.Services
                     Console.WriteLine("[SessionService] Session cleared");
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SESSION] Error saving session: {ex.Message}", "Error", "SYSTEM");
+            }
         }
     }
 }

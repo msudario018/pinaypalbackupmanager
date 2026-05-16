@@ -13,6 +13,13 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **Customization**: Toggle section visibility and compact mode for personalized dashboard view
 - **Auto-Refresh**: Dashboard updates every 30 seconds for real-time status
 
+### Management Controls
+- **Health Check**: System health monitoring with component checks, resource monitoring, and status reporting
+- **Error Reports**: Error log viewing with filtering, detailed error information, and export capabilities
+- **Performance Metrics**: Performance monitoring with success rates, backup times, and metric summaries
+- **Backup History**: Backup history viewing with filtering, clearing old entries, and export functionality
+- **Backup Schedule**: Schedule management with create/edit/delete/enable/disable operations
+
 ### Service Management
 
 #### FTP Backup

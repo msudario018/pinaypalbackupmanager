@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using PinayPalBackupManager.Models;
 using Microsoft.Data.Sqlite;
@@ -23,7 +24,14 @@ namespace PinayPalBackupManager.Services
         private static bool _isInitialized = false;
         private static bool _initAttempted = false;
         private static readonly object _initLock = new object();
-        private static HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        private static readonly RateLimitedHttpClient _rateLimitedClient;
+        private static readonly CancellationTokenSource _cancellationTokenSource = new();
+        
+        static FirebaseUserService()
+        {
+            var httpClient = HttpClientFactory.Instance.PinnedClient;
+            _rateLimitedClient = new RateLimitedHttpClient(httpClient, TimeSpan.FromMilliseconds(500), 3);
+        }
         
         private static async Task<bool> EnsureInitializedAsync()
         {
@@ -39,9 +47,14 @@ namespace PinayPalBackupManager.Services
             
             try
             {
-                var response = await _httpClient.GetAsync($"{FirebaseUrl}.json");
+                var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}.json", _cancellationTokenSource.Token);
                 _isInitialized = response.IsSuccessStatusCode;
                 return _isInitialized;
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("[FirebaseUser] Initialization cancelled");
+                return false;
             }
             catch
             {
@@ -52,7 +65,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Add or update a user in Firebase (sync across PCs)
         /// </summary>
-        public static async Task<bool> SyncUserAsync(AppUser user)
+        public static async Task<bool> SyncUserAsync(AppUser user, CancellationToken cancellationToken = default)
         {
             if (!await EnsureInitializedAsync()) return false;
             
@@ -75,15 +88,21 @@ namespace PinayPalBackupManager.Services
                 var json = JsonSerializer.Serialize(userData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PutAsync(
+                var response = await _rateLimitedClient.PutAsync(
                     $"{FirebaseUrl}{UsersPath}/{user.Username}.json", 
-                    content);
+                    content,
+                    cancellationToken);
                 
                 if (response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"[FirebaseUser] Synced user: {user.Username}");
                     return true;
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine($"[FirebaseUser] User sync cancelled: {user.Username}");
+                return false;
             }
             catch (Exception ex)
             {
@@ -96,20 +115,26 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Remove a user from Firebase (when deleted locally)
         /// </summary>
-        public static async Task<bool> RemoveUserAsync(string username)
+        public static async Task<bool> RemoveUserAsync(string username, CancellationToken cancellationToken = default)
         {
             if (!await EnsureInitializedAsync()) return false;
             
             try
             {
-                var response = await _httpClient.DeleteAsync(
-                    $"{FirebaseUrl}{UsersPath}/{username}.json");
+                var response = await _rateLimitedClient.DeleteAsync(
+                    $"{FirebaseUrl}{UsersPath}/{username}.json",
+                    cancellationToken);
                 
                 if (response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"[FirebaseUser] Removed user from Firebase: {username}");
                     return true;
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine($"[FirebaseUser] User removal cancelled: {username}");
+                return false;
             }
             catch (Exception ex)
             {
@@ -146,7 +171,7 @@ namespace PinayPalBackupManager.Services
                     Content = content
                 };
                 
-                var response = await _httpClient.SendAsync(request);
+                var response = await _rateLimitedClient.SendAsync(request, _cancellationTokenSource.Token);
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -189,7 +214,7 @@ namespace PinayPalBackupManager.Services
                     Content = content
                 };
                 
-                var response = await _httpClient.SendAsync(request);
+                var response = await _rateLimitedClient.SendAsync(request, _cancellationTokenSource.Token);
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -234,9 +259,10 @@ namespace PinayPalBackupManager.Services
                 var json = JsonSerializer.Serialize(userData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PutAsync(
+                var response = await _rateLimitedClient.PutAsync(
                     $"{FirebaseUrl}{UsersPath}/{newUsername}.json", 
-                    content);
+                    content,
+                    _cancellationTokenSource.Token);
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -263,7 +289,7 @@ namespace PinayPalBackupManager.Services
             
             try
             {
-                var response = await _httpClient.GetAsync($"{FirebaseUrl}{UsersPath}.json");
+                var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}{UsersPath}.json", _cancellationTokenSource.Token);
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
@@ -323,7 +349,7 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    var response = await _httpClient.GetAsync($"{FirebaseUrl}{UsersPath}/{username}.json");
+                    var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}{UsersPath}/{username}.json", _cancellationTokenSource.Token);
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadAsStringAsync();
@@ -394,9 +420,10 @@ namespace PinayPalBackupManager.Services
                 var json = JsonSerializer.Serialize(userData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PutAsync(
+                var response = await _rateLimitedClient.PutAsync(
                     $"{FirebaseUrl}{UsersPath}/{username}.json",
-                    content);
+                    content,
+                    _cancellationTokenSource.Token);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -425,7 +452,7 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    var response = await _httpClient.GetAsync($"{FirebaseUrl}{UsersPath}.json");
+                    var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}{UsersPath}.json", _cancellationTokenSource.Token);
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadAsStringAsync();
