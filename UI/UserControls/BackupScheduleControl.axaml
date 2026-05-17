@@ -1,29 +1,30 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.BackupScheduleControl">
-    <Border Background="#0D1117" CornerRadius="12" Padding="0">
-        <StackPanel Spacing="0">
-            <!-- Header with Close Button -->
-            <Grid Background="#161B22" Height="50" ColumnDefinitions="*, Auto">
-                <TextBlock Grid.Column="0" Text="BACKUP SCHEDULES" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" FontSize="14" VerticalAlignment="Center" Margin="20,0"/>
-                <Button Name="BtnClose" Grid.Column="1" Content="✕" Classes="Ghost" Width="40" Height="40" Margin="10" FontSize="18" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="BACKUP SCHEDULES" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Manage automated backup schedules" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <Button Name="BtnCreate" Grid.Column="1" Content="New Schedule" Classes="Primary"
+                        BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand" VerticalAlignment="Center"/>
             </Grid>
 
             <!-- Content -->
-            <ScrollViewer Name="MainScrollViewer" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" Name="MainScrollViewer" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20" Margin="20">
-                    <!-- Header -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Grid.Column="0" Spacing="5">
-                                <TextBlock Name="TxtSummary" Text="Loading..." Foreground="#8B949E" FontSize="12"/>
-                            </StackPanel>
-                            <Button Name="BtnCreate" Grid.Column="1" Classes="Primary" Content="New Schedule" Margin="10,0,0,0"/>
-                        </Grid>
+                    <!-- Summary -->
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="5">
+                            <TextBlock Name="TxtSummary" Text="Loading..." Foreground="{DynamicResource AppMuted}" FontSize="12"/>
+                        </StackPanel>
                     </Border>
 
                     <!-- Schedule List -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="15">
                             <TextBlock Text="ACTIVE SCHEDULES" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
                             <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
@@ -33,7 +34,7 @@
                     </Border>
 
                     <!-- Create/Edit Form -->
-                    <Border Name="BorderForm" Background="#161B22" CornerRadius="12" Padding="20" IsVisible="False" Margin="0,0,0,20">
+                    <Border Name="BorderForm" Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20" IsVisible="False" Margin="0,0,0,20">
                         <StackPanel Spacing="15">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="SCHEDULE DETAILS" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
@@ -41,12 +42,12 @@
                             </Grid>
                             
                             <StackPanel Spacing="10">
-                                <TextBlock Text="Name:" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Name:" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <TextBox Name="TxtName" Watermark="Schedule name"/>
                             </StackPanel>
 
                             <StackPanel Spacing="10">
-                                <TextBlock Text="Service:" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Service:" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <ComboBox Name="CmbService" SelectedIndex="0">
                                     <ComboBoxItem Content="all"/>
                                     <ComboBoxItem Content="ftp"/>
@@ -56,7 +57,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="10">
-                                <TextBlock Text="Type:" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Type:" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <ComboBox Name="CmbType" SelectionChanged="OnTypeChanged">
                                     <ComboBoxItem Content="Once"/>
                                     <ComboBoxItem Content="Daily"/>
@@ -67,18 +68,18 @@
                             </StackPanel>
 
                             <StackPanel Name="PanelInterval" Spacing="10" IsVisible="False">
-                                <TextBlock Text="Interval (hours):" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Interval (hours):" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <NumericUpDown Name="NumInterval" Value="6" Minimum="1" Maximum="168"/>
                             </StackPanel>
 
                             <StackPanel Name="PanelOneTime" Spacing="10" IsVisible="False">
-                                <TextBlock Text="Date &amp; Time:" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Date &amp; Time:" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <CalendarDatePicker Name="DateOneTime"/>
                                 <TimePicker Name="TimeOneTime" SelectedTime="12:00"/>
                             </StackPanel>
 
                             <StackPanel Spacing="10">
-                                <TextBlock Text="Backup Type:" FontWeight="SemiBold" Foreground="#8B949E" FontSize="11"/>
+                                <TextBlock Text="Backup Type:" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                                 <ComboBox Name="CmbBackupType" SelectedIndex="0">
                                     <ComboBoxItem Content="Full"/>
                                     <ComboBoxItem Content="Incremental"/>
@@ -95,6 +96,6 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

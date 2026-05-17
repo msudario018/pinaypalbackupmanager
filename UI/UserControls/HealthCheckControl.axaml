@@ -1,30 +1,31 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.HealthCheckControl">
-    <Border Background="#0D1117" CornerRadius="12" Padding="0">
-        <StackPanel Spacing="0">
-            <!-- Header with Close Button -->
-            <Grid Background="#161B22" Height="50" ColumnDefinitions="*, Auto">
-                <TextBlock Grid.Column="0" Text="SYSTEM HEALTH CHECK" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" FontSize="14" VerticalAlignment="Center" Margin="20,0"/>
-                <Button Name="BtnClose" Grid.Column="1" Content="✕" Classes="Ghost" Width="40" Height="40" Margin="10" FontSize="18" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="SYSTEM HEALTH CHECK" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Monitor system health and component status" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <Button Name="BtnRunCheck" Grid.Column="1" Content="Run Check" Classes="Primary"
+                        BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand" VerticalAlignment="Center"/>
             </Grid>
 
             <!-- Content -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20" Margin="20">
                     <!-- Overall Status -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Grid.Column="0" Spacing="5">
-                                <TextBlock Name="TxtOverallStatus" Text="Status: Unknown" FontWeight="Bold" FontSize="16"/>
-                                <TextBlock Name="TxtLastCheck" Text="Last check: Never" Foreground="#8B949E" FontSize="12"/>
-                            </StackPanel>
-                            <Button Name="BtnRunCheck" Grid.Column="1" Classes="Primary" Content="Run Check" Margin="10,0,0,0"/>
-                        </Grid>
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="5">
+                            <TextBlock Name="TxtOverallStatus" Text="Status: Unknown" FontWeight="Bold" FontSize="16"/>
+                            <TextBlock Name="TxtLastCheck" Text="Last check: Never" Foreground="{DynamicResource AppMuted}" FontSize="12"/>
+                        </StackPanel>
                     </Border>
 
                     <!-- Component Health -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="15">
                             <TextBlock Text="COMPONENT HEALTH" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
                             <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
@@ -34,7 +35,7 @@
                     </Border>
 
                     <!-- System Resources -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="15">
                             <TextBlock Text="SYSTEM RESOURCES" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="12"/>
                             <StackPanel Name="ResourceList" Spacing="10"/>
@@ -42,9 +43,9 @@
                     </Border>
 
                     <!-- Warnings -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="15">
-                            <TextBlock Text="WARNINGS" FontWeight="Bold" Foreground="#D29922" FontSize="12"/>
+                            <TextBlock Text="WARNINGS" FontWeight="Bold" Foreground="{DynamicResource AppWarning}" FontSize="12"/>
                             <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
                                 <StackPanel Name="WarningList" Spacing="8"/>
                             </ScrollViewer>
@@ -52,9 +53,9 @@
                     </Border>
 
                     <!-- Errors -->
-                    <Border Background="#161B22" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="15">
-                            <TextBlock Text="ERRORS" FontWeight="Bold" Foreground="#F85149" FontSize="12"/>
+                            <TextBlock Text="ERRORS" FontWeight="Bold" Foreground="{DynamicResource AccentError}" FontSize="12"/>
                             <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
                                 <StackPanel Name="ErrorList" Spacing="8"/>
                             </ScrollViewer>
@@ -68,6 +69,6 @@
                     </Grid>
                 </StackPanel>
             </ScrollViewer>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

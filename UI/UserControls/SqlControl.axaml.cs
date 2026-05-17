@@ -423,6 +423,22 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         _ = _manager.RunHealthCheckAsync();
                     }
+
+                    if (string.IsNullOrEmpty(taskError) && NetworkDriveService.IsNetworkDriveConfigured())
+                    {
+                        try
+                        {
+                            LogService.WriteLiveLog("MIRROR: Starting SQL backup mirror to network drive...", BackupConfig.SqlLogFile, "Information", trigger);
+                            await NetworkDriveService.MirrorToNetworkDriveAsync(BackupConfig.SqlLocalFolder, "SQL");
+                            LogService.WriteLiveLog("MIRROR: SQL backup mirrored successfully.", BackupConfig.SqlLogFile, "Information", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", "SQL backup mirrored to network drive.", "Success");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"MIRROR ERROR: SQL mirror failed — {ex.Message}", BackupConfig.SqlLogFile, "Error", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", $"SQL mirror failed: {ex.Message}", "Error");
+                        }
+                    }
                 }
             });
 

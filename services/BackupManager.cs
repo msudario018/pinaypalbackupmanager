@@ -97,6 +97,10 @@ namespace PinayPalBackupManager.Services
             OnAutoScanTimersReset?.Invoke();
         }
 
+        public void TriggerFtpBackup() => OnFtpAutoSyncRequested?.Invoke();
+        public void TriggerMailchimpBackup() => OnMailchimpAutoSyncRequested?.Invoke();
+        public void TriggerSqlBackup() => OnSqlAutoSyncRequested?.Invoke();
+
         public void ReportBackupProgress(string service, int percent, string status)
         {
             OnBackupProgress?.Invoke(service, percent, status);

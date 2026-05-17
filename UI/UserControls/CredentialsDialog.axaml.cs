@@ -249,7 +249,10 @@ namespace PinayPalBackupManager.UI.UserControls
                     ApiKey = GetOrPreserve(this.FindControl<TextBox>("TxtMcApiKey"), current.Mailchimp.ApiKey),
                     AudienceId = GetOrPreserve(this.FindControl<TextBox>("TxtMcAudienceId"), current.Mailchimp.AudienceId),
                 },
-                Schedule = current.Schedule
+                NetworkDrive = current.NetworkDrive,
+                Schedule = current.Schedule,
+                Operation = current.Operation,
+                HttpServer = current.HttpServer
             };
         }
     }

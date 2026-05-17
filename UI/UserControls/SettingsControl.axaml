@@ -2,10 +2,21 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:PinayPalBackupManager.UI.UserControls"
              x:Class="PinayPalBackupManager.UI.UserControls.SettingsControl">
-    <ScrollViewer>
-        <StackPanel Spacing="20">
+    <Border Background="Transparent" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="SETTINGS" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Configure application preferences and backup options" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+            </Grid>
+
+            <ScrollViewer Grid.Row="1">
+                <StackPanel Spacing="20" Margin="20">
+
             <!-- App Updates (1st) -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="{DynamicResource AccentWarning}" Margin="0,0,0,10"/>
                     <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}"/>
@@ -14,16 +25,63 @@
             </Border>
 
             <!-- Backup Health Dashboard (2nd) -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
-                <StackPanel Spacing="15">
-                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}" Margin="0,0,0,10"/>
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="BACKUP HEALTH DASHBOARD" FontWeight="Bold" Foreground="{DynamicResource AccentSuccess}" Margin="0,0,0,4"/>
+
+                    <!-- Per-service realtime status -->
+                    <Grid ColumnDefinitions="*, *, *">
+                        <!-- FTP -->
+                        <Border Grid.Column="0" Margin="0,0,6,0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Name="DiagFtpDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="FTP" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                                </StackPanel>
+                                <TextBlock Name="DiagFtpStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagFtpTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <Button Name="BtnRunFtp" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                        BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Mailchimp -->
+                        <Border Grid.Column="1" Margin="3,0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Name="DiagMcDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Mailchimp" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
+                                </StackPanel>
+                                <TextBlock Name="DiagMcStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagMcTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <Button Name="BtnRunMailchimp" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                        BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- SQL -->
+                        <Border Grid.Column="2" Margin="6,0,0,0" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Name="DiagSqlDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="SQL" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
+                                </StackPanel>
+                                <TextBlock Name="DiagSqlStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagSqlTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <Button Name="BtnRunSql" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                        BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
                     <Button Name="BtnDiagnostics" Classes="Primary Settings" Content="RUN SYSTEM DIAGNOSTICS" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                     <TextBlock Name="TxtHealthStatus" Text="Status: Pending Scan..." Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
 
             <!-- System Configuration (3rd) -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,6"/>
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
@@ -53,7 +111,7 @@
             </Border>
 
             <!-- System Information (4th) -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="SYSTEM INFORMATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="Auto, *">
@@ -70,11 +128,11 @@
             </Border>
 
             <!-- Credentials & Paths (3rd) -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
                     <TextBlock Text="CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,10"/>
                     
-                    <Grid ColumnDefinitions="*,*">
+                    <Grid ColumnDefinitions="*,*,*">
                         <Button Name="BtnEditCredentials" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Margin="0,0,5,0">
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="M12,17A2,2 0 0,1 14,19A2,2 0 0,1 12,21A2,2 0 0,1 10,19A2,2 0 0,1 12,17M12,4C14.5,4 16.5,5.5 17.3,8H17.3C17.5,8.5 18,9 18.6,9H19C20.1,9 21,9.9 21,11C21,12.1 20.1,13 19,13H17.3C17.3,13.2 17.2,13.5 17.1,13.7L15.7,15.8C15.4,16.2 15,16.4 14.5,16.4H9.5C9,16.4 8.6,16.2 8.3,15.8L6.9,13.7C6.8,13.5 6.7,13.2 6.7,13H5C3.9,13 3,12.1 3,11C3,9.9 3.9,9 5,9H5.4C6,9 6.5,8.5 6.7,8H6.7C7.5,5.5 9.5,4 12,4Z" Width="20" Height="20"/>
@@ -82,10 +140,17 @@
                             </StackPanel>
                         </Button>
                         
-                        <Button Name="BtnEditPaths" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Grid.Column="1" Margin="5,0,0,0">
+                        <Button Name="BtnEditPaths" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Grid.Column="1" Margin="5,0,5,0">
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" Width="20" Height="20"/>
                                 <TextBlock Text="Edit Paths" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Name="BtnEditNetworkDrive" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="15,12" CornerRadius="8" HorizontalAlignment="Stretch" Grid.Column="2" Margin="5,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <PathIcon Data="M15,20A1,1 0 0,0 16,19V4A1,1 0 0,0 15,3H4A1,1 0 0,0 3,4V19A1,1 0 0,0 4,20H15M4,2H15A2,2 0 0,1 17,4V19A2,2 0 0,1 15,21H4A2,2 0 0,1 2,19V4A2,2 0 0,1 4,2M22,18H19V20H22V18M22,10H19V16H22V10M22,6H19V8H22V6Z" Width="20" Height="20"/>
+                                <TextBlock Text="Network Drive" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -95,7 +160,7 @@
             </Border>
 
             <!-- Management Tools -->
-            <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="15">
                     <TextBlock Text="MANAGEMENT TOOLS" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
                     
@@ -111,6 +176,8 @@
                     </Grid>
                 </StackPanel>
             </Border>
-        </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Border>
 </UserControl>

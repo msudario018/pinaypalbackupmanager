@@ -8,8 +8,8 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **Real-time Health Monitoring**: View status of all backup services at a glance
 - **Quick Stats**: Track backups today, success rate, failed backups, and total files
 - **Storage Usage**: Monitor backup folder sizes with total HDD capacity display
-- **Daily Schedule**: Countdown to next scheduled daily sync for each service (Manila time)
-- **Recent Activity**: Live feed of recent log entries across all services
+- **Daily Schedule**: Next scheduled backup time shown in 12-hour AM/PM format for each service (Manila time)
+- **Recent Activity**: Auto-refreshing live feed of recent log entries across all services
 - **Customization**: Toggle section visibility and compact mode for personalized dashboard view
 - **Auto-Refresh**: Dashboard updates every 30 seconds for real-time status
 
@@ -52,7 +52,10 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 
 ### Security
 - User authentication with role-based access (Admin/User)
-- Encrypted credential storage
+- **AES-256 encrypted credential storage** with random per-install salt
+- **BCrypt-only password hashing** (no insecure fallbacks)
+- Path traversal protection for file downloads
+- Cryptographically secure random invite code generation
 - Secure password management
 - Firebase integration for user management
 - Admin approval workflow for new registrations
@@ -85,6 +88,34 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **FTP Local Folder**: Path where FTP backups are stored
 - **Mailchimp Folder**: Path where Mailchimp exports are saved
 - **SQL Local Folder**: Path where SQL database backups are stored
+- **Network Drive Path**: UNC or mapped path for secondary network drive backup (e.g., `\\server\share` or `Z:\Backups`)
+
+### Network Drive Backup
+The Network Drive Backup feature allows backups to be simultaneously copied to a network share (NAS, file server, or mapped drive) in addition to the local folder.
+
+**Configuration fields:**
+- **Enable Network Drive Backup**: Toggle to activate/deactivate network drive backups
+- **Network Drive Path**: UNC path (`\\server\share`) or mapped drive letter (`Z:\Backups`)
+- **Username**: Network credentials — use `domain\username` or just `username` for local accounts
+- **Password**: Password for the network share account
+
+**How it works:**
+- When enabled, after each successful local backup, files are copied to the network drive path
+- The network drive must be accessible from the PC running the backup manager
+- If the network drive is unavailable, local backups continue normally and the error is logged
+
+**Supported path formats:**
+```
+\\192.168.1.10\Backups
+\\NAS-SERVER\PinayPal
+Z:\Backups\PinayPal
+```
+
+**Troubleshooting network drive:**
+- Ensure the network path is reachable (`ping` the server or open in File Explorer)
+- Verify the username/password has write access to the share
+- For domain accounts: use `DOMAIN\username` format in the Username field
+- Check system logs under the `NETWORKDRIVE` category for detailed error messages
 
 ### Credentials
 - **FTP**: Host, username, password, port, TLS fingerprint

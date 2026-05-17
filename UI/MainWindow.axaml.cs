@@ -35,6 +35,11 @@ namespace PinayPalBackupManager.UI
         private readonly VerificationControl _verificationControl;
         private readonly StatisticsControl _statisticsControl;
         private readonly UserManagementControl _userManagementControl;
+        private readonly HealthCheckControl _healthCheckControl;
+        private readonly ErrorReportViewerControl _errorReportControl;
+        private readonly PerformanceMetricsControl _performanceControl;
+        private readonly BackupHistoryControl _backupHistoryControl;
+        private readonly BackupScheduleControl _backupScheduleControl;
         private DispatcherTimer? _activeProcessMonitorTimer;
         private DispatcherTimer? _firebasePollTimer;
         private bool _allowClose;
@@ -68,6 +73,40 @@ namespace PinayPalBackupManager.UI
             if (btnBell != null) btnBell.Click += (_, _) => ToggleNotificationCenter();
             var btnClearNotif = this.FindControl<Button>("BtnClearNotifications");
             if (btnClearNotif != null) btnClearNotif.Click += (_, _) => { NotificationHistoryService.ClearAll(); PopulateNotificationCenter(); UpdateBellBadge(); };
+
+            // Theme toggle
+            var btnTheme = this.FindControl<Button>("BtnThemeToggle");
+            var themeIcon = this.FindControl<PathIcon>("ThemeIcon");
+            if (btnTheme != null) btnTheme.Click += (_, _) => ThemeService.Toggle();
+            if (themeIcon != null)
+            {
+                const string MoonPath = "M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z";
+                const string SunPath = "M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,2L14.39,5.42C13.65,5.14 12.84,5 12,5C11.16,5 10.35,5.14 9.61,5.42L12,2M3.34,5L7.71,7.05C6.87,7.54 6.13,8.2 5.53,9L2.41,6.88L3.34,5M2,12L5.42,9.61C5.14,10.35 5,11.16 5,12C5,12.84 5.14,13.65 5.42,14.39L2,12M3.34,19L5.53,15C6.13,15.8 6.87,16.46 7.71,16.95L3.34,19M12,22L9.61,18.58C10.35,18.86 11.16,19 12,19C12.84,19 13.65,18.86 14.39,18.58L12,22M20.66,19L16.29,16.95C17.13,16.46 17.87,15.8 18.47,15L20.66,19M22,12L18.58,14.39C18.86,13.65 19,12.84 19,12C19,11.16 18.86,10.35 18.58,9.61L22,12M20.66,5L18.47,9C17.87,8.2 17.13,7.54 16.29,7.05L20.66,5Z";
+                themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(ThemeService.IsDark ? MoonPath : SunPath);
+                ThemeService.OnThemeChanged += (isDark) =>
+                {
+                    themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(isDark ? MoonPath : SunPath);
+                };
+            }
+
+            // Force refresh main window backgrounds that don't update via DynamicResource on theme change
+            ThemeService.OnThemeChanged += (isDark) =>
+            {
+                if (Application.Current?.FindResource("AppBg") is IBrush appBg)
+                    this.Background = appBg;
+
+                var sidebar = this.FindControl<Border>("SidebarBorder");
+                if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
+                    sidebar.Background = sidebarBg;
+
+                var topBar = this.FindControl<Border>("TopBarBorder");
+                if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
+                    topBar.Background = topBarBg;
+
+                var statusBar = this.FindControl<Border>("StatusBar");
+                if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
+                    statusBar.Background = statusBg;
+            };
 
             NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
 
@@ -115,6 +154,7 @@ namespace PinayPalBackupManager.UI
             _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
             _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
             _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
+            _homeControl.OnNavigateBackupHistory += () => { ShowControl(_backupHistoryControl!); UpdateSidebarSelection("BackupHistory"); };
             _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
             _homeControl.OnRunAllBackupsParallel += () => _ = RunAllBackupsParallelAsync();
             _homeControl.OnFtpSyncCheck += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.PerformSyncCheck(); };
@@ -139,6 +179,11 @@ namespace PinayPalBackupManager.UI
             _verificationControl = new VerificationControl();
             _statisticsControl = new StatisticsControl();
             _userManagementControl = new UserManagementControl();
+            _healthCheckControl = new HealthCheckControl();
+            _errorReportControl = new ErrorReportViewerControl();
+            _performanceControl = new PerformanceMetricsControl();
+            _backupHistoryControl = new BackupHistoryControl();
+            _backupScheduleControl = new BackupScheduleControl();
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;
@@ -637,100 +682,6 @@ namespace PinayPalBackupManager.UI
                 : null;
         }
 
-        private async void ShowHealthCheckWindow()
-        {
-            var control = new HealthCheckControl();
-            var window = new Window
-            {
-                Title = "System Health Check",
-                Content = control,
-                Width = 800,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await window.ShowDialog(mainWindow);
-            }
-        }
-
-        private async void ShowErrorReportWindow()
-        {
-            var control = new ErrorReportViewerControl();
-            var window = new Window
-            {
-                Title = "Error Reports",
-                Content = control,
-                Width = 900,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await window.ShowDialog(mainWindow);
-            }
-        }
-
-        private async void ShowPerformanceMetricsWindow()
-        {
-            var control = new PerformanceMetricsControl();
-            var window = new Window
-            {
-                Title = "Performance Metrics",
-                Content = control,
-                Width = 800,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await window.ShowDialog(mainWindow);
-            }
-        }
-
-        private async void ShowBackupHistoryWindow()
-        {
-            var control = new BackupHistoryControl();
-            var window = new Window
-            {
-                Title = "Backup History",
-                Content = control,
-                Width = 900,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await window.ShowDialog(mainWindow);
-            }
-        }
-
-        private async void ShowBackupScheduleWindow()
-        {
-            var control = new BackupScheduleControl();
-            var window = new Window
-            {
-                Title = "Backup Schedules",
-                Content = control,
-                Width = 800,
-                Height = 600,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen
-            };
-            
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await window.ShowDialog(mainWindow);
-            }
-        }
 
         private static string BuildChangelogSummary(string markdown)
         {
@@ -910,23 +861,23 @@ namespace PinayPalBackupManager.UI
                         break;
                     case "HealthCheck":
                         NotificationService.ShowBackupToast("Tab", "Switched to Health Check", "Info");
-                        ShowHealthCheckWindow();
+                        ShowControl(_healthCheckControl);
                         break;
                     case "ErrorReports":
                         NotificationService.ShowBackupToast("Tab", "Switched to Error Reports", "Info");
-                        ShowErrorReportWindow();
+                        ShowControl(_errorReportControl);
                         break;
                     case "PerformanceMetrics":
                         NotificationService.ShowBackupToast("Tab", "Switched to Performance Metrics", "Info");
-                        ShowPerformanceMetricsWindow();
+                        ShowControl(_performanceControl);
                         break;
                     case "BackupHistory":
                         NotificationService.ShowBackupToast("Tab", "Switched to Backup History", "Info");
-                        ShowBackupHistoryWindow();
+                        ShowControl(_backupHistoryControl);
                         break;
                     case "BackupSchedule":
                         NotificationService.ShowBackupToast("Tab", "Switched to Backup Schedule", "Info");
-                        ShowBackupScheduleWindow();
+                        ShowControl(_backupScheduleControl);
                         break;
                 }
             }

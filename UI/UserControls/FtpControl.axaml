@@ -16,11 +16,25 @@
 
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Tab Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="FTP BACKUP" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Sync and backup website files via FTP" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Name="BtnSyncCheck" Classes="Secondary" Content="Sync Check"/>
+                    <Button Name="BtnTest" Classes="Secondary" Content="Test Connection"/>
+                </StackPanel>
+            </Grid>
 
-        <!-- Header -->
+            <Grid Grid.Row="1" RowDefinitions="Auto, Auto, Auto, *, Auto" Margin="20">
 
-        <Border Grid.Row="0" Background="{DynamicResource AccentFtpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
+                <!-- Status Bar -->
+
+                <Border Grid.Row="0" Background="{DynamicResource AccentFtpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
 
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
 
@@ -80,13 +94,7 @@
         <!-- Utility Buttons -->
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15" HorizontalAlignment="Right">
-
-            <Button Name="BtnSyncCheck" Classes="Secondary" Content="Sync Check"/>
-
-            <Button Name="BtnTest" Classes="Secondary" Content="Test Connection"/>
-
             <Button Name="BtnClear" Classes="Secondary" Content="Clear"/>
-
         </StackPanel>
 
 
@@ -116,7 +124,9 @@
                 BorderBrush="{DynamicResource AppBorder}" Margin="0,15,0,0" Padding="10" CornerRadius="12"/>
 
 
-    </Grid>
+            </Grid>
+        </Grid>
+    </Border>
 
 
     <UserControl.Styles>

@@ -118,13 +118,9 @@ namespace PinayPalBackupManager
 
         private void ShowSetupWizard(IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Setup wizard disabled - show main window directly
-            ShowMainWindow(desktop, null);
-            
-            // var wizard = new SetupWizardWindow();
-            // wizard.OnSetupComplete += () => ShowMainWindow(desktop, null);
-            // desktop.MainWindow = wizard;
-            // wizard.Show();
+            // Setup wizard disabled - go through login so auth is always established
+            ConfigService.MarkSetupComplete();
+            ShowLogin(desktop);
         }
     }
 }

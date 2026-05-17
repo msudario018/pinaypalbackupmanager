@@ -28,17 +28,19 @@
                                         <TextBlock Text="{Binding Code}" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
                                         <TextBlock Text="{Binding CreatedAt}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{Binding IsUsed}" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center" Margin="10,0"/>
-                                    <Button Grid.Column="2" Name="BtnDeleteInviteCode" Classes="Danger" Content="Delete" Padding="8,4" FontSize="10" Margin="5,0,0,0"/>
+                                    <Border Grid.Column="1" Background="{Binding IsUsed, Converter={StaticResource BoolToStatusBrush}}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="10,0">
+                                        <TextBlock Text="{Binding IsUsed, Converter={StaticResource BoolToStatusText}}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button Grid.Column="2" Classes="Danger" Content="Delete" Padding="8,4" FontSize="10" Margin="5,0,0,0"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                     
-                    <Grid ColumnDefinitions="Auto, Auto" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
                         <Button Name="BtnRefreshInviteCodes" Content="REFRESH CODES" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="12,6" FontSize="11" Cursor="Hand"/>
-                        <Button Name="BtnCleanupOldCodes" Content="CLEANUP OLD CODES" Classes="Danger" Margin="10,0,0,0" Padding="12,6" FontSize="11" Cursor="Hand" Click="OnCleanupOldCodesClick"/>
-                    </Grid>
+                        <Button Name="BtnCleanupOldCodes" Content="CLEANUP OLD CODES" Classes="Danger" Padding="12,6" FontSize="11" Cursor="Hand" Click="OnCleanupOldCodesClick"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

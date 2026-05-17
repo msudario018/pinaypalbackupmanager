@@ -34,6 +34,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public event Action? OnNavigateFtp;
         public event Action? OnNavigateMailchimp;
         public event Action? OnNavigateSql;
+        public event Action? OnNavigateBackupHistory;
         public event Action? OnRunAllChecks;
         public event Action? OnRunAllBackupsParallel;
         public event Action? OnEmergencyStop;
@@ -46,6 +47,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private bool _autoPinged;
         private bool _maintenancePaused;
+        private DateTime _lastActivityRefresh = DateTime.MinValue;
 
         public HomeControl() : this(null!)
         {
@@ -75,6 +77,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _manager.OnHealthUpdate += OnHealthUpdate;
             _manager.OnTimeUpdate += OnTimeUpdate;
             _manager.OnBackupProgress += OnBackupProgress;
+            NetworkDriveService.OnMirrorProgress += OnMirrorProgressUpdate;
 
             // Start active process update timer (every 1 second for real-time updates)
             _activeProcessUpdateTimer = new System.Timers.Timer(1000);
@@ -84,12 +87,14 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnGoFtp")!.Click += (_, _) => OnNavigateFtp?.Invoke();
             this.FindControl<Button>("BtnGoMailchimp")!.Click += (_, _) => OnNavigateMailchimp?.Invoke();
             this.FindControl<Button>("BtnGoSql")!.Click += (_, _) => OnNavigateSql?.Invoke();
+            var btnHeatmapMore = this.FindControl<Button>("BtnHeatmapMore");
+            if (btnHeatmapMore != null)
+                btnHeatmapMore.Click += (_, _) => OnNavigateBackupHistory?.Invoke();
             
             // Run All - triggers parallel backup
             this.FindControl<Button>("BtnRunAllChecks")!.Click += (_, _) => OnRunAllBackupsParallel?.Invoke();
             
             this.FindControl<Button>("BtnViewAllBackups")!.Click += (_, _) => OpenFolder(BackupConfig.FtpLocalFolder);
-            this.FindControl<Button>("BtnRefreshActivity")!.Click += (_, _) => LoadRecentActivity();
 
             // Quick action buttons
             this.FindControl<Button>("BtnFtpSyncCheck")!.Click += (_, _) => OnFtpSyncCheck?.Invoke();
@@ -98,6 +103,15 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnMcQuickBackup")!.Click += (_, _) => OnMailchimpQuickBackup?.Invoke();
             this.FindControl<Button>("BtnSqlSyncCheck")!.Click += (_, _) => OnSqlSyncCheck?.Invoke();
             this.FindControl<Button>("BtnSqlQuickBackup")!.Click += (_, _) => OnSqlQuickBackup?.Invoke();
+
+            // Network Drive card
+            this.FindControl<Button>("BtnOpenNetworkDrive")!.Click += (_, _) => OpenNetworkDriveFolder();
+            this.FindControl<Button>("BtnNdMirrorAll")!.Click += async (_, _) => await MirrorAllToNetworkDriveAsync();
+
+            // Per-service mirror buttons
+            this.FindControl<Button>("BtnFtpMirror")!.Click += async (_, _) => await MirrorServiceAsync("FTP", BackupConfig.FtpLocalFolder);
+            this.FindControl<Button>("BtnMcMirror")!.Click += async (_, _) => await MirrorServiceAsync("Mailchimp", BackupConfig.MailchimpFolder);
+            this.FindControl<Button>("BtnSqlMirror")!.Click += async (_, _) => await MirrorServiceAsync("SQL", BackupConfig.SqlLocalFolder);
 
             this.FindControl<Button>("BtnPingAll")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnOpenSchedule")!.Click += async (_, _) => await OpenScheduleDialogAsync();
@@ -132,6 +146,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Subscribe to schedule changes from Firebase
             ConfigService.OnScheduleChanged += OnScheduleChangedFromFirebase;
+
+            // Update greeting when user changes
+            AuthService.OnUserChanged += (_) => UpdateGreeting();
 
             // Load system logs
             _ = LoadSystemLogsAsync();
@@ -182,87 +199,9 @@ namespace PinayPalBackupManager.UI.UserControls
                         // Update services status summary
                         UpdateServicesStatusSummary(health.ServiceScores);
                         
-                        // Update critical alerts
+                        // Update critical alerts count
                         var alertsCount = this.FindControl<TextBlock>("CriticalAlertsCount");
-                        var alertsPanel = this.FindControl<Border>("CriticalAlertsPanel");
-                        var alertsList = this.FindControl<StackPanel>("CriticalAlertsList");
-                        
                         if (alertsCount != null) alertsCount.Text = health.CriticalAlerts.Count.ToString();
-                        if (alertsPanel != null && alertsList != null)
-                        {
-                            alertsPanel.IsVisible = health.CriticalAlerts.Count > 0;
-                            alertsList.Children.Clear();
-                            
-                            foreach (var alert in health.CriticalAlerts.Take(5))
-                            {
-                                var alertBorder = new Border
-                                {
-                                    Background = Avalonia.Media.Brush.Parse("#3D1515"),
-                                    CornerRadius = new Avalonia.CornerRadius(6),
-                                    Padding = new Avalonia.Thickness(10, 6),
-                                    Margin = new Avalonia.Thickness(0, 2)
-                                };
-                                
-                                var alertGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto, *, Auto") };
-                                
-                                // Service icon
-                                var serviceIcon = new TextBlock
-                                {
-                                    Text = alert.Service switch
-                                    {
-                                        "FTP" => "FTP",
-                                        "Mailchimp" => "MC",
-                                        "SQL" => "SQL",
-                                        _ => "ERR"
-                                    },
-                                    FontSize = 12,
-                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                                    Margin = new Avalonia.Thickness(0, 0, 8, 0)
-                                };
-                                
-                                // Alert message
-                                var messageText = new TextBlock
-                                {
-                                    Text = alert.Message,
-                                    FontSize = 10,
-                                    Foreground = Avalonia.Media.Brush.Parse("#F38BA8"),
-                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
-                                };
-                                
-                                // Time ago
-                                var timeText = new TextBlock
-                                {
-                                    Text = alert.AgeText,
-                                    FontSize = 9,
-                                    Foreground = Avalonia.Media.Brush.Parse("#6C7086"),
-                                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
-                                };
-                                
-                                Grid.SetColumn(serviceIcon, 0);
-                                Grid.SetColumn(messageText, 1);
-                                Grid.SetColumn(timeText, 2);
-                                
-                                alertGrid.Children.Add(serviceIcon);
-                                alertGrid.Children.Add(messageText);
-                                alertGrid.Children.Add(timeText);
-                                
-                                alertBorder.Child = alertGrid;
-                                alertsList.Children.Add(alertBorder);
-                            }
-                            
-                            if (health.CriticalAlerts.Count == 0)
-                            {
-                                var noAlerts = new TextBlock
-                                {
-                                    Text = "No critical alerts - all systems healthy!",
-                                    FontSize = 10,
-                                    Foreground = Avalonia.Media.Brush.Parse("#588157"),
-                                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
-                                };
-                                alertsList.Children.Add(noAlerts);
-                            }
-                        }
                     });
                 }
                 catch (Exception ex)
@@ -311,29 +250,67 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private DateTime _lastBackupProgressUpdate = DateTime.MinValue;
 
+        private static string GetServiceColor(string service) => service switch
+        {
+            "FTP"       => "#52B788",
+            "Mailchimp" => "#f0a500",
+            "SQL"       => "#fad643",
+            _           => "#CDD6F4"
+        };
+
         private void OnBackupProgress(string service, int percent, string status)
         {
             _lastBackupProgressUpdate = DateTime.UtcNow;
-            
+
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
-                var progressText = this.FindControl<TextBlock>("BackupProgressText");
-                var progressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
+                var progressBar   = this.FindControl<ProgressBar>("GlobalBackupProgress");
+                var progressText  = this.FindControl<TextBlock>("BackupProgressText");
+                var progressPct   = this.FindControl<TextBlock>("BackupProgressPercent");
+                var dot           = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GbpServiceDot");
+                var svcName       = this.FindControl<TextBlock>("GbpServiceName");
 
-                if (progressBar != null)
-                {
-                    progressBar.Value = percent;
-                }
+                var color = Brush.Parse(GetServiceColor(service));
 
-                if (progressText != null)
-                {
-                    progressText.Text = $"{service}: {status}";
-                }
+                if (progressBar != null)  { progressBar.Value = percent; progressBar.Foreground = color; }
+                if (progressText != null)   progressText.Text = $"{service}: {status}";
+                if (progressPct  != null)  { progressPct.Text = $"{percent}%"; progressPct.Foreground = color; }
+                if (dot          != null)   dot.Fill = color;
+                if (svcName      != null)  { svcName.Text = service; svcName.Foreground = color; }
+            });
+        }
 
-                if (progressPercent != null)
+        private DateTime _lastMirrorProgressUpdate = DateTime.MinValue;
+
+        private void OnMirrorProgressUpdate(string service, int percent, string msg, int currentFile, int totalFiles)
+        {
+            _lastMirrorProgressUpdate = DateTime.UtcNow;
+
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var section  = this.FindControl<StackPanel>("MirrorProgressSection");
+                var bar      = this.FindControl<ProgressBar>("MirrorProgressBar");
+                var text     = this.FindControl<TextBlock>("MirrorProgressText");
+                var pct      = this.FindControl<TextBlock>("MirrorProgressPercent");
+                var svcName  = this.FindControl<TextBlock>("MirrorServiceName");
+                var detail   = this.FindControl<TextBlock>("MirrorStatusDetail");
+
+                if (section == null) return;
+
+                bool done = percent >= 100 || percent < 0;
+                var activeColor = Brush.Parse("#A78BFA");
+
+                if (bar  != null) { bar.Value = percent < 0 ? 0 : percent; bar.Foreground = activeColor; }
+                if (text != null) text.Text  = done ? (percent < 0 ? "Failed" : "Complete") : "Mirroring...";
+                if (pct  != null) { pct.Text = percent < 0 ? "✗" : $"{percent}%"; pct.Foreground = activeColor; }
+                if (svcName != null) { svcName.Text = service; svcName.Foreground = activeColor; }
+
+                if (detail != null)
                 {
-                    progressPercent.Text = percent + "%";
+                    string fileInfo = totalFiles > 0 && !done && percent >= 0
+                        ? $"File {currentFile} of {totalFiles} · {msg}"
+                        : msg;
+                    detail.Text = fileInfo;
                 }
             });
         }
@@ -348,23 +325,39 @@ namespace PinayPalBackupManager.UI.UserControls
                     var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
                     var progressText = this.FindControl<TextBlock>("BackupProgressText");
                     var progressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
+                    var dot     = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GbpServiceDot");
+                    var svcName = this.FindControl<TextBlock>("GbpServiceName");
+                    var idleColor = Brush.Parse("#6C7086");
 
-                    if (progressBar != null)
-                    {
-                        progressBar.Value = 0;
-                    }
+                    if (progressBar != null) { progressBar.Value = 0; progressBar.Foreground = idleColor; }
+                    if (progressText != null)   progressText.Text = "No active backups";
+                    if (progressPercent != null){ progressPercent.Text = "0%"; progressPercent.Foreground = idleColor; }
+                    if (dot  != null)            dot.Fill = idleColor;
+                    if (svcName != null)        { svcName.Text = "Idle"; svcName.Foreground = idleColor; }
 
-                    if (progressText != null)
-                    {
-                        progressText.Text = "No active backups";
-                    }
-
-                    if (progressPercent != null)
-                    {
-                        progressPercent.Text = "0%";
-                    }
-                    
                     _lastBackupProgressUpdate = DateTime.MinValue;
+                });
+            }
+
+            // Reset mirror progress to idle after 8 seconds of no activity (like global progress)
+            if ((DateTime.UtcNow - _lastMirrorProgressUpdate).TotalSeconds > 8 && _lastMirrorProgressUpdate != DateTime.MinValue)
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var bar      = this.FindControl<ProgressBar>("MirrorProgressBar");
+                    var text     = this.FindControl<TextBlock>("MirrorProgressText");
+                    var pct      = this.FindControl<TextBlock>("MirrorProgressPercent");
+                    var svcName  = this.FindControl<TextBlock>("MirrorServiceName");
+                    var detail   = this.FindControl<TextBlock>("MirrorStatusDetail");
+                    var idleColor = Brush.Parse("#6C7086");
+
+                    if (bar != null)  { bar.Value = 0; bar.Foreground = idleColor; }
+                    if (text != null)   text.Text = "No active mirroring";
+                    if (pct != null)    { pct.Text = "0%"; pct.Foreground = idleColor; }
+                    if (svcName != null){ svcName.Text = "Idle"; svcName.Foreground = idleColor; }
+                    if (detail != null) detail.Text = "";
+
+                    _lastMirrorProgressUpdate = DateTime.MinValue;
                 });
             }
         }
@@ -565,9 +558,15 @@ namespace PinayPalBackupManager.UI.UserControls
                 var tb = this.FindControl<TextBlock>(ctrl);
                 if (tb == null) return;
                 var diff = next - now;
-                tb.Text = diff.TotalSeconds > 0
-                    ? $"in {diff.ToString(@"hh\:mm\:ss")}"
-                    : "Due now";
+                if (diff.TotalSeconds > 0)
+                {
+                    // Show next scheduled time in 12-hour AM/PM format
+                    tb.Text = next.ToString("h:mm tt");
+                }
+                else
+                {
+                    tb.Text = "Due now";
+                }
             }
 
             try
@@ -876,72 +875,61 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     var calendar = this.FindControl<WrapPanel>("BackupCalendar");
                     if (calendar == null) return;
-                    
-                    // Get logs from last 30 days
-                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 500);
-                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 500);
-                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 500);
-                    var allLogs = ftpLogs.Concat(mcLogs).Concat(sqlLogs).ToList();
-                    
-                    // Group by date
+
+                    // Use BackupHistoryService for reliable backup records
+                    var history = BackupHistoryService.GetHistory(500)
+                        .Where(h => h.Timestamp >= DateTime.UtcNow.AddDays(-30))
+                        .ToList();
+
+                    // Group by local date
                     var dateStats = new Dictionary<string, (int success, int failed)>();
                     for (int i = 0; i < 30; i++)
                     {
                         var date = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd");
                         dateStats[date] = (0, 0);
                     }
-                    
-                    foreach (var log in allLogs)
+
+                    foreach (var entry in history)
                     {
-                        if (log.Contains("COMPLETE") || log.Contains("SUCCESS"))
+                        var localDate = entry.Timestamp.ToLocalTime().ToString("yyyy-MM-dd");
+                        if (dateStats.ContainsKey(localDate))
                         {
-                            foreach (var date in dateStats.Keys)
-                            {
-                                if (log.Contains(date))
-                                {
-                                    var (s, f) = dateStats[date];
-                                    dateStats[date] = (s + 1, f);
-                                }
-                            }
-                        }
-                        if (log.Contains("ERROR") || log.Contains("FAILED"))
-                        {
-                            foreach (var date in dateStats.Keys)
-                            {
-                                if (log.Contains(date))
-                                {
-                                    var (s, f) = dateStats[date];
-                                    dateStats[date] = (s, f + 1);
-                                }
-                            }
+                            var (s, f) = dateStats[localDate];
+                            dateStats[localDate] = entry.Status.Equals("Success", StringComparison.OrdinalIgnoreCase)
+                                ? (s + 1, f)
+                                : (s, f + 1);
                         }
                     }
-                    
+
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         calendar.Children.Clear();
                         foreach (var date in dateStats.OrderBy(d => d.Key))
                         {
                             var (success, failed) = date.Value;
-                            var color = success > 0 && failed == 0 ? "#A6E3A1" :  // Green - all success
-                                        success > 0 && failed > 0 ? "#F9E2AF" :   // Yellow - mixed
+                            var hasActivity = success > 0 || failed > 0;
+                            var color = success > 0 && failed == 0 ? "#52B788" :  // Green - all success
+                                        success > 0 && failed > 0 ? "#e6c55c" :   // Yellow - mixed
                                         failed > 0 ? "#F38BA8" :                  // Red - all failed
-                                        "#313244";                                 // Gray - no activity
-                            
+                                        "#2A2D3E";                                 // Surface - no activity
+
                             var day = int.Parse(date.Key.Substring(8, 2));
                             var cell = new Border
                             {
-                                Width = 24, Height = 24,
+                                Width = 26, Height = 26,
                                 Background = Brush.Parse(color),
-                                CornerRadius = new Avalonia.CornerRadius(4),
+                                CornerRadius = new Avalonia.CornerRadius(6),
                                 Margin = new Avalonia.Thickness(2),
+                                BorderBrush = hasActivity ? null : Brush.Parse("#3B3E54"),
+                                BorderThickness = hasActivity ? new Avalonia.Thickness(0) : new Avalonia.Thickness(1),
                                 Child = new TextBlock
                                 {
                                     Text = day.ToString(),
-                                    FontSize = 9,
+                                    FontSize = 10,
+                                    FontWeight = Avalonia.Media.FontWeight.SemiBold,
                                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                                    Foreground = Brush.Parse(success > 0 || failed > 0 ? "#1E1E2E" : "#6C7086")
+                                    Foreground = Brush.Parse(hasActivity ? "#11111B" : "#7F849C")
                                 }
                             };
                             ToolTip.SetTip(cell, $"{date.Key}: {success} success, {failed} failed");
@@ -949,7 +937,10 @@ namespace PinayPalBackupManager.UI.UserControls
                         }
                     });
                 }
-                catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateCalendarAsync error: {ex.Message}", "", "Warning", "SYSTEM"); }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[HomeControl] UpdateBackupCalendar error: {ex.Message}", "Warning", "SYSTEM");
+                }
             });
         }
 
@@ -1457,6 +1448,196 @@ namespace PinayPalBackupManager.UI.UserControls
                 System.Diagnostics.Process.Start("explorer.exe", folder);
             }
             catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] OpenFolder error: {ex.Message}", "", "Warning", "SYSTEM"); }
+        }
+
+        private void OpenNetworkDriveFolder()
+        {
+            var path = BackupConfig.NetworkDrivePath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                NotificationService.ShowBackupToast("Network Drive", "No network drive path configured.", "Warning");
+                return;
+            }
+            try { System.Diagnostics.Process.Start("explorer.exe", path); }
+            catch (Exception ex) { NotificationService.ShowBackupToast("Network Drive", $"Cannot open folder: {ex.Message}", "Warning"); }
+        }
+
+        private async Task MirrorAllToNetworkDriveAsync()
+        {
+            if (!NetworkDriveService.IsNetworkDriveConfigured())
+            {
+                NotificationService.ShowBackupToast("Network Drive", "Network drive not configured or disabled.", "Warning");
+                return;
+            }
+
+            var results = new Dictionary<string, bool>();
+            Set("NdStatusText", "MIRRORING...");
+            SetDot("NdStatusDot", "#A78BFA");
+
+            async Task MirrorOne(string folder, string serviceName)
+            {
+                try
+                {
+                    if (!Directory.Exists(folder))
+                    {
+                        LogService.WriteSystemLog($"[NETWORKDRIVE] Skipped {serviceName}: local folder not found ({folder})", "Warning", "NETWORKDRIVE");
+                        results[serviceName] = false;
+                        return;
+                    }
+                    var validation = await ValidateMirrorAsync(folder, serviceName);
+                    LogService.WriteSystemLog($"[NETWORKDRIVE] {serviceName} mirror starting — {validation}", "Information", "NETWORKDRIVE");
+                    await NetworkDriveService.MirrorToNetworkDriveAsync(folder, serviceName);
+                    results[serviceName] = true;
+                    LogService.WriteSystemLog($"[NETWORKDRIVE] {serviceName} mirror finished", "Information", "NETWORKDRIVE");
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[NETWORKDRIVE] {serviceName} mirror error: {ex.Message}", "Error", "NETWORKDRIVE");
+                    results[serviceName] = false;
+                }
+            }
+
+            NotificationService.ShowBackupToast("Network Drive", "Mirroring all backups...", "Info");
+
+            await MirrorOne(BackupConfig.FtpLocalFolder, "FTP");
+            await MirrorOne(BackupConfig.MailchimpFolder, "Mailchimp");
+            await MirrorOne(BackupConfig.SqlLocalFolder, "SQL");
+
+            int ok = results.Count(r => r.Value);
+            int fail = results.Count(r => !r.Value);
+            string summary = string.Join(", ", results.Select(r => $"{r.Key}: {(r.Value ? "OK" : "FAIL")}"));
+
+            NotificationService.ShowBackupToast("Network Drive", $"Mirror complete — {ok} OK, {fail} failed ({summary})", fail == 0 ? "Success" : "Warning");
+            UpdateNetworkDriveCard();
+        }
+
+        private async Task MirrorServiceAsync(string serviceName, string folder)
+        {
+            if (!NetworkDriveService.IsNetworkDriveConfigured())
+            {
+                NotificationService.ShowBackupToast("Network Drive", "Network drive not configured or disabled.", "Warning");
+                return;
+            }
+            if (!Directory.Exists(folder))
+            {
+                NotificationService.ShowBackupToast("Network Drive", $"{serviceName} local folder not found.", "Warning");
+                return;
+            }
+
+            var validation = await ValidateMirrorAsync(folder, serviceName);
+            NotificationService.ShowBackupToast("Network Drive", $"Mirroring {serviceName}... {validation}", "Info");
+            try
+            {
+                await NetworkDriveService.MirrorToNetworkDriveAsync(folder, serviceName);
+                UpdateNetworkDriveCard();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NETWORKDRIVE] {serviceName} mirror error: {ex.Message}", "Error", "NETWORKDRIVE");
+                NotificationService.ShowBackupToast("Network Drive", $"{serviceName} mirror failed: {ex.Message}", "Error");
+            }
+        }
+
+        private static async Task<string> ValidateMirrorAsync(string sourceFolder, string serviceName)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var sourceFiles = Directory.GetFiles(sourceFolder, "*", SearchOption.AllDirectories);
+                    int sourceCount = sourceFiles.Length;
+                    long sourceSize = sourceFiles.Sum(f => new FileInfo(f).Length);
+
+                    if (sourceCount == 0)
+                        return "0 files to mirror.";
+
+                    string sizeText = sourceSize < 1024 * 1024
+                        ? $"{sourceSize / 1024.0:F1} KB"
+                        : $"{sourceSize / (1024.0 * 1024):F1} MB";
+
+                    // Check destination for existing files
+                    var destBase = BackupConfig.NetworkDrivePath;
+                    bool isFtp = destBase.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                                 destBase.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase) ||
+                                 destBase.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase);
+
+                    if (isFtp)
+                        return $"{sourceCount} files ({sizeText}) — FTP destination cannot pre-check existing files.";
+
+                    var destFolder = System.IO.Path.Combine(destBase, serviceName);
+                    if (!Directory.Exists(destFolder))
+                        return $"{sourceCount} files ({sizeText}) — all new (destination folder does not exist).";
+
+                    var destFiles = Directory.GetFiles(destFolder, "*", SearchOption.AllDirectories);
+                    int destCount = destFiles.Length;
+
+                    // Compare by relative path
+                    var destRelative = destFiles.Select(f => f.Substring(destFolder.Length).TrimStart(System.IO.Path.DirectorySeparatorChar).ToLowerInvariant()).ToHashSet();
+                    int missingAtDest = sourceFiles.Count(sf =>
+                    {
+                        string rel = sf.Substring(sourceFolder.Length).TrimStart(System.IO.Path.DirectorySeparatorChar).ToLowerInvariant();
+                        return !destRelative.Contains(rel);
+                    });
+
+                    if (missingAtDest == 0)
+                        return $"{sourceCount} files ({sizeText}) — destination is up to date.";
+
+                    int existing = sourceCount - missingAtDest;
+                    return $"{sourceCount} files ({sizeText}) — {missingAtDest} new, {existing} already present.";
+                }
+                catch (Exception ex)
+                {
+                    return $"validation error: {ex.Message}";
+                }
+            });
+        }
+
+        private void UpdateNetworkDriveCard()
+        {
+            bool configured = NetworkDriveService.IsNetworkDriveConfigured();
+            var path = BackupConfig.NetworkDrivePath;
+
+            if (!configured)
+            {
+                Set("NdStatusText", "Disabled");
+                SetDot("NdStatusDot", "#6C7086");
+                Set("NdPath", string.IsNullOrWhiteSpace(path) ? "Not configured" : path);
+                Set("NdLastMirror", "—");
+                Set("NdSummary", "Enable network drive in Settings.");
+                return;
+            }
+
+            Set("NdPath", path);
+
+            // Find last mirror entry in system log
+            try
+            {
+                var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 200);
+                var lastMirrorLine = logs.FirstOrDefault(l => l.Contains("[NETWORKDRIVE]") && l.Contains("Mirroring"));
+                if (!string.IsNullOrEmpty(lastMirrorLine))
+                {
+                    // Extract timestamp from log line format: [2026-05-16 11:22:51 PM]
+                    var start = lastMirrorLine.IndexOf('[') + 1;
+                    var end = lastMirrorLine.IndexOf(']');
+                    var tsStr = start >= 0 && end > start ? lastMirrorLine[start..end] : "";
+                    Set("NdLastMirror", tsStr.Length > 0 ? tsStr : "—");
+                    Set("NdStatusText", "Ready");
+                    SetDot("NdStatusDot", "#A78BFA");
+                    Set("NdSummary", $"FTP · Mailchimp · SQL mirrored");
+                }
+                else
+                {
+                    Set("NdStatusText", "No mirrors yet");
+                    SetDot("NdStatusDot", "#e6c55c");
+                    Set("NdLastMirror", "—");
+                    Set("NdSummary", "Click Mirror All Now to sync.");
+                }
+            }
+            catch
+            {
+                Set("NdStatusText", "Ready");
+                SetDot("NdStatusDot", "#A78BFA");
+            }
         }
 
         // ── Operations ────────────────────────────────────────────────────────
@@ -1983,6 +2164,9 @@ namespace PinayPalBackupManager.UI.UserControls
             // Update services OK text
             Set("ServicesHealthText", $"{healthyCount}/3 healthy");
             Set("StatServicesOk", healthyCount.ToString());
+
+            // Update Network Drive card
+            UpdateNetworkDriveCard();
         }
 
         private bool IsBackupStale(DateTime? lastBackupTime, double thresholdHours = 48)
@@ -2121,8 +2305,16 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 errorsPanel.IsVisible = false;
                 errorsList.Children.Clear();
-                NotificationService.ShowBackupToast("Recent Errors", "Errors cleared from dashboard.", "Success");
             }
+
+            // Also clear system log file and UI display
+            LogService.ClearLogs(AppDataPaths.SystemLogPath);
+
+            var systemLogsText = this.FindControl<TextBlock>("SystemLogsText");
+            if (systemLogsText != null)
+                systemLogsText.Text = string.Empty;
+
+            NotificationService.ShowBackupToast("Recent Errors", "Errors and system logs cleared.", "Success");
         }
 
         private void ShowDashboardCustomization()
@@ -2170,9 +2362,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 var serviceCards = this.FindControl<Grid>("ServiceCardsSection");
                 if (serviceCards != null) serviceCards.IsVisible = settings.ShowServiceCards;
-
-                var criticalAlerts = this.FindControl<Border>("CriticalAlertsPanel");
-                if (criticalAlerts != null) criticalAlerts.IsVisible = settings.ShowHealthDashboard;
                 
                 // Apply compact mode
                 _compactMode = settings.CompactMode;
@@ -2342,6 +2531,13 @@ namespace PinayPalBackupManager.UI.UserControls
                             var lines = newText.Split('\n').Take(100);
                             systemLogsText.Text = string.Join("\n", lines);
                         }
+                    }
+
+                    // Throttled auto-refresh of Recent Activity panel
+                    if (DateTime.Now - _lastActivityRefresh > TimeSpan.FromSeconds(2))
+                    {
+                        _lastActivityRefresh = DateTime.Now;
+                        LoadRecentActivity();
                     }
                 });
             }
@@ -2544,6 +2740,7 @@ namespace PinayPalBackupManager.UI.UserControls
             // Unsubscribe from log events
             LogService.OnNewLogEntry -= OnNewSystemLogEntry;
             ConfigService.OnScheduleChanged -= OnScheduleChangedFromFirebase;
+            NetworkDriveService.OnMirrorProgress -= OnMirrorProgressUpdate;
             
             // Hide auto-refresh indicators
             Dispatcher.UIThread.InvokeAsync(() =>

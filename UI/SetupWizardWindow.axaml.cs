@@ -562,9 +562,9 @@ namespace PinayPalBackupManager.UI
                             this.FindControl<TextBox>("TxtFtpPassword")!.Text = settings.Ftp.Password;
                             importedCount++;
                         }
-                        if (!string.IsNullOrEmpty(settings.Ftp?.LocalFolder))
+                        if (!string.IsNullOrEmpty(settings.Paths?.FtpLocalFolder))
                         {
-                            this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text = settings.Ftp.LocalFolder;
+                            this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text = settings.Paths.FtpLocalFolder;
                         }
                         break;
 
@@ -589,9 +589,9 @@ namespace PinayPalBackupManager.UI
                             this.FindControl<TextBox>("TxtSqlRemotePath")!.Text = settings.Sql.RemotePath;
                             importedCount++;
                         }
-                        if (!string.IsNullOrEmpty(settings.Sql?.LocalFolder))
+                        if (!string.IsNullOrEmpty(settings.Paths?.SqlLocalFolder))
                         {
-                            this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = settings.Sql.LocalFolder;
+                            this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = settings.Paths.SqlLocalFolder;
                         }
                         break;
 
@@ -606,9 +606,9 @@ namespace PinayPalBackupManager.UI
                             this.FindControl<TextBox>("TxtMcAudienceId")!.Text = settings.Mailchimp.AudienceId;
                             importedCount++;
                         }
-                        if (!string.IsNullOrEmpty(settings.Mailchimp?.Folder))
+                        if (!string.IsNullOrEmpty(settings.Paths?.MailchimpFolder))
                         {
-                            this.FindControl<TextBox>("TxtMcFolder")!.Text = settings.Mailchimp.Folder;
+                            this.FindControl<TextBox>("TxtMcFolder")!.Text = settings.Paths.MailchimpFolder;
                         }
                         break;
                 }
@@ -713,19 +713,19 @@ namespace PinayPalBackupManager.UI
             config.Ftp.Host = this.FindControl<TextBox>("TxtFtpHost")!.Text?.Trim() ?? "";
             config.Ftp.User = this.FindControl<TextBox>("TxtFtpUser")!.Text?.Trim() ?? "";
             config.Ftp.Password = this.FindControl<TextBox>("TxtFtpPassword")!.Text ?? "";
-            config.Ftp.LocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text?.Trim() ?? "";
+            config.Paths.FtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text?.Trim() ?? "";
 
             // SQL settings
             config.Sql.Host = this.FindControl<TextBox>("TxtSqlHost")!.Text?.Trim() ?? "";
             config.Sql.User = this.FindControl<TextBox>("TxtSqlUser")!.Text?.Trim() ?? "";
             config.Sql.Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? "";
             config.Sql.RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")!.Text?.Trim() ?? "";
-            config.Sql.LocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text?.Trim() ?? "";
+            config.Paths.SqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text?.Trim() ?? "";
 
             // Mailchimp settings
             config.Mailchimp.ApiKey = this.FindControl<TextBox>("TxtMcApiKey")!.Text?.Trim() ?? "";
             config.Mailchimp.AudienceId = this.FindControl<TextBox>("TxtMcAudienceId")!.Text?.Trim() ?? "";
-            config.Mailchimp.Folder = this.FindControl<TextBox>("TxtMcFolder")!.Text?.Trim() ?? "";
+            config.Paths.MailchimpFolder = this.FindControl<TextBox>("TxtMcFolder")!.Text?.Trim() ?? "";
 
             // Operation settings
             config.Operation.StartMinimized = this.FindControl<CheckBox>("ChkStartMinimized")!.IsChecked!.Value;

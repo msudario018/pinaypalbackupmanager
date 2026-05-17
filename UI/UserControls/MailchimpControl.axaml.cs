@@ -107,6 +107,7 @@ namespace PinayPalBackupManager.UI.UserControls
             
             SetBusy(true);
             _abortRequested = false;
+            bool mcError = false;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "EXPORTING FULL...";
             txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
@@ -149,7 +150,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     if (_abortRequested) throw new OperationCanceledException();
 
-                    var mc = new MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                    var mc = new MailchimpService(SecurityService.GetDecryptedMailchimpApiKey(), BackupConfig.McAudienceId);
                     string[] tasks = ["Members", "Campaigns", "Reports", "Merge_Fields", "Tags"];
                     
                     for (int i = 0; i < tasks.Length; i++)
@@ -221,6 +222,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 catch (OperationCanceledException)
                 {
+                    mcError = true;
                     LogService.WriteLiveLog("CANCELLED: Mailchimp export cancelled by user.", BackupConfig.McLogFile, "Warning", trigger);
                     NotificationService.ShowBackupToast("Mailchimp Cancelled", "User cancelled the task.", "Warning");
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
@@ -232,6 +234,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 catch (Exception ex)
                 {
+                    mcError = true;
                     LogService.WriteLiveLog($"ERROR: Full export failed - {ex.Message}", BackupConfig.McLogFile, "Error", trigger);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "EXPORT ERROR";
@@ -247,6 +250,22 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_manager != null)
                     {
                         _ = _manager.RunHealthCheckAsync();
+                    }
+
+                    if (!mcError && !_abortRequested && NetworkDriveService.IsNetworkDriveConfigured())
+                    {
+                        try
+                        {
+                            LogService.WriteLiveLog("MIRROR: Starting Mailchimp backup mirror to network drive...", BackupConfig.McLogFile, "Information", trigger);
+                            await NetworkDriveService.MirrorToNetworkDriveAsync(BackupConfig.MailchimpFolder, "Mailchimp");
+                            LogService.WriteLiveLog("MIRROR: Mailchimp backup mirrored successfully.", BackupConfig.McLogFile, "Information", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", "Mailchimp backup mirrored to network drive.", "Success");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"MIRROR ERROR: Mailchimp mirror failed — {ex.Message}", BackupConfig.McLogFile, "Error", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", $"Mailchimp mirror failed: {ex.Message}", "Error");
+                        }
                     }
                 }
             });
@@ -269,7 +288,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     if (_abortRequested) throw new OperationCanceledException();
-                    var mc = new MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                    var mc = new MailchimpService(SecurityService.GetDecryptedMailchimpApiKey(), BackupConfig.McAudienceId);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         this.FindControl<TextBlock>("TxtFile")!.Text = $"Exporting {type}...";
                         this.FindControl<ProgressBar>("ProgressBar")!.IsIndeterminate = true;

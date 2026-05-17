@@ -23,6 +23,10 @@ namespace PinayPalBackupManager.Services
             {
                 LogService.WriteLiveLog("SQL INIT WARNING: Password is empty after decryption!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
             }
+            else if (ConfigEncryptionService.IsEncrypted(password))
+            {
+                LogService.WriteLiveLog("SQL INIT WARNING: Password appears to still be encrypted (Base64). Decryption may have failed!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
+            }
 
             _options = new SessionOptions
             {
@@ -133,7 +137,29 @@ namespace PinayPalBackupManager.Services
 
         public void Dispose()
         {
-            _session?.Dispose();
+            if (_session != null)
+            {
+                try
+                {
+                    if (_session.Opened)
+                        _session.Close();
+                }
+                catch { }
+
+                try
+                {
+                    _session.FileTransferProgress -= Session_FileTransferProgress;
+                }
+                catch { /* WinSCP may not allow removing handlers from an opened session */ }
+
+                try
+                {
+                    _session.Dispose();
+                }
+                catch { }
+
+                _session = null;
+            }
             GC.SuppressFinalize(this);
         }
 

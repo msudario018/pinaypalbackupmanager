@@ -16,7 +16,11 @@ namespace PinayPalBackupManager.Services
             // Check if password is encrypted (Base64 format)
             if (ConfigEncryptionService.IsEncrypted(encryptedPassword))
             {
-                return ConfigEncryptionService.Decrypt(encryptedPassword);
+                var (success, decrypted) = ConfigEncryptionService.TryDecrypt(encryptedPassword);
+                if (success) return decrypted;
+                
+                LogService.WriteSystemLog($"[SecurityService] Failed to decrypt FTP password. Value may be corrupted or salt changed.", "Error", "SECURITY");
+                return string.Empty;
             }
             
             // Return as-is if not encrypted (backward compatibility)
@@ -30,11 +34,33 @@ namespace PinayPalBackupManager.Services
             // Check if password is encrypted (Base64 format)
             if (ConfigEncryptionService.IsEncrypted(encryptedPassword))
             {
-                return ConfigEncryptionService.Decrypt(encryptedPassword);
+                var (success, decrypted) = ConfigEncryptionService.TryDecrypt(encryptedPassword);
+                if (success) return decrypted;
+                
+                LogService.WriteSystemLog($"[SecurityService] Failed to decrypt SQL password. Value may be corrupted or salt changed.", "Error", "SECURITY");
+                return string.Empty;
             }
             
             // Return as-is if not encrypted (backward compatibility)
             return encryptedPassword;
+        }
+
+        public static string GetDecryptedMailchimpApiKey()
+        {
+            var encryptedKey = ConfigService.Current.Mailchimp.ApiKey;
+
+            // Check if key is encrypted (Base64 format)
+            if (ConfigEncryptionService.IsEncrypted(encryptedKey))
+            {
+                var (success, decrypted) = ConfigEncryptionService.TryDecrypt(encryptedKey);
+                if (success) return decrypted;
+                
+                LogService.WriteSystemLog($"[SecurityService] Failed to decrypt Mailchimp API key. Value may be corrupted or salt changed.", "Error", "SECURITY");
+                return string.Empty;
+            }
+
+            // Return as-is if not encrypted (backward compatibility)
+            return encryptedKey;
         }
 
         /// <summary>

@@ -169,8 +169,9 @@ namespace PinayPalBackupManager.Services
             
             try
             {
-                // Security: Validate filename to prevent path traversal
-                if (filename.Contains("..") || filename.Contains("/") || filename.Contains("\\"))
+                // Security: Sanitize and validate filename to prevent path traversal
+                filename = Path.GetFileName(filename);
+                if (string.IsNullOrWhiteSpace(filename) || filename.Contains("..") || filename.Contains('/') || filename.Contains('\\'))
                 {
                     LogService.WriteSystemLog($"[FileDownloadService] Invalid filename requested: {filename}", "Warning", "SYSTEM");
                     SendErrorResponse(response, 400, "Invalid filename");

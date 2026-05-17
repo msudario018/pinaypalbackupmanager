@@ -1,9 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.SqlControl">
-    <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
-        <!-- Header -->
-        <Border Grid.Row="0" Background="{DynamicResource AccentSqlBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentSql}" BorderThickness="1">
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Tab Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="SQL BACKUP" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Sync and backup MySQL database files" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Name="BtnSyncCheck" Classes="Secondary" Content="Sync Check"/>
+                    <Button Name="BtnTest" Classes="Secondary" Content="Test Connection"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" RowDefinitions="Auto, Auto, Auto, *, Auto" Margin="20">
+                <!-- Status Bar -->
+                <Border Grid.Row="0" Background="{DynamicResource AccentSqlBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentSql}" BorderThickness="1">
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
                 <TextBlock Grid.Row="0" Name="TxtStatus" Text="READY" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentSqlLight}" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,20,0"/>
 
@@ -36,8 +50,6 @@
 
         <!-- Utility Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15" HorizontalAlignment="Right">
-            <Button Name="BtnSyncCheck" Classes="Secondary" Content="Sync Check"/>
-            <Button Name="BtnTest" Classes="Secondary" Content="Test Connection"/>
             <Button Name="BtnClear" Classes="Secondary" Content="Clear"/>
         </StackPanel>
 
@@ -52,7 +64,9 @@
         <!-- Footer -->
         <Button Grid.Row="4" Name="BtnViewLog" Content="OPEN LOG FILE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
                 Background="{DynamicResource AppBorder}" Margin="0,15,0,0" Padding="10" CornerRadius="12"/>
-    </Grid>
+            </Grid>
+        </Grid>
+    </Border>
 
     <UserControl.Styles>
         <Style Selector="TextBox#TxtLogs">

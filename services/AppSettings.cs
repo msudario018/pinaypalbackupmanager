@@ -6,6 +6,7 @@ namespace PinayPalBackupManager.Services
         public FtpSettings Ftp { get; set; } = new();
         public SqlSettings Sql { get; set; } = new();
         public MailchimpSettings Mailchimp { get; set; } = new();
+        public NetworkDriveSettings NetworkDrive { get; set; } = new();
         public ScheduleSettings Schedule { get; set; } = new();
         public OperationSettings Operation { get; set; } = new();
         public HttpServerSettings HttpServer { get; set; } = new();
@@ -30,6 +31,7 @@ namespace PinayPalBackupManager.Services
         public string FtpLocalFolder { get; set; } = string.Empty;
         public string MailchimpFolder { get; set; } = string.Empty;
         public string SqlLocalFolder { get; set; } = string.Empty;
+        public string NetworkDriveFolder { get; set; } = string.Empty;
     }
 
     public sealed class FtpSettings
@@ -57,6 +59,14 @@ namespace PinayPalBackupManager.Services
         public string ApiKey { get; set; } = string.Empty;
         public string AudienceId { get; set; } = string.Empty;
         public string Folder { get; set; } = string.Empty;
+    }
+
+    public sealed class NetworkDriveSettings
+    {
+        public string Path { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool Enabled { get; set; } = false;
     }
 
     public sealed class ScheduleSettings

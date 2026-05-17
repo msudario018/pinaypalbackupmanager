@@ -162,6 +162,27 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        public static void SaveNetworkDriveSettings()
+        {
+            try
+            {
+                var appDataPath = Path.Combine(AppDataPaths.CurrentDirectory, "appsettings.local.json");
+                var existing = File.Exists(appDataPath) ? ReadFile(appDataPath) : new AppSettings();
+                existing.NetworkDrive.Enabled = Current.NetworkDrive.Enabled;
+                existing.NetworkDrive.Path = Current.NetworkDrive.Path;
+                existing.NetworkDrive.Username = Current.NetworkDrive.Username;
+                existing.NetworkDrive.Password = Current.NetworkDrive.Password;
+                existing.Paths.NetworkDriveFolder = Current.Paths.NetworkDriveFolder;
+                var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                File.WriteAllText(appDataPath, json);
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[CONFIG] Error saving network drive settings: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
         public static void SaveSchedule()
         {
             try
@@ -711,9 +732,18 @@ namespace PinayPalBackupManager.Services
 
         private static void MergeInto(AppSettings target, AppSettings source)
         {
+            // Primary: Paths.* (new correct location)
             if (!string.IsNullOrWhiteSpace(source.Paths.FtpLocalFolder)) target.Paths.FtpLocalFolder = source.Paths.FtpLocalFolder;
             if (!string.IsNullOrWhiteSpace(source.Paths.MailchimpFolder)) target.Paths.MailchimpFolder = source.Paths.MailchimpFolder;
             if (!string.IsNullOrWhiteSpace(source.Paths.SqlLocalFolder)) target.Paths.SqlLocalFolder = source.Paths.SqlLocalFolder;
+
+            // Fallback: old properties written by earlier SetupWizard versions
+            if (string.IsNullOrWhiteSpace(target.Paths.FtpLocalFolder) && !string.IsNullOrWhiteSpace(source.Ftp.LocalFolder))
+                target.Paths.FtpLocalFolder = source.Ftp.LocalFolder;
+            if (string.IsNullOrWhiteSpace(target.Paths.SqlLocalFolder) && !string.IsNullOrWhiteSpace(source.Sql.LocalFolder))
+                target.Paths.SqlLocalFolder = source.Sql.LocalFolder;
+            if (string.IsNullOrWhiteSpace(target.Paths.MailchimpFolder) && !string.IsNullOrWhiteSpace(source.Mailchimp.Folder))
+                target.Paths.MailchimpFolder = source.Mailchimp.Folder;
 
             if (!string.IsNullOrWhiteSpace(source.Ftp.Host)) target.Ftp.Host = source.Ftp.Host;
             if (!string.IsNullOrWhiteSpace(source.Ftp.User)) target.Ftp.User = source.Ftp.User;
@@ -729,6 +759,12 @@ namespace PinayPalBackupManager.Services
 
             if (!string.IsNullOrWhiteSpace(source.Mailchimp.ApiKey)) target.Mailchimp.ApiKey = source.Mailchimp.ApiKey;
             if (!string.IsNullOrWhiteSpace(source.Mailchimp.AudienceId)) target.Mailchimp.AudienceId = source.Mailchimp.AudienceId;
+
+            if (!string.IsNullOrWhiteSpace(source.Paths.NetworkDriveFolder)) target.Paths.NetworkDriveFolder = source.Paths.NetworkDriveFolder;
+            target.NetworkDrive.Enabled = source.NetworkDrive.Enabled;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Path)) target.NetworkDrive.Path = source.NetworkDrive.Path;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Username)) target.NetworkDrive.Username = source.NetworkDrive.Username;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Password)) target.NetworkDrive.Password = source.NetworkDrive.Password;
 
             if (source.Schedule.FtpDailySyncHourMnl != 0) target.Schedule.FtpDailySyncHourMnl = source.Schedule.FtpDailySyncHourMnl;
             if (source.Schedule.FtpDailySyncMinuteMnl != 0) target.Schedule.FtpDailySyncMinuteMnl = source.Schedule.FtpDailySyncMinuteMnl;

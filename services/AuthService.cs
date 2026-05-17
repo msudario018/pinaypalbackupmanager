@@ -817,62 +817,34 @@ namespace PinayPalBackupManager.Services
                 HashAlgorithmName.SHA256);
             return Convert.ToBase64String(pbkdf2.GetBytes(32));
         }
-        
         private static bool VerifyPassword(string password, string salt, string storedHash)
         {
             try
             {
-                // Try BCrypt first (new secure method)
-                if (BCrypt.Net.BCrypt.Verify(password, storedHash))
-                    return true;
+                // BCrypt is the only supported hashing algorithm
+                return BCrypt.Net.BCrypt.Verify(password, storedHash);
             }
             catch
             {
-                // BCrypt verification failed, try legacy methods
-            }
-            
-            // Fallback to SHA256 (for Flutter app compatibility)
-            try
-            {
-                using var sha256 = System.Security.Cryptography.SHA256.Create();
-                var combined = password + salt;
-                var bytes = Encoding.UTF8.GetBytes(combined);
-                var hash = sha256.ComputeHash(bytes);
-                var sha256Hash = Convert.ToBase64String(hash);
-                if (string.Equals(sha256Hash, storedHash, StringComparison.Ordinal))
-                    return true;
-            }
-            catch
-            {
-                // SHA256 verification failed
-            }
-            
-            // Fallback to PBKDF2 (old method for existing PC app users)
-            try
-            {
-                using var pbkdf2 = new Rfc2898DeriveBytes(
-                    Encoding.UTF8.GetBytes(password),
-                    Convert.FromBase64String(salt),
-                    100_000,
-                    HashAlgorithmName.SHA256);
-                var pbkdf2Hash = Convert.ToBase64String(pbkdf2.GetBytes(32));
-                return string.Equals(pbkdf2Hash, storedHash, StringComparison.Ordinal);
-            }
-            catch
-            {
-                // All verification methods failed
                 return false;
             }
         }
 
         private static string GenerateInviteCode()
         {
-            // Generate 8-character alphanumeric code (A-Z, 0-9)
+            // Generate 8-character alphanumeric code (A-Z, 0-9) using CSPRNG
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var random = new Random();
-            var code = new string(Enumerable.Repeat(chars, 8)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-            return code;
+            var codeChars = new char[8];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                var buffer = new byte[8];
+                rng.GetBytes(buffer);
+                for (int i = 0; i < 8; i++)
+                {
+                    codeChars[i] = chars[buffer[i] % chars.Length];
+                }
+            }
+            return new string(codeChars);
         }
 
         // ── Rate Limiting ──

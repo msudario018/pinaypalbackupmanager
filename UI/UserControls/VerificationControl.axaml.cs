@@ -950,7 +950,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 LogService.WriteLiveLog($"[VERIFICATION] Restoring Mailchimp file: {Path.GetFileName(corruptedFile.FilePath)}", "", "Information", "SYSTEM");
                 
                 // Trigger Mailchimp backup operation - run all tasks
-                var mailchimpService = new Services.MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                var mailchimpService = new Services.MailchimpService(Services.SecurityService.GetDecryptedMailchimpApiKey(), BackupConfig.McAudienceId);
                 string[] tasks = ["Members", "Campaigns", "Reports", "Merge_Fields", "Tags"];
                 foreach (var task in tasks)
                 {
@@ -1018,7 +1018,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 LogService.WriteLiveLog("[VERIFICATION] Triggering Mailchimp backup for missing files", "", "Information", "SYSTEM");
                 
-                var mailchimpService = new Services.MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                var mailchimpService = new Services.MailchimpService(Services.SecurityService.GetDecryptedMailchimpApiKey(), BackupConfig.McAudienceId);
                 string[] tasks = ["Members", "Campaigns", "Reports", "Merge_Fields", "Tags"];
                 foreach (var task in tasks)
                 {

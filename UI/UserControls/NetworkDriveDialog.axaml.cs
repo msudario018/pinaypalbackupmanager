@@ -7,34 +7,29 @@ using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.UI.UserControls
 {
-    public partial class PathsDialog : UserControl
+    public partial class NetworkDriveDialog : UserControl
     {
         public event EventHandler? OnSave;
         public event EventHandler? OnCancel;
 
-        public PathsDialog() : this(ConfigService.Current) { }
+        public NetworkDriveDialog() : this(ConfigService.Current) { }
 
-        public PathsDialog(AppSettings settings)
+        public NetworkDriveDialog(AppSettings settings)
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
 
-            var txtFtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!;
-            var txtMailchimpFolder = this.FindControl<TextBox>("TxtMailchimpFolder")!;
-            var txtSqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!;
-            // Load current values
-            txtFtpLocalFolder.Text = settings.Paths.FtpLocalFolder;
-            txtMailchimpFolder.Text = settings.Paths.MailchimpFolder;
-            txtSqlLocalFolder.Text = settings.Paths.SqlLocalFolder;
+            var chkEnabled = this.FindControl<CheckBox>("ChkNetworkDriveEnabled")!;
+            var txtPath = this.FindControl<TextBox>("TxtNetworkDrivePath")!;
+            var txtUsername = this.FindControl<TextBox>("TxtNetworkDriveUsername")!;
+            var txtPassword = this.FindControl<TextBox>("TxtNetworkDrivePassword")!;
 
-            // Browse buttons
-            this.FindControl<Button>("BtnBrowseFtp")!.Click += async (s, e) =>
-                await BrowseFolderAsync(txtFtpLocalFolder, "Select FTP Backup Folder");
+            chkEnabled.IsChecked = settings.NetworkDrive.Enabled;
+            txtPath.Text = settings.NetworkDrive.Path;
+            txtUsername.Text = settings.NetworkDrive.Username;
+            txtPassword.Text = settings.NetworkDrive.Password;
 
-            this.FindControl<Button>("BtnBrowseMailchimp")!.Click += async (s, e) =>
-                await BrowseFolderAsync(txtMailchimpFolder, "Select Mailchimp Backup Folder");
-
-            this.FindControl<Button>("BtnBrowseSql")!.Click += async (s, e) =>
-                await BrowseFolderAsync(txtSqlLocalFolder, "Select SQL Backup Folder");
+            this.FindControl<Button>("BtnBrowseNetworkDrive")!.Click += async (s, e) =>
+                await BrowseFolderAsync(txtPath, "Select Network Drive Folder");
 
             this.FindControl<Button>("BtnCancel")!.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
             this.FindControl<Button>("BtnSave")!.Click += (s, e) => OnSave?.Invoke(this, EventArgs.Empty);
@@ -51,7 +46,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 AllowMultiple = false
             };
 
-            // Pre-open to current value if it exists
             if (!string.IsNullOrWhiteSpace(target.Text))
             {
                 try
@@ -82,15 +76,21 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Paths = new PathsSettings
                 {
-                    FtpLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtFtpLocalFolder"), current.Paths.FtpLocalFolder),
-                    MailchimpFolder = GetOrPreserve(this.FindControl<TextBox>("TxtMailchimpFolder"), current.Paths.MailchimpFolder),
-                    SqlLocalFolder = GetOrPreserve(this.FindControl<TextBox>("TxtSqlLocalFolder"), current.Paths.SqlLocalFolder),
-                    NetworkDriveFolder = current.Paths.NetworkDriveFolder,
+                    FtpLocalFolder = current.Paths.FtpLocalFolder,
+                    MailchimpFolder = current.Paths.MailchimpFolder,
+                    SqlLocalFolder = current.Paths.SqlLocalFolder,
+                    NetworkDriveFolder = GetOrPreserve(this.FindControl<TextBox>("TxtNetworkDrivePath"), current.Paths.NetworkDriveFolder),
                 },
                 Ftp = current.Ftp,
                 Sql = current.Sql,
                 Mailchimp = current.Mailchimp,
-                NetworkDrive = current.NetworkDrive,
+                NetworkDrive = new NetworkDriveSettings
+                {
+                    Enabled = this.FindControl<CheckBox>("ChkNetworkDriveEnabled")?.IsChecked ?? false,
+                    Path = GetOrPreserve(this.FindControl<TextBox>("TxtNetworkDrivePath"), current.NetworkDrive.Path),
+                    Username = GetOrPreserve(this.FindControl<TextBox>("TxtNetworkDriveUsername"), current.NetworkDrive.Username),
+                    Password = GetOrPreserve(this.FindControl<TextBox>("TxtNetworkDrivePassword"), current.NetworkDrive.Password),
+                },
                 Schedule = current.Schedule,
                 Operation = current.Operation,
                 HttpServer = current.HttpServer

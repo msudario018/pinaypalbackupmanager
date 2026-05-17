@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.13.2] - 2026-05-17
+
+### Fixed
+- **White Theme**: Fixed hardcoded dark colors across all 13 UserControls to use theme-aware `DynamicResource` bindings
+- **Card Borders**: Added visible `BorderBrush`/`BorderThickness` to all cards in Home and Settings tabs so they no longer blend into the background
+- **Theme Toggle Refresh**: Added explicit background refresh for Window, Sidebar, TopBar, and StatusBar on theme change
+
+## [2.12.0] - 2026-05-17
+
+### Added
+- **Dashboard Greeting**: Dynamic time-based greeting in Home Dashboard header ("Good Morning/Afternoon/Evening, Username") using Manila time
+
+### UI
+- **Consistent Tab Headers**: Added uniform title + subtitle headers with dark rounded borders across all tabs:
+  - FTP, Mailchimp, SQL backup tabs
+  - Verification, Statistics, Settings, Profile tabs
+  - Home Dashboard tab with "DASHBOARD" title and personalized greeting
+- **Visual Polish**: Fixed content margins so cards no longer touch tab edges; removed duplicate old dashboard header
+
+### Fixed
+- **Version Badge**: Updated stale version display from v2.9.8 to match current release
+
+## [2.11.5] - 2026-05-17
+
+### Security
+- **AES-256 Encryption**: Replaced hardcoded salt with random per-install salt; added key caching for performance
+- **Password Hashing**: Removed insecure SHA256 and PBKDF2 fallbacks — BCrypt only (legacy users will need password reset)
+- **Path Traversal**: Hardened filename validation in `FileDownloadService` with `Path.GetFileName`, whitelist regex, and URL-encoded traversal blocking
+- **Secure RNG**: Replaced `new Random()` with `RandomNumberGenerator` for invite code generation
+
+### Fixed
+- **SQL Authentication**: Fixed encrypted Base64 password string being passed to WinSCP when decryption failed
+  - Added `TryDecrypt` to `ConfigEncryptionService` with proper error handling
+  - `SecurityService` now returns empty string and logs error instead of passing encrypted text as password
+  - Added diagnostic logging to show which salt path succeeds (random vs legacy)
+- **WinSCP Session Disposal**: Fixed `Session is already opened` crash when disposing `SqlService`/`FtpService`
+  - Wrapped `FileTransferProgress` event unsubscription and `Dispose()` in try/catch blocks
+- **Dialog Clipping**: Fixed Performance Metrics and Backup Schedules popup content being cut off
+  - Removed `ExtendClientAreaToDecorationsHint` and `ExtendClientAreaChromeHints` that were eating usable space
+  - Changed control roots from `StackPanel` to `Grid RowDefinitions="Auto, *"` so `ScrollViewer` fills remaining space
+  - Set `SystemDecorations = BorderOnly` and solid background on popup windows
+- **MessageBox Resizing**: Task Complete dialogs are now non-resizable (`CanResize = false`)
+
+### UI
+- **Recent Activity**: Removed Refresh button — now auto-refreshes when new system log entries arrive (throttled to 2 seconds)
+- **Daily Schedule**: Countdown replaced with next scheduled backup time in 12-hour AM/PM format (e.g., `2:30 PM`)
+- **Backup Health**: Removed critical alerts error list from dashboard; kept alert count badge only
+- **Recent Errors**: Fixed layout with proper header row and scrollable content; Clear button now also clears system log file
+- **Performance Metrics**: Removed close button from header; non-resizable popup with fixed scrolling layout
+- **Backup Schedules**: Non-resizable popup with fixed scrolling layout
+
+### Code Quality
+- **Async Safety**: Added try/catch to async void handlers in `UserManagementControl` to prevent app crashes
+- **Memory Leaks**: Unsubscribed `FileTransferProgress` event handlers in `SqlService` and `FtpService` `Dispose()`
+- **Memory Efficiency**: Switched from `Directory.GetFiles` to `Directory.EnumerateFiles` in `NetworkDriveService`
+- **Build**: Maintained 0 errors
+
 ## [2.10.0] - 2026-05-16
 
 ### Added

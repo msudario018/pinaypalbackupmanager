@@ -340,6 +340,22 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         _ = _manager.RunHealthCheckAsync();
                     }
+
+                    if (string.IsNullOrEmpty(taskError) && NetworkDriveService.IsNetworkDriveConfigured())
+                    {
+                        try
+                        {
+                            LogService.WriteLiveLog("MIRROR: Starting FTP backup mirror to network drive...", BackupConfig.FtpLogFile, "Information", trigger);
+                            await NetworkDriveService.MirrorToNetworkDriveAsync(BackupConfig.FtpLocalFolder, "FTP");
+                            LogService.WriteLiveLog("MIRROR: FTP backup mirrored successfully.", BackupConfig.FtpLogFile, "Information", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", "FTP backup mirrored to network drive.", "Success");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"MIRROR ERROR: FTP mirror failed — {ex.Message}", BackupConfig.FtpLogFile, "Error", trigger);
+                            NotificationService.ShowBackupToast("Network Drive", $"FTP mirror failed: {ex.Message}", "Error");
+                        }
+                    }
                 }
             });
 

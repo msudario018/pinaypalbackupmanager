@@ -55,7 +55,7 @@
                             <TextBlock Text="Local folder where SQL backups will be stored" Foreground="{DynamicResource AppMuted}" FontSize="11" FontStyle="Italic"/>
                         </StackPanel>
                     </Border>
-                    
+
                     <TextBlock Name="TxtStatus" Text="" Foreground="{DynamicResource AccentError}" FontSize="12" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>

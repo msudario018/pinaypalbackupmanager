@@ -13,12 +13,6 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             InitializeComponent();
             
-            var btnClose = this.FindControl<Button>("BtnClose");
-            if (btnClose != null)
-            {
-                btnClose.Click += (s, e) => CloseWindow();
-            }
-            
             var btnRefresh = this.FindControl<Button>("BtnRefresh");
             if (btnRefresh != null)
             {
@@ -39,12 +33,6 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Load initial data
             _ = RefreshMetricsAsync();
-        }
-
-        private void CloseWindow()
-        {
-            var window = TopLevel.GetTopLevel(this) as Window;
-            window?.Close();
         }
 
         private async Task RefreshMetricsAsync()

@@ -2,17 +2,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PinayPalBackupManager.UI.UserControls.ProfileControl">
     
-    <Grid RowDefinitions="Auto, *, Auto" Background="{DynamicResource AppBg}">
-        <!-- Header -->
-        <Border Grid.Row="0" Background="{DynamicResource AppSurface}" Padding="30,25" BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
-            <StackPanel Spacing="12">
-                <TextBlock Text="PROFILE" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
-                <TextBlock Text="Manage your account settings and preferences" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
-            </StackPanel>
-        </Border>
-        
-        <!-- Content -->
-        <ScrollViewer Grid.Row="1" Padding="30,30,30,30" HorizontalScrollBarVisibility="Disabled">
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="PROFILE" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Text="Manage your account settings and preferences" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+            </Grid>
+            
+            <ScrollViewer Grid.Row="1" Padding="30,30,30,30" HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource AppBg}">
             <StackPanel Spacing="30">
                 <!-- User Info Card -->
                 <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1">
@@ -168,4 +168,5 @@
             </StackPanel>
         </ScrollViewer>
     </Grid>
+</Border>
 </UserControl>

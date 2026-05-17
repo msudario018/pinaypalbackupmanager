@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PinayPalBackupManager.UI.UserControls.NetworkDriveDialog"
+             Width="500" Height="420">
+
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="30">
+        <Grid RowDefinitions="*, Auto">
+            <!-- Content -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20">
+
+                    <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Network Drive Backup" Foreground="{DynamicResource AccentInfo}" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource AppMuted}" FontSize="11"
+                                       Text="Copy backups to a network share (NAS, file server, mapped drive) or FTP server. Use UNC paths (\\server\share), mapped drive letters (Z:\Backups), or FTP URLs (ftp://192.168.1.100:21/Backups)."/>
+                            <CheckBox Name="ChkNetworkDriveEnabled" Content="Enable Network Drive Backup" Foreground="{DynamicResource AppText}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Network Drive Path" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBox Grid.Column="0" Name="TxtNetworkDrivePath" Watermark="\\server\share  or  ftp://192.168.1.100:21/Backups"
+                                         Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
+                                <Button Grid.Column="1" Name="BtnBrowseNetworkDrive" Margin="8,2,0,2"
+                                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                        CornerRadius="8" Padding="14,8" ToolTip.Tip="Browse for folder" Cursor="Hand">
+                                    <PathIcon Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"
+                                              Width="18" Height="18"/>
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="UNC path (e.g. \\192.168.1.10\Backups) or mapped drive (e.g. Z:\Backups)"
+                                       Foreground="{DynamicResource AppMuted}" FontSize="11" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppBorder}" CornerRadius="8" Padding="15">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Network Credentials" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Username" Foreground="{DynamicResource AppText}" FontSize="12"/>
+                            <TextBox Name="TxtNetworkDriveUsername" Watermark="domain\username  or  username"
+                                     Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
+                            <TextBlock Text="Password" Foreground="{DynamicResource AppText}" FontSize="12" Margin="0,5,0,0"/>
+                            <TextBox Name="TxtNetworkDrivePassword" Watermark="Password" PasswordChar="•"
+                                     Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" CornerRadius="8" Padding="10"/>
+                            <TextBlock Text="Leave blank if no authentication is required" Foreground="{DynamicResource AppMuted}" FontSize="11" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Name="TxtStatus" Text="" Foreground="{DynamicResource AccentError}" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="15" Margin="0,20,0,0">
+                <Button Name="BtnCancel" Content="Cancel" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" Padding="25,12" CornerRadius="8" FontWeight="SemiBold"/>
+                <Button Name="BtnSave" Content="Save Network Drive" Background="{DynamicResource AccentInfo}" Foreground="{DynamicResource AppText}" Padding="25,12" CornerRadius="8" FontWeight="Bold"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

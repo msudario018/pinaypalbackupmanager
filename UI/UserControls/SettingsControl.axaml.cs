@@ -148,6 +148,28 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnEditPaths.Click += async (s, e) => await ShowPathsDialogAsync();
             }
 
+            var btnEditNetworkDrive = this.FindControl<Button>("BtnEditNetworkDrive");
+            if (btnEditNetworkDrive != null)
+            {
+                btnEditNetworkDrive.Click += async (s, e) => await ShowNetworkDriveDialogAsync();
+            }
+
+            // Per-service Run Now buttons
+            var btnRunFtp = this.FindControl<Button>("BtnRunFtp");
+            if (btnRunFtp != null)
+                btnRunFtp.Click += (_, _) => { _manager?.TriggerFtpBackup(); NotificationService.ShowBackupToast("FTP", "Backup triggered — check FTP tab.", "Info"); };
+
+            var btnRunMailchimp = this.FindControl<Button>("BtnRunMailchimp");
+            if (btnRunMailchimp != null)
+                btnRunMailchimp.Click += (_, _) => { _manager?.TriggerMailchimpBackup(); NotificationService.ShowBackupToast("Mailchimp", "Backup triggered — check Mailchimp tab.", "Info"); };
+
+            var btnRunSql = this.FindControl<Button>("BtnRunSql");
+            if (btnRunSql != null)
+                btnRunSql.Click += (_, _) => { _manager?.TriggerSqlBackup(); NotificationService.ShowBackupToast("SQL", "Backup triggered — check SQL tab.", "Info"); };
+
+            // Populate service status on load
+            RefreshServiceHealthCards();
+
             var btnDiagnostics = this.FindControl<Button>("BtnDiagnostics");
             if (btnDiagnostics != null)
             {
@@ -179,6 +201,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         : $"Status: OUTDATED ({string.Join(", ", outdated)})";
 
                     NotificationService.ShowBackupToast("Diagnostics", txtStatus.Text.Replace("Status: ", ""), outdated.Length == 0 ? "Info" : "Warning");
+                    RefreshServiceHealthCards();
                 }
             };
             }
@@ -322,6 +345,49 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
+        private async System.Threading.Tasks.Task ShowNetworkDriveDialogAsync()
+        {
+            const string dialogKey = "networkdrive_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new NetworkDriveDialog();
+                var window = new Window
+                {
+                    Title = "Network Drive Backup",
+                    Content = dialog,
+                    Width = 500,
+                    Height = 420,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
+                dialog.OnSave += async (sender, e) =>
+                {
+                    await SaveSettingsAsync(dialog.GetSettings(), "Network drive settings saved.");
+                    LogService.WriteSystemLog("Network drive settings updated", "Information", "SETTINGS");
+                    window.Close();
+                };
+
+                dialog.OnCancel += (sender, e) => window.Close();
+
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
         private async System.Threading.Tasks.Task SaveSettingsAsync(AppSettings config, string successMessage)
         {
             var status = this.FindControl<TextBlock>("TxtConfigStatus");
@@ -366,6 +432,61 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
+        private void RefreshServiceHealthCards()
+        {
+            try
+            {
+                RefreshCard("Ftp", BackupConfig.FtpLogFile, "DiagFtpDot", "DiagFtpStatus", "DiagFtpTime");
+                RefreshCard("Mailchimp", BackupConfig.McLogFile, "DiagMcDot", "DiagMcStatus", "DiagMcTime");
+                RefreshCard("Sql", BackupConfig.SqlLogFile, "DiagSqlDot", "DiagSqlStatus", "DiagSqlTime");
+            }
+            catch { }
+        }
+
+        private void RefreshCard(string service, string logFile, string dotName, string statusName, string timeName)
+        {
+            var dot = this.FindControl<Avalonia.Controls.Shapes.Ellipse>(dotName);
+            var status = this.FindControl<TextBlock>(statusName);
+            var time = this.FindControl<TextBlock>(timeName);
+            if (dot == null || status == null || time == null) return;
+
+            try
+            {
+                if (!File.Exists(logFile)) { dot.Fill = Avalonia.Media.Brush.Parse("#6C7086"); status.Text = "No log file"; time.Text = "—"; return; }
+                var logs = LogService.ImportLatestLogs(logFile, 100).ToList();
+                DateTime? lastSuccess = null;
+                foreach (var log in logs)
+                {
+                    var up = log.ToUpperInvariant();
+                    if (up.Contains("COMPLETE") || up.Contains("SUCCESS") || up.Contains("DOWNLOAD COMPLETE"))
+                    {
+                        var m = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?: [AP]M)?)\]");
+                        if (m.Success && DateTime.TryParse(m.Groups[1].Value, out var t)) { lastSuccess = t; break; }
+                    }
+                }
+
+                if (!lastSuccess.HasValue)
+                {
+                    dot.Fill = Avalonia.Media.Brush.Parse("#6C7086");
+                    status.Text = "No successful backup found";
+                    time.Text = "—";
+                    return;
+                }
+
+                var age = DateTime.Now - lastSuccess.Value;
+                bool stale = age.TotalHours > 48;
+                dot.Fill = Avalonia.Media.Brush.Parse(stale ? "#e6c55c" : "#52B788");
+                status.Text = stale ? $"Stale ({(int)age.TotalHours}h ago)" : "OK";
+                time.Text = lastSuccess.Value.ToString("MM/dd HH:mm");
+            }
+            catch
+            {
+                dot.Fill = Avalonia.Media.Brush.Parse("#6C7086");
+                status.Text = "Error reading log";
+                time.Text = "—";
+            }
+        }
+
         private void MergeSettings(AppSettings target, AppSettings source)
         {
             if (!string.IsNullOrWhiteSpace(source.Paths.FtpLocalFolder)) target.Paths.FtpLocalFolder = source.Paths.FtpLocalFolder;
@@ -386,6 +507,12 @@ namespace PinayPalBackupManager.UI.UserControls
 
             if (!string.IsNullOrWhiteSpace(source.Mailchimp.ApiKey)) target.Mailchimp.ApiKey = source.Mailchimp.ApiKey;
             if (!string.IsNullOrWhiteSpace(source.Mailchimp.AudienceId)) target.Mailchimp.AudienceId = source.Mailchimp.AudienceId;
+
+            target.NetworkDrive.Enabled = source.NetworkDrive.Enabled;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Path)) target.NetworkDrive.Path = source.NetworkDrive.Path;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Username)) target.NetworkDrive.Username = source.NetworkDrive.Username;
+            if (!string.IsNullOrWhiteSpace(source.NetworkDrive.Password)) target.NetworkDrive.Password = source.NetworkDrive.Password;
+            if (!string.IsNullOrWhiteSpace(source.Paths.NetworkDriveFolder)) target.Paths.NetworkDriveFolder = source.Paths.NetworkDriveFolder;
 
             if (source.Operation.RetentionDays > 0) target.Operation.RetentionDays = source.Operation.RetentionDays;
             target.Operation.AutoStartWindows = source.Operation.AutoStartWindows;
@@ -511,14 +638,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "System Health Check",
                     Content = control,
                     Width = 600,
-                    Height = 700,
+                    Height = 800,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = true,
+                    CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    Background = Avalonia.Media.Brush.Parse("#0D1117"),
+                    SystemDecorations = SystemDecorations.BorderOnly
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -544,14 +670,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Error Reports",
                     Content = control,
                     Width = 700,
-                    Height = 800,
+                    Height = 900,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = true,
+                    CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    Background = Avalonia.Media.Brush.Parse("#0D1117"),
+                    SystemDecorations = SystemDecorations.BorderOnly
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -577,14 +702,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Performance Metrics",
                     Content = control,
                     Width = 600,
-                    Height = 700,
+                    Height = 800,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = true,
+                    CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    Background = Avalonia.Media.Brush.Parse("#0D1117"),
+                    SystemDecorations = SystemDecorations.BorderOnly
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -610,14 +734,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Backup History",
                     Content = control,
                     Width = 700,
-                    Height = 800,
+                    Height = 900,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = true,
+                    CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    Background = Avalonia.Media.Brush.Parse("#0D1117"),
+                    SystemDecorations = SystemDecorations.BorderOnly
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -643,14 +766,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     Title = "Backup Schedules",
                     Content = control,
                     Width = 700,
-                    Height = 800,
+                    Height = 900,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = true,
+                    CanResize = false,
                     ShowInTaskbar = false,
                     Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    ExtendClientAreaToDecorationsHint = true,
-                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    Background = Avalonia.Media.Brush.Parse("#0D1117"),
+                    SystemDecorations = SystemDecorations.BorderOnly
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;

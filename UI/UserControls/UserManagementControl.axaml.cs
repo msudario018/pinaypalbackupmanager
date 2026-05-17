@@ -24,8 +24,15 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async void LoadDataAsync()
         {
-            await LoadInviteCodesAsync();
-            await LoadUsersAsync();
+            try
+            {
+                await LoadInviteCodesAsync();
+                await LoadUsersAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserManagement] Error loading data: {ex.Message}");
+            }
         }
 
         private async Task LoadInviteCodesAsync()
@@ -120,8 +127,16 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async void OnRefreshInviteCodesClick(object? sender, RoutedEventArgs e)
         {
-            await LoadInviteCodesAsync();
-            NotificationService.ShowBackupToast("Invite Codes", "Refreshed", "Info");
+            try
+            {
+                await LoadInviteCodesAsync();
+                NotificationService.ShowBackupToast("Invite Codes", "Refreshed", "Info");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserManagement] Error refreshing invite codes: {ex.Message}");
+                NotificationService.ShowBackupToast("Invite Codes", "Error refreshing codes", "Error");
+            }
         }
 
         private async void OnCleanupOldCodesClick(object? sender, RoutedEventArgs e)
@@ -173,8 +188,16 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async void OnRefreshUsersClick(object? sender, RoutedEventArgs e)
         {
-            await LoadUsersAsync();
-            NotificationService.ShowBackupToast("Users", "Refreshed", "Info");
+            try
+            {
+                await LoadUsersAsync();
+                NotificationService.ShowBackupToast("Users", "Refreshed", "Info");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserManagement] Error refreshing users: {ex.Message}");
+                NotificationService.ShowBackupToast("Users", "Error refreshing users", "Error");
+            }
         }
 
         private async void OnApproveUserClick(object? sender, RoutedEventArgs e)

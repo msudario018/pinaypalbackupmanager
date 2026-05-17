@@ -179,7 +179,9 @@ namespace PinayPalBackupManager.Services
                         ButtonDefinitions = buttons,
                         Icon = icon,
                         WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                        Topmost = true
+                        Topmost = true,
+                        CanResize = false,
+                        SystemDecorations = SystemDecorations.BorderOnly
                     });
                     await box.ShowAsync();
                 });

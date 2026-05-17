@@ -70,13 +70,15 @@ namespace PinayPalBackupManager.UI.UserControls
             var amText = this.FindControl<TextBlock>($"{prefix}AmText");
             var pmText = this.FindControl<TextBlock>($"{prefix}PmText");
 
-            string activeColor = prefix == "Ftp" ? "#588157" : prefix == "Mc" ? "#00b4d8" : "#fad643";
-            string activeBg    = prefix == "Ftp" ? "#344e41" : prefix == "Mc" ? "#03045e" : "#805b10";
+            // Service accent colors for active state
+            string accent = prefix == "Ftp" ? "#52B788" : prefix == "Mc" ? "#f0a500" : "#fad643";
+            var surface   = this.FindResource("AppSurface") as Brush ?? Brush.Parse("#1e1e2e");
+            var subtext   = this.FindResource("AppSubtext") as Brush ?? Brush.Parse("#a6adc8");
 
-            if (amBtn  != null) amBtn.Background  = Brush.Parse(isPm ? "#6C7086" : activeBg);
-            if (pmBtn  != null) pmBtn.Background  = Brush.Parse(isPm ? activeBg  : "#6C7086");
-            if (amText != null) { amText.Foreground = Brush.Parse(isPm ? "#6C7086" : activeColor); }
-            if (pmText != null) { pmText.Foreground = Brush.Parse(isPm ? activeColor : "#6C7086"); }
+            if (amBtn  != null) amBtn.Background  = isPm ? surface : Brush.Parse(accent);
+            if (pmBtn  != null) pmBtn.Background  = isPm ? Brush.Parse(accent) : surface;
+            if (amText != null) amText.Foreground = isPm ? subtext : Brush.Parse("#FFFFFF");
+            if (pmText != null) pmText.Foreground = isPm ? Brush.Parse("#FFFFFF") : subtext;
         }
 
         private void ResetToDefault()

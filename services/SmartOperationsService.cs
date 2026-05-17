@@ -304,15 +304,16 @@ namespace PinayPalBackupManager.Services
             var result = new PreFlightResult { Service = "Mailchimp" };
 
             // Check API key
-            if (string.IsNullOrEmpty(BackupConfig.McApiKey))
+            var decryptedMcKey = SecurityService.GetDecryptedMailchimpApiKey();
+            if (string.IsNullOrEmpty(decryptedMcKey))
                 result.Issues.Add("Mailchimp API key not configured");
-            else if (!BackupConfig.McApiKey.StartsWith("us") || !BackupConfig.McApiKey.Contains("-"))
+            else if (!decryptedMcKey.Contains("-"))
                 result.Issues.Add("Mailchimp API key format appears invalid");
 
             // Test API connectivity
             try
             {
-                var mc = new MailchimpService(BackupConfig.McApiKey, BackupConfig.McAudienceId);
+                var mc = new MailchimpService(SecurityService.GetDecryptedMailchimpApiKey(), BackupConfig.McAudienceId);
                 // This would be a lightweight API call to test connectivity
                 // For now, just validate the key format
             }

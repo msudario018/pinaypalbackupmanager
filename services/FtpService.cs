@@ -13,7 +13,7 @@ namespace PinayPalBackupManager.Services
         private SessionOptions? _options;
         private Action<FileTransferProgressEventArgs>? _progressCallback;
 
-        public void Initialize(string host, string user, string password, string fingerprint, int port = 21)
+        public void Initialize(string host, string user, string password, string fingerprint = "", int port = 21)
         {
             LogService.WriteLiveLog($"FTP INIT: Connecting to server on port {port}", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
             
@@ -22,6 +22,7 @@ namespace PinayPalBackupManager.Services
                 LogService.WriteLiveLog("FTP INIT WARNING: Password is empty after decryption!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
             }
 
+            bool useTls = !string.IsNullOrWhiteSpace(fingerprint);
             _options = new SessionOptions
             {
                 Protocol = Protocol.Ftp,
@@ -29,9 +30,12 @@ namespace PinayPalBackupManager.Services
                 UserName = user,
                 Password = password,
                 PortNumber = port,
-                FtpSecure = FtpSecure.Explicit,
-                TlsHostCertificateFingerprint = fingerprint
+                FtpSecure = useTls ? FtpSecure.Explicit : FtpSecure.None
             };
+            if (useTls)
+            {
+                _options.TlsHostCertificateFingerprint = fingerprint;
+            }
         }
 
         public async Task<bool> ConnectAsync()
@@ -98,7 +102,44 @@ namespace PinayPalBackupManager.Services
                     }
                     catch (SessionLocalException ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Log it instead of throwing if possible, or just catch it in the caller
+                        throw new OperationCanceledException("Cancelled by user.", ex);
+                    }
+                    catch (Exception ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new OperationCanceledException("Cancelled by user.", ex);
+                    }
+                });
+            }
+            finally
+            {
+                lock (_progressLock)
+                {
+                    _progressCallback = null;
+                }
+            }
+        }
+
+        public async Task<bool> SynchronizeRemoteAsync(string localPath, string remotePath, Action<FileTransferProgressEventArgs> progressCallback)
+        {
+            if (_session == null || !_session.Opened) return false;
+
+            lock (_progressLock)
+            {
+                _progressCallback = progressCallback;
+            }
+
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    try
+                    {
+                        var result = _session.SynchronizeDirectories(SynchronizationMode.Remote, localPath, remotePath, false);
+                        result.Check();
+                        return true;
+                    }
+                    catch (SessionLocalException ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
+                    {
                         throw new OperationCanceledException("Cancelled by user.", ex);
                     }
                     catch (Exception ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
@@ -118,7 +159,29 @@ namespace PinayPalBackupManager.Services
 
         public void Dispose()
         {
-            _session?.Dispose();
+            if (_session != null)
+            {
+                try
+                {
+                    if (_session.Opened)
+                        _session.Close();
+                }
+                catch { }
+
+                try
+                {
+                    _session.FileTransferProgress -= Session_FileTransferProgress;
+                }
+                catch { /* WinSCP may not allow removing handlers from an opened session */ }
+
+                try
+                {
+                    _session.Dispose();
+                }
+                catch { }
+
+                _session = null;
+            }
             GC.SuppressFinalize(this);
         }
 

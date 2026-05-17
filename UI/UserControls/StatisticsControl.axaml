@@ -31,16 +31,15 @@
         </Style>
     </UserControl.Styles>
     
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="20" Margin="20">
-            
+    <Border Background="{DynamicResource AppCard}" CornerRadius="12" Padding="0">
+        <Grid RowDefinitions="Auto, *">
             <!-- Header -->
-            <Grid ColumnDefinitions="*, Auto">
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="BACKUP STATISTICS DASHBOARD" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                     <TextBlock Text="Analyze backup trends and performance metrics" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <Button Name="BtnRefreshStats" Content="Refresh" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
                     <Button Name="BtnExportStats" Content="Export Report" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
@@ -49,6 +48,9 @@
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
+
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" Margin="20">
 
             <!-- Overview Cards -->
             <Grid ColumnDefinitions="*, *, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
@@ -249,6 +251,8 @@
                 </StackPanel>
             </Border>
 
-        </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Border>
 </UserControl>

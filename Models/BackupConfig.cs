@@ -34,9 +34,16 @@ namespace PinayPalBackupManager.Models
             set => ConfigService.Current.Paths.SqlLocalFolder = value;
         }
 
+        public static string NetworkDriveFolder
+        {
+            get => ConfigService.Current.Paths.NetworkDriveFolder;
+            set => ConfigService.Current.Paths.NetworkDriveFolder = value;
+        }
+
         public static string FtpLogFile => Path.Combine(FtpLocalFolder, "backup_log.txt");
         public static string McLogFile => Path.Combine(MailchimpFolder, "backup_log.txt");
         public static string SqlLogFile => Path.Combine(SqlLocalFolder, "backup_log.txt");
+        public static string NetworkDriveLogFile => Path.Combine(NetworkDriveFolder, "backup_log.txt");
 
         // FTP Credentials (Website)
         public static string FtpHost => ConfigService.Current.Ftp.Host;
@@ -53,6 +60,12 @@ namespace PinayPalBackupManager.Models
         public static string McApiKey => ConfigService.Current.Mailchimp.ApiKey;
         public static string McAudienceId => ConfigService.Current.Mailchimp.AudienceId;
 
+        // Network Drive Config
+        public static string NetworkDrivePath => ConfigService.Current.NetworkDrive.Path;
+        public static string NetworkDriveUsername => ConfigService.Current.NetworkDrive.Username;
+        public static string NetworkDrivePassword => ConfigService.Current.NetworkDrive.Password;
+        public static bool NetworkDriveEnabled => ConfigService.Current.NetworkDrive.Enabled;
+
         // Intervals (Minutes)
         public static int FtpDailySyncHourMnl => ConfigService.Current.Schedule.FtpDailySyncHourMnl;
         public static int FtpDailySyncMinuteMnl => ConfigService.Current.Schedule.FtpDailySyncMinuteMnl;
@@ -62,5 +75,6 @@ namespace PinayPalBackupManager.Models
 
         public static int SqlDailySyncHourMnl => ConfigService.Current.Schedule.SqlDailySyncHourMnl;
         public static int SqlDailySyncMinuteMnl => ConfigService.Current.Schedule.SqlDailySyncMinuteMnl;
+
     }
 }
