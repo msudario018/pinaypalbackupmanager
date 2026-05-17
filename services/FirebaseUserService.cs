@@ -565,6 +565,37 @@ namespace PinayPalBackupManager.Services
             }
         }
         
+        /// <summary>
+        /// Clear all users from Firebase (destructive — requires confirmation)
+        /// </summary>
+        public static async Task<bool> ClearAllUsersAsync(CancellationToken cancellationToken = default)
+        {
+            if (!await EnsureInitializedAsync()) return false;
+            
+            try
+            {
+                var response = await _rateLimitedClient.DeleteAsync(
+                    $"{FirebaseUrl}{UsersPath}.json",
+                    cancellationToken);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("[FirebaseUser] Cleared all users from Firebase");
+                    return true;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("[FirebaseUser] Clear all users cancelled");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FirebaseUser] Failed to clear all users: {ex.Message}");
+            }
+            
+            return false;
+        }
+        
         private class FirebaseUserData
         {
             public int Id { get; set; }

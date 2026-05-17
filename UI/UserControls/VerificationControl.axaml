@@ -13,6 +13,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="20"/>
+            <Setter Property="ClipToBounds" Value="True"/>
         </Style>
         <Style Selector="TextBlock.status-title">
             <Setter Property="FontSize" Value="14"/>
@@ -27,6 +28,9 @@
             <Setter Property="Height" Value="8"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="ClipToBounds" Value="True"/>
         </Style>
     </UserControl.Styles>
     

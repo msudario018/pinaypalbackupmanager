@@ -39,6 +39,34 @@ namespace PinayPalBackupManager.UI
             this.FindControl<Button>("BtnShowRegister")!.Click += (_, _) => ShowRegisterPanel(isFirstUser: false);
             this.FindControl<Button>("BtnShowLogin")!.Click += (_, _) => ShowLoginPanel();
 
+            // Emergency admin button — dev-only, visible on login screen for recovery
+            var btnEmergency = this.FindControl<Button>("BtnEmergencyAdmin");
+            if (btnEmergency != null)
+            {
+                btnEmergency.IsVisible = AuthService.IsDevEnvironment();
+                btnEmergency.Click += (_, _) =>
+                {
+                    var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
+                    if (AuthService.HasAnyUsers())
+                    {
+                        errorTxt.Foreground = GetBrush("AccentError");
+                        errorTxt.Text = "Users already exist. Use 'Reset All Users' in Settings if you need to start fresh.";
+                        return;
+                    }
+                    var (success, message) = AuthService.CreateEmergencyAdmin();
+                    if (success)
+                    {
+                        errorTxt.Foreground = GetBrush("AccentSuccess");
+                        errorTxt.Text = message + " Use username: admin, password: admin123";
+                    }
+                    else
+                    {
+                        errorTxt.Foreground = GetBrush("AccentError");
+                        errorTxt.Text = message;
+                    }
+                };
+            }
+
             // Start real-time status listener when username changes
             this.FindControl<TextBox>("TxtLoginUser")!.TextChanged += (s, e) =>
             {

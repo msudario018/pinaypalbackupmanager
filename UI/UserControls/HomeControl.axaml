@@ -137,27 +137,43 @@
             <!-- Time Since Last Backup -->
             <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="16">
                 <Grid Name="TimeSinceGrid" ColumnDefinitions="*, *">
-                    <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="Time Since Last Backup" FontSize="10" FontWeight="SemiBold"
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Bottom">
+                        <TextBlock Text="Time Since Last Backup" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" Margin="0,0,0,4"/>
-                        <Grid ColumnDefinitions="Auto, *, Auto">
-                            <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="FTP" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceFtp" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                            <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="FTP" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceFtp" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto, *, Auto">
-                            <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceMc" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                            <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceMc" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto, *, Auto">
-                            <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="SQL" FontSize="10" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceSql" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                            <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="SQL" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceSql" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                        </Grid>
+
+                        <!-- Backup Summary (uses empty space) -->
+                        <Border Height="1" Background="{DynamicResource AppBorder}" Margin="0,10,0,6"/>
+                        <TextBlock Text="BACKUP SUMMARY" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Services Monitored" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="3" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Next Backup In" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Name="TimeSinceNextIn" Text="--" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Overall Health" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Name="TimeSinceHealth" Text="--" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentSuccess}" VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>
-                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0">
-                        <StackPanel Spacing="5">
+                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0" VerticalAlignment="Center">
+                        <StackPanel Spacing="10" VerticalAlignment="Center">
                             <!-- Header row: label + active service indicator -->
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="GLOBAL BACKUP PROGRESS" FontSize="9" FontWeight="Bold"
@@ -181,7 +197,7 @@
                             </Grid>
 
                             <!-- Network Drive Mirror progress section (always visible like global progress) -->
-                            <StackPanel Name="MirrorProgressSection" IsVisible="True" Spacing="5">
+                            <StackPanel Name="MirrorProgressSection" IsVisible="True" Spacing="10">
                                 <Border Height="1" Background="{DynamicResource AppBorder}" Margin="0,2"/>
 
                                 <!-- Header row: label + active service name -->
@@ -497,17 +513,17 @@
                         </Border>
                         
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                            <Grid ColumnDefinitions="Auto, 40, Auto">
+                            <Grid ColumnDefinitions="Auto, 70, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{DynamicResource AccentFtp}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBlock Grid.Column="1" Text="FTP" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="HealthFtpScore" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentFtp}" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
                             </Grid>
-                            <Grid ColumnDefinitions="Auto, 60, Auto">
+                            <Grid ColumnDefinitions="Auto, 70, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{DynamicResource AccentMailchimp}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="HealthMcScore" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentMailchimp}" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>
                             </Grid>
-                            <Grid ColumnDefinitions="Auto, 30, Auto">
+                            <Grid ColumnDefinitions="Auto, 70, Auto">
                                 <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{DynamicResource AccentSql}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <TextBlock Grid.Column="1" Text="SQL" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Name="HealthSqlScore" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentSql}" HorizontalAlignment="Left" Margin="0,0,0,0" Padding="0,0"/>

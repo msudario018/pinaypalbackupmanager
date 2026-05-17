@@ -12,6 +12,17 @@ namespace PinayPalBackupManager
     {
         public override async void Initialize()
         {
+            // Global crash handler: log any unhandled exception so the app does not silently die
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                try { LogService.WriteSystemLog($"[FATAL] Unhandled exception: {e.ExceptionObject}", "Error", "SYSTEM"); } catch { }
+            };
+            TaskScheduler.UnobservedTaskException += (s, e) =>
+            {
+                try { LogService.WriteSystemLog($"[FATAL] Unobserved task exception: {e.Exception}", "Error", "SYSTEM"); } catch { }
+                e.SetObserved();
+            };
+
             // XAML is loaded automatically by Avalonia 11
             
             // Initialize environment configuration

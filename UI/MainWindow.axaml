@@ -4,7 +4,7 @@
         x:Class="PinayPalBackupManager.UI.MainWindow"
         Title="PinayPal Backup Manager"
         Width="1060" Height="860"
-        MinWidth="920" MinHeight="660"
+        MinWidth="780" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
         Foreground="{DynamicResource AppText}"
@@ -31,8 +31,8 @@
                 </Border>
 
                 <!-- Navigation Buttons -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Name="Sidebar" Spacing="1" Margin="10,10,10,0" VerticalAlignment="Top">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Name="Sidebar" Spacing="1" Margin="10,10,10,6" VerticalAlignment="Top">
 
                     <!-- Section: Main -->
                     <TextBlock Text="MAIN" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"
@@ -131,6 +131,24 @@
                             <TextBlock Text="Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+
+                    <!-- Section: Appearance -->
+                    <TextBlock Text="APPEARANCE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"
+                               Margin="12,10,0,4" LetterSpacing="1.5"/>
+                    <Button Name="BtnThemeToggle" Classes="SideBtn" ToolTip.Tip="Toggle Dark/Light Theme" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+                            <PathIcon Name="ThemeIcon" Data="M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z"
+                                      Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
+                            <TextBlock Text="Toggle Theme" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Name="BtnCustomizeTheme" Classes="SideBtn" ToolTip.Tip="Customize Theme Colors" Padding="12,0">
+                        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+                            <PathIcon Data="M12,22C10.9,22 10,21.1 10,20V16C10,14.9 10.9,14 12,14C13.1,14 14,14.9 14,16V20C14,21.1 13.1,22 12,22M6,14C4.9,14 4,13.1 4,12C4,10.9 4.9,10 6,10H10C11.1,10 12,10.9 12,12C12,13.1 11.1,14 10,14H6M18,14H14C12.9,14 12,13.1 12,12C12,10.9 12.9,10 14,10H18C19.1,10 20,10.9 20,12C20,13.1 19.1,14 18,14M12,2C13.1,2 14,2.9 14,4V8C14,9.1 13.1,10 12,10C10.9,10 10,9.1 10,8V4C10,2.9 10.9,2 12,2M17.66,17.66L14.83,14.83C14.09,14.09 14.09,12.91 14.83,12.17C15.57,11.43 16.75,11.43 17.49,12.17L20.32,15C21.06,15.74 21.06,16.92 20.32,17.66C19.58,18.4 18.4,18.4 17.66,17.66M6.34,17.66C5.6,18.4 4.42,18.4 3.68,17.66C2.94,16.92 2.94,15.74 3.68,15L6.51,12.17C7.25,11.43 8.43,11.43 9.17,12.17C9.91,12.91 9.91,14.09 9.17,14.83L6.34,17.66M17.66,6.34L14.83,9.17C14.09,9.91 12.91,9.91 12.17,9.17C11.43,8.43 11.43,7.25 12.17,6.51L15,3.68C15.74,2.94 16.92,2.94 17.66,3.68C18.4,4.42 18.4,5.6 17.66,6.34M6.34,6.34C5.6,5.6 5.6,4.42 6.34,3.68C7.08,2.94 8.26,2.94 9,3.68L11.83,6.51C12.57,7.25 12.57,8.43 11.83,9.17C11.09,9.91 9.91,9.91 9.17,9.17L6.34,6.34Z"
+                                      Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
+                            <TextBlock Text="Customize Theme" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
                 </ScrollViewer>
 
@@ -206,16 +224,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Right: Theme + Bell + Connection + Version -->
+                <!-- Right: Bell + Connection + Version -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8" Margin="0,0,0,0">
-                    <!-- Theme Toggle -->
-                    <Button Name="BtnThemeToggle" Background="{DynamicResource AppSurface}"
-                            BorderThickness="0" ToolTip.Tip="Toggle Theme" Cursor="Hand"
-                            CornerRadius="10" Padding="10,9">
-                        <PathIcon Name="ThemeIcon" Data="M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z"
-                                  Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
-                    </Button>
-
                     <!-- Bell with badge -->
                     <Grid>
                         <Button Name="BtnNotificationCenter" Background="{DynamicResource AppSurface}"
@@ -253,7 +263,7 @@
                             </Button>
                             <StackPanel VerticalAlignment="Center" Spacing="1">
                                 <TextBlock Text="VERSION" Foreground="{DynamicResource AppMuted}" FontSize="8" FontWeight="Bold" LetterSpacing="0.5"/>
-                                <TextBlock Name="TxtVersionBadge" Text="v2.13.2" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                <TextBlock Name="TxtVersionBadge" Text="v2.13.8" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

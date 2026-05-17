@@ -32,7 +32,7 @@ namespace PinayPalBackupManager.Services
             _httpClient = new HttpClient(handler)
             {
                 Timeout = TimeSpan.FromSeconds(30),
-                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.2" } }
+                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.8" } }
             };
 
             // Pinned client for Firebase connections
@@ -40,7 +40,7 @@ namespace PinayPalBackupManager.Services
             _pinnedClient = new HttpClient(pinnedHandler)
             {
                 Timeout = TimeSpan.FromSeconds(10),
-                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.2" } }
+                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.8" } }
             };
 
             Console.WriteLine("[HttpClientFactory] Initialized with connection pooling and certificate pinning");
@@ -71,7 +71,7 @@ namespace PinayPalBackupManager.Services
             return new HttpClient(handler)
             {
                 Timeout = timeout,
-                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.2" } }
+                DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.8" } }
             };
         }
 

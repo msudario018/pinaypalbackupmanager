@@ -129,7 +129,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btnExportLogs != null)
             {
                 btnExportLogs.Click += async (_, _) => await ExportLogsAsync();
-            };
+            }
 
             // Set version dynamically
             var txtVersion = this.FindControl<TextBlock>("TxtVersion");
@@ -235,6 +235,12 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btnBackupSchedules != null)
             {
                 btnBackupSchedules.Click += async (s, e) => await ShowBackupSchedulesDialogAsync();
+            }
+
+            var btnResetAllUsers = this.FindControl<Button>("BtnResetAllUsers");
+            if (btnResetAllUsers != null)
+            {
+                btnResetAllUsers.Click += async (_, _) => await ShowResetAllUsersConfirmationAsync();
             }
         }
 
@@ -381,6 +387,94 @@ namespace PinayPalBackupManager.UI.UserControls
                 dialog.OnCancel += (sender, e) => window.Close();
 
                 await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowResetAllUsersConfirmationAsync()
+        {
+            const string dialogKey = "reset_users_confirm";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new ConfirmDialog("Reset All Users", "This will permanently delete ALL users from the local database and Firebase.\n\nYou will need to create a new admin account afterwards.\n\nAre you sure?");
+
+                var window = new Window
+                {
+                    Title = "Confirm Reset",
+                    Content = dialog,
+                    Width = 420,
+                    Height = 280,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                bool confirmed = false;
+
+                dialog.OnResult += (_, result) =>
+                {
+                    confirmed = result;
+                    window.Close();
+                };
+
+                await window.ShowDialog(parentWindow!);
+
+                if (!confirmed) return;
+
+                NotificationService.ShowBackupToast("Users", "Resetting all users...", "Warning");
+
+                // Clear Firebase first
+                var firebaseCleared = await FirebaseUserService.ClearAllUsersAsync();
+                
+                // Clear local DB
+                var (localSuccess, localMessage) = AuthService.ResetAllUsers();
+                
+                if (localSuccess)
+                {
+                    NotificationService.ShowBackupToast("Users", $"All users reset. Firebase: {(firebaseCleared ? "cleared" : "failed")}", "Info");
+                    LogService.WriteSystemLog("All users reset from local DB and Firebase", "Warning", "SETTINGS");
+                    
+                    // Clear session and log out
+                    SessionService.ClearSession();
+                    
+                    // Show message that app needs restart
+                    var restartDialog = new ConfirmDialog("Restart Required", "All users have been reset.\n\nThe application will now close. Please restart to create a new admin account.");
+                    var restartWindow = new Window
+                    {
+                        Title = "Restart",
+                        Content = restartDialog,
+                        Width = 380,
+                        Height = 220,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        CanResize = false,
+                        ShowInTaskbar = false,
+                        Topmost = true,
+                        Background = Avalonia.Media.Brushes.Transparent,
+                        ExtendClientAreaToDecorationsHint = true,
+                        ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
+                    };
+                    restartDialog.OnResult += (_, _) =>
+                    {
+                        restartWindow.Close();
+                        Environment.Exit(0);
+                    };
+                    await restartWindow.ShowDialog(parentWindow!);
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("Users", localMessage, "Error");
+                }
             }
             finally
             {

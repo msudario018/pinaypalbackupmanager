@@ -171,6 +171,30 @@
             </Setter>
         </Style>
 
+        <!-- Global Font Styles (Theme Customizer) -->
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource AppFontSize}"/>
+        </Style>
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource AppFontSize}"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource AppFontSize}"/>
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource AppFontSize}"/>
+        </Style>
+
         <!-- ListBox Item Animations - Optimized -->
         <Style Selector="ListBoxItem">
             <Setter Property="Transitions">
@@ -579,6 +603,11 @@
             <Color x:Key="ColorAccentWebsite">#A78BFA</Color>
             <cv:BoolToStatusTextConverter x:Key="BoolToStatusText" />
             <cv:BoolToStatusBrushConverter x:Key="BoolToStatusBrush" />
+
+            <!-- Default Font Resources (overridden by ThemeService.ApplyCustomThemeSettings) -->
+            <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
+            <x:Double x:Key="AppFontSize">14</x:Double>
+            <FontWeight x:Key="AppFontWeight">Normal</FontWeight>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

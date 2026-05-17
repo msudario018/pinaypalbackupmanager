@@ -260,7 +260,7 @@ namespace PinayPalBackupManager.Services
 
             using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
-            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd2.Parameters.AddWithValue("@u", usernameValidation.sanitized);
 
             using var reader = cmd2.ExecuteReader();
@@ -348,7 +348,7 @@ namespace PinayPalBackupManager.Services
 
             using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
-            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u";
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd2.Parameters.AddWithValue("@u", username.Trim());
 
             using var reader = cmd2.ExecuteReader();
@@ -534,7 +534,7 @@ namespace PinayPalBackupManager.Services
             using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Username = @u COLLATE NOCASE";
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd.Parameters.AddWithValue("@u", username);
             using var reader = cmd.ExecuteReader();
             if (reader.Read())
@@ -687,13 +687,23 @@ namespace PinayPalBackupManager.Services
             var user = GetUserById(userId);
             if (user == null) return false;
 
+            // Validate and sanitize the new username
+            var validation = InputValidationService.ValidateUsername(newUsername);
+            if (!validation.isValid)
+                return false;
+
+            var sanitized = validation.sanitized;
             var oldUsername = user.Username;
+
+            // Prevent changing to the same username (case-insensitive check)
+            if (string.Equals(oldUsername, sanitized, StringComparison.OrdinalIgnoreCase))
+                return true; // Already the same, nothing to do
 
             using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Username = @u WHERE Id = @id";
-            cmd.Parameters.AddWithValue("@u", newUsername);
+            cmd.Parameters.AddWithValue("@u", sanitized);
             cmd.Parameters.AddWithValue("@id", userId);
             var result = cmd.ExecuteNonQuery() > 0;
 
@@ -702,7 +712,7 @@ namespace PinayPalBackupManager.Services
                 // Update current user if it's the same user
                 if (CurrentUser != null && CurrentUser.Id == userId)
                 {
-                    CurrentUser.Username = newUsername;
+                    CurrentUser.Username = sanitized;
                     OnUserChanged?.Invoke(CurrentUser);
                 }
 
@@ -858,7 +868,7 @@ namespace PinayPalBackupManager.Services
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT COUNT(*) FROM FailedLoginAttempts 
-                    WHERE Username = @u 
+                    WHERE TRIM(Username) = @u COLLATE NOCASE
                     AND AttemptTime > datetime('now', '-15 minutes')";
                 cmd.Parameters.AddWithValue("@u", username);
                 var count = Convert.ToInt32(cmd.ExecuteScalar());
@@ -880,7 +890,7 @@ namespace PinayPalBackupManager.Services
                 cmd.CommandText = @"
                     SELECT datetime(AttemptTime, '+15 minutes') - datetime('now') as remaining_minutes
                     FROM FailedLoginAttempts 
-                    WHERE Username = @u 
+                    WHERE TRIM(Username) = @u COLLATE NOCASE
                     ORDER BY AttemptTime DESC 
                     LIMIT 1";
                 cmd.Parameters.AddWithValue("@u", username);
@@ -922,7 +932,7 @@ namespace PinayPalBackupManager.Services
                 using var conn = DatabaseService.GetConnection();
                 conn.Open();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "DELETE FROM FailedLoginAttempts WHERE Username = @u";
+                cmd.CommandText = "DELETE FROM FailedLoginAttempts WHERE TRIM(Username) = @u COLLATE NOCASE";
                 cmd.Parameters.AddWithValue("@u", username);
                 cmd.ExecuteNonQuery();
             }
@@ -941,7 +951,7 @@ namespace PinayPalBackupManager.Services
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT COUNT(*) FROM FailedLoginAttempts 
-                    WHERE Username = @u 
+                    WHERE TRIM(Username) = @u COLLATE NOCASE
                     AND AttemptTime > datetime('now', '-15 minutes')";
                 cmd.Parameters.AddWithValue("@u", username);
                 return Convert.ToInt32(cmd.ExecuteScalar());
@@ -955,6 +965,98 @@ namespace PinayPalBackupManager.Services
         public static void ClearFailedLoginAttemptsForUser(string username)
         {
             ClearFailedLoginAttempts(username);
+        }
+
+        /// <summary>
+        /// Returns true if running in a development environment (debug build or IDE attached)
+        /// </summary>
+        public static bool IsDevEnvironment()
+        {
+            var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            return System.Diagnostics.Debugger.IsAttached
+                || assemblyPath.Contains("\\Debug\\", StringComparison.OrdinalIgnoreCase)
+                || assemblyPath.Contains("/Debug/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Create a temporary/emergency admin account (dev-only, for recovery or testing)
+        /// </summary>
+        public static (bool success, string message) CreateEmergencyAdmin(string username = "admin", string password = "admin123")
+        {
+            if (!IsDevEnvironment())
+                return (false, "Emergency admin creation is only available in development mode.");
+
+            if (HasAnyUsers())
+                return (false, "Users already exist. Emergency admin can only be created when the database is empty.");
+
+            var usernameValidation = InputValidationService.ValidateUsername(username);
+            if (!usernameValidation.isValid)
+                return (false, usernameValidation.error);
+
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                return (false, "Password must be at least 8 characters.");
+
+            var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt) VALUES (@u, @h, @s, @r, @st, @ca)";
+                cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
+                cmd.Parameters.AddWithValue("@h", hash);
+                cmd.Parameters.AddWithValue("@s", string.Empty);
+                cmd.Parameters.AddWithValue("@r", "Admin");
+                cmd.Parameters.AddWithValue("@st", "Active");
+                cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
+                cmd.ExecuteNonQuery();
+
+                LogAuditEvent("EMERGENCY_ADMIN_CREATED", usernameValidation.sanitized, "Emergency admin account created");
+                return (true, $"Emergency admin '{usernameValidation.sanitized}' created.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Failed to create emergency admin: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Reset all users from local database (destructive — requires confirmation)
+        /// </summary>
+        public static (bool success, string message) ResetAllUsers()
+        {
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                
+                // Clear all related tables
+                cmd.CommandText = "DELETE FROM Users";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText = "DELETE FROM FailedLoginAttempts";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText = "DELETE FROM AuditLog";
+                cmd.ExecuteNonQuery();
+                
+                // Reset SQLite auto-increment
+                cmd.CommandText = "DELETE FROM sqlite_sequence WHERE name='Users'";
+                try { cmd.ExecuteNonQuery(); } catch { /* sqlite_sequence may not exist */ }
+                cmd.CommandText = "DELETE FROM sqlite_sequence WHERE name='FailedLoginAttempts'";
+                try { cmd.ExecuteNonQuery(); } catch { }
+                cmd.CommandText = "DELETE FROM sqlite_sequence WHERE name='AuditLog'";
+                try { cmd.ExecuteNonQuery(); } catch { }
+                
+                CurrentUser = null;
+                OnUserChanged?.Invoke(null);
+                
+                LogAuditEvent("ALL_USERS_RESET", "System", "All users cleared from local database");
+                return (true, "All local users have been reset.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Failed to reset users: {ex.Message}");
+            }
         }
 
         // ── Audit Logging ──

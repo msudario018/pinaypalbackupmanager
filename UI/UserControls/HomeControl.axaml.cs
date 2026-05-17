@@ -202,6 +202,17 @@ namespace PinayPalBackupManager.UI.UserControls
                         // Update critical alerts count
                         var alertsCount = this.FindControl<TextBlock>("CriticalAlertsCount");
                         if (alertsCount != null) alertsCount.Text = health.CriticalAlerts.Count.ToString();
+                        
+                        // Update backup summary health
+                        var summaryHealth = this.FindControl<TextBlock>("TimeSinceHealth");
+                        if (summaryHealth != null)
+                        {
+                            var score = health.OverallScore;
+                            summaryHealth.Text = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Poor";
+                            summaryHealth.Foreground = score >= 80 ? new SolidColorBrush(Colors.Green) :
+                                                        score >= 50 ? new SolidColorBrush(Colors.Orange) :
+                                                        new SolidColorBrush(Colors.Red);
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -494,10 +505,12 @@ namespace PinayPalBackupManager.UI.UserControls
                     countdown = $"{diff.TotalDays:F1}d";
 
                 Set("NextBackupCountdown", $"Next in: {countdown}");
+                Set("TimeSinceNextIn", countdown);
             }
             else
             {
                 Set("NextBackupCountdown", "Next in: --");
+                Set("TimeSinceNextIn", "--");
             }
 
             // Status is always "Scheduled" for configured daily times

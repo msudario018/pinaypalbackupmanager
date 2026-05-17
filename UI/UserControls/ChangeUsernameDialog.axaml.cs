@@ -51,15 +51,26 @@ namespace PinayPalBackupManager.UI.UserControls
                     return;
                 }
 
-                // Check if username already exists
-                if (AuthService.GetUserByUsername(newUsername) != null)
+                // Validate username format
+                var validation = InputValidationService.ValidateUsername(newUsername);
+                if (!validation.isValid)
+                {
+                    txtError!.Text = validation.error;
+                    return;
+                }
+
+                var sanitized = validation.sanitized;
+
+                // Check if username already exists (exclude current user for case changes)
+                var existing = AuthService.GetUserByUsername(sanitized);
+                if (existing != null && existing.Id != user.Id)
                 {
                     txtError!.Text = "Username already taken.";
                     return;
                 }
 
                 // Change username
-                var changed = AuthService.ChangeUsername(user.Id, newUsername);
+                var changed = AuthService.ChangeUsername(user.Id, sanitized);
                 if (changed)
                 {
                     OnUsernameChanged?.Invoke(this, EventArgs.Empty);

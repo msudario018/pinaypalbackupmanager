@@ -482,12 +482,32 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (string.IsNullOrWhiteSpace(newUsername)) { txtError.Text = "Please enter a new username."; txtError.IsVisible = true; return; }
                     if (newUsername.Length < 3) { txtError.Text = "Username must be at least 3 characters."; txtError.IsVisible = true; return; }
 
-                    var changed = AuthService.ChangeUsername(userId, newUsername);
+                    // Validate username format
+                    var validation = InputValidationService.ValidateUsername(newUsername);
+                    if (!validation.isValid)
+                    {
+                        txtError.Text = validation.error;
+                        txtError.IsVisible = true;
+                        return;
+                    }
+
+                    var sanitized = validation.sanitized;
+
+                    // Check for duplicate (exclude target user)
+                    var existing = AuthService.GetUserByUsername(sanitized);
+                    if (existing != null && existing.Id != userId)
+                    {
+                        txtError.Text = "Username already taken.";
+                        txtError.IsVisible = true;
+                        return;
+                    }
+
+                    var changed = AuthService.ChangeUsername(userId, sanitized);
                     if (changed)
                     {
                         window.Close();
                         RefreshUserList();
-                        NotificationService.ShowBackupToast("Users", $"Username changed to {newUsername}", "Success");
+                        NotificationService.ShowBackupToast("Users", $"Username changed to {sanitized}", "Success");
                     }
                     else
                     {

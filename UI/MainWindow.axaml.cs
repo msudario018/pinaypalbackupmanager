@@ -51,6 +51,10 @@ namespace PinayPalBackupManager.UI
         private bool _configRequired;
         public event Action? OnLogoutRequested;
 
+        // Stored delegates to unsubscribe from static ThemeService event on window close
+        private Action<bool>? _themeChangedIconHandler;
+        private Action<bool>? _themeChangedBgHandler;
+
         public MainWindow()
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
@@ -74,7 +78,7 @@ namespace PinayPalBackupManager.UI
             var btnClearNotif = this.FindControl<Button>("BtnClearNotifications");
             if (btnClearNotif != null) btnClearNotif.Click += (_, _) => { NotificationHistoryService.ClearAll(); PopulateNotificationCenter(); UpdateBellBadge(); };
 
-            // Theme toggle
+            // Sidebar theme toggle
             var btnTheme = this.FindControl<Button>("BtnThemeToggle");
             var themeIcon = this.FindControl<PathIcon>("ThemeIcon");
             if (btnTheme != null) btnTheme.Click += (_, _) => ThemeService.Toggle();
@@ -83,30 +87,54 @@ namespace PinayPalBackupManager.UI
                 const string MoonPath = "M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z";
                 const string SunPath = "M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,2L14.39,5.42C13.65,5.14 12.84,5 12,5C11.16,5 10.35,5.14 9.61,5.42L12,2M3.34,5L7.71,7.05C6.87,7.54 6.13,8.2 5.53,9L2.41,6.88L3.34,5M2,12L5.42,9.61C5.14,10.35 5,11.16 5,12C5,12.84 5.14,13.65 5.42,14.39L2,12M3.34,19L5.53,15C6.13,15.8 6.87,16.46 7.71,16.95L3.34,19M12,22L9.61,18.58C10.35,18.86 11.16,19 12,19C12.84,19 13.65,18.86 14.39,18.58L12,22M20.66,19L16.29,16.95C17.13,16.46 17.87,15.8 18.47,15L20.66,19M22,12L18.58,14.39C18.86,13.65 19,12.84 19,12C19,11.16 18.86,10.35 18.58,9.61L22,12M20.66,5L18.47,9C17.87,8.2 17.13,7.54 16.29,7.05L20.66,5Z";
                 themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(ThemeService.IsDark ? MoonPath : SunPath);
-                ThemeService.OnThemeChanged += (isDark) =>
+                _themeChangedIconHandler = (isDark) =>
                 {
-                    themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(isDark ? MoonPath : SunPath);
+                    try
+                    {
+                        if (themeIcon is not null)
+                            themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(isDark ? MoonPath : SunPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[MAINWINDOW] Theme icon update failed: {ex}", "Error", "SYSTEM");
+                    }
                 };
+                ThemeService.OnThemeChanged += _themeChangedIconHandler;
+            }
+
+            // Sidebar customize theme button
+            var btnCustomizeTheme = this.FindControl<Button>("BtnCustomizeTheme");
+            if (btnCustomizeTheme != null)
+            {
+                btnCustomizeTheme.Click += async (_, _) => await ShowThemeCustomizerDialogAsync();
             }
 
             // Force refresh main window backgrounds that don't update via DynamicResource on theme change
-            ThemeService.OnThemeChanged += (isDark) =>
+            _themeChangedBgHandler = (isDark) =>
             {
-                if (Application.Current?.FindResource("AppBg") is IBrush appBg)
-                    this.Background = appBg;
+                try
+                {
+                    if (Application.Current?.FindResource("AppBg") is IBrush appBg)
+                        this.Background = appBg;
 
-                var sidebar = this.FindControl<Border>("SidebarBorder");
-                if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
-                    sidebar.Background = sidebarBg;
+                    var sidebar = this.FindControl<Border>("SidebarBorder");
+                    if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
+                        sidebar.Background = sidebarBg;
 
-                var topBar = this.FindControl<Border>("TopBarBorder");
-                if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
-                    topBar.Background = topBarBg;
+                    var topBar = this.FindControl<Border>("TopBarBorder");
+                    if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
+                        topBar.Background = topBarBg;
 
-                var statusBar = this.FindControl<Border>("StatusBar");
-                if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
-                    statusBar.Background = statusBg;
+                    var statusBar = this.FindControl<Border>("StatusBar");
+                    if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
+                        statusBar.Background = statusBg;
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MAINWINDOW] Theme background refresh failed: {ex}", "Error", "SYSTEM");
+                }
             };
+            ThemeService.OnThemeChanged += _themeChangedBgHandler;
 
             NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
 
@@ -240,7 +268,7 @@ namespace PinayPalBackupManager.UI
             SetStartupBusy(true);
             
             // Hide entire sidepanel during startup for cleaner loading experience
-            var sidepanelBorder = this.FindControl<Border>("SidepanelBorder");
+            var sidepanelBorder = this.FindControl<Border>("SidebarBorder");
             if (sidepanelBorder != null) sidepanelBorder.IsVisible = false;
             
             // Expand main content to full width during startup
@@ -288,13 +316,15 @@ namespace PinayPalBackupManager.UI
             }
             
             // Handle window closing event
-            this.Closing += async (sender, e) =>
+            this.Closed += async (s, e) =>
             {
+                if (_themeChangedIconHandler != null)
+                    ThemeService.OnThemeChanged -= _themeChangedIconHandler;
+                if (_themeChangedBgHandler != null)
+                    ThemeService.OnThemeChanged -= _themeChangedBgHandler;
+
                 try
                 {
-                    LogService.WriteSystemLog("[MAINWINDOW] Starting graceful shutdown...", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "Starting graceful shutdown of all services", "MAINWINDOW");
-                    
                     // Stop all running backup operations first
                     if (_ftpControl?.IsBusy == true)
                     {
@@ -1156,7 +1186,7 @@ namespace PinayPalBackupManager.UI
                     }
                     
                     // Animate sidepanel appearance with fade-in and slide-in
-                    var sidepanelBorder = this.FindControl<Border>("SidepanelBorder");
+                    var sidepanelBorder = this.FindControl<Border>("SidebarBorder");
                     if (sidepanelBorder != null)
                     {
                         // Set initial state for animation
@@ -2194,6 +2224,44 @@ namespace PinayPalBackupManager.UI
             else
             {
                 NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowThemeCustomizerDialogAsync()
+        {
+            const string dialogKey = "theme_customizer_dialog";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                var dialog = new ThemeCustomizerDialog();
+                // Size dialog to fit within owner window so it does not get clipped on small screens
+                var ownerW = this.Bounds.Width > 0 ? this.Bounds.Width : 780;
+                var ownerH = this.Bounds.Height > 0 ? this.Bounds.Height : 560;
+                var dialogW = Math.Min(640, Math.Max(380, ownerW - 60));
+                var dialogH = Math.Min(620, Math.Max(440, ownerH - 60));
+                var window = new Window
+                {
+                    Title = "Customize Theme",
+                    Content = dialog,
+                    Width = dialogW,
+                    Height = dialogH,
+                    MinWidth = 380,
+                    MinHeight = 440,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    SystemDecorations = SystemDecorations.None,
+                    Background = Avalonia.Media.Brushes.Transparent
+                };
+
+                await window.ShowDialog(this);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
 

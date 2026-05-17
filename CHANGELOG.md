@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.13.8] - 2026-05-17
+
+### Fixed
+- **Theme Toggle Crash**: Fixed `InvalidCastException` when switching between light/dark themes by explicitly casting `int` theme settings (`FontSize`, `UIScale`, `BorderRadius`) to `double` before storing in Avalonia resources
+- **Theme Customizer Dialog**: Removed double border by setting `SystemDecorations=None` and removing conflicting `ExtendClientArea` properties; dialog is now non-resizable
+- **Horizontal Scrollbar Overflow**: Reverted `ScrollViewer` horizontal scrollbar from `Auto` to `Disabled` across all 10+ tab controls to prevent star-column sizing issues and layout breakage
+- **Verification Tab Overlap**: Fixed overlapping progress bars in `VerificationControl.axaml` by adding `ClipToBounds=True` and `HorizontalAlignment=Stretch`
+- **Statistics Chart Clipping**: Added `ClipToBounds=True` to chart container `Border` and inner `Canvas` to prevent line overflow
+- **MainWindow Responsiveness**: Lowered `MinWidth`/`MinHeight` to allow smaller window sizes
+
+### Changed
+- **Home Dashboard Layout** (`HomeControl.axaml`):
+  - "Time Since Last Backup" left column now uses `Auto` sizing with `VerticalAlignment=Bottom`
+  - Time values are now right-aligned at a consistent horizontal position across all 3 services
+  - Increased font sizes for title, service names, and time values for better readability
+  - Added spacing between service names and time values
+  - Added new **"Backup Summary"** section filling empty space with:
+    - Services Monitored count
+    - Next Backup In countdown
+    - Overall Health status (Good/Fair/Poor with color coding)
+  - "Global Backup Progress" right panel is now vertically centered with increased spacing
+
 ## [2.13.2] - 2026-05-17
 
 ### Fixed

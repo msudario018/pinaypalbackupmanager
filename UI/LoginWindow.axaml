@@ -91,6 +91,12 @@
                                         Background="Transparent" BorderThickness="0" Padding="2,0" Cursor="Hand"
                                         FontWeight="SemiBold"/>
                             </StackPanel>
+
+                            <Button Name="BtnEmergencyAdmin" Content="Create Emergency Admin Account"
+                                    HorizontalAlignment="Center"
+                                    Background="Transparent" Foreground="{DynamicResource AccentError}"
+                                    BorderThickness="0" Padding="6,4" FontSize="11"
+                                    Cursor="Hand" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
 
