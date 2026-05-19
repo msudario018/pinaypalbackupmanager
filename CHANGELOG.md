@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.16.8] - 2026-05-19
+
+### Added
+- **Setup Wizard Firebase Admin Detection**: The setup wizard now queries Firebase on startup to determine if an admin already exists
+  - If Firebase already has an admin → wizard switches to "Create User Account" mode with invite code requirement
+  - If Firebase is empty → wizard stays in "Create Administrator Account" mode (no invite code needed)
+  - Prevents accidental creation of multiple admin accounts on secondary PCs
+
+### Changed
+- **Setup Wizard Account Creation Logic**:
+  - Admin PC: creates account as `Role: Admin, Status: Active` via `AuthService.CreateUser()` and auto-logs in
+  - Non-admin PC: validates invite code via Firebase, creates account as `Role: User, Status: Pending`, marks invite as used, and redirects to login screen
+- **Password Validation in Setup Wizard**: Now enforces full complexity rules (uppercase, lowercase, digit, special character) matching `AuthService.CreateUser`
+- **App.OnSetupComplete**: Routes to `MainWindow` if a user is logged in, otherwise routes to `Login` screen (for pending accounts)
+
 ## [2.16.5] - 2026-05-19
 
 ### Added

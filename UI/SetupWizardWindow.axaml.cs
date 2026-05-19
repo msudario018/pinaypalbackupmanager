@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.UI
@@ -23,11 +24,27 @@ namespace PinayPalBackupManager.UI
         public SetupWizardWindow()
         {
             AvaloniaXamlLoader.Load(this);
-            _isAdminPC = !ConfigService.Current.Operation.SetupCompleted;
+            _isAdminPC = true; // Default: assume this is the first/admin PC
             SetupEventHandlers();
             UpdateUIForCurrentStep();
             SetDefaultPaths();
             UpdateAdminUserText();
+
+            // Check Firebase asynchronously to confirm this is actually the admin PC
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var users = await FirebaseUserService.GetAllUsersAsync();
+                    bool hasAdmin = users.Any(u => u.Role == "Admin");
+                    if (hasAdmin)
+                    {
+                        _isAdminPC = false;
+                        Dispatcher.UIThread.Post(() => UpdateAdminUserText());
+                    }
+                }
+                catch { /* Firebase unreachable — keep admin PC assumption */ }
+            });
         }
 
         private void SetupEventHandlers()
@@ -247,6 +264,30 @@ namespace PinayPalBackupManager.UI
             {
                 ShowError("ErrorAdminPassword", "Password must be at least 8 characters");
                 valid = false;
+            }
+            else if (!password.Any(char.IsUpper))
+            {
+                ShowError("ErrorAdminPassword", "Password must contain at least one uppercase letter");
+                valid = false;
+            }
+            else if (!password.Any(char.IsLower))
+            {
+                ShowError("ErrorAdminPassword", "Password must contain at least one lowercase letter");
+                valid = false;
+            }
+            else if (!password.Any(char.IsDigit))
+            {
+                ShowError("ErrorAdminPassword", "Password must contain at least one digit");
+                valid = false;
+            }
+            else
+            {
+                var specialChars = "!@#$%^&*()_+-=[]{}|;':\",.<>?";
+                if (!password.Any(c => specialChars.Contains(c)))
+                {
+                    ShowError("ErrorAdminPassword", "Password must contain at least one special character");
+                    valid = false;
+                }
             }
 
             if (password != confirmPassword)
@@ -649,32 +690,64 @@ namespace PinayPalBackupManager.UI
 
             try
             {
-                // 1. Create admin user
                 var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
                 var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
-                var inviteCode = _isAdminPC ? null : this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
-                var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
-                if (!success)
+
+                if (_isAdminPC)
                 {
-                    await ShowErrorDialog($"Failed to create admin user: {message}");
-                    return;
+                    // Admin PC: create admin directly (no invite code needed)
+                    var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
+                    if (!success)
+                    {
+                        await ShowErrorDialog($"Failed to create admin user: {message}");
+                        return;
+                    }
+
+                    // Auto-login the new admin
+                    AuthService.Login(username, password);
+                    SessionService.SaveSession(AuthService.CurrentUser!.Id);
+                }
+                else
+                {
+                    // Non-admin PC: validate invite code and create a pending standard user
+                    var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(inviteCode))
+                    {
+                        await ShowErrorDialog("Invite code is required.");
+                        return;
+                    }
+
+                    bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode);
+                    if (!isValid)
+                    {
+                        await ShowErrorDialog("Invalid or expired invite code.");
+                        return;
+                    }
+
+                    var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
+                    if (!success)
+                    {
+                        await ShowErrorDialog($"Failed to create user: {message}");
+                        return;
+                    }
+
+                    // Mark invite code as used
+                    await FirebaseInviteService.UseInviteCodeAsync(inviteCode, username);
+
+                    // Do NOT auto-login pending users
                 }
 
-                // 2. Save service configurations
+                // Save service configurations
                 SaveServiceConfigurations();
 
-                // 3. Apply security settings
+                // Apply security settings
                 if (this.FindControl<CheckBox>("ChkEncryptConfig")!.IsChecked!.Value)
                 {
                     SecurityService.EncryptSensitiveConfiguration();
                 }
 
-                // 4. Mark setup as complete
+                // Mark setup as complete
                 ConfigService.MarkSetupComplete();
-
-                // 5. Login the new admin
-                AuthService.Login(username, password);
-                SessionService.SaveSession(AuthService.CurrentUser!.Id);
 
                 LogService.WriteLiveLog("[SETUP] Initial setup completed successfully", "", "Information", "SYSTEM");
 

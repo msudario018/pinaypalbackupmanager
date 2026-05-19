@@ -141,7 +141,10 @@ namespace PinayPalBackupManager
             var setupWizard = new SetupWizardWindow();
             setupWizard.OnSetupComplete += () =>
             {
-                ShowMainWindow(desktop, null);
+                if (AuthService.CurrentUser != null)
+                    ShowMainWindow(desktop, null);
+                else
+                    ShowLogin(desktop);
             };
             desktop.MainWindow = setupWizard;
             setupWizard.Show();
