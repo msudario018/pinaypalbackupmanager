@@ -115,6 +115,31 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Step 1 Alternative: App Info (post-login mode) -->
+                <StackPanel x:Name="Step1AppInfo" IsVisible="False" Spacing="16">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="📋" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Welcome to PinayPal Backup Manager" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Let's get your backup system configured. You can import existing settings or set up each service manually."
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="📁  FTP Backups — Upload files to your remote FTP server" Foreground="#A6ADC8" FontSize="13"/>
+                                <TextBlock Text="🗄️  SQL Backups — Automated database dumps and restores" Foreground="#A6ADC8" FontSize="13"/>
+                                <TextBlock Text="📧  Mailchimp — Export email audience data" Foreground="#A6ADC8" FontSize="13"/>
+                                <TextBlock Text="🔒  Encrypted configuration &amp; multi-user management" Foreground="#A6ADC8" FontSize="13"/>
+                                <TextBlock Text="☁️  Firebase sync — Share users across multiple PCs" Foreground="#A6ADC8" FontSize="13"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Step 2: Import Configuration -->
                 <StackPanel x:Name="Step2Import" IsVisible="False" Spacing="12">
                     <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">

@@ -19,6 +19,7 @@ namespace PinayPalBackupManager.UI
         private const int TotalSteps = 6;
         private bool _isAdminPC = true;
         private bool _settingsImported = false;
+        private bool _isPostLoginMode = false;
 
         public event Action? OnSetupComplete;
 
@@ -46,6 +47,12 @@ namespace PinayPalBackupManager.UI
                 }
                 catch { /* Firebase unreachable — keep admin PC assumption */ }
             });
+        }
+
+        public void SetPostLoginMode()
+        {
+            _isPostLoginMode = true;
+            UpdateUIForCurrentStep();
         }
 
         private void SetupEventHandlers()
@@ -180,6 +187,7 @@ namespace PinayPalBackupManager.UI
         {
             // Hide all steps
             this.FindControl<StackPanel>("Step1Admin")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step1AppInfo")!.IsVisible = false;
             this.FindControl<StackPanel>("Step2Import")!.IsVisible = false;
             this.FindControl<StackPanel>("Step3FTP")!.IsVisible = false;
             this.FindControl<StackPanel>("Step4SQL")!.IsVisible = false;
@@ -189,7 +197,9 @@ namespace PinayPalBackupManager.UI
             // Show current step
             StackPanel? currentPanel = _currentStep switch
             {
-                1 => this.FindControl<StackPanel>("Step1Admin"),
+                1 => _isPostLoginMode
+                    ? this.FindControl<StackPanel>("Step1AppInfo")
+                    : this.FindControl<StackPanel>("Step1Admin"),
                 2 => this.FindControl<StackPanel>("Step2Import"),
                 3 => this.FindControl<StackPanel>("Step3FTP"),
                 4 => this.FindControl<StackPanel>("Step4SQL"),
@@ -257,7 +267,7 @@ namespace PinayPalBackupManager.UI
 
             return _currentStep switch
             {
-                1 => ValidateAdminStep(),
+                1 => _isPostLoginMode ? true : ValidateAdminStep(),
                 2 => true, // Import step is optional
                 3 => ValidateFtpStep(),
                 4 => ValidateSqlStep(),
@@ -740,51 +750,54 @@ namespace PinayPalBackupManager.UI
 
             try
             {
-                var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
-                var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
-
-                if (_isAdminPC)
+                if (!_isPostLoginMode)
                 {
-                    // Admin PC: create admin directly (no invite code needed)
-                    var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
-                    if (!success)
+                    var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
+                    var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
+
+                    if (_isAdminPC)
                     {
-                        await ShowErrorDialog($"Failed to create admin user: {message}");
-                        return;
-                    }
+                        // Admin PC: create admin directly (no invite code needed)
+                        var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
+                        if (!success)
+                        {
+                            await ShowErrorDialog($"Failed to create admin user: {message}");
+                            return;
+                        }
 
-                    // Auto-login the new admin
-                    AuthService.Login(username, password);
-                    SessionService.SaveSession(AuthService.CurrentUser!.Id);
-                }
-                else
-                {
-                    // Non-admin PC: validate invite code and create a pending standard user
-                    var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
-                    if (string.IsNullOrWhiteSpace(inviteCode))
+                        // Auto-login the new admin
+                        AuthService.Login(username, password);
+                        SessionService.SaveSession(AuthService.CurrentUser!.Id);
+                    }
+                    else
                     {
-                        await ShowErrorDialog("Invite code is required.");
-                        return;
+                        // Non-admin PC: validate invite code and create a pending standard user
+                        var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
+                        if (string.IsNullOrWhiteSpace(inviteCode))
+                        {
+                            await ShowErrorDialog("Invite code is required.");
+                            return;
+                        }
+
+                        bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode);
+                        if (!isValid)
+                        {
+                            await ShowErrorDialog("Invalid or expired invite code.");
+                            return;
+                        }
+
+                        var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
+                        if (!success)
+                        {
+                            await ShowErrorDialog($"Failed to create user: {message}");
+                            return;
+                        }
+
+                        // Mark invite code as used
+                        await FirebaseInviteService.UseInviteCodeAsync(inviteCode, username);
+
+                        // Do NOT auto-login pending users
                     }
-
-                    bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode);
-                    if (!isValid)
-                    {
-                        await ShowErrorDialog("Invalid or expired invite code.");
-                        return;
-                    }
-
-                    var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
-                    if (!success)
-                    {
-                        await ShowErrorDialog($"Failed to create user: {message}");
-                        return;
-                    }
-
-                    // Mark invite code as used
-                    await FirebaseInviteService.UseInviteCodeAsync(inviteCode, username);
-
-                    // Do NOT auto-login pending users
                 }
 
                 // Save service configurations

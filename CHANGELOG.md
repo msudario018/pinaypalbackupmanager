@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.17.5] - 2026-05-20
+
+### Added
+- **Setup Wizard Post-Login Mode**: After a standard user registers and logs in for the first time on a new PC, the setup wizard now opens to help configure backup services
+  - New `Step1AppInfo` panel shows a welcome overview of app features (FTP, SQL, Mailchimp, encryption, Firebase sync)
+  - New `_isPostLoginMode` flag and `SetPostLoginMode()` method on `SetupWizardWindow`
+  - Step 1 shows app info instead of admin account creation when in post-login mode
+  - User creation logic in `CompleteSetup()` is skipped — only service configurations are saved
+
+### Changed
+- **App.axaml.cs First-Run Flow**: When users exist from Firebase on a fresh install, the app now shows login first instead of marking setup complete immediately
+  - `ConfigService.MarkSetupComplete()` is no longer called prematurely when users are pulled from Firebase
+  - After successful first login, `ShowSetupWizardPostLogin()` is called if `IsFirstRun()` is still true
+  - Post-login wizard routes to `MainWindow` on completion (no logout/login cycle needed)
+- **Import Skip in Post-Login Mode**: When settings are imported during post-login wizard, backup tabs are hidden and step indicators collapse exactly the same as in admin mode
+
 ## [2.17.0] - 2026-05-20
 
 ### Added

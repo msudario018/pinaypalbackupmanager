@@ -42,10 +42,10 @@ namespace PinayPalBackupManager
                 // Check if this is the first run
                 if (ConfigService.IsFirstRun())
                 {
-                    // If users were pulled from Firebase on a fresh install, skip wizard
+                    // If users were pulled from Firebase on a fresh install, show login
+                    // Setup wizard will be shown after first login if needed
                     if (AuthService.HasAnyUsers())
                     {
-                        ConfigService.MarkSetupComplete();
                         ShowLogin(desktop);
                     }
                     else
@@ -101,7 +101,14 @@ namespace PinayPalBackupManager
                 var savedUser = AuthService.GetUserById(savedUserId.Value);
                 if (savedUser != null && savedUser.Status == "Active" && AuthService.LoginById(savedUserId.Value))
                 {
-                    ShowMainWindow(desktop, null);
+                    if (ConfigService.IsFirstRun())
+                    {
+                        ShowSetupWizardPostLogin(desktop);
+                    }
+                    else
+                    {
+                        ShowMainWindow(desktop, null);
+                    }
                     return;
                 }
                 // Session invalid or user disabled — clear it
@@ -109,7 +116,17 @@ namespace PinayPalBackupManager
             }
 
             var loginWindow = new LoginWindow();
-            loginWindow.OnLoginSuccess += () => ShowMainWindow(desktop, loginWindow);
+            loginWindow.OnLoginSuccess += () =>
+            {
+                if (ConfigService.IsFirstRun())
+                {
+                    ShowSetupWizardPostLogin(desktop);
+                }
+                else
+                {
+                    ShowMainWindow(desktop, loginWindow);
+                }
+            };
             desktop.MainWindow = loginWindow;
             loginWindow.Show();
         }
@@ -145,6 +162,18 @@ namespace PinayPalBackupManager
                     ShowMainWindow(desktop, null);
                 else
                     ShowLogin(desktop);
+            };
+            desktop.MainWindow = setupWizard;
+            setupWizard.Show();
+        }
+
+        private void ShowSetupWizardPostLogin(IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var setupWizard = new SetupWizardWindow();
+            setupWizard.SetPostLoginMode();
+            setupWizard.OnSetupComplete += () =>
+            {
+                ShowMainWindow(desktop, null);
             };
             desktop.MainWindow = setupWizard;
             setupWizard.Show();
