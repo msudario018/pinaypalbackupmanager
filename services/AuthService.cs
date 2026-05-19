@@ -42,17 +42,31 @@ namespace PinayPalBackupManager.Services
             _dbPath = AppDataPaths.GetPath("users.db");
             DatabaseService.Initialize(_dbPath);
             EnsureDatabase();
-            
-            // Initialize password reset service
-            await PasswordResetService.InitializeAsync();
-            
+
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
-            
+
+            // On a fresh install (no local users), pull existing users from Firebase
+            // so the same accounts work across all PCs
+            if (!HasAnyUsers())
+            {
+                try
+                {
+                    await FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[AuthService] Firebase user pull failed: {ex.Message}", "", "Debug", "SYSTEM");
+                }
+            }
+
+            // Initialize password reset service
+            await PasswordResetService.InitializeAsync();
+
             // Firebase sync listener disabled by default to prevent interference with local user data
             // It can be manually started if needed for bidirectional sync
             // _ = Task.Run(async () => await FirebaseUserService.StartUserSyncListenerAsync());
-            
+
             // Firebase will be initialized on-demand to avoid blocking
         }
 

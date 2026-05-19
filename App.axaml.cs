@@ -42,7 +42,16 @@ namespace PinayPalBackupManager
                 // Check if this is the first run
                 if (ConfigService.IsFirstRun())
                 {
-                    ShowSetupWizard(desktop);
+                    // If users were pulled from Firebase on a fresh install, skip wizard
+                    if (AuthService.HasAnyUsers())
+                    {
+                        ConfigService.MarkSetupComplete();
+                        ShowLogin(desktop);
+                    }
+                    else
+                    {
+                        ShowSetupWizard(desktop);
+                    }
                 }
                 else
                 {
@@ -129,9 +138,13 @@ namespace PinayPalBackupManager
 
         private void ShowSetupWizard(IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Setup wizard disabled - go through login so auth is always established
-            ConfigService.MarkSetupComplete();
-            ShowLogin(desktop);
+            var setupWizard = new SetupWizardWindow();
+            setupWizard.OnSetupComplete += () =>
+            {
+                ShowMainWindow(desktop, null);
+            };
+            desktop.MainWindow = setupWizard;
+            setupWizard.Show();
         }
     }
 }

@@ -319,9 +319,8 @@ namespace PinayPalBackupManager.Services
                                     Role = data.Role,
                                     Status = data.Status,
                                     CreatedAt = createdAt,
-                                    // Password fields will be empty for remote users
-                                    PasswordHash = string.Empty,
-                                    Salt = string.Empty
+                                    PasswordHash = data.PasswordHash,
+                                    Salt = data.Salt
                                 });
                             }
                         }
@@ -336,6 +335,52 @@ namespace PinayPalBackupManager.Services
             return users;
         }
         
+        /// <summary>
+        /// Pull all users from Firebase into the local SQLite database.
+        /// Used when installing on a new PC so existing users can log in.
+        /// </summary>
+        public static async Task PullUsersFromFirebaseToLocalAsync()
+        {
+            if (!await EnsureInitializedAsync()) return;
+            if (string.IsNullOrEmpty(_connectionString)) return;
+
+            try
+            {
+                var firebaseUsers = await GetAllUsersAsync();
+                if (firebaseUsers.Count == 0) return;
+
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+
+                int pulledCount = 0;
+                foreach (var user in firebaseUsers)
+                {
+                    // Skip users without a password hash — they can't log in locally
+                    if (string.IsNullOrWhiteSpace(user.PasswordHash)) continue;
+
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"
+                        INSERT OR REPLACE INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt)
+                        VALUES (@u, @h, @s, @r, @st, @ca)";
+                    cmd.Parameters.AddWithValue("@u", user.Username);
+                    cmd.Parameters.AddWithValue("@h", user.PasswordHash);
+                    cmd.Parameters.AddWithValue("@s", user.Salt ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@r", user.Role);
+                    cmd.Parameters.AddWithValue("@st", user.Status);
+                    cmd.Parameters.AddWithValue("@ca", user.CreatedAt.ToString("o"));
+                    cmd.ExecuteNonQuery();
+                    pulledCount++;
+                }
+
+                if (pulledCount > 0)
+                    Console.WriteLine($"[FirebaseUser] Pulled {pulledCount} users from Firebase to local DB");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FirebaseUser] Failed to pull users from Firebase: {ex.Message}");
+            }
+        }
+
         /// <summary>
         /// Listen for specific user status changes from Firebase (for real-time approval updates)
         /// </summary>
@@ -600,6 +645,8 @@ namespace PinayPalBackupManager.Services
         {
             public int Id { get; set; }
             public string Username { get; set; } = string.Empty;
+            public string PasswordHash { get; set; } = string.Empty;
+            public string Salt { get; set; } = string.Empty;
             public string Role { get; set; } = string.Empty;
             public string Status { get; set; } = string.Empty;
             public string CreatedAt { get; set; } = string.Empty;

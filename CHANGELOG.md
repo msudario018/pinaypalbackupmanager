@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.16.5] - 2026-05-19
+
+### Added
+- **Cross-PC User Sync via Firebase**: Installing the app on a new PC now automatically pulls existing users from Firebase
+  - New `FirebaseUserService.PullUsersFromFirebaseToLocalAsync()` fetches all users and writes them to the local SQLite DB
+  - Users pulled from Firebase retain their passwords, roles, and statuses — login works immediately without re-creating accounts
+  - If Firebase already contains users on a fresh install, the setup wizard is skipped and the login screen is shown directly
+- **FirebaseUserData Password Fields**: Added `PasswordHash` and `Salt` properties to the internal `FirebaseUserData` DTO so password hashes survive round-trips between local DB and Firebase
+
+### Fixed
+- **Setup Wizard First Run**: Fixed `App.ShowSetupWizard` which was previously bypassing the wizard entirely and marking setup as complete before the user could create an admin account
+- **Registration Deadlock**: Fixed `LoginWindow` and `SetupWizardWindow` calling the synchronous `AuthService.Register()` wrapper on the UI thread, causing a deadlock while awaiting Firebase invite-code validation
+
 ## [2.16.0] - 2026-05-19
 
 ### Added
