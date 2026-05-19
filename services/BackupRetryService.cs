@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -15,6 +16,7 @@ namespace PinayPalBackupManager.Services
         private static readonly Dictionary<string, RetryEntry> _retryQueue = new();
         private static System.Timers.Timer? _checkTimer;
         private static bool _isInitialized = false;
+        private static int _isCheckingRetries = 0;
 
         public static event Action<string>? OnRetryDue;
 
@@ -33,6 +35,8 @@ namespace PinayPalBackupManager.Services
         {
             if (_isInitialized) return;
             _isInitialized = true;
+            _checkTimer?.Stop();
+            _checkTimer?.Dispose();
 
             _checkTimer = new System.Timers.Timer(30000); // Check every 30 seconds
             _checkTimer.Elapsed += async (_, _) => await CheckRetriesAsync();
@@ -49,6 +53,7 @@ namespace PinayPalBackupManager.Services
             _checkTimer = null;
             _retryQueue.Clear();
             _isInitialized = false;
+            Interlocked.Exchange(ref _isCheckingRetries, 0);
             LogService.WriteSystemLog("[RETRY] Auto-retry service stopped", "Information", "SYSTEM");
         }
 
@@ -98,47 +103,58 @@ namespace PinayPalBackupManager.Services
 
         private static async Task CheckRetriesAsync()
         {
-            List<RetryEntry> dueRetries;
-            lock (_retryQueue)
+            if (Interlocked.Exchange(ref _isCheckingRetries, 1) == 1)
+                return;
+
+            try
             {
-                dueRetries = _retryQueue.Values
-                    .Where(r => r.NextRetryTime <= DateTime.UtcNow)
-                    .ToList();
+                List<RetryEntry> dueRetries;
+                lock (_retryQueue)
+                {
+                    dueRetries = _retryQueue.Values
+                        .Where(r => r.NextRetryTime <= DateTime.UtcNow)
+                        .ToList();
+                }
+
+                foreach (var retry in dueRetries)
+                {
+                    retry.AttemptCount++;
+
+                    if (retry.AttemptCount > 3)
+                    {
+                        // Max retries exceeded
+                        lock (_retryQueue) _retryQueue.Remove(retry.Service);
+                        LogService.WriteSystemLog($"[RETRY] {retry.Service} exceeded max retries (3), giving up", "Error", "SYSTEM");
+                        NotificationService.ShowBackupToast("Retry Failed", $"{retry.Service} backup failed after 3 retry attempts.", "Error");
+                        continue;
+                    }
+
+                    // Schedule next retry before firing, so concurrent handlers don't double-trigger
+                    var nextDelay = retry.AttemptCount switch
+                    {
+                        1 => TimeSpan.FromMinutes(15), // 2nd attempt: 15 min
+                        2 => TimeSpan.FromMinutes(30), // 3rd attempt: 30 min
+                        _ => TimeSpan.FromHours(1)
+                    };
+                    retry.NextRetryTime = DateTime.UtcNow.Add(nextDelay);
+
+                    LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry in {nextDelay.TotalMinutes:F0} min if fails", "Information", "SYSTEM");
+                    NotificationService.ShowBackupToast("Auto-Retry", $"Retrying {retry.Service} backup (attempt {retry.AttemptCount}/3)...", "Info");
+
+                    try
+                    {
+                        OnRetryDue?.Invoke(retry.Service);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[RETRY] Error triggering retry for {retry.Service}: {ex.Message}", "Error", "SYSTEM");
+                    }
+                    await Task.Delay(100); // Small delay between retries
+                }
             }
-
-            foreach (var retry in dueRetries)
+            finally
             {
-                retry.AttemptCount++;
-
-                if (retry.AttemptCount > 3)
-                {
-                    // Max retries exceeded
-                    lock (_retryQueue) _retryQueue.Remove(retry.Service);
-                    LogService.WriteSystemLog($"[RETRY] {retry.Service} exceeded max retries (3), giving up", "Error", "SYSTEM");
-                    NotificationService.ShowBackupToast("Retry Failed", $"{retry.Service} backup failed after 3 retry attempts.", "Error");
-                    continue;
-                }
-
-                // Schedule next retry before firing, so concurrent handlers don't double-trigger
-                var nextDelay = retry.AttemptCount switch
-                {
-                    1 => TimeSpan.FromMinutes(15), // 2nd attempt: 15 min
-                    2 => TimeSpan.FromMinutes(30), // 3rd attempt: 30 min
-                    _ => TimeSpan.FromHours(1)
-                };
-                retry.NextRetryTime = DateTime.UtcNow.Add(nextDelay);
-
-                LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry in {nextDelay.TotalMinutes:F0} min if fails", "Information", "SYSTEM");
-                NotificationService.ShowBackupToast("Auto-Retry", $"Retrying {retry.Service} backup (attempt {retry.AttemptCount}/3)...", "Info");
-
-                try
-                {
-                    OnRetryDue?.Invoke(retry.Service);
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteSystemLog($"[RETRY] Error triggering retry for {retry.Service}: {ex.Message}", "Error", "SYSTEM");
-                }
+                Interlocked.Exchange(ref _isCheckingRetries, 0);
             }
 
             await Task.CompletedTask;

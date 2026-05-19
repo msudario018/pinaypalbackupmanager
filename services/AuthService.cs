@@ -191,9 +191,9 @@ namespace PinayPalBackupManager.Services
                             {
                                 await FirebaseUserService.SyncUserAsync(newUser);
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // Firebase sync failed
+                                LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
                             }
                         });
                     }
@@ -401,7 +401,7 @@ namespace PinayPalBackupManager.Services
         private static void HandleSessionTimeout()
         {
             // Log the session timeout
-            LogAuditEvent("SESSION_TIMEOUT", CurrentUser?.Username, "Session expired due to inactivity");
+            LogAuditEvent("SESSION_TIMEOUT", CurrentUser?.Username ?? "Unknown", "Session expired due to inactivity");
             
             // Perform logout
             CurrentUser = null;
@@ -423,7 +423,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                // Firebase fetch failed, will use local fallback
+                LogService.WriteLiveLog($"[AuthService] Firebase fetch failed: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             // Use Firebase code if available, otherwise fallback to local config
@@ -469,7 +469,7 @@ namespace PinayPalBackupManager.Services
             {
                 return GetInviteCodeAsync().GetAwaiter().GetResult();
             }
-            catch (Exception ex)
+            catch
             {
                 var configCode = GetInviteCodeFromConfig();
                 return configCode ?? string.Empty;
@@ -490,7 +490,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                // Config read failed
+                LogService.WriteLiveLog($"[AuthService] Config read failed: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return string.Empty;
@@ -520,9 +520,9 @@ namespace PinayPalBackupManager.Services
                 {
                     await FirebaseInviteService.GenerateInviteCodeAsync(newCode);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Firebase sync failed
+                    LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
                 }
             });
 
@@ -579,9 +579,9 @@ namespace PinayPalBackupManager.Services
                 {
                     await FirebaseUserService.UpdateUserStatusAsync(user.Username, status);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Firebase sync failed
+                    LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
                 }
 
                 // Log status change
@@ -618,9 +618,9 @@ namespace PinayPalBackupManager.Services
                 {
                     await FirebaseUserService.RemoveUserAsync(user.Username);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Firebase sync failed
+                    LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
                 }
 
                 // Log user deletion
@@ -726,9 +726,9 @@ namespace PinayPalBackupManager.Services
                         if (updatedUser != null)
                             await FirebaseUserService.SyncUserAsync(updatedUser);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Firebase sync failed
+                        LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
                     }
                 });
 
@@ -753,7 +753,7 @@ namespace PinayPalBackupManager.Services
 
                 return result;
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
@@ -1061,7 +1061,7 @@ namespace PinayPalBackupManager.Services
 
         // ── Audit Logging ──
 
-        private static void LogAuditEvent(string action, string targetUser = null, string details = null)
+        private static void LogAuditEvent(string action, string? targetUser = null, string? details = null)
         {
             try
             {
@@ -1078,13 +1078,13 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@details", details ?? (object)DBNull.Value);
                 cmd.ExecuteNonQuery();
             }
-            catch
+            catch (Exception ex)
             {
-                // Audit logging should not break application flow
+                LogService.WriteLiveLog($"[AuthService] Audit logging failed: {ex.Message}", "", "Debug", "SYSTEM");
             }
         }
 
-        public static List<AuditLogEntry> GetAuditLogs(string targetUser = null, int limit = 100)
+        public static List<AuditLogEntry> GetAuditLogs(string? targetUser = null, int limit = 100)
         {
             var logs = new List<AuditLogEntry>();
             try

@@ -94,11 +94,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 await TwoFactorAuthService.EnableTfaAsync(_userId, _secretKey);
                 
                 // Show enabled panel
-                panelSetup.IsVisible = false;
+                if (panelSetup != null)
+                    panelSetup.IsVisible = false;
                 if (panelEnabled != null)
                 {
                     panelEnabled.IsVisible = true;
-                    UpdateBackupCodes(txtBackupCodes!);
+                    if (txtBackupCodes != null)
+                        UpdateBackupCodes(txtBackupCodes);
                 }
                 
                 NotificationService.ShowBackupToast("Security", "Two-factor authentication enabled!", "Success");

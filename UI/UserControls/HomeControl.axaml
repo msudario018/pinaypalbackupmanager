@@ -145,7 +145,7 @@
                             <TextBlock Grid.Column="1" Text="FTP" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Name="TimeSinceFtp" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="Auto, 75, *, Auto" HorizontalAlignment="Stretch">
                             <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Name="TimeSinceMc" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>

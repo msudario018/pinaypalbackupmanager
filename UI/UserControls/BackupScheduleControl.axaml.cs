@@ -336,7 +336,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var cmbBackupType = this.FindControl<ComboBox>("CmbBackupType");
                 var chkEnabled = this.FindControl<CheckBox>("ChkEnabled");
 
-                if (txtName == null || cmbService == null || cmbType == null || cmbBackupType == null)
+                if (txtName == null || cmbService == null || cmbType == null || cmbBackupType == null || chkEnabled == null)
                     return;
 
                 var schedule = new BackupSchedulingService.BackupSchedule

@@ -461,7 +461,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         return;
                     }
 
-                    if (hasRemoteFileLocally && localSize != remoteSize)
+                    if (matchingLocal != null && localSize != remoteSize)
                     {
                         // Auto-delete mismatched file and trigger resync
                         try

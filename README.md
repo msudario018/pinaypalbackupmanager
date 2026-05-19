@@ -12,6 +12,7 @@ A comprehensive backup management application for PinayPal.net, designed to auto
 - **Recent Activity**: Auto-refreshing live feed of recent log entries across all services
 - **Customization**: Toggle section visibility and compact mode for personalized dashboard view
 - **Auto-Refresh**: Dashboard updates every 30 seconds for real-time status
+- **Offline Detection**: Automatic internet connectivity monitoring with visual banner and disabled remote backup tabs when offline
 
 ### Management Controls
 - **Health Check**: System health monitoring with component checks, resource monitoring, and status reporting

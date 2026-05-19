@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Firebase.Database;
@@ -49,6 +50,7 @@ namespace PinayPalBackupManager.UI
         private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
         private bool _startupHealthPending = true;
         private bool _configRequired;
+        private string _currentTag = "Home";
         public event Action? OnLogoutRequested;
 
         // Stored delegates to unsubscribe from static ThemeService event on window close
@@ -100,13 +102,6 @@ namespace PinayPalBackupManager.UI
                     }
                 };
                 ThemeService.OnThemeChanged += _themeChangedIconHandler;
-            }
-
-            // Sidebar customize theme button
-            var btnCustomizeTheme = this.FindControl<Button>("BtnCustomizeTheme");
-            if (btnCustomizeTheme != null)
-            {
-                btnCustomizeTheme.Click += async (_, _) => await ShowThemeCustomizerDialogAsync();
             }
 
             // Force refresh main window backgrounds that don't update via DynamicResource on theme change
@@ -243,6 +238,10 @@ namespace PinayPalBackupManager.UI
             };
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
+            // Start internet connectivity monitoring
+            NetworkConnectivityService.OnConnectivityChanged += OnConnectivityChangedHandler;
+            NetworkConnectivityService.StartMonitoring();
+
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
             {
@@ -322,6 +321,9 @@ namespace PinayPalBackupManager.UI
                     ThemeService.OnThemeChanged -= _themeChangedIconHandler;
                 if (_themeChangedBgHandler != null)
                     ThemeService.OnThemeChanged -= _themeChangedBgHandler;
+
+                NetworkConnectivityService.OnConnectivityChanged -= OnConnectivityChangedHandler;
+                NetworkConnectivityService.StopMonitoring();
 
                 try
                 {
@@ -854,6 +856,12 @@ namespace PinayPalBackupManager.UI
                     return;
                 }
 
+                if (!NetworkConnectivityService.IsOnline && NetworkConnectivityService.IsInternetRequired(tag))
+                {
+                    NotificationService.ShowBackupToast("Offline", $"{tag} requires an internet connection.", "Warning");
+                    return;
+                }
+
                 UpdateSidebarSelection(tag);
                 switch (tag)
                 {
@@ -915,6 +923,7 @@ namespace PinayPalBackupManager.UI
 
         private void UpdateSidebarSelection(string activeTag)
         {
+            _currentTag = activeTag;
             var sidebar = this.FindControl<StackPanel>("Sidebar");
             if (sidebar == null) return;
 
@@ -968,6 +977,44 @@ namespace PinayPalBackupManager.UI
             }
 
             _activeTabAccentBrush = GetAccentBrushForControl(control);
+        }
+
+        private void OnConnectivityChangedHandler(bool isOnline)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Show / hide offline banner
+                var banner = this.FindControl<Border>("OfflineBanner");
+                if (banner != null) banner.IsVisible = !isOnline;
+
+                // Update top-bar connection indicator
+                UpdateConnectionStatus(isOnline);
+
+                // Disable / enable internet-required sidebar buttons
+                var sidebar = this.FindControl<StackPanel>("Sidebar");
+                if (sidebar != null)
+                {
+                    foreach (var child in sidebar.Children)
+                    {
+                        if (child is Button btn && btn.Tag is string tag)
+                        {
+                            if (NetworkConnectivityService.IsInternetRequired(tag))
+                            {
+                                btn.IsEnabled = isOnline;
+                                btn.Opacity = isOnline ? 1.0 : 0.4;
+                            }
+                        }
+                    }
+                }
+
+                // If currently on an internet-required tab and we just went offline, redirect to Home
+                if (!isOnline && NetworkConnectivityService.IsInternetRequired(_currentTag))
+                {
+                    ShowControl(_homeControl);
+                    UpdateSidebarSelection("Home");
+                    NotificationService.ShowBackupToast("Offline", "Switched to Dashboard because the internet connection was lost.", "Warning");
+                }
+            });
         }
 
         private async Task RunAllChecksAsync()
@@ -2077,19 +2124,21 @@ namespace PinayPalBackupManager.UI
 
         private async Task UploadAvatar()
         {
-            var picker = new OpenFileDialog
+            var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "Select Avatar Image",
-                AllowMultiple = false
-            };
-            picker.Filters.Add(new FileDialogFilter { Name = "Images", Extensions = new List<string> { "png", "jpg", "jpeg", "gif", "bmp" } });
+                AllowMultiple = false,
+                FileTypeFilter = new List<FilePickerFileType>
+                {
+                    new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp" } }
+                }
+            });
 
-            var result = await picker.ShowAsync(this);
-            if (result != null && result.Length > 0)
+            if (result.Count > 0)
             {
                 try
                 {
-                    var filePath = result[0];
+                    var filePath = result[0].Path.LocalPath;
                     var user = AuthService.CurrentUser;
                     if (user == null) return;
 
@@ -2224,44 +2273,6 @@ namespace PinayPalBackupManager.UI
             else
             {
                 NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
-            }
-        }
-
-        private async System.Threading.Tasks.Task ShowThemeCustomizerDialogAsync()
-        {
-            const string dialogKey = "theme_customizer_dialog";
-            if (NotificationService.IsDialogOpen(dialogKey)) return;
-
-            NotificationService.RegisterDialog(dialogKey);
-            try
-            {
-                var dialog = new ThemeCustomizerDialog();
-                // Size dialog to fit within owner window so it does not get clipped on small screens
-                var ownerW = this.Bounds.Width > 0 ? this.Bounds.Width : 780;
-                var ownerH = this.Bounds.Height > 0 ? this.Bounds.Height : 560;
-                var dialogW = Math.Min(640, Math.Max(380, ownerW - 60));
-                var dialogH = Math.Min(620, Math.Max(440, ownerH - 60));
-                var window = new Window
-                {
-                    Title = "Customize Theme",
-                    Content = dialog,
-                    Width = dialogW,
-                    Height = dialogH,
-                    MinWidth = 380,
-                    MinHeight = 440,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    CanResize = false,
-                    ShowInTaskbar = false,
-                    Topmost = true,
-                    SystemDecorations = SystemDecorations.None,
-                    Background = Avalonia.Media.Brushes.Transparent
-                };
-
-                await window.ShowDialog(this);
-            }
-            finally
-            {
-                NotificationService.UnregisterDialog(dialogKey);
             }
         }
 

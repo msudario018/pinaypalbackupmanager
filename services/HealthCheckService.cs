@@ -49,7 +49,7 @@ namespace PinayPalBackupManager.Services
         private static readonly List<ComponentHealth> _componentHistory = new();
         private static HealthCheckResult? _lastResult;
 
-        public static HealthCheckResult GetLastResult() => _lastResult;
+        public static HealthCheckResult? GetLastResult() => _lastResult;
 
         public static async Task<HealthCheckResult> RunHealthCheckAsync()
         {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -30,6 +31,52 @@ namespace PinayPalBackupManager.UI.UserControls
         private System.Timers.Timer? _activeProcessUpdateTimer;
         private System.Timers.Timer? _statsRefreshTimer;
         private System.Timers.Timer? _dashboardRefreshTimer;
+        private int _isHealthRefreshing = 0;
+        private int _isStatsRefreshing = 0;
+        private int _isDashboardRefreshing = 0;
+        private DateTime _lastStorageStatsRefresh = DateTime.MinValue;
+        private string _cachedStorageUsed = "0 B";
+        private System.Timers.Timer? _errorRefreshTimer;
+
+        // Cached UI controls to avoid repeated FindControl visual-tree walks in timer callbacks
+        private TextBlock? _cachedDashHealthText;
+        private Ellipse? _cachedDashHealthDotEllipse;
+        private Border? _cachedAlertBanner;
+        private TextBlock? _cachedAlertText;
+        private TextBlock? _cachedStatServicesOk;
+        private TextBlock? _cachedSystemUptime;
+        private TextBlock? _cachedLastHealthCheck;
+        private TextBlock? _cachedActiveProcesses;
+        private TextBlock? _cachedStorageUsage;
+        private TextBlock? _cachedStatBackupsToday;
+        private TextBlock? _cachedStatSuccessRate;
+        private TextBlock? _cachedStatFailedBackups;
+        private TextBlock? _cachedStatStorageUsed;
+        private TextBlock? _cachedTrendBackups;
+        private TextBlock? _cachedTrendSuccessRate;
+        private TextBlock? _cachedTimeSinceFtp;
+        private TextBlock? _cachedTimeSinceMc;
+        private TextBlock? _cachedTimeSinceSql;
+        private Border? _cachedRetryQueueBadge;
+        private TextBlock? _cachedTxtRetryQueue;
+        private TextBlock? _cachedHealthScoreText;
+        private TextBlock? _cachedHealthTrendText;
+        private TextBlock? _cachedHealthFtpScore;
+        private TextBlock? _cachedHealthMcScore;
+        private TextBlock? _cachedHealthSqlScore;
+        private TextBlock? _cachedCriticalAlertsCount;
+        private TextBlock? _cachedTimeSinceHealth;
+        private ProgressBar? _cachedGlobalBackupProgress;
+        private TextBlock? _cachedBackupProgressText;
+        private TextBlock? _cachedBackupProgressPercent;
+        private Ellipse? _cachedGbpServiceDot;
+        private TextBlock? _cachedGbpServiceName;
+        private StackPanel? _cachedMirrorProgressSection;
+        private ProgressBar? _cachedMirrorProgressBar;
+        private TextBlock? _cachedMirrorProgressText;
+        private TextBlock? _cachedMirrorProgressPercent;
+        private TextBlock? _cachedMirrorServiceName;
+        private TextBlock? _cachedMirrorStatusDetail;
 
         public event Action? OnNavigateFtp;
         public event Action? OnNavigateMailchimp;
@@ -70,6 +117,7 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
             _manager = manager;
+            InitializeCachedControls();
 
             _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
             _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
@@ -151,16 +199,16 @@ namespace PinayPalBackupManager.UI.UserControls
             AuthService.OnUserChanged += (_) => UpdateGreeting();
 
             // Load system logs
-            _ = LoadSystemLogsAsync();
+            FireAndForget(LoadSystemLogsAsync(), nameof(LoadSystemLogsAsync));
 
             // Load Firebase logs
-            _ = LoadFirebaseLogsAsync();
-            
+            FireAndForget(LoadFirebaseLogsAsync(), nameof(LoadFirebaseLogsAsync));
+
             // Initialize new dashboard features
-            _ = UpdateSystemStatusAsync();
-            _ = UpdateQuickStatsAsync();
-            _ = UpdateTimeSinceLastBackupAsync();
-            _ = LoadRecentErrorsAsync();
+            FireAndForget(UpdateSystemStatusAsync(), nameof(UpdateSystemStatusAsync));
+            FireAndForget(UpdateQuickStatsAsync(), nameof(UpdateQuickStatsAsync));
+            FireAndForget(UpdateTimeSinceLastBackupAsync(), nameof(UpdateTimeSinceLastBackupAsync));
+            FireAndForget(LoadRecentErrorsAsync(), nameof(LoadRecentErrorsAsync));
             UpdateActivityHeatmap();
             
             // Initialize service status immediately
@@ -168,6 +216,62 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Start dashboard auto-refresh (every 30 seconds)
             StartDashboardAutoRefresh();
+
+            // Start error log refresh (every 60 seconds — less expensive than full dashboard)
+            StartErrorRefreshTimer();
+        }
+
+        private void InitializeCachedControls()
+        {
+            _cachedDashHealthDotEllipse = this.FindControl<Ellipse>("DashHealthDot");
+            _cachedDashHealthText = this.FindControl<TextBlock>("DashHealthText");
+            _cachedAlertBanner = this.FindControl<Border>("AlertBanner");
+            _cachedAlertText = this.FindControl<TextBlock>("AlertText");
+            _cachedStatServicesOk = this.FindControl<TextBlock>("StatServicesOk");
+            _cachedSystemUptime = this.FindControl<TextBlock>("SystemUptime");
+            _cachedLastHealthCheck = this.FindControl<TextBlock>("LastHealthCheck");
+            _cachedActiveProcesses = this.FindControl<TextBlock>("ActiveProcesses");
+            _cachedStorageUsage = this.FindControl<TextBlock>("StorageUsage");
+            _cachedStatBackupsToday = this.FindControl<TextBlock>("StatBackupsToday");
+            _cachedStatSuccessRate = this.FindControl<TextBlock>("StatSuccessRate");
+            _cachedStatFailedBackups = this.FindControl<TextBlock>("StatFailedBackups");
+            _cachedStatStorageUsed = this.FindControl<TextBlock>("StatStorageUsed");
+            _cachedTrendBackups = this.FindControl<TextBlock>("TrendBackups");
+            _cachedTrendSuccessRate = this.FindControl<TextBlock>("TrendSuccessRate");
+            _cachedTimeSinceFtp = this.FindControl<TextBlock>("TimeSinceFtp");
+            _cachedTimeSinceMc = this.FindControl<TextBlock>("TimeSinceMc");
+            _cachedTimeSinceSql = this.FindControl<TextBlock>("TimeSinceSql");
+            _cachedRetryQueueBadge = this.FindControl<Border>("RetryQueueBadge");
+            _cachedTxtRetryQueue = this.FindControl<TextBlock>("TxtRetryQueue");
+            _cachedHealthScoreText = this.FindControl<TextBlock>("HealthScoreText");
+            _cachedHealthTrendText = this.FindControl<TextBlock>("HealthTrendText");
+            _cachedHealthFtpScore = this.FindControl<TextBlock>("HealthFtpScore");
+            _cachedHealthMcScore = this.FindControl<TextBlock>("HealthMcScore");
+            _cachedHealthSqlScore = this.FindControl<TextBlock>("HealthSqlScore");
+            _cachedCriticalAlertsCount = this.FindControl<TextBlock>("CriticalAlertsCount");
+            _cachedTimeSinceHealth = this.FindControl<TextBlock>("TimeSinceHealth");
+            _cachedGlobalBackupProgress = this.FindControl<ProgressBar>("GlobalBackupProgress");
+            _cachedBackupProgressText = this.FindControl<TextBlock>("BackupProgressText");
+            _cachedBackupProgressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
+            _cachedGbpServiceDot = this.FindControl<Ellipse>("GbpServiceDot");
+            _cachedGbpServiceName = this.FindControl<TextBlock>("GbpServiceName");
+            _cachedMirrorProgressSection = this.FindControl<StackPanel>("MirrorProgressSection");
+            _cachedMirrorProgressBar = this.FindControl<ProgressBar>("MirrorProgressBar");
+            _cachedMirrorProgressText = this.FindControl<TextBlock>("MirrorProgressText");
+            _cachedMirrorProgressPercent = this.FindControl<TextBlock>("MirrorProgressPercent");
+            _cachedMirrorServiceName = this.FindControl<TextBlock>("MirrorServiceName");
+            _cachedMirrorStatusDetail = this.FindControl<TextBlock>("MirrorStatusDetail");
+        }
+
+        private static void FireAndForget(Task task, string context)
+        {
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                {
+                    LogService.WriteLiveLog($"[FireAndForget] {context}: {t.Exception.InnerException?.Message ?? t.Exception.Message}", "", "Warning", "SYSTEM");
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private async Task LoadHealthDashboardAsync()
@@ -181,35 +285,21 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         // Update overall score
-                        var scoreText = this.FindControl<TextBlock>("HealthScoreText");
-                        var trendText = this.FindControl<TextBlock>("HealthTrendText");
-                        
-                        if (scoreText != null) scoreText.Text = $"{health.OverallScore}%";
-                        if (trendText != null) trendText.Text = $"{health.Trend} {health.TrendText}";
-                        
-                        // Update service scores
-                        var ftpScore = this.FindControl<TextBlock>("HealthFtpScore");
-                        var mcScore = this.FindControl<TextBlock>("HealthMcScore");
-                        var sqlScore = this.FindControl<TextBlock>("HealthSqlScore");
-                        
-                        if (ftpScore != null) ftpScore.Text = $"{health.ServiceScores.GetValueOrDefault("FTP", 0)}%";
-                        if (mcScore != null) mcScore.Text = $"{health.ServiceScores.GetValueOrDefault("Mailchimp", 0)}%";
-                        if (sqlScore != null) sqlScore.Text = $"{health.ServiceScores.GetValueOrDefault("SQL", 0)}%";
-                        
-                        // Update services status summary
+                        if (_cachedHealthScoreText != null) _cachedHealthScoreText.Text = $"{health.OverallScore}%";
+                        if (_cachedHealthTrendText != null) _cachedHealthTrendText.Text = $"{health.Trend} {health.TrendText}";
+                        if (_cachedHealthFtpScore != null) _cachedHealthFtpScore.Text = $"{health.ServiceScores.GetValueOrDefault("FTP", 0)}%";
+                        if (_cachedHealthMcScore != null) _cachedHealthMcScore.Text = $"{health.ServiceScores.GetValueOrDefault("Mailchimp", 0)}%";
+                        if (_cachedHealthSqlScore != null) _cachedHealthSqlScore.Text = $"{health.ServiceScores.GetValueOrDefault("SQL", 0)}%";
+
                         UpdateServicesStatusSummary(health.ServiceScores);
-                        
-                        // Update critical alerts count
-                        var alertsCount = this.FindControl<TextBlock>("CriticalAlertsCount");
-                        if (alertsCount != null) alertsCount.Text = health.CriticalAlerts.Count.ToString();
-                        
-                        // Update backup summary health
-                        var summaryHealth = this.FindControl<TextBlock>("TimeSinceHealth");
-                        if (summaryHealth != null)
+
+                        if (_cachedCriticalAlertsCount != null) _cachedCriticalAlertsCount.Text = health.CriticalAlerts.Count.ToString();
+
+                        if (_cachedTimeSinceHealth != null)
                         {
                             var score = health.OverallScore;
-                            summaryHealth.Text = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Poor";
-                            summaryHealth.Foreground = score >= 80 ? new SolidColorBrush(Colors.Green) :
+                            _cachedTimeSinceHealth.Text = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Poor";
+                            _cachedTimeSinceHealth.Foreground = score >= 80 ? new SolidColorBrush(Colors.Green) :
                                                         score >= 50 ? new SolidColorBrush(Colors.Orange) :
                                                         new SolidColorBrush(Colors.Red);
                         }
@@ -275,19 +365,13 @@ namespace PinayPalBackupManager.UI.UserControls
 
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var progressBar   = this.FindControl<ProgressBar>("GlobalBackupProgress");
-                var progressText  = this.FindControl<TextBlock>("BackupProgressText");
-                var progressPct   = this.FindControl<TextBlock>("BackupProgressPercent");
-                var dot           = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GbpServiceDot");
-                var svcName       = this.FindControl<TextBlock>("GbpServiceName");
-
                 var color = Brush.Parse(GetServiceColor(service));
 
-                if (progressBar != null)  { progressBar.Value = percent; progressBar.Foreground = color; }
-                if (progressText != null)   progressText.Text = $"{service}: {status}";
-                if (progressPct  != null)  { progressPct.Text = $"{percent}%"; progressPct.Foreground = color; }
-                if (dot          != null)   dot.Fill = color;
-                if (svcName      != null)  { svcName.Text = service; svcName.Foreground = color; }
+                if (_cachedGlobalBackupProgress != null)  { _cachedGlobalBackupProgress.Value = percent; _cachedGlobalBackupProgress.Foreground = color; }
+                if (_cachedBackupProgressText != null)   _cachedBackupProgressText.Text = $"{service}: {status}";
+                if (_cachedBackupProgressPercent != null)  { _cachedBackupProgressPercent.Text = $"{percent}%"; _cachedBackupProgressPercent.Foreground = color; }
+                if (_cachedGbpServiceDot != null)   _cachedGbpServiceDot.Fill = color;
+                if (_cachedGbpServiceName != null)  { _cachedGbpServiceName.Text = service; _cachedGbpServiceName.Foreground = color; }
             });
         }
 
@@ -299,29 +383,22 @@ namespace PinayPalBackupManager.UI.UserControls
 
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var section  = this.FindControl<StackPanel>("MirrorProgressSection");
-                var bar      = this.FindControl<ProgressBar>("MirrorProgressBar");
-                var text     = this.FindControl<TextBlock>("MirrorProgressText");
-                var pct      = this.FindControl<TextBlock>("MirrorProgressPercent");
-                var svcName  = this.FindControl<TextBlock>("MirrorServiceName");
-                var detail   = this.FindControl<TextBlock>("MirrorStatusDetail");
-
-                if (section == null) return;
+                if (_cachedMirrorProgressSection == null) return;
 
                 bool done = percent >= 100 || percent < 0;
                 var activeColor = Brush.Parse("#A78BFA");
 
-                if (bar  != null) { bar.Value = percent < 0 ? 0 : percent; bar.Foreground = activeColor; }
-                if (text != null) text.Text  = done ? (percent < 0 ? "Failed" : "Complete") : "Mirroring...";
-                if (pct  != null) { pct.Text = percent < 0 ? "✗" : $"{percent}%"; pct.Foreground = activeColor; }
-                if (svcName != null) { svcName.Text = service; svcName.Foreground = activeColor; }
+                if (_cachedMirrorProgressBar != null) { _cachedMirrorProgressBar.Value = percent < 0 ? 0 : percent; _cachedMirrorProgressBar.Foreground = activeColor; }
+                if (_cachedMirrorProgressText != null) _cachedMirrorProgressText.Text = done ? (percent < 0 ? "Failed" : "Complete") : "Mirroring...";
+                if (_cachedMirrorProgressPercent != null) { _cachedMirrorProgressPercent.Text = percent < 0 ? "✗" : $"{percent}%"; _cachedMirrorProgressPercent.Foreground = activeColor; }
+                if (_cachedMirrorServiceName != null) { _cachedMirrorServiceName.Text = service; _cachedMirrorServiceName.Foreground = activeColor; }
 
-                if (detail != null)
+                if (_cachedMirrorStatusDetail != null)
                 {
                     string fileInfo = totalFiles > 0 && !done && percent >= 0
                         ? $"File {currentFile} of {totalFiles} · {msg}"
                         : msg;
-                    detail.Text = fileInfo;
+                    _cachedMirrorStatusDetail.Text = fileInfo;
                 }
             });
         }
@@ -333,18 +410,13 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var progressBar = this.FindControl<ProgressBar>("GlobalBackupProgress");
-                    var progressText = this.FindControl<TextBlock>("BackupProgressText");
-                    var progressPercent = this.FindControl<TextBlock>("BackupProgressPercent");
-                    var dot     = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("GbpServiceDot");
-                    var svcName = this.FindControl<TextBlock>("GbpServiceName");
                     var idleColor = Brush.Parse("#6C7086");
 
-                    if (progressBar != null) { progressBar.Value = 0; progressBar.Foreground = idleColor; }
-                    if (progressText != null)   progressText.Text = "No active backups";
-                    if (progressPercent != null){ progressPercent.Text = "0%"; progressPercent.Foreground = idleColor; }
-                    if (dot  != null)            dot.Fill = idleColor;
-                    if (svcName != null)        { svcName.Text = "Idle"; svcName.Foreground = idleColor; }
+                    if (_cachedGlobalBackupProgress != null) { _cachedGlobalBackupProgress.Value = 0; _cachedGlobalBackupProgress.Foreground = idleColor; }
+                    if (_cachedBackupProgressText != null)   _cachedBackupProgressText.Text = "No active backups";
+                    if (_cachedBackupProgressPercent != null){ _cachedBackupProgressPercent.Text = "0%"; _cachedBackupProgressPercent.Foreground = idleColor; }
+                    if (_cachedGbpServiceDot != null)            _cachedGbpServiceDot.Fill = idleColor;
+                    if (_cachedGbpServiceName != null)        { _cachedGbpServiceName.Text = "Idle"; _cachedGbpServiceName.Foreground = idleColor; }
 
                     _lastBackupProgressUpdate = DateTime.MinValue;
                 });
@@ -355,18 +427,13 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var bar      = this.FindControl<ProgressBar>("MirrorProgressBar");
-                    var text     = this.FindControl<TextBlock>("MirrorProgressText");
-                    var pct      = this.FindControl<TextBlock>("MirrorProgressPercent");
-                    var svcName  = this.FindControl<TextBlock>("MirrorServiceName");
-                    var detail   = this.FindControl<TextBlock>("MirrorStatusDetail");
                     var idleColor = Brush.Parse("#6C7086");
 
-                    if (bar != null)  { bar.Value = 0; bar.Foreground = idleColor; }
-                    if (text != null)   text.Text = "No active mirroring";
-                    if (pct != null)    { pct.Text = "0%"; pct.Foreground = idleColor; }
-                    if (svcName != null){ svcName.Text = "Idle"; svcName.Foreground = idleColor; }
-                    if (detail != null) detail.Text = "";
+                    if (_cachedMirrorProgressBar != null)  { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
+                    if (_cachedMirrorProgressText != null)   _cachedMirrorProgressText.Text = "No active mirroring";
+                    if (_cachedMirrorProgressPercent != null)    { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }
+                    if (_cachedMirrorServiceName != null){ _cachedMirrorServiceName.Text = "Idle"; _cachedMirrorServiceName.Foreground = idleColor; }
+                    if (_cachedMirrorStatusDetail != null) _cachedMirrorStatusDetail.Text = "";
 
                     _lastMirrorProgressUpdate = DateTime.MinValue;
                 });
@@ -428,22 +495,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 bool allOk = alertServices.Count == 0;
                 var healthBrush = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
 
-                var dot = this.FindControl<Ellipse>("DashHealthDot");
-                var txt = this.FindControl<TextBlock>("DashHealthText");
-                if (dot != null) dot.Fill = healthBrush;
-                if (txt != null) { txt.Text = allOk ? "ALL SYSTEMS OK" : "ATTENTION REQUIRED"; txt.Foreground = healthBrush; }
+                if (_cachedDashHealthDotEllipse != null) _cachedDashHealthDotEllipse.Fill = healthBrush;
+                if (_cachedDashHealthText != null) { _cachedDashHealthText.Text = allOk ? "ALL SYSTEMS OK" : "ATTENTION REQUIRED"; _cachedDashHealthText.Foreground = healthBrush; }
 
-                var alertBanner = this.FindControl<Border>("AlertBanner");
-                var alertText = this.FindControl<TextBlock>("AlertText");
-                if (alertBanner != null) alertBanner.IsVisible = !allOk;
-                if (alertText != null && !allOk)
-                    alertText.Text = $"Sync required: {string.Join(", ", alertServices)}. Open the relevant tab or use Run All Checks.";
+                if (_cachedAlertBanner != null) _cachedAlertBanner.IsVisible = !allOk;
+                if (_cachedAlertText != null && !allOk)
+                    _cachedAlertText.Text = $"Sync required: {string.Join(", ", alertServices)}. Open the relevant tab or use Run All Checks.";
 
-                var statOk = this.FindControl<TextBlock>("StatServicesOk");
-                if (statOk != null)
+                if (_cachedStatServicesOk != null)
                 {
-                    statOk.Text = $"{servicesOk}/3";
-                    statOk.Foreground = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
+                    _cachedStatServicesOk.Text = $"{servicesOk}/3";
+                    _cachedStatServicesOk.Foreground = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
                 }
 
                 UpdateGreeting();
@@ -1714,8 +1776,23 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartHealthAutoRefresh()
         {
+            _healthRefreshTimer?.Stop();
+            _healthRefreshTimer?.Dispose();
             _healthRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
-            _healthRefreshTimer.Elapsed += async (sender, e) => await LoadHealthDashboardAsync();
+            _healthRefreshTimer.Elapsed += async (sender, e) =>
+            {
+                if (Interlocked.Exchange(ref _isHealthRefreshing, 1) == 1)
+                    return;
+
+                try
+                {
+                    await LoadHealthDashboardAsync();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isHealthRefreshing, 0);
+                }
+            };
             _healthRefreshTimer.AutoReset = true;
             _healthRefreshTimer.Start();
             
@@ -1733,8 +1810,23 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartStatsAutoRefresh()
         {
+            _statsRefreshTimer?.Stop();
+            _statsRefreshTimer?.Dispose();
             _statsRefreshTimer = new System.Timers.Timer(45000); // 45 seconds
-            _statsRefreshTimer.Elapsed += async (_, _) => await LoadWeeklyStatsAsync();
+            _statsRefreshTimer.Elapsed += async (_, _) =>
+            {
+                if (Interlocked.Exchange(ref _isStatsRefreshing, 1) == 1)
+                    return;
+
+                try
+                {
+                    await LoadWeeklyStatsAsync();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isStatsRefreshing, 0);
+                }
+            };
             _statsRefreshTimer.AutoReset = true;
             _statsRefreshTimer.Start();
             
@@ -1750,22 +1842,59 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartDashboardAutoRefresh()
         {
+            _dashboardRefreshTimer?.Stop();
+            _dashboardRefreshTimer?.Dispose();
             _dashboardRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
             _dashboardRefreshTimer.Elapsed += async (_, _) =>
             {
-                await UpdateSystemStatusAsync();
-                await UpdateQuickStatsAsync();
-                await UpdateTimeSinceLastBackupAsync();
-                await LoadRecentErrorsAsync();
-                UpdateRetryQueueStatus();
+                if (Interlocked.Exchange(ref _isDashboardRefreshing, 1) == 1)
+                    return;
+
+                try
+                {
+                    await UpdateSystemStatusAsync();
+                    await UpdateTimeSinceLastBackupAsync();
+                    UpdateRetryQueueStatus();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isDashboardRefreshing, 0);
+                }
             };
             _dashboardRefreshTimer.AutoReset = true;
             _dashboardRefreshTimer.Start();
-            
+
             // Initial update
             UpdateRetryQueueStatus();
-            
+
             LogService.WriteLiveLog("[DASHBOARD] Auto-refresh started (30s interval)", "", "Information", "SYSTEM");
+        }
+
+        private int _isErrorRefreshing = 0;
+
+        private void StartErrorRefreshTimer()
+        {
+            _errorRefreshTimer?.Stop();
+            _errorRefreshTimer?.Dispose();
+            _errorRefreshTimer = new System.Timers.Timer(60000); // 60 seconds
+            _errorRefreshTimer.Elapsed += async (_, _) =>
+            {
+                if (Interlocked.Exchange(ref _isErrorRefreshing, 1) == 1)
+                    return;
+
+                try
+                {
+                    await LoadRecentErrorsAsync();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isErrorRefreshing, 0);
+                }
+            };
+            _errorRefreshTimer.AutoReset = true;
+            _errorRefreshTimer.Start();
+
+            LogService.WriteLiveLog("[ERRORS] Auto-refresh started (60s interval)", "", "Information", "SYSTEM");
         }
         
         private void UpdateRetryQueueStatus()
@@ -1775,21 +1904,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     var retries = Services.BackupRetryService.GetPendingRetries();
-                    var badge = this.FindControl<Border>("RetryQueueBadge");
-                    var text = this.FindControl<TextBlock>("TxtRetryQueue");
-                    
-                    if (badge != null && text != null)
+                    if (_cachedRetryQueueBadge != null && _cachedTxtRetryQueue != null)
                     {
                         if (retries.Count > 0)
                         {
-                            badge.IsVisible = true;
-                            text.Text = retries.Count == 1 
+                            _cachedRetryQueueBadge.IsVisible = true;
+                            _cachedTxtRetryQueue.Text = retries.Count == 1
                                 ? $"1 retry: {retries[0].Service} at {retries[0].NextRetry}"
                                 : $"{retries.Count} retries pending";
                         }
                         else
                         {
-                            badge.IsVisible = false;
+                            _cachedRetryQueueBadge.IsVisible = false;
                         }
                     }
                 }
@@ -1868,15 +1994,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        var uptimeTextBlock = this.FindControl<TextBlock>("SystemUptime");
-                        var healthCheckTextBlock = this.FindControl<TextBlock>("LastHealthCheck");
-                        var processesTextBlock = this.FindControl<TextBlock>("ActiveProcesses");
-                        var storageTextBlock = this.FindControl<TextBlock>("StorageUsage");
-
-                        if (uptimeTextBlock != null) uptimeTextBlock.Text = uptimeText;
-                        if (healthCheckTextBlock != null) healthCheckTextBlock.Text = lastHealthCheck;
-                        if (processesTextBlock != null) processesTextBlock.Text = activeProcesses;
-                        if (storageTextBlock != null) storageTextBlock.Text = storageText;
+                        if (_cachedSystemUptime != null) _cachedSystemUptime.Text = uptimeText;
+                        if (_cachedLastHealthCheck != null) _cachedLastHealthCheck.Text = lastHealthCheck;
+                        if (_cachedActiveProcesses != null) _cachedActiveProcesses.Text = activeProcesses;
+                        if (_cachedStorageUsage != null) _cachedStorageUsage.Text = storageText;
                     });
                 }
                 catch (Exception ex)
@@ -1920,34 +2041,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         successRate = 100.0; // No backups today but no failures either
                     }
 
-                    // Calculate storage used
-                    long totalBytes = 0;
-                    try
-                    {
-                        if (Directory.Exists(BackupConfig.FtpLocalFolder))
-                        {
-                            totalBytes += new DirectoryInfo(BackupConfig.FtpLocalFolder)
-                                .EnumerateFiles("*", SearchOption.AllDirectories)
-                                .Sum(f => f.Length);
-                        }
-                        if (Directory.Exists(BackupConfig.MailchimpFolder))
-                        {
-                            totalBytes += new DirectoryInfo(BackupConfig.MailchimpFolder)
-                                .EnumerateFiles("*", SearchOption.AllDirectories)
-                                .Sum(f => f.Length);
-                        }
-                        if (Directory.Exists(BackupConfig.SqlLocalFolder))
-                        {
-                            totalBytes += new DirectoryInfo(BackupConfig.SqlLocalFolder)
-                                .EnumerateFiles("*", SearchOption.AllDirectories)
-                                .Sum(f => f.Length);
-                        }
-                    }
-                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] GetFolderSize error: {ex.Message}", "", "Warning", "SYSTEM"); }
-
-                    string storageUsed = totalBytes >= 1073741824 ? $"{totalBytes / 1073741824.0:F1} GB" :
-                                     totalBytes >= 1048576 ? $"{totalBytes / 1048576.0:F1} MB" :
-                                     totalBytes >= 1024 ? $"{totalBytes / 1024.0:F0} KB" : "0 B";
+                    var storageUsed = GetCachedStorageUsed();
 
                     // Calculate trends by comparing with yesterday
                     int yesterdayBackups = 0;
@@ -1967,32 +2061,24 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        var backupsTodayText = this.FindControl<TextBlock>("StatBackupsToday");
-                        var successRateText = this.FindControl<TextBlock>("StatSuccessRate");
-                        var failedBackupsText = this.FindControl<TextBlock>("StatFailedBackups");
-                        var storageUsedText = this.FindControl<TextBlock>("StatStorageUsed");
-                        var trendBackups = this.FindControl<TextBlock>("TrendBackups");
-                        var trendSuccessRate = this.FindControl<TextBlock>("TrendSuccessRate");
+                        if (_cachedStatBackupsToday != null) _cachedStatBackupsToday.Text = backupsToday.ToString();
+                        if (_cachedStatSuccessRate != null) _cachedStatSuccessRate.Text = $"{successRate:F0}%";
+                        if (_cachedStatFailedBackups != null) _cachedStatFailedBackups.Text = failedBackups.ToString();
+                        if (_cachedStatStorageUsed != null) _cachedStatStorageUsed.Text = storageUsed;
 
-                        if (backupsTodayText != null) backupsTodayText.Text = backupsToday.ToString();
-                        if (successRateText != null) successRateText.Text = $"{successRate:F0}%";
-                        if (failedBackupsText != null) failedBackupsText.Text = failedBackups.ToString();
-                        if (storageUsedText != null) storageUsedText.Text = storageUsed;
-                        
-                        // Update trend arrows
-                        if (trendBackups != null)
+                        if (_cachedTrendBackups != null)
                         {
                             var diff = backupsToday - yesterdayBackups;
-                            if (diff > 0) { trendBackups.Text = "↑" + diff; trendBackups.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
-                            else if (diff < 0) { trendBackups.Text = "↓" + Math.Abs(diff); trendBackups.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
-                            else { trendBackups.Text = "→"; trendBackups.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
+                            if (diff > 0) { _cachedTrendBackups.Text = "↑" + diff; _cachedTrendBackups.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
+                            else if (diff < 0) { _cachedTrendBackups.Text = "↓" + Math.Abs(diff); _cachedTrendBackups.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
+                            else { _cachedTrendBackups.Text = "→"; _cachedTrendBackups.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
                         }
-                        if (trendSuccessRate != null)
+                        if (_cachedTrendSuccessRate != null)
                         {
                             var diff = successRate - yesterdaySuccessRate;
-                            if (diff > 0) { trendSuccessRate.Text = "↑" + diff.ToString("F0"); trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
-                            else if (diff < 0) { trendSuccessRate.Text = "↓" + Math.Abs(diff).ToString("F0"); trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
-                            else { trendSuccessRate.Text = "→"; trendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
+                            if (diff > 0) { _cachedTrendSuccessRate.Text = "↑" + diff.ToString("F0"); _cachedTrendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1"); }
+                            else if (diff < 0) { _cachedTrendSuccessRate.Text = "↓" + Math.Abs(diff).ToString("F0"); _cachedTrendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#F38BA8"); }
+                            else { _cachedTrendSuccessRate.Text = "→"; _cachedTrendSuccessRate.Foreground = Avalonia.Media.Brush.Parse("#6C7086"); }
                         }
                     });
                 }
@@ -2001,6 +2087,32 @@ namespace PinayPalBackupManager.UI.UserControls
                     LogService.WriteLiveLog($"[SYSTEM] Error updating quick stats: {ex.Message}", "", "Error", "SYSTEM");
                 }
             });
+        }
+
+        private string GetCachedStorageUsed()
+        {
+            if (DateTime.UtcNow - _lastStorageStatsRefresh < TimeSpan.FromMinutes(5))
+            {
+                return _cachedStorageUsed;
+            }
+
+            long totalBytes = 0;
+            try
+            {
+                totalBytes += GetFolderSize(BackupConfig.FtpLocalFolder);
+                totalBytes += GetFolderSize(BackupConfig.MailchimpFolder);
+                totalBytes += GetFolderSize(BackupConfig.SqlLocalFolder);
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[HomeControl] GetFolderSize error: {ex.Message}", "", "Warning", "SYSTEM");
+            }
+
+            _cachedStorageUsed = totalBytes >= 1073741824 ? $"{totalBytes / 1073741824.0:F1} GB" :
+                                 totalBytes >= 1048576 ? $"{totalBytes / 1048576.0:F1} MB" :
+                                 totalBytes >= 1024 ? $"{totalBytes / 1024.0:F0} KB" : "0 B";
+            _lastStorageStatsRefresh = DateTime.UtcNow;
+            return _cachedStorageUsed;
         }
 
         private async Task UpdateTimeSinceLastBackupAsync()
@@ -2023,24 +2135,20 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        var ftpTimeTextBlock = this.FindControl<TextBlock>("TimeSinceFtp");
-                        var mcTimeTextBlock = this.FindControl<TextBlock>("TimeSinceMc");
-                        var sqlTimeTextBlock = this.FindControl<TextBlock>("TimeSinceSql");
-
-                        if (ftpTimeTextBlock != null)
+                        if (_cachedTimeSinceFtp != null)
                         {
-                            ftpTimeTextBlock.Text = ftpTimeText;
-                            ftpTimeTextBlock.Foreground = GetTimeAgoColor(ftpLastTime);
+                            _cachedTimeSinceFtp.Text = ftpTimeText;
+                            _cachedTimeSinceFtp.Foreground = GetTimeAgoColor(ftpLastTime);
                         }
-                        if (mcTimeTextBlock != null)
+                        if (_cachedTimeSinceMc != null)
                         {
-                            mcTimeTextBlock.Text = mcTimeText;
-                            mcTimeTextBlock.Foreground = GetTimeAgoColor(mcLastTime);
+                            _cachedTimeSinceMc.Text = mcTimeText;
+                            _cachedTimeSinceMc.Foreground = GetTimeAgoColor(mcLastTime);
                         }
-                        if (sqlTimeTextBlock != null)
+                        if (_cachedTimeSinceSql != null)
                         {
-                            sqlTimeTextBlock.Text = sqlTimeText;
-                            sqlTimeTextBlock.Foreground = GetTimeAgoColor(sqlLastTime);
+                            _cachedTimeSinceSql.Text = sqlTimeText;
+                            _cachedTimeSinceSql.Foreground = GetTimeAgoColor(sqlLastTime);
                         }
                     });
                 }
@@ -2781,6 +2889,65 @@ namespace PinayPalBackupManager.UI.UserControls
             _scheduleTimer?.Dispose();
             _storageTimer?.Stop();
             _storageTimer?.Dispose();
+            _errorRefreshTimer?.Stop();
+            _errorRefreshTimer?.Dispose();
+            _activeProcessUpdateTimer?.Stop();
+            _activeProcessUpdateTimer?.Dispose();
+
+            _healthRefreshTimer = null;
+            _statsRefreshTimer = null;
+            _dashboardRefreshTimer = null;
+            _errorRefreshTimer = null;
+            _autoPingTimer = null;
+            _statsTimer = null;
+            _scheduleTimer = null;
+            _storageTimer = null;
+            _activeProcessUpdateTimer = null;
+
+            Interlocked.Exchange(ref _isHealthRefreshing, 0);
+            Interlocked.Exchange(ref _isStatsRefreshing, 0);
+            Interlocked.Exchange(ref _isDashboardRefreshing, 0);
+            Interlocked.Exchange(ref _isErrorRefreshing, 0);
+
+            // Null cached controls to allow GC
+            _cachedDashHealthDotEllipse = null;
+            _cachedDashHealthText = null;
+            _cachedAlertBanner = null;
+            _cachedAlertText = null;
+            _cachedStatServicesOk = null;
+            _cachedSystemUptime = null;
+            _cachedLastHealthCheck = null;
+            _cachedActiveProcesses = null;
+            _cachedStorageUsage = null;
+            _cachedStatBackupsToday = null;
+            _cachedStatSuccessRate = null;
+            _cachedStatFailedBackups = null;
+            _cachedStatStorageUsed = null;
+            _cachedTrendBackups = null;
+            _cachedTrendSuccessRate = null;
+            _cachedTimeSinceFtp = null;
+            _cachedTimeSinceMc = null;
+            _cachedTimeSinceSql = null;
+            _cachedRetryQueueBadge = null;
+            _cachedTxtRetryQueue = null;
+            _cachedHealthScoreText = null;
+            _cachedHealthTrendText = null;
+            _cachedHealthFtpScore = null;
+            _cachedHealthMcScore = null;
+            _cachedHealthSqlScore = null;
+            _cachedCriticalAlertsCount = null;
+            _cachedTimeSinceHealth = null;
+            _cachedGlobalBackupProgress = null;
+            _cachedBackupProgressText = null;
+            _cachedBackupProgressPercent = null;
+            _cachedGbpServiceDot = null;
+            _cachedGbpServiceName = null;
+            _cachedMirrorProgressSection = null;
+            _cachedMirrorProgressBar = null;
+            _cachedMirrorProgressText = null;
+            _cachedMirrorProgressPercent = null;
+            _cachedMirrorServiceName = null;
+            _cachedMirrorStatusDetail = null;
         }
     }
 }

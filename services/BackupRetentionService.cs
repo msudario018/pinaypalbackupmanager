@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using PinayPalBackupManager.Models;
@@ -15,6 +16,7 @@ namespace PinayPalBackupManager.Services
     {
         private static System.Timers.Timer? _cleanupTimer;
         private static bool _isInitialized = false;
+        private static int _isCleaningUp = 0;
 
         /// <summary>
         /// Starts the retention cleanup timer (every 6 hours).
@@ -23,6 +25,8 @@ namespace PinayPalBackupManager.Services
         {
             if (_isInitialized) return;
             _isInitialized = true;
+            _cleanupTimer?.Stop();
+            _cleanupTimer?.Dispose();
 
             _cleanupTimer = new System.Timers.Timer(TimeSpan.FromHours(6).TotalMilliseconds);
             _cleanupTimer.Elapsed += async (_, _) => await RunCleanupAsync();
@@ -41,6 +45,7 @@ namespace PinayPalBackupManager.Services
             _cleanupTimer?.Dispose();
             _cleanupTimer = null;
             _isInitialized = false;
+            Interlocked.Exchange(ref _isCleaningUp, 0);
             LogService.WriteSystemLog("[RETENTION] Auto-cleanup service stopped", "Information", "SYSTEM");
         }
 
@@ -49,6 +54,9 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task RunCleanupAsync()
         {
+            if (Interlocked.Exchange(ref _isCleaningUp, 1) == 1)
+                return;
+
             try
             {
                 ConfigService.Load();
@@ -75,6 +83,10 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[RETENTION] Cleanup failed: {ex.Message}", "Error", "SYSTEM");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isCleaningUp, 0);
             }
 
             await Task.CompletedTask;

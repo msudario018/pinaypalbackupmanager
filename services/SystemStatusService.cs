@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PinayPalBackupManager.Services
@@ -15,6 +16,7 @@ namespace PinayPalBackupManager.Services
         private static bool _isInitialized = false;
         private static System.Timers.Timer? _updateTimer;
         private static readonly object _lock = new object();
+        private static int _isUpdating = 0;
 
         public static void Initialize(string databaseUrl, string username)
         {
@@ -22,6 +24,8 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
+                    StopTimer();
+
                     _database = new FirebaseClient(databaseUrl);
                     _username = username;
                     _isInitialized = true;
@@ -44,7 +48,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        public static async Task<object> GetSystemStatusAsync()
+        public static async Task<object?> GetSystemStatusAsync()
         {
             if (!_isInitialized || _database == null || _username == null)
             {
@@ -75,6 +79,11 @@ namespace PinayPalBackupManager.Services
         public static async Task UpdateSystemStatusAsync()
         {
             if (!_isInitialized || _database == null || _username == null)
+            {
+                return;
+            }
+
+            if (Interlocked.Exchange(ref _isUpdating, 1) == 1)
             {
                 return;
             }
@@ -111,6 +120,10 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[SYSTEM_STATUS] Update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isUpdating, 0);
             }
         }
 
@@ -651,11 +664,21 @@ namespace PinayPalBackupManager.Services
 
         public static void Stop()
         {
+            lock (_lock)
+            {
+                StopTimer();
+                _isInitialized = false;
+                Interlocked.Exchange(ref _isUpdating, 0);
+            }
+            
+            LogService.WriteSystemLog("[SYSTEM_STATUS] Service stopped", "Information", "SYSTEM");
+        }
+
+        private static void StopTimer()
+        {
             _updateTimer?.Stop();
             _updateTimer?.Dispose();
             _updateTimer = null;
-            
-            LogService.WriteSystemLog("[SYSTEM_STATUS] Service stopped", "Information", "SYSTEM");
         }
     }
 }

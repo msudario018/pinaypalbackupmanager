@@ -1,7 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using PinayPalBackupManager.Services;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -252,25 +255,34 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private void ExportReport()
+        private async void ExportReport()
         {
             try
             {
                 var summary = HealthCheckService.GetHealthSummary();
-                var saveDialog = new SaveFileDialog
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null)
+                {
+                    return;
+                }
+
+                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = "Export Health Check Report",
                     DefaultExtension = "txt",
-                    Filters = new System.Collections.Generic.List<FileDialogFilter>
+                    FileTypeChoices = new List<FilePickerFileType>
                     {
-                        new FileDialogFilter { Name = "Text Files", Extensions = new System.Collections.Generic.List<string> { "txt" } },
-                        new FileDialogFilter { Name = "All Files", Extensions = new System.Collections.Generic.List<string> { "*" } }
+                        new FilePickerFileType("Text Files") { Patterns = new[] { "*.txt" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
                     }
-                };
+                });
 
-                var result = saveDialog.ShowAsync(App.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null);
-                // Note: SaveFileDialog in Avalonia 11 uses different API, this is simplified
-                // For now, just log that export was requested
+                if (file == null)
+                {
+                    return;
+                }
+
+                await File.WriteAllTextAsync(file.Path.LocalPath, summary);
                 LogService.WriteSystemLog("Health check export requested", "Information", "HEALTHCHECK");
                 NotificationService.ShowBackupToast("Export", "Report exported successfully", "Info");
             }

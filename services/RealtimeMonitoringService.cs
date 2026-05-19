@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -25,6 +26,9 @@ namespace PinayPalBackupManager.Services
         private static readonly Queue<MonitoringEvent> _eventHistory = new();
         private static readonly object _monitoringLock = new();
         private static System.Timers.Timer? _alertCheckTimer;
+        private static int _isConnectionUpdating = 0;
+        private static int _isSystemMonitoringUpdating = 0;
+        private static int _isCheckingAlerts = 0;
         
         public static event Action<Alert>? OnAlertTriggered;
         public static event Action<MonitoringEvent>? OnMonitoringEvent;
@@ -34,6 +38,8 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
+                StopTimers();
+
                 _database = new FirebaseClient(databaseUrl);
                 _username = username;
                 _isInitialized = true;
@@ -80,6 +86,9 @@ namespace PinayPalBackupManager.Services
             if (!_isInitialized || _database == null || _username == null)
                 return;
 
+            if (Interlocked.Exchange(ref _isConnectionUpdating, 1) == 1)
+                return;
+
             try
             {
                 var connectionData = new
@@ -98,6 +107,10 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] Connection status update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isConnectionUpdating, 0);
             }
         }
 
@@ -132,6 +145,9 @@ namespace PinayPalBackupManager.Services
             if (!_isInitialized || _database == null || _username == null)
                 return;
 
+            if (Interlocked.Exchange(ref _isSystemMonitoringUpdating, 1) == 1)
+                return;
+
             try
             {
                 var cpuUsage = await GetCpuUsageAsync();
@@ -154,6 +170,10 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] System monitoring update failed: {ex.Message}", "Error", "SYSTEM");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isSystemMonitoringUpdating, 0);
             }
         }
 
@@ -612,17 +632,13 @@ namespace PinayPalBackupManager.Services
                     await AddActivityAsync("info", "Real-time monitoring service stopped");
                 });
 
-                // Stop all timers
-                _connectionTimer?.Stop();
-                _connectionTimer?.Dispose();
-                _connectionTimer = null;
-
-                _systemMonitoringTimer?.Stop();
-                _systemMonitoringTimer?.Dispose();
-                _systemMonitoringTimer = null;
+                StopTimers();
 
                 // Mark as uninitialized
                 _isInitialized = false;
+                Interlocked.Exchange(ref _isConnectionUpdating, 0);
+                Interlocked.Exchange(ref _isSystemMonitoringUpdating, 0);
+                Interlocked.Exchange(ref _isCheckingAlerts, 0);
 
                 LogService.WriteSystemLog("[REALTIME_MONITORING] All monitoring services stopped", "Information", "SYSTEM");
             }
@@ -630,6 +646,21 @@ namespace PinayPalBackupManager.Services
             {
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] Error stopping services: {ex.Message}", "Error", "SYSTEM");
             }
+        }
+
+        private static void StopTimers()
+        {
+            _connectionTimer?.Stop();
+            _connectionTimer?.Dispose();
+            _connectionTimer = null;
+
+            _systemMonitoringTimer?.Stop();
+            _systemMonitoringTimer?.Dispose();
+            _systemMonitoringTimer = null;
+
+            _alertCheckTimer?.Stop();
+            _alertCheckTimer?.Dispose();
+            _alertCheckTimer = null;
         }
         
         private static void InitializeDefaultAlertRules()
@@ -713,6 +744,9 @@ namespace PinayPalBackupManager.Services
         private static async void CheckAlerts(object? sender, ElapsedEventArgs e)
         {
             if (!_isInitialized) return;
+
+            if (Interlocked.Exchange(ref _isCheckingAlerts, 1) == 1)
+                return;
             
             try
             {
@@ -771,6 +805,10 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] Error checking alerts: {ex.Message}", "Error", "SYSTEM");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isCheckingAlerts, 0);
             }
         }
         

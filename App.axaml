@@ -604,7 +604,7 @@
             <cv:BoolToStatusTextConverter x:Key="BoolToStatusText" />
             <cv:BoolToStatusBrushConverter x:Key="BoolToStatusBrush" />
 
-            <!-- Default Font Resources (overridden by ThemeService.ApplyCustomThemeSettings) -->
+            <!-- Default Font Resources -->
             <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
             <x:Double x:Key="AppFontSize">14</x:Double>
             <FontWeight x:Key="AppFontWeight">Normal</FontWeight>

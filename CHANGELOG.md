@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.15.0] - 2026-05-19
+
+### Added
+- **Internet Connectivity Monitoring**: Detects when the PC has no internet connection and shows a visible offline banner
+  - New `NetworkConnectivityService` polls every 15 seconds using `NetworkInterface.GetIsNetworkAvailable()` + ping to Cloudflare/Google DNS
+  - Pink offline banner appears below the top bar when connection is lost
+  - Top-bar connection indicator dot switches to red and shows "Offline"
+- **Offline Tab Protection**: Automatically disables internet-required sidebar tabs when offline
+  - Affected tabs: FTP, Mailchimp, SQL, Health Check, Performance Metrics
+  - Disabled buttons show reduced opacity (0.4) and cannot be clicked
+  - Attempting to click an offline-required tab shows a toast warning instead of switching
+  - If the user is on an internet-required tab when connection drops, the app auto-redirects to the Dashboard
+
+### Changed
+- **Home Dashboard Optimizations**: Cached FindControl references to avoid repeated visual-tree lookups on every dashboard tick
+- **Refresh Intervals**: Split dashboard refresh timers by cost — uptime every 30s, logs every 60s, storage every 5 minutes
+- **Fire-and-Forget Safety**: Added `FireAndForget` helper to wrap `_ = Task.Run(...)` calls with exception logging
+- **Mailchimp Column Width**: Widened Mailchimp label column from 65 to 75 in dashboard time-since-last-backup grid
+
+### Fixed
+- **Empty Catch Blocks**: Audited 7 empty catch blocks in `AuthService.cs` and added debug logging for Firebase sync, config read, and audit logging failures
+
 ## [2.13.8] - 2026-05-17
 
 ### Fixed

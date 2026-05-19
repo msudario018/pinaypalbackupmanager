@@ -683,7 +683,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (allLogs.Count > 0)
                     {
                         var firstLog = allLogs.LastOrDefault();
-                        if (TryParseLogLine(firstLog, out var firstTimestamp, out _, out _))
+                        if (!string.IsNullOrEmpty(firstLog) && TryParseLogLine(firstLog, out var firstTimestamp, out _, out _))
                             accountAge = DateTime.Now - firstTimestamp;
                     }
                     else

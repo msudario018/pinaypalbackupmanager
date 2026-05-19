@@ -68,11 +68,11 @@ namespace PinayPalBackupManager.UI.UserControls
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
-            if (change.Property == TitleProperty) this.FindControl<TextBlock>("PART_Title").Text = Title;
-            if (change.Property == MessageProperty) this.FindControl<TextBlock>("PART_Message").Text = Message;
-            if (change.Property == TimestampProperty) this.FindControl<TextBlock>("PART_Timestamp").Text = Timestamp;
-            if (change.Property == IconBrushProperty) this.FindControl<PathIcon>("PART_Icon").Foreground = IconBrush;
-            if (change.Property == IconDataProperty) this.FindControl<PathIcon>("PART_Icon").Data = IconData;
+            if (change.Property == TitleProperty && this.FindControl<TextBlock>("PART_Title") is { } title) title.Text = Title;
+            if (change.Property == MessageProperty && this.FindControl<TextBlock>("PART_Message") is { } message) message.Text = Message;
+            if (change.Property == TimestampProperty && this.FindControl<TextBlock>("PART_Timestamp") is { } timestamp) timestamp.Text = Timestamp;
+            if (change.Property == IconBrushProperty && this.FindControl<PathIcon>("PART_Icon") is { } iconBrush) iconBrush.Foreground = IconBrush;
+            if (change.Property == IconDataProperty && this.FindControl<PathIcon>("PART_Icon") is { } iconData) iconData.Data = IconData;
         }
 
         private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -122,7 +122,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (_isDragging)
             {
                 _isDragging = false;
-                AnimateReturn();
+                _ = AnimateReturn();
             }
         }
 

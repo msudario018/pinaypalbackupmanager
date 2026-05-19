@@ -24,7 +24,7 @@ namespace PinayPalBackupManager.UI.UserControls
             
             SetupEventHandlers();
             InitializeControl();
-            LoadInitialData();
+            _ = LoadInitialData();
         }
 
         private void InitializeControl()
@@ -84,8 +84,8 @@ namespace PinayPalBackupManager.UI.UserControls
             // Button handlers
             this.FindControl<Button>("BtnVerifyAll")!.Click += async (_, _) => await VerifyAllFilesAsync();
             this.FindControl<Button>("BtnGenerateChecksums")!.Click += async (_, _) => await GenerateAllChecksumsAsync();
-            this.FindControl<Button>("BtnExportReport")!.Click += (_, _) => ExportVerificationReportAsync();
-            this.FindControl<Button>("BtnRestoreFiles")!.Click += (_, _) => RestoreCorruptedFilesAsync();
+            this.FindControl<Button>("BtnExportReport")!.Click += async (_, _) => await ExportVerificationReportAsync();
+            this.FindControl<Button>("BtnRestoreFiles")!.Click += async (_, _) => await RestoreCorruptedFilesAsync();
             this.FindControl<Button>("BtnRefreshResults")!.Click += async (_, _) => await RefreshResultsAsync();
             
             // Bulk selection handlers
@@ -183,7 +183,7 @@ namespace PinayPalBackupManager.UI.UserControls
             try
             {
                 // Reset UI elements
-                Dispatcher.UIThread.InvokeAsync(() =>
+                _ = Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (progressBar != null) progressBar.Value = 0;
                     if (verifiedText != null) verifiedText.Text = "0/0";
@@ -193,7 +193,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var results = await ChecksumService.VerifyServiceChecksumsAsync(service);
                 if (results == null || results.Count == 0)
                 {
-                    Dispatcher.UIThread.InvokeAsync(() =>
+                    _ = Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (verifiedText != null) verifiedText.Text = "No files";
                     });
@@ -212,7 +212,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     // Batch UI updates for better performance
                     if (processed % 10 == 0 || processed == total)
                     {
-                        Dispatcher.UIThread.InvokeAsync(() =>
+                        _ = Dispatcher.UIThread.InvokeAsync(() =>
                         {
                             if (progressBar != null) progressBar.Value = progress;
                             if (verifiedText != null) verifiedText.Text = $"{processed}/{total}";
@@ -222,7 +222,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (!result.IsValid)
                     {
                         corruptedCount++;
-                        Dispatcher.UIThread.InvokeAsync(() =>
+                        _ = Dispatcher.UIThread.InvokeAsync(() =>
                         {
                             if (issuesList != null)
                             {
@@ -252,7 +252,7 @@ namespace PinayPalBackupManager.UI.UserControls
             catch (Exception ex)
             {
                 LogService.WriteLiveLog($"[VERIFICATION] Error verifying {service}: {ex.Message}", "", "Error", "SYSTEM");
-                Dispatcher.UIThread.InvokeAsync(() =>
+                _ = Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (verifiedText != null) verifiedText.Text = "Error";
                 });
@@ -423,10 +423,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 var chkShowCorrupted = this.FindControl<CheckBox>("ChkShowCorrupted");
                 var chkShowMissing = this.FindControl<CheckBox>("ChkShowMissing");
                 
-                // Use proper null validation
-                var showValid = ValidationService.IsNotNull(chkShowValid) && chkShowValid.IsChecked == true;
-                var showCorrupted = ValidationService.IsNotNull(chkShowCorrupted) && chkShowCorrupted.IsChecked == true;
-                var showMissing = ValidationService.IsNotNull(chkShowMissing) && chkShowMissing.IsChecked == true;
+                var showValid = chkShowValid != null && chkShowValid.IsChecked == true;
+                var showCorrupted = chkShowCorrupted != null && chkShowCorrupted.IsChecked == true;
+                var showMissing = chkShowMissing != null && chkShowMissing.IsChecked == true;
                 
                 LogService.WriteLiveLog($"[VERIFICATION] Filter settings - Valid: {showValid}, Corrupted: {showCorrupted}, Missing: {showMissing}", "", "Information", "SYSTEM");
                 LogService.WriteLiveLog($"[VERIFICATION] Total items before filtering: {_verificationItems.Count}", "", "Information", "SYSTEM");

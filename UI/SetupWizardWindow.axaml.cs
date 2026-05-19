@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using PinayPalBackupManager.Services;
 
 namespace PinayPalBackupManager.UI
@@ -60,7 +62,7 @@ namespace PinayPalBackupManager.UI
             // Update summary when entering step 5
             this.FindControl<StackPanel>("Step5Security")!.PropertyChanged += (_, e) =>
             {
-                if (e.Property.Name == "IsVisible" && (bool)e.NewValue)
+                if (e.Property.Name == "IsVisible" && e.NewValue is true)
                     UpdateSummary();
             };
         }
@@ -347,15 +349,14 @@ namespace PinayPalBackupManager.UI
 
         private async void BrowseFolder(string textBoxName)
         {
-            var dialog = new OpenFolderDialog
+            var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = "Select Backup Folder"
-            };
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (!string.IsNullOrEmpty(result))
+            if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
             {
-                this.FindControl<TextBox>(textBoxName)!.Text = result;
+                this.FindControl<TextBox>(textBoxName)!.Text = result[0].Path.LocalPath;
             }
         }
 
@@ -498,38 +499,25 @@ namespace PinayPalBackupManager.UI
         {
             try
             {
-                // Open file picker dialog
-                var dialog = new OpenFileDialog
+                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = $"Import {service.ToUpper()} Credentials",
-                    Filters = new System.Collections.Generic.List<FileDialogFilter>
+                    AllowMultiple = false,
+                    FileTypeFilter = new List<FilePickerFileType>
                     {
-                        new FileDialogFilter
-                        {
-                            Name = "PinayPal Encrypted Settings (*.ppenc)",
-                            Extensions = new System.Collections.Generic.List<string> { "ppenc" }
-                        },
-                        new FileDialogFilter
-                        {
-                            Name = "JSON Settings (*.json)",
-                            Extensions = new System.Collections.Generic.List<string> { "json" }
-                        },
-                        new FileDialogFilter
-                        {
-                            Name = "All Files",
-                            Extensions = new System.Collections.Generic.List<string> { "*" }
-                        }
+                        new FilePickerFileType("PinayPal Encrypted Settings (*.ppenc)") { Patterns = new[] { "*.ppenc" } },
+                        new FilePickerFileType("JSON Settings (*.json)") { Patterns = new[] { "*.json" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
                     }
-                };
+                });
 
-                var result = await dialog.ShowAsync(this);
-                if (result == null || result.Length == 0)
+                if (result.Count == 0)
                 {
                     ShowImportResult(service, "ℹ No file selected");
                     return;
                 }
 
-                var configPath = result[0];
+                var configPath = result[0].Path.LocalPath;
                 var json = File.ReadAllText(configPath);
                 var settings = System.Text.Json.JsonSerializer.Deserialize<Services.AppSettings>(json, new System.Text.Json.JsonSerializerOptions
                 {
