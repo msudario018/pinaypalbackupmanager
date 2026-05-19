@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.17.0] - 2026-05-20
+
+### Added
+- **Setup Wizard Import Configuration Step (Step 2)**: New screen between admin creation and backup tabs to bulk-import all service settings from a single file
+  - Supports `.ppenc` encrypted files (exported from Credentials Dialog) and plain `.json` files
+  - File picker filters for `.ppenc` and `.json` with "Browse" and "Import All Settings" actions
+  - Uses the same hardcoded AES key as `CredentialsDialog` for `.ppenc` decryption (cross-PC compatible)
+  - Imports FTP, SQL, and Mailchimp fields in one operation
+
+### Changed
+- **Imported Settings Navigation Optimization**: When settings are successfully imported, backup tab steps (FTP/SQL/Mailchimp) are hidden entirely
+  - Step indicators collapse from 6 dots to 3 dots (Admin → Import → Summary)
+  - Step title renumbers to "Step X of 3"
+  - Next/Back/Skip buttons bypass hidden steps automatically
+  - User goes straight from Import to Security & Summary without seeing empty backup tabs
+- **Removed Per-Tab Import Buttons**: The individual "Import from appsettings.json" buttons previously on FTP, SQL, and Mailchimp wizard tabs have been removed in favor of the centralized Step 2 import
+
+### Fixed
+- **`.ppenc` Decryption in Setup Wizard**: Previously used `ConfigEncryptionService.TryDecrypt()` which relies on a machine-specific key, causing decryption failures on different PCs. Now uses the correct hardcoded AES key (`PinayPalBackupManagerKey2024!`) matching the Credentials Dialog export format
+
 ## [2.16.8] - 2026-05-19
 
 ### Added

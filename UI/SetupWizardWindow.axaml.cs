@@ -16,8 +16,9 @@ namespace PinayPalBackupManager.UI
     public partial class SetupWizardWindow : Window
     {
         private int _currentStep = 1;
-        private const int TotalSteps = 5;
+        private const int TotalSteps = 6;
         private bool _isAdminPC = true;
+        private bool _settingsImported = false;
 
         public event Action? OnSetupComplete;
 
@@ -58,16 +59,15 @@ namespace PinayPalBackupManager.UI
             this.FindControl<Button>("BtnBrowseFtpFolder")!.Click += (_, _) => BrowseFolder("TxtFtpLocalFolder");
             this.FindControl<Button>("BtnBrowseSqlFolder")!.Click += (_, _) => BrowseFolder("TxtSqlLocalFolder");
             this.FindControl<Button>("BtnBrowseMcFolder")!.Click += (_, _) => BrowseFolder("TxtMcFolder");
+            this.FindControl<Button>("BtnBrowseImport")!.Click += (_, _) => BrowseImportFile();
 
             // Test connection buttons
             this.FindControl<Button>("BtnTestFTP")!.Click += OnTestFtpClick;
             this.FindControl<Button>("BtnTestSQL")!.Click += OnTestSqlClick;
             this.FindControl<Button>("BtnTestMailchimp")!.Click += OnTestMailchimpClick;
 
-            // Import credentials buttons
-            this.FindControl<Button>("BtnImportFtp")!.Click += (_, _) => ImportCredentials("ftp");
-            this.FindControl<Button>("BtnImportSql")!.Click += (_, _) => ImportCredentials("sql");
-            this.FindControl<Button>("BtnImportMailchimp")!.Click += (_, _) => ImportCredentials("mailchimp");
+            // Import all settings button
+            this.FindControl<Button>("BtnImportAll")!.Click += OnImportAllClick;
 
             // Password real-time validation
             var passwordBox = this.FindControl<TextBox>("TxtAdminPassword")!;
@@ -76,8 +76,8 @@ namespace PinayPalBackupManager.UI
             passwordBox.TextChanged += (_, _) => ValidatePasswordMatch();
             confirmPasswordBox.TextChanged += (_, _) => ValidatePasswordMatch();
 
-            // Update summary when entering step 5
-            this.FindControl<StackPanel>("Step5Security")!.PropertyChanged += (_, e) =>
+            // Update summary when entering step 6
+            this.FindControl<StackPanel>("Step6Security")!.PropertyChanged += (_, e) =>
             {
                 if (e.Property.Name == "IsVisible" && e.NewValue is true)
                     UpdateSummary();
@@ -141,6 +141,9 @@ namespace PinayPalBackupManager.UI
             if (_currentStep < TotalSteps)
             {
                 _currentStep++;
+                // Skip hidden backup tabs if settings were imported
+                if (_settingsImported && _currentStep >= 3 && _currentStep <= 5)
+                    _currentStep = 6;
                 UpdateUIForCurrentStep();
             }
             else
@@ -154,6 +157,9 @@ namespace PinayPalBackupManager.UI
             if (_currentStep > 1)
             {
                 _currentStep--;
+                // Skip hidden backup tabs if settings were imported
+                if (_settingsImported && _currentStep >= 3 && _currentStep <= 5)
+                    _currentStep = 2;
                 UpdateUIForCurrentStep();
             }
         }
@@ -163,6 +169,9 @@ namespace PinayPalBackupManager.UI
             if (_currentStep < TotalSteps)
             {
                 _currentStep++;
+                // Skip hidden backup tabs if settings were imported
+                if (_settingsImported && _currentStep >= 3 && _currentStep <= 5)
+                    _currentStep = 6;
                 UpdateUIForCurrentStep();
             }
         }
@@ -171,25 +180,29 @@ namespace PinayPalBackupManager.UI
         {
             // Hide all steps
             this.FindControl<StackPanel>("Step1Admin")!.IsVisible = false;
-            this.FindControl<StackPanel>("Step2FTP")!.IsVisible = false;
-            this.FindControl<StackPanel>("Step3SQL")!.IsVisible = false;
-            this.FindControl<StackPanel>("Step4Mailchimp")!.IsVisible = false;
-            this.FindControl<StackPanel>("Step5Security")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step2Import")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step3FTP")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step4SQL")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step5Mailchimp")!.IsVisible = false;
+            this.FindControl<StackPanel>("Step6Security")!.IsVisible = false;
 
             // Show current step
             StackPanel? currentPanel = _currentStep switch
             {
                 1 => this.FindControl<StackPanel>("Step1Admin"),
-                2 => this.FindControl<StackPanel>("Step2FTP"),
-                3 => this.FindControl<StackPanel>("Step3SQL"),
-                4 => this.FindControl<StackPanel>("Step4Mailchimp"),
-                5 => this.FindControl<StackPanel>("Step5Security"),
+                2 => this.FindControl<StackPanel>("Step2Import"),
+                3 => this.FindControl<StackPanel>("Step3FTP"),
+                4 => this.FindControl<StackPanel>("Step4SQL"),
+                5 => this.FindControl<StackPanel>("Step5Mailchimp"),
+                6 => this.FindControl<StackPanel>("Step6Security"),
                 _ => null
             };
             if (currentPanel != null) currentPanel.IsVisible = true;
 
             // Update title
-            this.FindControl<TextBlock>("TxtStepTitle")!.Text = $"Step {_currentStep} of {TotalSteps}";
+            var visibleStepCount = _settingsImported ? 3 : TotalSteps;
+            var displayStep = _settingsImported ? (_currentStep == 6 ? 3 : _currentStep) : _currentStep;
+            this.FindControl<TextBlock>("TxtStepTitle")!.Text = $"Step {displayStep} of {visibleStepCount}";
 
             // Update step indicators (dots)
             UpdateStepDots();
@@ -208,6 +221,14 @@ namespace PinayPalBackupManager.UI
                 var dot = this.FindControl<Avalonia.Controls.Shapes.Ellipse>($"StepDot{i}");
                 if (dot != null)
                 {
+                    // Hide dots 3-5 when settings were imported
+                    if (_settingsImported && i >= 3 && i <= 5)
+                    {
+                        dot.IsVisible = false;
+                        continue;
+                    }
+                    dot.IsVisible = true;
+
                     if (i < _currentStep)
                     {
                         // Completed step
@@ -237,10 +258,11 @@ namespace PinayPalBackupManager.UI
             return _currentStep switch
             {
                 1 => ValidateAdminStep(),
-                2 => ValidateFtpStep(),
-                3 => ValidateSqlStep(),
-                4 => ValidateMailchimpStep(),
-                5 => await ValidateSecurityStep(),
+                2 => true, // Import step is optional
+                3 => ValidateFtpStep(),
+                4 => ValidateSqlStep(),
+                5 => ValidateMailchimpStep(),
+                6 => await ValidateSecurityStep(),
                 _ => true
             };
         }
@@ -388,6 +410,180 @@ namespace PinayPalBackupManager.UI
             }
         }
 
+        private async void BrowseImportFile()
+        {
+            var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select Settings File",
+                AllowMultiple = false,
+                FileTypeFilter = new List<FilePickerFileType>
+                {
+                    new FilePickerFileType("PinayPal Encrypted Settings (*.ppenc)") { Patterns = new[] { "*.ppenc" } },
+                    new FilePickerFileType("JSON Settings (*.json)") { Patterns = new[] { "*.json" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+            {
+                this.FindControl<TextBox>("TxtImportFile")!.Text = result[0].Path.LocalPath;
+            }
+        }
+
+        private async void OnImportAllClick(object? sender, RoutedEventArgs e)
+        {
+            var filePath = this.FindControl<TextBox>("TxtImportFile")!.Text?.Trim();
+            var resultText = this.FindControl<TextBlock>("TxtImportResult")!;
+
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                resultText.Text = "❌ Please select a valid file.";
+                resultText.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                resultText.IsVisible = true;
+                return;
+            }
+
+            try
+            {
+                string json;
+                var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+                if (ext == ".ppenc")
+                {
+                    var encrypted = File.ReadAllText(filePath);
+                    try
+                    {
+                        json = DecryptPpencString(encrypted);
+                    }
+                    catch
+                    {
+                        resultText.Text = "❌ Failed to decrypt .ppenc file. It may be corrupted or use a different key format.";
+                        resultText.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        resultText.IsVisible = true;
+                        return;
+                    }
+                }
+                else
+                {
+                    json = File.ReadAllText(filePath);
+                }
+
+                var settings = System.Text.Json.JsonSerializer.Deserialize<Services.AppSettings>(json, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (settings == null)
+                {
+                    resultText.Text = "❌ Failed to parse configuration file.";
+                    resultText.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                    resultText.IsVisible = true;
+                    return;
+                }
+
+                int importedCount = 0;
+
+                // FTP
+                if (!string.IsNullOrEmpty(settings.Ftp?.Host))
+                {
+                    this.FindControl<TextBox>("TxtFtpHost")!.Text = settings.Ftp.Host;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Ftp?.User))
+                {
+                    this.FindControl<TextBox>("TxtFtpUser")!.Text = settings.Ftp.User;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Ftp?.Password))
+                {
+                    this.FindControl<TextBox>("TxtFtpPassword")!.Text = settings.Ftp.Password;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Paths?.FtpLocalFolder))
+                {
+                    this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text = settings.Paths.FtpLocalFolder;
+                }
+
+                // SQL
+                if (!string.IsNullOrEmpty(settings.Sql?.Host))
+                {
+                    this.FindControl<TextBox>("TxtSqlHost")!.Text = settings.Sql.Host;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Sql?.User))
+                {
+                    this.FindControl<TextBox>("TxtSqlUser")!.Text = settings.Sql.User;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Sql?.Password))
+                {
+                    this.FindControl<TextBox>("TxtSqlPassword")!.Text = settings.Sql.Password;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Sql?.RemotePath))
+                {
+                    this.FindControl<TextBox>("TxtSqlRemotePath")!.Text = settings.Sql.RemotePath;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Paths?.SqlLocalFolder))
+                {
+                    this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = settings.Paths.SqlLocalFolder;
+                }
+
+                // Mailchimp
+                if (!string.IsNullOrEmpty(settings.Mailchimp?.ApiKey))
+                {
+                    this.FindControl<TextBox>("TxtMcApiKey")!.Text = settings.Mailchimp.ApiKey;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Mailchimp?.AudienceId))
+                {
+                    this.FindControl<TextBox>("TxtMcAudienceId")!.Text = settings.Mailchimp.AudienceId;
+                    importedCount++;
+                }
+                if (!string.IsNullOrEmpty(settings.Paths?.MailchimpFolder))
+                {
+                    this.FindControl<TextBox>("TxtMcFolder")!.Text = settings.Paths.MailchimpFolder;
+                }
+
+                resultText.Text = $"✓ Imported {importedCount} field(s) from {Path.GetFileName(filePath)}. Skipping to summary...";
+                resultText.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                resultText.IsVisible = true;
+
+                // Mark as imported and skip FTP/SQL/Mailchimp
+                _settingsImported = true;
+                _currentStep = 6;
+                UpdateUIForCurrentStep();
+            }
+            catch (Exception ex)
+            {
+                resultText.Text = $"❌ Import failed: {ex.Message}";
+                resultText.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                resultText.IsVisible = true;
+            }
+        }
+
+        private static string DecryptPpencString(string cipherText)
+        {
+            var fullCipher = Convert.FromBase64String(cipherText);
+            using var aes = System.Security.Cryptography.Aes.Create();
+            var keyBytes = new byte[32];
+            var key = System.Text.Encoding.UTF8.GetBytes("PinayPalBackupManagerKey2024!");
+            Array.Copy(key, keyBytes, Math.Min(key.Length, 32));
+            aes.Key = keyBytes;
+
+            var iv = new byte[16];
+            Buffer.BlockCopy(fullCipher, 0, iv, 0, 16);
+            aes.IV = iv;
+
+            var cipherBytes = new byte[fullCipher.Length - 16];
+            Buffer.BlockCopy(fullCipher, 16, cipherBytes, 0, cipherBytes.Length);
+
+            using var decryptor = aes.CreateDecryptor();
+            var decrypted = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+            return System.Text.Encoding.UTF8.GetString(decrypted);
+        }
+
         private async void BrowseFolder(string textBoxName)
         {
             var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -533,152 +729,6 @@ namespace PinayPalBackupManager.UI
             {
                 btn.IsEnabled = true;
                 btn.Content = "Test API";
-            }
-        }
-
-        private async void ImportCredentials(string service)
-        {
-            try
-            {
-                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = $"Import {service.ToUpper()} Credentials",
-                    AllowMultiple = false,
-                    FileTypeFilter = new List<FilePickerFileType>
-                    {
-                        new FilePickerFileType("PinayPal Encrypted Settings (*.ppenc)") { Patterns = new[] { "*.ppenc" } },
-                        new FilePickerFileType("JSON Settings (*.json)") { Patterns = new[] { "*.json" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                    }
-                });
-
-                if (result.Count == 0)
-                {
-                    ShowImportResult(service, "ℹ No file selected");
-                    return;
-                }
-
-                var configPath = result[0].Path.LocalPath;
-                var json = File.ReadAllText(configPath);
-                var settings = System.Text.Json.JsonSerializer.Deserialize<Services.AppSettings>(json, new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (settings == null)
-                {
-                    ShowImportResult(service, "❌ Failed to parse configuration file");
-                    return;
-                }
-
-                int importedCount = 0;
-
-                switch (service.ToLower())
-                {
-                    case "ftp":
-                        if (!string.IsNullOrEmpty(settings.Ftp?.Host))
-                        {
-                            this.FindControl<TextBox>("TxtFtpHost")!.Text = settings.Ftp.Host;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Ftp?.User))
-                        {
-                            this.FindControl<TextBox>("TxtFtpUser")!.Text = settings.Ftp.User;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Ftp?.Password))
-                        {
-                            this.FindControl<TextBox>("TxtFtpPassword")!.Text = settings.Ftp.Password;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Paths?.FtpLocalFolder))
-                        {
-                            this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text = settings.Paths.FtpLocalFolder;
-                        }
-                        break;
-
-                    case "sql":
-                        if (!string.IsNullOrEmpty(settings.Sql?.Host))
-                        {
-                            this.FindControl<TextBox>("TxtSqlHost")!.Text = settings.Sql.Host;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Sql?.User))
-                        {
-                            this.FindControl<TextBox>("TxtSqlUser")!.Text = settings.Sql.User;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Sql?.Password))
-                        {
-                            this.FindControl<TextBox>("TxtSqlPassword")!.Text = settings.Sql.Password;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Sql?.RemotePath))
-                        {
-                            this.FindControl<TextBox>("TxtSqlRemotePath")!.Text = settings.Sql.RemotePath;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Paths?.SqlLocalFolder))
-                        {
-                            this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text = settings.Paths.SqlLocalFolder;
-                        }
-                        break;
-
-                    case "mailchimp":
-                        if (!string.IsNullOrEmpty(settings.Mailchimp?.ApiKey))
-                        {
-                            this.FindControl<TextBox>("TxtMcApiKey")!.Text = settings.Mailchimp.ApiKey;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Mailchimp?.AudienceId))
-                        {
-                            this.FindControl<TextBox>("TxtMcAudienceId")!.Text = settings.Mailchimp.AudienceId;
-                            importedCount++;
-                        }
-                        if (!string.IsNullOrEmpty(settings.Paths?.MailchimpFolder))
-                        {
-                            this.FindControl<TextBox>("TxtMcFolder")!.Text = settings.Paths.MailchimpFolder;
-                        }
-                        break;
-                }
-
-                if (importedCount > 0)
-                {
-                    ShowImportResult(service, $"✓ Imported {importedCount} field(s) from {Path.GetFileName(configPath)}");
-                }
-                else
-                {
-                    ShowImportResult(service, "ℹ No credentials found in selected file");
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowImportResult(service, $"❌ Import failed: {ex.Message}");
-            }
-        }
-
-        private void ShowImportResult(string service, string message)
-        {
-            var resultTextBlock = service.ToLower() switch
-            {
-                "ftp" => this.FindControl<TextBlock>("TxtFtpTestResult"),
-                "sql" => this.FindControl<TextBlock>("TxtSqlTestResult"),
-                "mailchimp" => this.FindControl<TextBlock>("TxtMcTestResult"),
-                _ => null
-            };
-
-            if (resultTextBlock != null)
-            {
-                resultTextBlock.IsVisible = true;
-                resultTextBlock.Text = message;
-
-                // Set color based on message prefix
-                if (message.StartsWith("✓"))
-                    resultTextBlock.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
-                else if (message.StartsWith("❌"))
-                    resultTextBlock.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
-                else
-                    resultTextBlock.Foreground = Avalonia.Media.Brush.Parse("#A6ADC8");
             }
         }
 

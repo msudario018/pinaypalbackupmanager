@@ -115,8 +115,39 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Step 2: FTP Configuration -->
-                <StackPanel x:Name="Step2FTP" IsVisible="False" Spacing="12">
+                <!-- Step 2: Import Configuration -->
+                <StackPanel x:Name="Step2Import" IsVisible="False" Spacing="12">
+                    <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
+                                <TextBlock Text="📥" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Import Configuration" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Import existing settings from a .ppenc or .json backup file to quickly configure all services."
+                                           Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Settings File" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
+                                    <Grid ColumnDefinitions="*,6,Auto">
+                                        <TextBox x:Name="TxtImportFile" Watermark="Select a .ppenc or .json file" Grid.Column="0"/>
+                                        <Button x:Name="BtnBrowseImport" Content="Browse" Grid.Column="2" Classes="Secondary" Padding="12,8"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <Button x:Name="BtnImportAll" Content="📥 Import All Settings" Classes="Secondary" HorizontalAlignment="Left" Padding="16,10"/>
+
+                                <TextBlock x:Name="TxtImportResult" Text="" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 3: FTP Configuration -->
+                <StackPanel x:Name="Step3FTP" IsVisible="False" Spacing="12">
                     <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
                         <StackPanel Spacing="12">
                             <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
@@ -149,9 +180,6 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <Button x:Name="BtnImportFtp" Content="📥 Import from appsettings.json"
-                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
-
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Local Backup Folder" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
                                     <Grid ColumnDefinitions="*,6,Auto">
@@ -169,8 +197,8 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Step 3: SQL Configuration -->
-                <StackPanel x:Name="Step3SQL" IsVisible="False" Spacing="12">
+                <!-- Step 4: SQL Configuration -->
+                <StackPanel x:Name="Step4SQL" IsVisible="False" Spacing="12">
                     <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
                         <StackPanel Spacing="12">
                             <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
@@ -203,9 +231,6 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <Button x:Name="BtnImportSql" Content="📥 Import from appsettings.json"
-                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
-
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Remote Backup Path" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
                                     <TextBox x:Name="TxtSqlRemotePath" Watermark="/backups/sql"/>
@@ -228,8 +253,8 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Step 4: Mailchimp Configuration -->
-                <StackPanel x:Name="Step4Mailchimp" IsVisible="False" Spacing="12">
+                <!-- Step 5: Mailchimp Configuration -->
+                <StackPanel x:Name="Step5Mailchimp" IsVisible="False" Spacing="12">
                     <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
                         <StackPanel Spacing="12">
                             <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
@@ -257,9 +282,6 @@
                                     <TextBlock x:Name="ErrorMcAudienceId" Classes="error" Text="" IsVisible="False"/>
                                 </StackPanel>
 
-                                <Button x:Name="BtnImportMailchimp" Content="📥 Import from appsettings.json"
-                                        Classes="Secondary" HorizontalAlignment="Left" Padding="12,8"/>
-
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Local Backup Folder" Foreground="#A6ADC8" FontSize="12" FontWeight="Medium"/>
                                     <Grid ColumnDefinitions="*,6,Auto">
@@ -277,8 +299,8 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Step 5: Security & Summary -->
-                <StackPanel x:Name="Step5Security" IsVisible="False" Spacing="12">
+                <!-- Step 6: Security & Summary -->
+                <StackPanel x:Name="Step6Security" IsVisible="False" Spacing="12">
                     <Border Background="#181825" CornerRadius="12" Padding="20" BorderBrush="#313244" BorderThickness="1">
                         <StackPanel Spacing="12">
                             <Border Width="48" Height="48" CornerRadius="12" Background="#313244" HorizontalAlignment="Left">
@@ -335,10 +357,11 @@
                 <Ellipse x:Name="StepDot3" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
                 <Ellipse x:Name="StepDot4" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
                 <Ellipse x:Name="StepDot5" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
+                <Ellipse x:Name="StepDot6" Width="12" Height="12" Stroke="#585B70" StrokeThickness="2" Fill="Transparent"/>
             </StackPanel>
 
             <!-- Step Title -->
-            <TextBlock x:Name="TxtStepTitle" Text="Step 1 of 5" HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="12" Grid.Row="1" Margin="0,8,0,0"/>
+            <TextBlock x:Name="TxtStepTitle" Text="Step 1 of 6" HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="12" Grid.Row="1" Margin="0,8,0,0"/>
 
             <!-- Navigation Buttons -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Grid.Row="0" Grid.RowSpan="2">
