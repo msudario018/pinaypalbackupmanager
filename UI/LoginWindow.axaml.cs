@@ -340,14 +340,14 @@ namespace PinayPalBackupManager.UI
             OnLoginSuccess?.Invoke();
         }
 
-        private void OnRegisterClick(object? sender, RoutedEventArgs e)
+        private async void OnRegisterClick(object? sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("TxtRegUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtRegPass")!.Text ?? string.Empty;
             var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtRegError")!;
 
-            var (success, message) = AuthService.Register(username, password, inviteCode);
+            var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
             if (success)
             {
                 // Auto-login after registration

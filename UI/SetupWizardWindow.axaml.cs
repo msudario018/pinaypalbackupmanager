@@ -653,7 +653,7 @@ namespace PinayPalBackupManager.UI
                 var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
                 var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
                 var inviteCode = _isAdminPC ? null : this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
-                var (success, message) = AuthService.Register(username, password, inviteCode);
+                var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
                 if (!success)
                 {
                     await ShowErrorDialog($"Failed to create admin user: {message}");

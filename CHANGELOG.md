@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.16.0] - 2026-05-19
+
+### Added
+- **Admin Direct User Creation**: Admins can now create users directly without requiring invite codes
+  - New "Create User" button in User Management dialog
+  - Inline popup dialog with username, password, confirm password, role selector (User/Admin), and status selector (Active/Pending/Disabled)
+  - Strong password validation enforced (8+ chars, uppercase, lowercase, digit, special character)
+  - New `AuthService.CreateUser()` method with full validation and Firebase sync
+
+### Changed
+- **Invite Code Security**: Uses CSPRNG (`RandomNumberGenerator`) instead of `Random()` for cryptographically secure code generation
+- **Invite Code Auto-Cleanup**: Generating a new invite code now automatically deletes all old codes, keeping only the latest one
+  - New `FirebaseInviteService.CleanupAllCodesExceptAsync()` method
+- **Logging Consistency**: All `Console.WriteLine` statements in `FirebaseInviteService` replaced with `LogService.WriteLiveLog` for proper audit trail
+- **Registration Async**: `AuthService.Register` renamed to `RegisterAsync` with proper async signature
+
 ## [2.15.0] - 2026-05-19
 
 ### Added

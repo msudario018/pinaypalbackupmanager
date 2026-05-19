@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using PinayPalBackupManager.Services;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -18,9 +19,11 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
 
+            var btnCreate = this.FindControl<Button>("BtnCreateUser");
             var btnRefresh = this.FindControl<Button>("BtnRefresh");
             var btnClose = this.FindControl<Button>("BtnClose");
 
+            if (btnCreate != null) btnCreate.Click += async (_, _) => await ShowAddUserDialog();
             if (btnRefresh != null) btnRefresh.Click += (_, _) => RefreshUserList();
             if (btnClose != null) btnClose.Click += (_, _) => OnClose?.Invoke(this, EventArgs.Empty);
 
@@ -204,6 +207,142 @@ namespace PinayPalBackupManager.UI.UserControls
                 row.Children.Add(buttonPanel);
                 userCard.Child = row;
                 userListPanel.Children.Add(userCard);
+            }
+        }
+
+        private async Task ShowAddUserDialog()
+        {
+            const string dialogKey = "admin_create_user";
+            if (NotificationService.IsDialogOpen(dialogKey)) return;
+            NotificationService.RegisterDialog(dialogKey);
+            try
+            {
+                Window? window = null;
+
+                var root = new StackPanel { Spacing = 0 };
+
+                // Header
+                root.Children.Add(new Border
+                {
+                    Background = Brush.Parse("#4C4F69"),
+                    Padding = new Thickness(24, 18),
+                    Child = new TextBlock
+                    {
+                        Text = "Create User",
+                        Foreground = Brush.Parse("#CDD6F4"),
+                        FontSize = 18,
+                        FontWeight = FontWeight.Bold,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    }
+                });
+
+                // Body
+                var body = new StackPanel { Spacing = 8, Margin = new Thickness(28, 20, 28, 24) };
+
+                body.Children.Add(new TextBlock { Text = "Username", Foreground = Brush.Parse("#6C7086"), FontSize = 12 });
+                var txtUsername = new TextBox { Background = Brush.Parse("#6C7086"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtUsername);
+
+                body.Children.Add(new TextBlock { Text = "Password", Foreground = Brush.Parse("#6C7086"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var txtPassword = new TextBox { PasswordChar = '●', Background = Brush.Parse("#6C7086"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtPassword);
+
+                body.Children.Add(new TextBlock { Text = "Confirm Password", Foreground = Brush.Parse("#6C7086"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var txtConfirm = new TextBox { PasswordChar = '●', Background = Brush.Parse("#6C7086"), Foreground = Brush.Parse("#CDD6F4"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10) };
+                body.Children.Add(txtConfirm);
+
+                // Role selector
+                body.Children.Add(new TextBlock { Text = "Role", Foreground = Brush.Parse("#6C7086"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var cmbRole = new ComboBox
+                {
+                    ItemsSource = new List<string> { "User", "Admin" },
+                    SelectedIndex = 0,
+                    Background = Brush.Parse("#6C7086"),
+                    Foreground = Brush.Parse("#CDD6F4"),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12, 10)
+                };
+                body.Children.Add(cmbRole);
+
+                // Status selector
+                body.Children.Add(new TextBlock { Text = "Status", Foreground = Brush.Parse("#6C7086"), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
+                var cmbStatus = new ComboBox
+                {
+                    ItemsSource = new List<string> { "Active", "Pending", "Disabled" },
+                    SelectedIndex = 1,
+                    Background = Brush.Parse("#6C7086"),
+                    Foreground = Brush.Parse("#CDD6F4"),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12, 10)
+                };
+                body.Children.Add(cmbStatus);
+
+                var txtError = new TextBlock { Foreground = Brush.Parse("#F38BA8"), FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(0, 6, 0, 0) };
+                body.Children.Add(txtError);
+
+                // Buttons
+                var btnCancel = new Button { Content = "Cancel", Background = Brush.Parse("#6C7086"), Foreground = Brush.Parse("#CDD6F4"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.SemiBold };
+                var btnCreate = new Button { Content = "Create User", Background = Brush.Parse("#588157"), Foreground = Brush.Parse("#1E1E2E"), Padding = new Thickness(24, 10), CornerRadius = new CornerRadius(8), FontWeight = FontWeight.Bold };
+                var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+                btnRow.Children.Add(btnCancel);
+                btnRow.Children.Add(btnCreate);
+                body.Children.Add(btnRow);
+
+                root.Children.Add(body);
+
+                bool detailDark = Services.ThemeService.IsDark;
+                string detailBg = detailDark ? "#1E1E2E" : "#E6E9EF";
+                root.Background = Brush.Parse(detailBg);
+
+                window = new Window
+                {
+                    Title = "Create User",
+                    Content = root,
+                    Width = 460,
+                    SizeToContent = SizeToContent.Height,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    Background = Brush.Parse(detailBg),
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0
+                };
+
+                var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
+                btnCancel.Click += (_, _) => window.Close();
+                btnCreate.Click += (_, _) =>
+                {
+                    var username = (txtUsername.Text ?? "").Trim();
+                    var password = txtPassword.Text ?? "";
+                    var confirm = txtConfirm.Text ?? "";
+                    var role = cmbRole.SelectedItem?.ToString() ?? "User";
+                    var status = cmbStatus.SelectedItem?.ToString() ?? "Pending";
+
+                    if (string.IsNullOrWhiteSpace(username)) { txtError.Text = "Please enter a username."; txtError.IsVisible = true; return; }
+                    if (string.IsNullOrWhiteSpace(password)) { txtError.Text = "Please enter a password."; txtError.IsVisible = true; return; }
+                    if (password != confirm) { txtError.Text = "Passwords do not match."; txtError.IsVisible = true; return; }
+
+                    var result = AuthService.CreateUser(username, password, role, status);
+                    if (result.success)
+                    {
+                        window.Close();
+                        RefreshUserList();
+                        NotificationService.ShowBackupToast("Users", result.message, "Success");
+                    }
+                    else
+                    {
+                        txtError.Text = result.message;
+                        txtError.IsVisible = true;
+                    }
+                };
+
+                await window.ShowDialog(parentWindow!);
+            }
+            finally
+            {
+                NotificationService.UnregisterDialog(dialogKey);
             }
         }
 

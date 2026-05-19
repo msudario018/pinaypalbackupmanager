@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -45,26 +46,39 @@ namespace PinayPalBackupManager.Services
                 _isInitialized = response.IsSuccessStatusCode;
                 return _isInitialized;
             }
-            catch
+            catch (Exception ex)
             {
+                LogService.WriteLiveLog($"[FirebaseInvite] Init check failed: {ex.Message}", "", "Debug", "SYSTEM");
                 return false;
             }
         }
         
         /// <summary>
-        /// Generate a new invite code (8-character alphanumeric)
+        /// Generate a new invite code (8-character alphanumeric).
+        /// If <paramref name="code"/> is provided, it is stored directly; otherwise a new one is generated.
         /// </summary>
-        public static async Task<string> GenerateInviteCodeAsync(string createdBy = "admin")
+        public static async Task<string> GenerateInviteCodeAsync(string createdBy = "admin", string? code = null)
         {
             if (!await EnsureInitializedAsync()) return string.Empty;
             
             try
             {
-                // Generate 8-character alphanumeric code
+                // Use provided code or generate a new 8-character alphanumeric code using CSPRNG
                 const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-                var random = new Random();
-                var code = new string(Enumerable.Repeat(chars, 8)
-                    .Select(s => s[random.Next(s.Length)]).ToArray());
+                if (string.IsNullOrEmpty(code))
+                {
+                    var codeChars = new char[8];
+                    using (var rng = RandomNumberGenerator.Create())
+                    {
+                        var buffer = new byte[8];
+                        rng.GetBytes(buffer);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            codeChars[i] = chars[buffer[i] % chars.Length];
+                        }
+                    }
+                    code = new string(codeChars);
+                }
                 
                 var data = new InviteCodeData
                 {
@@ -77,6 +91,9 @@ namespace PinayPalBackupManager.Services
                 var json = JsonSerializer.Serialize(data);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
+                // Clean up old codes first — keep only the latest one
+                await CleanupAllCodesExceptAsync(code);
+
                 var response = await _httpClient.PutAsync(
                     $"{FirebaseUrl}{InviteCodesPath}/{code}.json", 
                     content);
@@ -89,7 +106,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to generate invite code: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to generate invite code: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return string.Empty;
@@ -120,7 +137,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to validate invite code: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to validate invite code: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return false;
@@ -161,7 +178,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to mark invite code as used: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to mark invite code as used: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return false;
@@ -194,7 +211,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to get invite codes: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to get invite codes: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return codes;
@@ -219,7 +236,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to delete invite code: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to delete invite code: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return false;
@@ -238,6 +255,50 @@ namespace PinayPalBackupManager.Services
         public static async Task<bool> IsAvailableAsync()
         {
             return await EnsureInitializedAsync();
+        }
+        
+        /// <summary>
+        /// Delete all invite codes except the specified one.
+        /// </summary>
+        public static async Task<int> CleanupAllCodesExceptAsync(string keepCode)
+        {
+            if (!await EnsureInitializedAsync()) return 0;
+            
+            int deletedCount = 0;
+            
+            try
+            {
+                var response = await _httpClient.GetAsync($"{FirebaseUrl}{InviteCodesPath}.json");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    if (!string.IsNullOrEmpty(json) && json != "null")
+                    {
+                        var codeDict = JsonSerializer.Deserialize<Dictionary<string, InviteCodeData>>(json);
+                        if (codeDict != null)
+                        {
+                            foreach (var code in codeDict.Keys.Where(k => !string.Equals(k, keepCode, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                var deleteResponse = await _httpClient.DeleteAsync($"{FirebaseUrl}{InviteCodesPath}/{code}.json");
+                                if (deleteResponse.IsSuccessStatusCode)
+                                {
+                                    deletedCount++;
+                                    Console.WriteLine($"[FirebaseInvite] Deleted old code: {code}");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (deletedCount > 0)
+                    Console.WriteLine($"[FirebaseInvite] Cleaned up {deletedCount} old invite codes");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to cleanup old codes: {ex.Message}", "", "Debug", "SYSTEM");
+            }
+            
+            return deletedCount;
         }
         
         /// <summary>
@@ -277,7 +338,7 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FirebaseInvite] Failed to delete old-format codes: {ex.Message}");
+                LogService.WriteLiveLog($"[FirebaseInvite] Failed to delete old-format codes: {ex.Message}", "", "Debug", "SYSTEM");
             }
             
             return deletedCount;

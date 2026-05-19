@@ -518,7 +518,7 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    await FirebaseInviteService.GenerateInviteCodeAsync(newCode);
+                    await FirebaseInviteService.GenerateInviteCodeAsync(createdBy: "admin", code: newCode);
                 }
                 catch (Exception ex)
                 {
@@ -543,6 +543,72 @@ namespace PinayPalBackupManager.Services
         }
 
         // ── User Management (Admin) ──
+
+        /// <summary>
+        /// Admin creates a user directly (no invite code required). Returns (success, message).
+        /// </summary>
+        public static (bool success, string message) CreateUser(string username, string password, string role = "User", string status = "Active")
+        {
+            var usernameValidation = InputValidationService.ValidateUsername(username);
+            if (!usernameValidation.isValid)
+                return (false, usernameValidation.error);
+
+            if (string.IsNullOrWhiteSpace(password))
+                return (false, "Password is required.");
+
+            if (password.Length < 8)
+                return (false, "Password must be at least 8 characters long.");
+            if (!password.Any(char.IsUpper))
+                return (false, "Password must contain at least one uppercase letter.");
+            if (!password.Any(char.IsLower))
+                return (false, "Password must contain at least one lowercase letter.");
+            if (!password.Any(char.IsDigit))
+                return (false, "Password must contain at least one digit.");
+            var specialChars = "!@#$%^&*()_+-=[]{}|;':\",.<>?";
+            if (!password.Any(c => specialChars.Contains(c)))
+                return (false, "Password must contain at least one special character.");
+
+            var hash = HashPassword(password, string.Empty);
+            var salt = string.Empty;
+
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt) VALUES (@u, @h, @s, @r, @st, @ca)";
+                cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
+                cmd.Parameters.AddWithValue("@h", hash);
+                cmd.Parameters.AddWithValue("@s", salt);
+                cmd.Parameters.AddWithValue("@r", role);
+                cmd.Parameters.AddWithValue("@st", status);
+                cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
+                cmd.ExecuteNonQuery();
+
+                LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {role}, Status: {status}, Created by admin");
+
+                // Sync to Firebase
+                var newUser = GetUserByUsername(usernameValidation.sanitized);
+                if (newUser != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try { await FirebaseUserService.SyncUserAsync(newUser); }
+                        catch (Exception ex) { LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM"); }
+                    });
+                }
+
+                return (true, $"User '{usernameValidation.sanitized}' created successfully.");
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                return (false, "Username already exists.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Database error: {ex.Message}");
+            }
+        }
 
         public static List<AppUser> GetAllUsers()
         {
