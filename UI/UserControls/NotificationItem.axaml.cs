@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using PinayPalBackupManager.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -98,22 +99,29 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
-            if (_isDragging)
+            try
             {
-                _isDragging = false;
-                var currentPoint = e.GetPosition(this.Parent as Visual);
-                var deltaX = currentPoint.X - _startPoint.X;
+                if (_isDragging)
+                {
+                    _isDragging = false;
+                    var currentPoint = e.GetPosition(this.Parent as Visual);
+                    var deltaX = currentPoint.X - _startPoint.X;
 
-                if (Math.Abs(deltaX) > _dismissThreshold)
-                {
-                    await AnimateDismiss(deltaX > 0);
-                    Dismissed?.Invoke(this, EventArgs.Empty);
+                    if (Math.Abs(deltaX) > _dismissThreshold)
+                    {
+                        await AnimateDismiss(deltaX > 0);
+                        Dismissed?.Invoke(this, EventArgs.Empty);
+                    }
+                    else
+                    {
+                        await AnimateReturn();
+                    }
+                    e.Handled = true;
                 }
-                else
-                {
-                    await AnimateReturn();
-                }
-                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Pointer release error: {ex.Message}", "Error", "SYSTEM");
             }
         }
 

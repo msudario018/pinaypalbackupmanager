@@ -19,6 +19,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public event Action? OnAvatarChanged;
         public event Action? OnLogoutRequested;
         private static DateTime _lastLoginTime = DateTime.MinValue;
+        private Action<AppUser?>? _userChangedHandler;
 
         public ProfileControl()
         {
@@ -33,7 +34,7 @@ namespace PinayPalBackupManager.UI.UserControls
             UpdateUserStatistics();
             
             // Listen for auth changes
-            AuthService.OnUserChanged += (user) =>
+            _userChangedHandler = (user) =>
             {
                 if (user != null)
                 {
@@ -43,6 +44,14 @@ namespace PinayPalBackupManager.UI.UserControls
                 LoadAvatarImage();
                 UpdateUserStatistics();
             };
+            AuthService.OnUserChanged += _userChangedHandler;
+        }
+
+        protected override void OnUnloaded(RoutedEventArgs e)
+        {
+            base.OnUnloaded(e);
+            if (_userChangedHandler != null)
+                AuthService.OnUserChanged -= _userChangedHandler;
         }
 
         private void SetupButtonHandlers()

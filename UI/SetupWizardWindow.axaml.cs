@@ -19,7 +19,6 @@ namespace PinayPalBackupManager.UI
         private const int TotalSteps = 6;
         private bool _isAdminPC = true;
         private bool _settingsImported = false;
-        private bool _isPostLoginMode = false;
 
         public event Action? OnSetupComplete;
 
@@ -47,12 +46,6 @@ namespace PinayPalBackupManager.UI
                 }
                 catch { /* Firebase unreachable — keep admin PC assumption */ }
             });
-        }
-
-        public void SetPostLoginMode()
-        {
-            _isPostLoginMode = true;
-            UpdateUIForCurrentStep();
         }
 
         private void SetupEventHandlers()
@@ -143,19 +136,26 @@ namespace PinayPalBackupManager.UI
 
         private async void OnNextClick(object? sender, RoutedEventArgs e)
         {
-            if (!await ValidateCurrentStep()) return;
+            try
+            {
+                if (!await ValidateCurrentStep()) return;
 
-            if (_currentStep < TotalSteps)
-            {
-                _currentStep++;
-                // Skip hidden backup tabs if settings were imported
-                if (_settingsImported && _currentStep >= 3 && _currentStep <= 5)
-                    _currentStep = 6;
-                UpdateUIForCurrentStep();
+                if (_currentStep < TotalSteps)
+                {
+                    _currentStep++;
+                    // Skip hidden backup tabs if settings were imported
+                    if (_settingsImported && _currentStep >= 3 && _currentStep <= 5)
+                        _currentStep = 6;
+                    UpdateUIForCurrentStep();
+                }
+                else
+                {
+                    await CompleteSetup();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                await CompleteSetup();
+                LogService.WriteSystemLog($"[SETUPWIZARD] OnNextClick error: {ex.Message}", "Error", "SYSTEM");
             }
         }
 
@@ -187,7 +187,6 @@ namespace PinayPalBackupManager.UI
         {
             // Hide all steps
             this.FindControl<StackPanel>("Step1Admin")!.IsVisible = false;
-            this.FindControl<StackPanel>("Step1AppInfo")!.IsVisible = false;
             this.FindControl<StackPanel>("Step2Import")!.IsVisible = false;
             this.FindControl<StackPanel>("Step3FTP")!.IsVisible = false;
             this.FindControl<StackPanel>("Step4SQL")!.IsVisible = false;
@@ -197,9 +196,7 @@ namespace PinayPalBackupManager.UI
             // Show current step
             StackPanel? currentPanel = _currentStep switch
             {
-                1 => _isPostLoginMode
-                    ? this.FindControl<StackPanel>("Step1AppInfo")
-                    : this.FindControl<StackPanel>("Step1Admin"),
+                1 => this.FindControl<StackPanel>("Step1Admin"),
                 2 => this.FindControl<StackPanel>("Step2Import"),
                 3 => this.FindControl<StackPanel>("Step3FTP"),
                 4 => this.FindControl<StackPanel>("Step4SQL"),
@@ -267,7 +264,7 @@ namespace PinayPalBackupManager.UI
 
             return _currentStep switch
             {
-                1 => _isPostLoginMode ? true : ValidateAdminStep(),
+                1 => ValidateAdminStep(),
                 2 => true, // Import step is optional
                 3 => ValidateFtpStep(),
                 4 => ValidateSqlStep(),
@@ -422,21 +419,28 @@ namespace PinayPalBackupManager.UI
 
         private async void BrowseImportFile()
         {
-            var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            try
             {
-                Title = "Select Settings File",
-                AllowMultiple = false,
-                FileTypeFilter = new List<FilePickerFileType>
+                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    new FilePickerFileType("PinayPal Encrypted Settings (*.ppenc)") { Patterns = new[] { "*.ppenc" } },
-                    new FilePickerFileType("JSON Settings (*.json)") { Patterns = new[] { "*.json" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
+                    Title = "Select Settings File",
+                    AllowMultiple = false,
+                    FileTypeFilter = new List<FilePickerFileType>
+                    {
+                        new FilePickerFileType("PinayPal Encrypted Settings (*.ppenc)") { Patterns = new[] { "*.ppenc" } },
+                        new FilePickerFileType("JSON Settings (*.json)") { Patterns = new[] { "*.json" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    }
+                });
 
-            if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+                if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+                {
+                    this.FindControl<TextBox>("TxtImportFile")!.Text = result[0].Path.LocalPath;
+                }
+            }
+            catch (Exception ex)
             {
-                this.FindControl<TextBox>("TxtImportFile")!.Text = result[0].Path.LocalPath;
+                LogService.WriteSystemLog($"[SETUPWIZARD] BrowseImportFile error: {ex.Message}", "Error", "SYSTEM");
             }
         }
 
@@ -596,14 +600,21 @@ namespace PinayPalBackupManager.UI
 
         private async void BrowseFolder(string textBoxName)
         {
-            var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            try
             {
-                Title = "Select Backup Folder"
-            });
+                var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Backup Folder"
+                });
 
-            if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+                if (result.Count > 0 && !string.IsNullOrEmpty(result[0].Path.LocalPath))
+                {
+                    this.FindControl<TextBox>(textBoxName)!.Text = result[0].Path.LocalPath;
+                }
+            }
+            catch (Exception ex)
             {
-                this.FindControl<TextBox>(textBoxName)!.Text = result[0].Path.LocalPath;
+                LogService.WriteSystemLog($"[SETUPWIZARD] BrowseFolder error: {ex.Message}", "Error", "SYSTEM");
             }
         }
 
@@ -750,54 +761,51 @@ namespace PinayPalBackupManager.UI
 
             try
             {
-                if (!_isPostLoginMode)
+                var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
+                var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
+
+                if (_isAdminPC)
                 {
-                    var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
-                    var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
-
-                    if (_isAdminPC)
+                    // Admin PC: create admin directly (no invite code needed)
+                    var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
+                    if (!success)
                     {
-                        // Admin PC: create admin directly (no invite code needed)
-                        var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
-                        if (!success)
-                        {
-                            await ShowErrorDialog($"Failed to create admin user: {message}");
-                            return;
-                        }
-
-                        // Auto-login the new admin
-                        AuthService.Login(username, password);
-                        SessionService.SaveSession(AuthService.CurrentUser!.Id);
+                        await ShowErrorDialog($"Failed to create admin user: {message}");
+                        return;
                     }
-                    else
+
+                    // Auto-login the new admin
+                    AuthService.Login(username, password);
+                    SessionService.SaveSession(AuthService.CurrentUser!.Id);
+                }
+                else
+                {
+                    // Non-admin PC: validate invite code and create a pending standard user
+                    var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(inviteCode))
                     {
-                        // Non-admin PC: validate invite code and create a pending standard user
-                        var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
-                        if (string.IsNullOrWhiteSpace(inviteCode))
-                        {
-                            await ShowErrorDialog("Invite code is required.");
-                            return;
-                        }
-
-                        bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode);
-                        if (!isValid)
-                        {
-                            await ShowErrorDialog("Invalid or expired invite code.");
-                            return;
-                        }
-
-                        var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
-                        if (!success)
-                        {
-                            await ShowErrorDialog($"Failed to create user: {message}");
-                            return;
-                        }
-
-                        // Mark invite code as used
-                        await FirebaseInviteService.UseInviteCodeAsync(inviteCode, username);
-
-                        // Do NOT auto-login pending users
+                        await ShowErrorDialog("Invite code is required.");
+                        return;
                     }
+
+                    bool isValid = await FirebaseInviteService.ValidateInviteCodeAsync(inviteCode);
+                    if (!isValid)
+                    {
+                        await ShowErrorDialog("Invalid or expired invite code.");
+                        return;
+                    }
+
+                    var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
+                    if (!success)
+                    {
+                        await ShowErrorDialog($"Failed to create user: {message}");
+                        return;
+                    }
+
+                    // Mark invite code as used
+                    await FirebaseInviteService.UseInviteCodeAsync(inviteCode, username);
+
+                    // Do NOT auto-login pending users
                 }
 
                 // Save service configurations

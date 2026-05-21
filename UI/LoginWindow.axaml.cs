@@ -197,8 +197,6 @@ namespace PinayPalBackupManager.UI
             var errorTxt = this.FindControl<TextBlock>("TxtLoginError")!;
             var btnLogin = this.FindControl<Button>("BtnLogin");
 
-            Console.WriteLine($"[LoginWindow] OnLoginClick called for username: {username}");
-
             try
             {
                 if (btnLogin != null) btnLogin.IsEnabled = false;
@@ -206,9 +204,7 @@ namespace PinayPalBackupManager.UI
                 errorTxt.Text = "Checking credentials...";
 
                 // Step 1: Verify username/password only (no 2FA yet)
-                Console.WriteLine($"[LoginWindow] Calling VerifyCredentialsAsync for username: {username}");
                 var (success, user, message) = await AuthService.VerifyCredentialsAsync(username, password);
-                Console.WriteLine($"[LoginWindow] VerifyCredentialsAsync result: success={success}, user={user?.Username}, role={user?.Role}");
                 if (!success || user == null)
                 {
                     errorTxt.Foreground = GetBrush("AccentError");
@@ -223,7 +219,6 @@ namespace PinayPalBackupManager.UI
                     if (RememberedDeviceService.IsDeviceRemembered(user.Id))
                     {
                         // Device is remembered, skip 2FA and complete login
-                        Console.WriteLine($"[LoginWindow] Device remembered for user {user.Username}, skipping 2FA");
                         var (deviceLoginSuccess, deviceLoginMessage) = AuthService.Login(username, password);
                         if (!deviceLoginSuccess)
                         {
@@ -295,48 +290,51 @@ namespace PinayPalBackupManager.UI
             var errorTxt = this.FindControl<TextBlock>("Txt2FAError")!;
             var rememberDevice = this.FindControl<CheckBox>("ChkRememberDevice")!.IsChecked == true;
 
-            if (string.IsNullOrWhiteSpace(code))
+            try
             {
-                errorTxt.Text = "Please enter your authenticator code or a recovery code";
-                return;
-            }
-
-            // Verify the 2FA code (handles both TOTP codes and recovery codes)
-            if (!TwoFactorAuthService.VerifyCode(_pending2FAUserId, code))
-            {
-                errorTxt.Text = "Invalid code. Please try again.";
-                return;
-            }
-
-            // Code is valid - complete the login
-            var user = AuthService.GetUserById(_pending2FAUserId);
-            if (user != null)
-            {
-                // Set current user since VerifyCredentials didn't do full login
-                AuthService.SetCurrentUserFor2FA(user);
-
-                // Remember device if checkbox is checked
-                if (rememberDevice)
+                if (string.IsNullOrWhiteSpace(code))
                 {
-                    await RememberedDeviceService.RememberDeviceAsync(user.Id, user.Username);
-                    Console.WriteLine($"[LoginWindow] Device remembered for user {user.Username}");
+                    errorTxt.Text = "Please enter your authenticator code or a recovery code";
+                    return;
                 }
 
-                await CompleteLoginAsync(user);
+                // Verify the 2FA code (handles both TOTP codes and recovery codes)
+                if (!TwoFactorAuthService.VerifyCode(_pending2FAUserId, code))
+                {
+                    errorTxt.Text = "Invalid code. Please try again.";
+                    return;
+                }
+
+                // Code is valid - complete the login
+                var user = AuthService.GetUserById(_pending2FAUserId);
+                if (user != null)
+                {
+                    // Set current user since VerifyCredentials didn't do full login
+                    AuthService.SetCurrentUserFor2FA(user);
+
+                    // Remember device if checkbox is checked
+                    if (rememberDevice)
+                    {
+                        await RememberedDeviceService.RememberDeviceAsync(user.Id, user.Username);
+                    }
+
+                    await CompleteLoginAsync(user);
+                }
+            }
+            catch (Exception ex)
+            {
+                errorTxt.Text = $"2FA verification failed: {ex.Message}";
             }
         }
 
         private async Task CompleteLoginAsync(AppUser user)
         {
-            Console.WriteLine($"[LoginWindow] CompleteLoginAsync called for user: {user.Username}, Role={user.Role}");
             _statusListenerCts?.Cancel();
             var rememberMe = this.FindControl<CheckBox>("ChkRememberMe")?.IsChecked == true;
-            Console.WriteLine($"[LoginWindow] Remember Me: {rememberMe}");
             if (rememberMe)
                 SessionService.SaveSession(user.Id);
             else
                 SessionService.ClearSession();
-            Console.WriteLine($"[LoginWindow] Invoking OnLoginSuccess");
             OnLoginSuccess?.Invoke();
         }
 
@@ -347,25 +345,32 @@ namespace PinayPalBackupManager.UI
             var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text ?? string.Empty;
             var errorTxt = this.FindControl<TextBlock>("TxtRegError")!;
 
-            var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
-            if (success)
+            try
             {
-                // Auto-login after registration
-                var (loginOk, _) = AuthService.Login(username, password);
-                if (loginOk)
+                var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
+                if (success)
                 {
-                    OnLoginSuccess?.Invoke();
-                    return;
-                }
+                    // Auto-login after registration
+                    var (loginOk, _) = AuthService.Login(username, password);
+                    if (loginOk)
+                    {
+                        OnLoginSuccess?.Invoke();
+                        return;
+                    }
 
-                // Fallback: show login panel with success message
-                ShowLoginPanel();
-                this.FindControl<TextBlock>("TxtLoginError")!.Text = message + " Please sign in.";
-                this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#588157");
+                    // Fallback: show login panel with success message
+                    ShowLoginPanel();
+                    this.FindControl<TextBlock>("TxtLoginError")!.Text = message + " Please sign in.";
+                    this.FindControl<TextBlock>("TxtLoginError")!.Foreground = Avalonia.Media.Brush.Parse("#588157");
+                }
+                else
+                {
+                    errorTxt.Text = message;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                errorTxt.Text = message;
+                errorTxt.Text = $"Registration failed: {ex.Message}";
             }
         }
 

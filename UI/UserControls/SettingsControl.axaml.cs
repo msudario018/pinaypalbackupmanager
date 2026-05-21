@@ -503,6 +503,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     existing = new AppSettings();
                 }
+
+                // Ensure all nested objects are initialized before merging
+                EnsureInitialized(existing);
+                EnsureInitialized(config);
                 
                 // Merge new config into existing (this preserves settings not being changed)
                 MergeSettings(existing, config);
@@ -524,6 +528,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (status != null) status.Text = ex.Message;
                 LogService.WriteSystemLog($"Configuration save failed: {ex.Message}", "Error", "SETTINGS");
             }
+        }
+
+        private void EnsureInitialized(AppSettings settings)
+        {
+            settings.Paths ??= new PathsSettings();
+            settings.Ftp ??= new FtpSettings();
+            settings.Sql ??= new SqlSettings();
+            settings.Mailchimp ??= new MailchimpSettings();
+            settings.NetworkDrive ??= new NetworkDriveSettings();
+            settings.Schedule ??= new ScheduleSettings();
+            settings.Operation ??= new OperationSettings();
+            settings.HttpServer ??= new HttpServerSettings();
         }
 
         private void RefreshServiceHealthCards()
@@ -738,7 +754,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     Topmost = true,
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
-                    SystemDecorations = SystemDecorations.BorderOnly
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -770,7 +786,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     Topmost = true,
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
-                    SystemDecorations = SystemDecorations.BorderOnly
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -802,7 +818,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     Topmost = true,
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
-                    SystemDecorations = SystemDecorations.BorderOnly
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -834,7 +850,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     Topmost = true,
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
-                    SystemDecorations = SystemDecorations.BorderOnly
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -866,7 +882,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ShowInTaskbar = false,
                     Topmost = true,
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
-                    SystemDecorations = SystemDecorations.BorderOnly
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;

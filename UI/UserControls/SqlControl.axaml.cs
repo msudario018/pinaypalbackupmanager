@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using System;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,7 @@ namespace PinayPalBackupManager.UI.UserControls
         private bool _abortRequested;
         private readonly BackupManager? _manager;
         private SqlService? _activeSql;
+        private Action<string, string>? _logEntryHandler;
 
         public SqlControl() : this(null) { }
         public SqlControl(BackupManager? manager)
@@ -57,7 +59,7 @@ namespace PinayPalBackupManager.UI.UserControls
             };
             this.FindControl<Button>("BtnViewLog")!.Click += (s, e) => { if (File.Exists(BackupConfig.SqlLogFile)) { System.Diagnostics.Process.Start("notepad.exe", BackupConfig.SqlLogFile); NotificationService.ShowBackupToast("SQL", "Opened log file.", "Info"); } };
 
-            LogService.OnNewLogEntry += (entry, file) => {
+            _logEntryHandler = (entry, file) => {
                 if (file == BackupConfig.SqlLogFile) {
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         var textBox = this.FindControl<TextBox>("TxtLogs")!;
@@ -67,7 +69,15 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                 }
             };
+            LogService.OnNewLogEntry += _logEntryHandler;
             LoadInitialLogs();
+        }
+
+        protected override void OnUnloaded(RoutedEventArgs e)
+        {
+            base.OnUnloaded(e);
+            if (_logEntryHandler != null)
+                LogService.OnNewLogEntry -= _logEntryHandler;
         }
 
         private void OnAutoScanTimersReset()
@@ -569,7 +579,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (hasRemoteFileLocally && sameName && sameSize)
                     {
                         statusText = "LATEST";
-                        detailText = $"Local matches remote: {remoteLatest.Name} ({localSize:n0} bytes)";
+                        detailText = $"Local matches remote: {remoteLatest.Name} ({localSize:n0} bytes){GetMirrorStatus(remoteLatest.Name, "SQL")}";
                         colorHex = "#588157";
                         toastMessage = "Local SQL backup is up to date.";
                         toastType = "Info";
@@ -609,7 +619,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (hasRemoteFileLocally && sameSize)
                     {
                         statusText = "LATEST";
-                        detailText = $"Local has remote file: {remoteLatest.Name} ({localSize:n0} bytes)";
+                        detailText = $"Local has remote file: {remoteLatest.Name} ({localSize:n0} bytes){GetMirrorStatus(remoteLatest.Name, "SQL")}";
                         colorHex = "#588157";
                         toastMessage = "Local SQL backup is up to date.";
                         toastType = "Info";
@@ -625,7 +635,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (timeDiff.TotalMinutes <= 1440) // 24 hours to account for timezone differences
                         {
                             statusText = "LATEST";
-                            detailText = $"Local matches remote: {localLatest.Name} (recent sync)";
+                            detailText = $"Local matches remote: {localLatest.Name} (recent sync){GetMirrorStatus(localLatest.Name, "SQL")}";
                             colorHex = "#588157";
                             toastMessage = "Local SQL backup is up to date.";
                             toastType = "Info";
@@ -768,6 +778,52 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 txtStatus.Text = "CANCELLING...";
                 txtStatus.Foreground = Avalonia.Media.Brush.Parse("#e6c55c");
+            }
+        }
+
+        private static string GetMirrorStatus(string fileName, string serviceName)
+        {
+            try
+            {
+                if (!BackupConfig.NetworkDriveEnabled || string.IsNullOrWhiteSpace(BackupConfig.NetworkDrivePath))
+                    return "";
+
+                string mirrorDir = BackupConfig.NetworkDrivePath.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                                   BackupConfig.NetworkDrivePath.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase) ||
+                                   BackupConfig.NetworkDrivePath.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase)
+                    ? BackupConfig.NetworkDrivePath.TrimEnd('/') + "/" + serviceName
+                    : System.IO.Path.Combine(BackupConfig.NetworkDrivePath, serviceName);
+
+                string mirrorFile = BackupConfig.NetworkDrivePath.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                                    BackupConfig.NetworkDrivePath.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase) ||
+                                    BackupConfig.NetworkDrivePath.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase)
+                    ? mirrorDir.TrimEnd('/') + "/" + fileName
+                    : System.IO.Path.Combine(mirrorDir, fileName);
+
+                if (BackupConfig.NetworkDrivePath.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                    BackupConfig.NetworkDrivePath.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase) ||
+                    BackupConfig.NetworkDrivePath.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return " | Mirror: FTP target (check via FTP)";
+                }
+
+                if (System.IO.Directory.Exists(mirrorDir) && System.IO.File.Exists(mirrorFile))
+                {
+                    var fi = new System.IO.FileInfo(mirrorFile);
+                    return $" | Mirror: {fileName} ({fi.Length:n0} bytes)";
+                }
+                else if (System.IO.Directory.Exists(mirrorDir))
+                {
+                    return " | Mirror: folder exists, file not mirrored yet";
+                }
+                else
+                {
+                    return " | Mirror: not configured or unreachable";
+                }
+            }
+            catch
+            {
+                return "";
             }
         }
 

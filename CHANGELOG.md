@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.18.0] - 2026-05-21
+
+### Fixed
+- **Memory Leaks**: Fixed 11 event subscription leaks across the app
+  - `HomeControl` — added missing unsubscriptions for `_manager` and `AuthService.OnUserChanged` in `OnUnloaded`
+  - `MainWindow` — stored FirebaseRemoteService delegates and unsubscribed on window close
+  - `FtpControl`, `MailchimpControl`, `SqlControl` — stored `LogService.OnNewLogEntry` delegates and unsubscribed in `OnUnloaded`
+  - `ProfileControl` — stored `AuthService.OnUserChanged` delegate and unsubscribed in `OnUnloaded`
+- **Crash Protection**: Added try-catch to 6 `async void` methods to prevent unhandled exceptions crashing the app
+  - `LoginWindow.OnVerify2FAClick`, `OnRegisterClick`
+  - `SetupWizardWindow.OnNextClick`, `BrowseImportFile`, `BrowseFolder`
+  - `NotificationItem.OnPointerReleased`
+- **Retry Timer**: Fixed `BackupRetryService.RegisterFailure` not rescheduling `NextRetryTime` when a service fails again while already in queue
+  - Added `Reschedule()` for when retry is skipped due to busy controls
+  - Fixed `CheckRetriesAsync` race condition by locking queue during entry modification
+- **Progress Bar Reset**: Completed backups/mirrors now reset to idle after 5 seconds instead of 60
+
+### Changed
+- **Dead Code Removal**: Removed unused timer fields (`_autoPingTimer`, `_statsTimer`, `_scheduleTimer`, `_storageTimer`) from `HomeControl`
+- **Dead Code Removal**: Removed unused `_toastTimer` field and `#pragma warning disable CS0649` blocks from `MainWindow`
+- **Race Condition**: Fixed `HttpClientFactory.EnforceRateLimitAsync` reading `_lastRequest` outside the lock after setting it inside
+- **Debug Cleanup**: Removed all `Console.WriteLine` debug output from `LoginWindow`, `App.axaml.cs`, and `HttpClientFactory`
+
 ## [2.17.5] - 2026-05-20
 
 ### Added

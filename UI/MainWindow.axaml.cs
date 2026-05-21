@@ -44,9 +44,6 @@ namespace PinayPalBackupManager.UI
         private DispatcherTimer? _activeProcessMonitorTimer;
         private DispatcherTimer? _firebasePollTimer;
         private bool _allowClose;
-#pragma warning disable CS0649
-        private DispatcherTimer? _toastTimer;
-#pragma warning restore CS0649
         private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
         private bool _startupHealthPending = true;
         private bool _configRequired;
@@ -56,6 +53,12 @@ namespace PinayPalBackupManager.UI
         // Stored delegates to unsubscribe from static ThemeService event on window close
         private Action<bool>? _themeChangedIconHandler;
         private Action<bool>? _themeChangedBgHandler;
+
+        // Stored delegates to unsubscribe from FirebaseRemoteService events on window close
+        private Action<Dictionary<string, object>?>? _firebaseScheduleHandler;
+        private Action<Dictionary<string, object>?>? _firebaseHealthHandler;
+        private Action<string, string?>? _firebaseCommandHandler;
+        private Action<Dictionary<string, object>?>? _firebaseAutoScanHandler;
 
         public MainWindow()
         {
@@ -322,6 +325,18 @@ namespace PinayPalBackupManager.UI
                 if (_themeChangedBgHandler != null)
                     ThemeService.OnThemeChanged -= _themeChangedBgHandler;
 
+                if (_firebaseScheduleHandler != null)
+                    FirebaseRemoteService.OnScheduleUpdated -= _firebaseScheduleHandler;
+                if (_firebaseHealthHandler != null)
+                    FirebaseRemoteService.OnHealthThresholdsUpdated -= _firebaseHealthHandler;
+                if (_firebaseCommandHandler != null)
+                    FirebaseRemoteService.OnCommandReceived -= _firebaseCommandHandler;
+                if (_firebaseAutoScanHandler != null)
+                    FirebaseRemoteService.OnAutoScanUpdated -= _firebaseAutoScanHandler;
+
+                _backupManager.OnTimeUpdate -= UpdateTime;
+                _backupManager.OnHealthUpdate -= UpdateHealthStatus;
+
                 NetworkConnectivityService.OnConnectivityChanged -= OnConnectivityChangedHandler;
                 NetworkConnectivityService.StopMonitoring();
 
@@ -364,9 +379,6 @@ namespace PinayPalBackupManager.UI
                     
                     // Stop active process monitor timer
                     _activeProcessMonitorTimer?.Stop();
-                    
-                    // Stop toast timer
-                    _toastTimer?.Stop();
                     
                     // Update connection status to offline
                     if (AuthService.CurrentUser?.Username != null)
@@ -490,8 +502,8 @@ namespace PinayPalBackupManager.UI
                     // Load Firebase schedule and health thresholds
                     await LoadFirebaseSettingsAsync();
                     
-                    // Subscribe to real-time Firebase updates
-                    FirebaseRemoteService.OnScheduleUpdated += (schedule) =>
+                    // Subscribe to real-time Firebase updates (store delegates for cleanup)
+                    _firebaseScheduleHandler = (schedule) =>
                     {
                         if (schedule != null)
                         {
@@ -502,8 +514,9 @@ namespace PinayPalBackupManager.UI
                             LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule updated in real-time", "Information", "SYSTEM");
                         }
                     };
+                    FirebaseRemoteService.OnScheduleUpdated += _firebaseScheduleHandler;
 
-                    FirebaseRemoteService.OnHealthThresholdsUpdated += (thresholds) =>
+                    _firebaseHealthHandler = (thresholds) =>
                     {
                         if (thresholds != null)
                         {
@@ -511,14 +524,16 @@ namespace PinayPalBackupManager.UI
                             LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds updated in real-time", "Information", "SYSTEM");
                         }
                     };
+                    FirebaseRemoteService.OnHealthThresholdsUpdated += _firebaseHealthHandler;
 
-                    FirebaseRemoteService.OnCommandReceived += (commandType, commandId) =>
+                    _firebaseCommandHandler = (commandType, commandId) =>
                     {
                         LogService.WriteSystemLog($"[MAINWINDOW] Firebase command received: {commandType}", "Information", "SYSTEM");
                         _ = ExecuteRemoteCommandAsync(commandType, commandId ?? "", null);
                     };
+                    FirebaseRemoteService.OnCommandReceived += _firebaseCommandHandler;
 
-                    FirebaseRemoteService.OnAutoScanUpdated += (autoScan) =>
+                    _firebaseAutoScanHandler = (autoScan) =>
                     {
                         if (autoScan != null)
                         {
@@ -528,6 +543,7 @@ namespace PinayPalBackupManager.UI
                             LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan updated in real-time", "Information", "SYSTEM");
                         }
                     };
+                    FirebaseRemoteService.OnAutoScanUpdated += _firebaseAutoScanHandler;
 
                     // Start real-time listeners
                     FirebaseRemoteService.ListenForScheduleUpdates();
@@ -1093,21 +1109,45 @@ namespace PinayPalBackupManager.UI
                 switch (service)
                 {
                     case "FTP":
-                        if (_ftpControl != null && !_ftpControl.IsBusy)
+                        if (_ftpControl != null)
                         {
-                            await _ftpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            if (_ftpControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] FTP control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("FTP", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _ftpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
                         }
                         break;
                     case "Mailchimp":
-                        if (_mailchimpControl != null && !_mailchimpControl.IsBusy)
+                        if (_mailchimpControl != null)
                         {
-                            await _mailchimpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            if (_mailchimpControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] Mailchimp control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("Mailchimp", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _mailchimpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
                         }
                         break;
                     case "SQL":
-                        if (_sqlControl != null && !_sqlControl.IsBusy)
+                        if (_sqlControl != null)
                         {
-                            await _sqlControl.RunBackupTaskAsync("AUTO-RETRY");
+                            if (_sqlControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] SQL control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("SQL", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _sqlControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
                         }
                         break;
                 }

@@ -43,7 +43,6 @@ namespace PinayPalBackupManager.Services
                 DefaultRequestHeaders = { { "User-Agent", "PinayPalBackupManager/2.13.8" } }
             };
 
-            Console.WriteLine("[HttpClientFactory] Initialized with connection pooling and certificate pinning");
         }
 
         /// <summary>
@@ -98,22 +97,6 @@ namespace PinayPalBackupManager.Services
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var response = await base.SendAsync(request, cancellationToken);
-
-            // Validate certificate for Firebase domains
-            if (request.RequestUri?.Host.Contains("firebaseio.com") == true ||
-                request.RequestUri?.Host.Contains("firebase.com") == true)
-            {
-                try
-                {
-                    // Certificate pinning validation would go here
-                    // For now, just log that we're checking Firebase connections
-                    Console.WriteLine($"[CertificatePinning] Checking Firebase connection: {request.RequestUri.Host}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[CertificatePinning] Certificate validation error: {ex.Message}");
-                }
-            }
 
             return response;
         }
@@ -229,6 +212,7 @@ namespace PinayPalBackupManager.Services
 
         private async Task EnforceRateLimitAsync(CancellationToken cancellationToken)
         {
+            DateTime targetTime;
             lock (_lock)
             {
                 var timeSinceLastRequest = DateTime.UtcNow - _lastRequest;
@@ -241,13 +225,14 @@ namespace PinayPalBackupManager.Services
                 {
                     _lastRequest = DateTime.UtcNow;
                 }
+                targetTime = _lastRequest;
             }
 
             // Wait outside the lock to avoid blocking other threads
             var now = DateTime.UtcNow;
-            if (now < _lastRequest)
+            if (now < targetTime)
             {
-                await Task.Delay(_lastRequest - now, cancellationToken);
+                await Task.Delay(targetTime - now, cancellationToken);
             }
         }
 

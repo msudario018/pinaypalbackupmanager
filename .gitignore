@@ -10,6 +10,7 @@ users.db
 
 # Build outputs
 bin/
+bin_*/
 obj/
 
 # Local publish output

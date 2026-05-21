@@ -33,6 +33,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             this.FindControl<Button>("BtnCancel")!.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
             this.FindControl<Button>("BtnSave")!.Click += (s, e) => OnSave?.Invoke(this, EventArgs.Empty);
+            this.FindControl<Button>("BtnTest")!.Click += (s, e) => TestConnection();
         }
 
         private async Task BrowseFolderAsync(TextBox target, string title)
@@ -63,6 +64,42 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (!string.IsNullOrWhiteSpace(path))
                     target.Text = path;
             }
+        }
+
+        private void TestConnection()
+        {
+            var status = this.FindControl<TextBlock>("TxtStatus")!;
+            var path = this.FindControl<TextBox>("TxtNetworkDrivePath")!.Text?.Trim() ?? "";
+            var username = this.FindControl<TextBox>("TxtNetworkDriveUsername")!.Text?.Trim() ?? "";
+            var password = this.FindControl<TextBox>("TxtNetworkDrivePassword")!.Text ?? "";
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                status.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                status.Text = "Please enter a network drive path.";
+                return;
+            }
+
+            status.Foreground = Avalonia.Media.Brush.Parse("#A6ADC8");
+            status.Text = "Testing connection...";
+
+            _ = Task.Run(() =>
+            {
+                bool success = NetworkDriveService.TestNetworkConnection(path, username, password);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (success)
+                    {
+                        status.Foreground = Avalonia.Media.Brush.Parse("#A6E3A1");
+                        status.Text = "Connection successful! Network path is accessible.";
+                    }
+                    else
+                    {
+                        status.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        status.Text = "Connection failed. Check path and credentials.";
+                    }
+                });
+            });
         }
 
         public AppSettings GetSettings()

@@ -66,9 +66,17 @@ namespace PinayPalBackupManager.Services
             {
                 if (_retryQueue.TryGetValue(service, out var entry))
                 {
-                    // Already queued, update failure time
+                    // Already queued — reschedule from now so the retry timer is not stale
+                    var delay = entry.AttemptCount switch
+                    {
+                        0 => TimeSpan.FromMinutes(5),
+                        1 => TimeSpan.FromMinutes(15),
+                        2 => TimeSpan.FromMinutes(30),
+                        _ => TimeSpan.FromHours(1)
+                    };
                     entry.LastFailureTime = DateTime.UtcNow;
-                    LogService.WriteSystemLog($"[RETRY] {service} failed again (attempt {entry.AttemptCount}), keeping in queue", "Warning", "SYSTEM");
+                    entry.NextRetryTime = DateTime.UtcNow.Add(delay);
+                    LogService.WriteSystemLog($"[RETRY] {service} failed again (attempt {entry.AttemptCount}), rescheduled retry in {delay.TotalMinutes:F0} min", "Warning", "SYSTEM");
                 }
                 else
                 {
@@ -83,6 +91,21 @@ namespace PinayPalBackupManager.Services
                     };
                     _retryQueue[service] = entry;
                     LogService.WriteSystemLog($"[RETRY] {service} failed, scheduled retry in 5 min", "Warning", "SYSTEM");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reschedules a retry without incrementing the attempt count (used when a retry was skipped, e.g., control busy).
+        /// </summary>
+        public static void Reschedule(string service, TimeSpan delay)
+        {
+            lock (_retryQueue)
+            {
+                if (_retryQueue.TryGetValue(service, out var entry))
+                {
+                    entry.NextRetryTime = DateTime.UtcNow.Add(delay);
+                    LogService.WriteSystemLog($"[RETRY] {service} retry skipped, rescheduled in {delay.TotalMinutes:F0} min", "Information", "SYSTEM");
                 }
             }
         }
@@ -118,27 +141,34 @@ namespace PinayPalBackupManager.Services
 
                 foreach (var retry in dueRetries)
                 {
-                    retry.AttemptCount++;
-
-                    if (retry.AttemptCount > 3)
+                    lock (_retryQueue)
                     {
-                        // Max retries exceeded
-                        lock (_retryQueue) _retryQueue.Remove(retry.Service);
-                        LogService.WriteSystemLog($"[RETRY] {retry.Service} exceeded max retries (3), giving up", "Error", "SYSTEM");
-                        NotificationService.ShowBackupToast("Retry Failed", $"{retry.Service} backup failed after 3 retry attempts.", "Error");
-                        continue;
+                        // Entry may have been removed by MarkSuccess while we were iterating
+                        if (!_retryQueue.ContainsKey(retry.Service))
+                            continue;
+
+                        retry.AttemptCount++;
+
+                        if (retry.AttemptCount > 3)
+                        {
+                            // Max retries exceeded
+                            _retryQueue.Remove(retry.Service);
+                            LogService.WriteSystemLog($"[RETRY] {retry.Service} exceeded max retries (3), giving up", "Error", "SYSTEM");
+                            NotificationService.ShowBackupToast("Retry Failed", $"{retry.Service} backup failed after 3 retry attempts.", "Error");
+                            continue;
+                        }
+
+                        // Schedule next retry before firing, so concurrent handlers don't double-trigger
+                        var nextDelay = retry.AttemptCount switch
+                        {
+                            1 => TimeSpan.FromMinutes(15), // 2nd attempt: 15 min
+                            2 => TimeSpan.FromMinutes(30), // 3rd attempt: 30 min
+                            _ => TimeSpan.FromHours(1)
+                        };
+                        retry.NextRetryTime = DateTime.UtcNow.Add(nextDelay);
                     }
 
-                    // Schedule next retry before firing, so concurrent handlers don't double-trigger
-                    var nextDelay = retry.AttemptCount switch
-                    {
-                        1 => TimeSpan.FromMinutes(15), // 2nd attempt: 15 min
-                        2 => TimeSpan.FromMinutes(30), // 3rd attempt: 30 min
-                        _ => TimeSpan.FromHours(1)
-                    };
-                    retry.NextRetryTime = DateTime.UtcNow.Add(nextDelay);
-
-                    LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry in {nextDelay.TotalMinutes:F0} min if fails", "Information", "SYSTEM");
+                    LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry in {retry.NextRetryTime:HH:mm:ss} if fails", "Information", "SYSTEM");
                     NotificationService.ShowBackupToast("Auto-Retry", $"Retrying {retry.Service} backup (attempt {retry.AttemptCount}/3)...", "Info");
 
                     try
@@ -168,7 +198,7 @@ namespace PinayPalBackupManager.Services
             lock (_retryQueue)
             {
                 return _retryQueue.Values
-                    .Select(r => (r.Service, r.AttemptCount, r.NextRetryTime.ToString("HH:mm:ss")))
+                    .Select(r => (r.Service, r.AttemptCount, r.NextRetryTime.ToLocalTime().ToString("HH:mm:ss")))
                     .ToList();
             }
         }

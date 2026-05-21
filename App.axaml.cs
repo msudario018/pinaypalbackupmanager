@@ -42,10 +42,10 @@ namespace PinayPalBackupManager
                 // Check if this is the first run
                 if (ConfigService.IsFirstRun())
                 {
-                    // If users were pulled from Firebase on a fresh install, show login
-                    // Setup wizard will be shown after first login if needed
+                    // If users were pulled from Firebase on a fresh install, skip wizard
                     if (AuthService.HasAnyUsers())
                     {
+                        ConfigService.MarkSetupComplete();
                         ShowLogin(desktop);
                     }
                     else
@@ -66,29 +66,18 @@ namespace PinayPalBackupManager
         {
             try
             {
-                // Initialize configuration encryption
-                Console.WriteLine("[App] Initializing security enhancements...");
-                
                 // Check if configuration needs encryption
                 if (!SecurityService.IsConfigurationEncrypted())
                 {
-                    Console.WriteLine("[App] Encrypting sensitive configuration data...");
                     SecurityService.EncryptSensitiveConfiguration();
                 }
-                else
-                {
-                    Console.WriteLine("[App] Configuration already encrypted");
-                }
                 
-                // Initialize HTTP client factory
-                var httpClientFactory = HttpClientFactory.Instance;
-                Console.WriteLine("[App] HTTP client factory initialized with connection pooling");
-                
-                Console.WriteLine("[App] Security initialization completed");
+                // Initialize HTTP client factory (creates instance with connection pooling)
+                _ = HttpClientFactory.Instance;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[App] Security initialization failed: {ex.Message}");
+                LogService.WriteSystemLog($"[App] Security initialization failed: {ex.Message}", "Error", "SYSTEM");
             }
         }
 
@@ -101,14 +90,7 @@ namespace PinayPalBackupManager
                 var savedUser = AuthService.GetUserById(savedUserId.Value);
                 if (savedUser != null && savedUser.Status == "Active" && AuthService.LoginById(savedUserId.Value))
                 {
-                    if (ConfigService.IsFirstRun())
-                    {
-                        ShowSetupWizardPostLogin(desktop);
-                    }
-                    else
-                    {
-                        ShowMainWindow(desktop, null);
-                    }
+                    ShowMainWindow(desktop, null);
                     return;
                 }
                 // Session invalid or user disabled — clear it
@@ -116,17 +98,7 @@ namespace PinayPalBackupManager
             }
 
             var loginWindow = new LoginWindow();
-            loginWindow.OnLoginSuccess += () =>
-            {
-                if (ConfigService.IsFirstRun())
-                {
-                    ShowSetupWizardPostLogin(desktop);
-                }
-                else
-                {
-                    ShowMainWindow(desktop, loginWindow);
-                }
-            };
+            loginWindow.OnLoginSuccess += () => ShowMainWindow(desktop, loginWindow);
             desktop.MainWindow = loginWindow;
             loginWindow.Show();
         }
@@ -162,18 +134,6 @@ namespace PinayPalBackupManager
                     ShowMainWindow(desktop, null);
                 else
                     ShowLogin(desktop);
-            };
-            desktop.MainWindow = setupWizard;
-            setupWizard.Show();
-        }
-
-        private void ShowSetupWizardPostLogin(IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            var setupWizard = new SetupWizardWindow();
-            setupWizard.SetPostLoginMode();
-            setupWizard.OnSetupComplete += () =>
-            {
-                ShowMainWindow(desktop, null);
             };
             desktop.MainWindow = setupWizard;
             setupWizard.Show();

@@ -19,13 +19,7 @@ namespace PinayPalBackupManager.UI.UserControls
     public partial class HomeControl : UserControl
     {
         private readonly BackupManager _manager;
-#pragma warning disable CS0649
-        private System.Timers.Timer? _autoPingTimer;
-        private System.Timers.Timer? _statsTimer;
-        private System.Timers.Timer? _scheduleTimer;
-        private System.Timers.Timer? _storageTimer;
         private System.Timers.Timer? _healthRefreshTimer;
-#pragma warning restore CS0649
         private bool _compactMode = false;
         private int _activeOperations = 0;
         private System.Timers.Timer? _activeProcessUpdateTimer;
@@ -350,6 +344,10 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         private DateTime _lastBackupProgressUpdate = DateTime.MinValue;
+        private DateTime? _lastFtpBackupTime;
+        private DateTime? _lastMailchimpBackupTime;
+        private DateTime? _lastSqlBackupTime;
+        private bool _lastBackupWasComplete;
 
         private static string GetServiceColor(string service) => service switch
         {
@@ -362,8 +360,19 @@ namespace PinayPalBackupManager.UI.UserControls
         private void OnBackupProgress(string service, int percent, string status)
         {
             _lastBackupProgressUpdate = DateTime.UtcNow;
+            _lastBackupWasComplete = percent >= 100 && status.Contains("COMPLETE", StringComparison.OrdinalIgnoreCase);
 
-            Dispatcher.UIThread.InvokeAsync(() =>
+            // Track in-memory last backup completion time so "time since" updates immediately
+            if (_lastBackupWasComplete)
+            {
+                var now = DateTime.UtcNow;
+                if (service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) _lastFtpBackupTime = now;
+                else if (service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) _lastMailchimpBackupTime = now;
+                else if (service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) _lastSqlBackupTime = now;
+                _ = UpdateTimeSinceLastBackupAsync();
+            }
+
+            Dispatcher.UIThread.Post(() =>
             {
                 var color = Brush.Parse(GetServiceColor(service));
 
@@ -376,10 +385,12 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         private DateTime _lastMirrorProgressUpdate = DateTime.MinValue;
+        private bool _lastMirrorWasComplete;
 
         private void OnMirrorProgressUpdate(string service, int percent, string msg, int currentFile, int totalFiles)
         {
             _lastMirrorProgressUpdate = DateTime.UtcNow;
+            _lastMirrorWasComplete = percent >= 100;
 
             Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -405,11 +416,15 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void ResetGlobalBackupProgressIfIdle()
         {
-            // Reset progress bar if no backup activity for 10 seconds
-            if ((DateTime.UtcNow - _lastBackupProgressUpdate).TotalSeconds > 10 && _lastBackupProgressUpdate != DateTime.MinValue)
+            // Use short timeout (5s) for completed backups, longer (60s) for active ones
+            var backupTimeout = _lastBackupWasComplete ? 5 : 60;
+            if ((DateTime.UtcNow - _lastBackupProgressUpdate).TotalSeconds > backupTimeout && _lastBackupProgressUpdate != DateTime.MinValue)
             {
-                Dispatcher.UIThread.InvokeAsync(() =>
+                var checkedTime = _lastBackupProgressUpdate;
+                Dispatcher.UIThread.Post(() =>
                 {
+                    // Another progress update may have arrived between the check and this callback
+                    if (_lastBackupProgressUpdate != checkedTime) return;
                     var idleColor = Brush.Parse("#6C7086");
 
                     if (_cachedGlobalBackupProgress != null) { _cachedGlobalBackupProgress.Value = 0; _cachedGlobalBackupProgress.Foreground = idleColor; }
@@ -417,16 +432,20 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_cachedBackupProgressPercent != null){ _cachedBackupProgressPercent.Text = "0%"; _cachedBackupProgressPercent.Foreground = idleColor; }
                     if (_cachedGbpServiceDot != null)            _cachedGbpServiceDot.Fill = idleColor;
                     if (_cachedGbpServiceName != null)        { _cachedGbpServiceName.Text = "Idle"; _cachedGbpServiceName.Foreground = idleColor; }
-
-                    _lastBackupProgressUpdate = DateTime.MinValue;
                 });
+                _lastBackupProgressUpdate = DateTime.MinValue;
+                _lastBackupWasComplete = false;
             }
 
-            // Reset mirror progress to idle after 8 seconds of no activity (like global progress)
-            if ((DateTime.UtcNow - _lastMirrorProgressUpdate).TotalSeconds > 8 && _lastMirrorProgressUpdate != DateTime.MinValue)
+            // Use short timeout (5s) for completed mirrors, longer (60s) for active ones
+            var mirrorTimeout = _lastMirrorWasComplete ? 5 : 60;
+            if ((DateTime.UtcNow - _lastMirrorProgressUpdate).TotalSeconds > mirrorTimeout && _lastMirrorProgressUpdate != DateTime.MinValue)
             {
-                Dispatcher.UIThread.InvokeAsync(() =>
+                var checkedMirrorTime = _lastMirrorProgressUpdate;
+                Dispatcher.UIThread.Post(() =>
                 {
+                    // Another mirror progress update may have arrived between the check and this callback
+                    if (_lastMirrorProgressUpdate != checkedMirrorTime) return;
                     var idleColor = Brush.Parse("#6C7086");
 
                     if (_cachedMirrorProgressBar != null)  { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
@@ -434,9 +453,9 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_cachedMirrorProgressPercent != null)    { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }
                     if (_cachedMirrorServiceName != null){ _cachedMirrorServiceName.Text = "Idle"; _cachedMirrorServiceName.Foreground = idleColor; }
                     if (_cachedMirrorStatusDetail != null) _cachedMirrorStatusDetail.Text = "";
-
-                    _lastMirrorProgressUpdate = DateTime.MinValue;
                 });
+                _lastMirrorProgressUpdate = DateTime.MinValue;
+                _lastMirrorWasComplete = false;
             }
         }
 
@@ -2125,15 +2144,23 @@ namespace PinayPalBackupManager.UI.UserControls
                     var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 50);
                     var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 50);
 
+                    // Use in-memory time if newer than log-parsed time (covers backups done while app is running)
                     var ftpLastTime = GetLastBackupTime(ftpLogs);
                     var mcLastTime = GetLastBackupTime(mcLogs);
                     var sqlLastTime = GetLastBackupTime(sqlLogs);
+
+                    if (_lastFtpBackupTime.HasValue && _lastFtpBackupTime.Value > (ftpLastTime ?? DateTime.MinValue))
+                        ftpLastTime = _lastFtpBackupTime;
+                    if (_lastMailchimpBackupTime.HasValue && _lastMailchimpBackupTime.Value > (mcLastTime ?? DateTime.MinValue))
+                        mcLastTime = _lastMailchimpBackupTime;
+                    if (_lastSqlBackupTime.HasValue && _lastSqlBackupTime.Value > (sqlLastTime ?? DateTime.MinValue))
+                        sqlLastTime = _lastSqlBackupTime;
 
                     var ftpTimeText = GetTimeAgoText(ftpLastTime);
                     var mcTimeText = GetTimeAgoText(mcLastTime);
                     var sqlTimeText = GetTimeAgoText(sqlLastTime);
 
-                    Dispatcher.UIThread.InvokeAsync(() =>
+                    Dispatcher.UIThread.Post(() =>
                     {
                         if (_cachedTimeSinceFtp != null)
                         {
@@ -2259,27 +2286,30 @@ namespace PinayPalBackupManager.UI.UserControls
             int ftpScore = serviceScores.GetValueOrDefault("FTP", 0);
             bool ftpIsStale = IsBackupStale(ftpLastTime);
             string ftpStatus = ftpIsStale ? "Outdated" : ftpScore >= 80 ? "Healthy" : ftpScore >= 50 ? "Warning" : ftpScore > 0 ? "Critical" : "No Data";
-            string ftpColor = ftpIsStale ? "#e6c55c" : ftpScore >= 80 ? "#588157" : ftpScore >= 50 ? "#dad7cd" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
+            string ftpColor = ftpIsStale ? "#e6c55c" : ftpScore >= 80 ? "#4ade80" : ftpScore >= 50 ? "#dad7cd" : ftpScore > 0 ? "#F38BA8" : "#6C7086";
             Set("FtpStatusText", ftpStatus);
             SetDot("FtpStatusDot", ftpColor);
+            SetTextColor("FtpStatusText", ftpColor);
             if (ftpScore >= 80 && !ftpIsStale) healthyCount++;
 
             // Mailchimp - check both health score AND freshness
             int mcScore = serviceScores.GetValueOrDefault("Mailchimp", 0);
             bool mcIsStale = IsBackupStale(mcLastTime);
             string mcStatus = mcIsStale ? "Outdated" : mcScore >= 80 ? "Healthy" : mcScore >= 50 ? "Warning" : mcScore > 0 ? "Critical" : "No Data";
-            string mcColor = mcIsStale ? "#e6c55c" : mcScore >= 80 ? "#00b4d8" : mcScore >= 50 ? "#caf0f8" : mcScore > 0 ? "#F38BA8" : "#6C7086";
+            string mcColor = mcIsStale ? "#e6c55c" : mcScore >= 80 ? "#4ade80" : mcScore >= 50 ? "#caf0f8" : mcScore > 0 ? "#F38BA8" : "#6C7086";
             Set("MailchimpStatusText", mcStatus);
             SetDot("MailchimpStatusDot", mcColor);
+            SetTextColor("MailchimpStatusText", mcColor);
             if (mcScore >= 80 && !mcIsStale) healthyCount++;
 
             // SQL - check both health score AND freshness
             int sqlScore = serviceScores.GetValueOrDefault("SQL", 0);
             bool sqlIsStale = IsBackupStale(sqlLastTime);
             string sqlStatus = sqlIsStale ? "Outdated" : sqlScore >= 80 ? "Healthy" : sqlScore >= 50 ? "Warning" : sqlScore > 0 ? "Critical" : "No Data";
-            string sqlColor = sqlIsStale ? "#e6c55c" : sqlScore >= 80 ? "#fad643" : sqlScore >= 50 ? "#ffe169" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
+            string sqlColor = sqlIsStale ? "#e6c55c" : sqlScore >= 80 ? "#4ade80" : sqlScore >= 50 ? "#ffe169" : sqlScore > 0 ? "#F38BA8" : "#6C7086";
             Set("SqlStatusText", sqlStatus);
             SetDot("SqlStatusDot", sqlColor);
+            SetTextColor("SqlStatusText", sqlColor);
             if (sqlScore >= 80 && !sqlIsStale) healthyCount++;
 
             // Update services OK text
@@ -2303,6 +2333,12 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             var dot = this.FindControl<Ellipse>(controlName);
             if (dot != null) dot.Fill = Brush.Parse(color);
+        }
+
+        private void SetTextColor(string controlName, string color)
+        {
+            var tb = this.FindControl<TextBlock>(controlName);
+            if (tb != null) tb.Foreground = Brush.Parse(color);
         }
 
         private async Task LoadRecentErrorsAsync()
@@ -2858,10 +2894,16 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             base.OnUnloaded(e);
             
-            // Unsubscribe from log events
+            // Unsubscribe from all events to prevent memory leaks
             LogService.OnNewLogEntry -= OnNewSystemLogEntry;
             ConfigService.OnScheduleChanged -= OnScheduleChangedFromFirebase;
             NetworkDriveService.OnMirrorProgress -= OnMirrorProgressUpdate;
+            _manager.OnAutoScanTimersReset -= OnAutoScanTimersReset;
+            _manager.OnDailyScheduleUpdated -= OnDailyScheduleUpdated;
+            _manager.OnHealthUpdate -= OnHealthUpdate;
+            _manager.OnTimeUpdate -= OnTimeUpdate;
+            _manager.OnBackupProgress -= OnBackupProgress;
+            AuthService.OnUserChanged -= (_) => UpdateGreeting();
             
             // Hide auto-refresh indicators
             Dispatcher.UIThread.InvokeAsync(() =>
@@ -2881,14 +2923,6 @@ namespace PinayPalBackupManager.UI.UserControls
             _statsRefreshTimer?.Dispose();
             _dashboardRefreshTimer?.Stop();
             _dashboardRefreshTimer?.Dispose();
-            _autoPingTimer?.Stop();
-            _autoPingTimer?.Dispose();
-            _statsTimer?.Stop();
-            _statsTimer?.Dispose();
-            _scheduleTimer?.Stop();
-            _scheduleTimer?.Dispose();
-            _storageTimer?.Stop();
-            _storageTimer?.Dispose();
             _errorRefreshTimer?.Stop();
             _errorRefreshTimer?.Dispose();
             _activeProcessUpdateTimer?.Stop();
@@ -2898,10 +2932,6 @@ namespace PinayPalBackupManager.UI.UserControls
             _statsRefreshTimer = null;
             _dashboardRefreshTimer = null;
             _errorRefreshTimer = null;
-            _autoPingTimer = null;
-            _statsTimer = null;
-            _scheduleTimer = null;
-            _storageTimer = null;
             _activeProcessUpdateTimer = null;
 
             Interlocked.Exchange(ref _isHealthRefreshing, 0);
