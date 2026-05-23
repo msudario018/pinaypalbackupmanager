@@ -18,26 +18,26 @@ namespace PinayPalBackupManager.Models
         // Folder & Log Definitions
         public static string FtpLocalFolder
         {
-            get => ConfigService.Current.Paths.FtpLocalFolder;
-            set => ConfigService.Current.Paths.FtpLocalFolder = value;
+            get => ConfigService.Current.Paths?.FtpLocalFolder ?? string.Empty;
+            set { if (ConfigService.Current.Paths != null) ConfigService.Current.Paths.FtpLocalFolder = value; }
         }
 
         public static string MailchimpFolder
         {
-            get => ConfigService.Current.Paths.MailchimpFolder;
-            set => ConfigService.Current.Paths.MailchimpFolder = value;
+            get => ConfigService.Current.Paths?.MailchimpFolder ?? string.Empty;
+            set { if (ConfigService.Current.Paths != null) ConfigService.Current.Paths.MailchimpFolder = value; }
         }
 
         public static string SqlLocalFolder
         {
-            get => ConfigService.Current.Paths.SqlLocalFolder;
-            set => ConfigService.Current.Paths.SqlLocalFolder = value;
+            get => ConfigService.Current.Paths?.SqlLocalFolder ?? string.Empty;
+            set { if (ConfigService.Current.Paths != null) ConfigService.Current.Paths.SqlLocalFolder = value; }
         }
 
         public static string NetworkDriveFolder
         {
-            get => ConfigService.Current.Paths.NetworkDriveFolder;
-            set => ConfigService.Current.Paths.NetworkDriveFolder = value;
+            get => ConfigService.Current.Paths?.NetworkDriveFolder ?? string.Empty;
+            set { if (ConfigService.Current.Paths != null) ConfigService.Current.Paths.NetworkDriveFolder = value; }
         }
 
         public static string FtpLogFile => Path.Combine(FtpLocalFolder, "backup_log.txt");
@@ -46,35 +46,35 @@ namespace PinayPalBackupManager.Models
         public static string NetworkDriveLogFile => Path.Combine(NetworkDriveFolder, "backup_log.txt");
 
         // FTP Credentials (Website)
-        public static string FtpHost => ConfigService.Current.Ftp.Host;
-        public static string FtpUser => ConfigService.Current.Ftp.User;
-        public static string FtpTlsFingerprint => ConfigService.Current.Ftp.TlsFingerprint;
-        public static int FtpPort => ConfigService.Current.Ftp.Port;
+        public static string FtpHost => ConfigService.Current.Ftp?.Host ?? string.Empty;
+        public static string FtpUser => ConfigService.Current.Ftp?.User ?? string.Empty;
+        public static string FtpTlsFingerprint => ConfigService.Current.Ftp?.TlsFingerprint ?? string.Empty;
+        public static int FtpPort => ConfigService.Current.Ftp?.Port ?? 21;
 
         // SQL Credentials
-        public static string SqlUser => ConfigService.Current.Sql.User;
-        public static string SqlRemotePath => ConfigService.Current.Sql.RemotePath;
-        public static string SqlTlsFingerprint => ConfigService.Current.Sql.TlsFingerprint;
+        public static string SqlUser => ConfigService.Current.Sql?.User ?? string.Empty;
+        public static string SqlRemotePath => ConfigService.Current.Sql?.RemotePath ?? string.Empty;
+        public static string SqlTlsFingerprint => ConfigService.Current.Sql?.TlsFingerprint ?? string.Empty;
 
         // Mailchimp Config
-        public static string McApiKey => ConfigService.Current.Mailchimp.ApiKey;
-        public static string McAudienceId => ConfigService.Current.Mailchimp.AudienceId;
+        public static string McApiKey => ConfigService.Current.Mailchimp?.ApiKey ?? string.Empty;
+        public static string McAudienceId => ConfigService.Current.Mailchimp?.AudienceId ?? string.Empty;
 
         // Network Drive Config
-        public static string NetworkDrivePath => ConfigService.Current.NetworkDrive.Path;
-        public static string NetworkDriveUsername => ConfigService.Current.NetworkDrive.Username;
-        public static string NetworkDrivePassword => ConfigService.Current.NetworkDrive.Password;
-        public static bool NetworkDriveEnabled => ConfigService.Current.NetworkDrive.Enabled;
+        public static string NetworkDrivePath => ConfigService.Current.NetworkDrive?.Path ?? string.Empty;
+        public static string NetworkDriveUsername => ConfigService.Current.NetworkDrive?.Username ?? string.Empty;
+        public static string NetworkDrivePassword => ConfigService.Current.NetworkDrive?.Password ?? string.Empty;
+        public static bool NetworkDriveEnabled => ConfigService.Current.NetworkDrive?.Enabled ?? false;
 
         // Intervals (Minutes)
-        public static int FtpDailySyncHourMnl => ConfigService.Current.Schedule.FtpDailySyncHourMnl;
-        public static int FtpDailySyncMinuteMnl => ConfigService.Current.Schedule.FtpDailySyncMinuteMnl;
+        public static int FtpDailySyncHourMnl => ConfigService.Current.Schedule?.FtpDailySyncHourMnl ?? 22;
+        public static int FtpDailySyncMinuteMnl => ConfigService.Current.Schedule?.FtpDailySyncMinuteMnl ?? 0;
 
-        public static int MailchimpDailySyncHourMnl => ConfigService.Current.Schedule.MailchimpDailySyncHourMnl;
-        public static int MailchimpDailySyncMinuteMnl => ConfigService.Current.Schedule.MailchimpDailySyncMinuteMnl;
+        public static int MailchimpDailySyncHourMnl => ConfigService.Current.Schedule?.MailchimpDailySyncHourMnl ?? 18;
+        public static int MailchimpDailySyncMinuteMnl => ConfigService.Current.Schedule?.MailchimpDailySyncMinuteMnl ?? 0;
 
-        public static int SqlDailySyncHourMnl => ConfigService.Current.Schedule.SqlDailySyncHourMnl;
-        public static int SqlDailySyncMinuteMnl => ConfigService.Current.Schedule.SqlDailySyncMinuteMnl;
+        public static int SqlDailySyncHourMnl => ConfigService.Current.Schedule?.SqlDailySyncHourMnl ?? 17;
+        public static int SqlDailySyncMinuteMnl => ConfigService.Current.Schedule?.SqlDailySyncMinuteMnl ?? 0;
 
     }
 }

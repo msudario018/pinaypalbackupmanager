@@ -121,10 +121,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _manager.OnBackupProgress += OnBackupProgress;
             NetworkDriveService.OnMirrorProgress += OnMirrorProgressUpdate;
 
-            // Start active process update timer (every 1 second for real-time updates)
-            _activeProcessUpdateTimer = new System.Timers.Timer(1000);
-            _activeProcessUpdateTimer.Elapsed += (_, _) => UpdateActiveProcessDisplay();
-            _activeProcessUpdateTimer.Start();
+            StartActiveProcessTimer();
 
             this.FindControl<Button>("BtnGoFtp")!.Click += (_, _) => OnNavigateFtp?.Invoke();
             this.FindControl<Button>("BtnGoMailchimp")!.Click += (_, _) => OnNavigateMailchimp?.Invoke();
@@ -348,6 +345,8 @@ namespace PinayPalBackupManager.UI.UserControls
         private DateTime? _lastMailchimpBackupTime;
         private DateTime? _lastSqlBackupTime;
         private bool _lastBackupWasComplete;
+        private int _lastBackupProgressValue = -1;
+        private DateTime _lastBackupProgressValueTime = DateTime.MinValue;
 
         private static string GetServiceColor(string service) => service switch
         {
@@ -361,6 +360,13 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             _lastBackupProgressUpdate = DateTime.UtcNow;
             _lastBackupWasComplete = percent >= 100 && status.Contains("COMPLETE", StringComparison.OrdinalIgnoreCase);
+
+            // Stuck-progress detection: if the same percent hasn't changed in 120s, consider it stuck
+            if (percent != _lastBackupProgressValue)
+            {
+                _lastBackupProgressValue = percent;
+                _lastBackupProgressValueTime = DateTime.UtcNow;
+            }
 
             // Track in-memory last backup completion time so "time since" updates immediately
             if (_lastBackupWasComplete)
@@ -396,6 +402,8 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 if (_cachedMirrorProgressSection == null) return;
 
+                _cachedMirrorProgressSection.IsVisible = true;
+
                 bool done = percent >= 100 || percent < 0;
                 var activeColor = Brush.Parse("#A78BFA");
 
@@ -418,7 +426,12 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             // Use short timeout (5s) for completed backups, longer (60s) for active ones
             var backupTimeout = _lastBackupWasComplete ? 5 : 60;
-            if ((DateTime.UtcNow - _lastBackupProgressUpdate).TotalSeconds > backupTimeout && _lastBackupProgressUpdate != DateTime.MinValue)
+            bool idleByTimeout = (DateTime.UtcNow - _lastBackupProgressUpdate).TotalSeconds > backupTimeout && _lastBackupProgressUpdate != DateTime.MinValue;
+            // Stuck-progress safeguard: if the same non-zero percent hasn't changed in 120s, force reset
+            bool stuck = _lastBackupProgressValue > 0 && _lastBackupProgressValue < 100
+                         && _lastBackupProgressValueTime != DateTime.MinValue
+                         && (DateTime.UtcNow - _lastBackupProgressValueTime).TotalSeconds > 120;
+            if (idleByTimeout || stuck)
             {
                 var checkedTime = _lastBackupProgressUpdate;
                 Dispatcher.UIThread.Post(() =>
@@ -432,9 +445,12 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_cachedBackupProgressPercent != null){ _cachedBackupProgressPercent.Text = "0%"; _cachedBackupProgressPercent.Foreground = idleColor; }
                     if (_cachedGbpServiceDot != null)            _cachedGbpServiceDot.Fill = idleColor;
                     if (_cachedGbpServiceName != null)        { _cachedGbpServiceName.Text = "Idle"; _cachedGbpServiceName.Foreground = idleColor; }
+
+                    _lastBackupProgressUpdate = DateTime.MinValue;
+                    _lastBackupWasComplete = false;
+                    _lastBackupProgressValue = -1;
+                    _lastBackupProgressValueTime = DateTime.MinValue;
                 });
-                _lastBackupProgressUpdate = DateTime.MinValue;
-                _lastBackupWasComplete = false;
             }
 
             // Use short timeout (5s) for completed mirrors, longer (60s) for active ones
@@ -448,14 +464,16 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_lastMirrorProgressUpdate != checkedMirrorTime) return;
                     var idleColor = Brush.Parse("#6C7086");
 
+                    if (_cachedMirrorProgressSection != null) _cachedMirrorProgressSection.IsVisible = false;
                     if (_cachedMirrorProgressBar != null)  { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
                     if (_cachedMirrorProgressText != null)   _cachedMirrorProgressText.Text = "No active mirroring";
                     if (_cachedMirrorProgressPercent != null)    { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }
                     if (_cachedMirrorServiceName != null){ _cachedMirrorServiceName.Text = "Idle"; _cachedMirrorServiceName.Foreground = idleColor; }
                     if (_cachedMirrorStatusDetail != null) _cachedMirrorStatusDetail.Text = "";
+
+                    _lastMirrorProgressUpdate = DateTime.MinValue;
+                    _lastMirrorWasComplete = false;
                 });
-                _lastMirrorProgressUpdate = DateTime.MinValue;
-                _lastMirrorWasComplete = false;
             }
         }
 
@@ -1137,6 +1155,16 @@ namespace PinayPalBackupManager.UI.UserControls
                     serviceCardsGrid.MaxWidth = isMaximized ? double.PositiveInfinity : 1200;
                 }
             });
+        }
+
+        private void StartActiveProcessTimer()
+        {
+            _activeProcessUpdateTimer?.Stop();
+            _activeProcessUpdateTimer?.Dispose();
+            _activeProcessUpdateTimer = new System.Timers.Timer(1000);
+            _activeProcessUpdateTimer.Elapsed += (_, _) => UpdateActiveProcessDisplay();
+            _activeProcessUpdateTimer.AutoReset = true;
+            _activeProcessUpdateTimer.Start();
         }
 
         private void UpdateActiveProcessDisplay()
@@ -2890,6 +2918,47 @@ namespace PinayPalBackupManager.UI.UserControls
         }
         
         
+        protected override void OnLoaded(RoutedEventArgs e)
+        {
+            base.OnLoaded(e);
+            // Restart timer if control was unloaded and reloaded (e.g., tab switch)
+            StartActiveProcessTimer();
+            // Force reset any stale progress state on reload
+            _lastBackupProgressUpdate = DateTime.MinValue;
+            _lastBackupWasComplete = false;
+            _lastMirrorProgressUpdate = DateTime.MinValue;
+            _lastMirrorWasComplete = false;
+            _lastBackupProgressValue = -1;
+            _lastBackupProgressValueTime = DateTime.MinValue;
+
+            // Directly reset UI to idle — ResetGlobalBackupProgressIfIdle guards against DateTime.MinValue
+            var idleColor = Brush.Parse("#6C7086");
+            if (_cachedGlobalBackupProgress != null)  { _cachedGlobalBackupProgress.Value = 0; _cachedGlobalBackupProgress.Foreground = idleColor; }
+            if (_cachedBackupProgressText != null)    _cachedBackupProgressText.Text = "No active backups";
+            if (_cachedBackupProgressPercent != null) { _cachedBackupProgressPercent.Text = "0%"; _cachedBackupProgressPercent.Foreground = idleColor; }
+            if (_cachedGbpServiceDot != null)         _cachedGbpServiceDot.Fill = idleColor;
+            if (_cachedGbpServiceName != null)        { _cachedGbpServiceName.Text = "Idle"; _cachedGbpServiceName.Foreground = idleColor; }
+
+            if (_cachedMirrorProgressSection != null) _cachedMirrorProgressSection.IsVisible = false;
+            if (_cachedMirrorProgressBar != null)     { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
+            if (_cachedMirrorProgressText != null)    _cachedMirrorProgressText.Text = "No active mirroring";
+            if (_cachedMirrorProgressPercent != null) { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }
+            if (_cachedMirrorServiceName != null)     { _cachedMirrorServiceName.Text = "Idle"; _cachedMirrorServiceName.Foreground = idleColor; }
+            if (_cachedMirrorStatusDetail != null)    _cachedMirrorStatusDetail.Text = "";
+
+            // Hide network drive UI when disabled in settings
+            var ndEnabled = BackupConfig.NetworkDriveEnabled;
+            var ndCard = this.FindControl<Border>("NetworkDriveCard");
+            if (ndCard != null) ndCard.IsVisible = ndEnabled;
+
+            var btnFtpMirror = this.FindControl<Button>("BtnFtpMirror");
+            var btnMcMirror = this.FindControl<Button>("BtnMcMirror");
+            var btnSqlMirror = this.FindControl<Button>("BtnSqlMirror");
+            if (btnFtpMirror != null) btnFtpMirror.IsVisible = ndEnabled;
+            if (btnMcMirror != null) btnMcMirror.IsVisible = ndEnabled;
+            if (btnSqlMirror != null) btnSqlMirror.IsVisible = ndEnabled;
+        }
+
         protected override void OnUnloaded(RoutedEventArgs e)
         {
             base.OnUnloaded(e);

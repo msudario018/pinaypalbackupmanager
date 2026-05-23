@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.19.0] - 2026-05-24
+
+### Added
+- **Modern Color Palette**: Complete overhaul of dark and light theme colors
+  - Dark theme: Deep Space palette (`#02040A` bg) with vibrant accents (Emerald `#34D399`, Sky Blue `#60A5FA`, Amber `#FBBF24`, Violet `#A78BFA`, Rose `#FB7185`)
+  - Light theme: Clean Slate palette (`#F8FAFC` bg) with matching accent tones
+  - New glow colors (`Accent*Glow`) for subtle elevation effects on cards and badges
+- **Card Hover Effects**: Service cards now lift on hover with `translateY(-2px)` and deeper shadows
+- **Button Animations**: `service-action` buttons scale and lift on hover/press
+- **Accent Icon Badges**: Each service card has a colored background behind its icon (e.g., emerald bg for FTP)
+- **Sidebar Arrow Fix**: Toggle arrow direction reversed — compact points right (expand), expanded points left (collapse)
+
+### Changed
+- **Dashboard UI Modernization**:
+  - All cards upgraded to `CornerRadius="14-16"` with soft `BoxShadow` elevation
+  - Service cards: larger icons (`20x20`), accent-colored icon backgrounds, more spacing
+  - Quick action buttons use `service-action` style with hover animations
+  - Mirror buttons styled with violet accent theme
+  - "Open Tab" buttons use service-specific accent backgrounds (`AccentFtpBg`, `AccentMailchimpBg`, etc.)
+  - Header: larger title (`26px`), improved badge shadows
+- **Top Bar Modernization**: All badges upgraded to `CornerRadius="12"`, subtle elevation shadows
+- **Sidebar Modernization**: Softer shadow (`8px offset, 40px blur`), larger logo area
+- **ProgressBar**: Slimmer (`8px`), smoother transitions (`0.25s`)
+- **Theme Toggle Relocation**: Moved from sidebar to top bar beside notification bell
+
+### Fixed
+- **Sidebar Compact Alignment**: Sidebar now sticks to left edge in compact mode by synchronizing Border width and parent Grid column width
+- **Sidebar Startup Size**: Sidebar now correctly matches expanded width on app startup
+- **Stuck Progress Safeguard**: Added 120-second stuck detection for backup progress bars that hang on non-zero values
+- **Mirror Progress Reset Race Condition**: Fixed `ResetGlobalBackupProgressIfIdle` race causing mirror progress bar reset failure
+
 ## [2.18.0] - 2026-05-21
 
 ### Fixed

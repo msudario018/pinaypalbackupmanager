@@ -13,7 +13,7 @@
             </StackPanel>
             
             <!-- Version Info -->
-            <TextBlock Grid.Row="1" Name="TxtVersion" Text="Version: v2.6.14" FontSize="16" FontWeight="SemiBold" 
+            <TextBlock Grid.Row="1" Name="TxtVersion" Text="Version: v2.19.0" FontSize="16" FontWeight="SemiBold" 
                        Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
             
             <!-- Changelog Content -->

@@ -15,11 +15,26 @@
                 </Animation>
             </Style.Animations>
         </Style>
-        <!-- White theme optimizations -->
+        <!-- Modern Card Style -->
         <Style Selector="Border.background-card">
             <Setter Property="Background" Value="{DynamicResource AppCard}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BoxShadow" Value="0 2 8 #00000018, 0 4 16 #0000000C"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.background-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder2}"/>
+            <Setter Property="BoxShadow" Value="0 4 16 #00000025, 0 8 32 #00000010"/>
+            <Setter Property="RenderTransform" Value="translateY(-2px)"/>
         </Style>
         <Style Selector="TextBlock.service-title">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -27,63 +42,78 @@
         </Style>
         <Style Selector="Button.service-action">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,8"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.service-action:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.03) translateY(-1px)"/>
+        </Style>
+        <Style Selector="Button.service-action:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
     </UserControl.Styles>
     <Border Background="Transparent" CornerRadius="12" Padding="0">
         <Grid RowDefinitions="Auto, *">
             <!-- Tab Header -->
-            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
-                <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="DASHBOARD" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
-                    <TextBlock Name="TxtGreeting" Text="Good Morning, User" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="24,20,24,16">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Dashboard" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                    <TextBlock Name="TxtGreeting" Text="Good Morning, User" FontSize="13" Foreground="{DynamicResource AppMuted}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <Button Name="BtnViewAllBackups" Content="View All Backups" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
-                            BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand" ToolTip.Tip="Open backup folder"/>
+                            BorderThickness="0" CornerRadius="12" Padding="14,10" FontSize="12" Cursor="Hand" ToolTip.Tip="Open backup folder"/>
                     <Button Name="BtnCustomizeDashboard" Content="Customize" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppMuted}"
-                            BorderThickness="0" CornerRadius="20" Padding="12,8" FontSize="11" Cursor="Hand"/>
-                    <Border Name="DashHealthBadge" Background="{DynamicResource AppCard}" CornerRadius="20" Padding="14,8">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            BorderThickness="0" CornerRadius="12" Padding="14,10" FontSize="12" Cursor="Hand"/>
+                    <Border Name="DashHealthBadge" Background="{DynamicResource AppCard}" CornerRadius="12" Padding="14,10"
+                            BoxShadow="0 1 4 #00000010">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
                             <Ellipse Name="DashHealthDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                            <TextBlock Name="DashHealthText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                            <TextBlock Name="DashHealthText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
                                        Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <Button Name="BtnRunAllChecks" Content="Run All" Background="{DynamicResource AccentWebsite}" Foreground="#000000"
-                            BorderThickness="0" CornerRadius="20" Padding="14,8" FontSize="11"
+                            BorderThickness="0" CornerRadius="12" Padding="16,10" FontSize="12"
                             FontWeight="SemiBold" Cursor="Hand" ToolTip.Tip="Run parallel backup for all services"/>
                 </StackPanel>
             </Grid>
 
             <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <StackPanel Spacing="16" Margin="20">
+                <StackPanel Spacing="18" Margin="24,0,24,24">
 
             <!-- Retry Queue Badge -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Border Name="RetryQueueBadge" IsVisible="False" Background="{DynamicResource AccentError}" CornerRadius="8" Padding="6,2">
-                    <TextBlock Name="TxtRetryQueue" Text="0 retries pending" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                <Border Name="RetryQueueBadge" IsVisible="False" Background="{DynamicResource AccentError}" CornerRadius="10" Padding="8,4">
+                    <TextBlock Name="TxtRetryQueue" Text="0 retries pending" FontSize="11" FontWeight="Bold" Foreground="White"/>
                 </Border>
             </StackPanel>
 
             <!-- Alert Banner -->
-            <Border Name="AlertBanner" IsVisible="False" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AccentError}"
-                    BorderThickness="1" CornerRadius="10" Padding="16,12">
+            <Border Name="AlertBanner" IsVisible="False" Background="{DynamicResource AccentErrorBg}" BorderBrush="{DynamicResource AccentError}"
+                    BorderThickness="1" CornerRadius="14" Padding="16,12"
+                    BoxShadow="0 2 8 #FB718520">
                 <Grid ColumnDefinitions="Auto, *">
                     <PathIcon Grid.Column="0" Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
-                              Width="16" Height="16" Foreground="{DynamicResource AccentError}" VerticalAlignment="Center"
+                              Width="18" Height="18" Foreground="{DynamicResource AccentError}" VerticalAlignment="Center"
                               Margin="0,0,12,0"/>
-                    <TextBlock Grid.Column="1" Name="AlertText" Text="" Foreground="{DynamicResource AccentError}" FontSize="12"
+                    <TextBlock Grid.Column="1" Name="AlertText" Text="" Foreground="{DynamicResource AccentError}" FontSize="13"
                                FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
                 </Grid>
             </Border>
 
             <!-- System Status Overview -->
-            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="16">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="16"
+                    BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                 <Grid Name="SystemStatusGrid" ColumnDefinitions="*, *, *, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                         <TextBlock Text="Uptime" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
@@ -106,7 +136,8 @@
 
             <!-- Quick Stats Cards -->
             <Grid Name="QuickStatsGrid" ColumnDefinitions="*, *, *" MaxWidth="1200" HorizontalAlignment="Stretch" Margin="0,8,0,0">
-                <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="14"
+                        BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="Backups Today" FontSize="9" Foreground="{DynamicResource AccentFtp}"/>
@@ -117,7 +148,8 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-                <Border Grid.Column="1" Margin="0,0,8,0" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                <Border Grid.Column="1" Margin="0,0,8,0" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="14"
+                        BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                     <StackPanel Spacing="4">
                         <TextBlock Text="Success Rate (24h)" FontSize="9" Foreground="{DynamicResource AccentWebsite}"/>
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -126,7 +158,8 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="2" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                <Border Grid.Column="2" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="14"
+                        BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                     <StackPanel Spacing="4">
                         <TextBlock Text="Failed Backups" FontSize="9" Foreground="{DynamicResource AccentError}"/>
                         <TextBlock Name="StatFailedBackups" Text="0" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentError}"/>
@@ -135,7 +168,8 @@
             </Grid>
 
             <!-- Time Since Last Backup -->
-            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="16">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="16" Padding="16"
+                    BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                 <Grid Name="TimeSinceGrid" ColumnDefinitions="*, *">
                     <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Bottom">
                         <TextBlock Text="Time Since Last Backup" FontSize="11" FontWeight="SemiBold"
@@ -234,7 +268,8 @@
             </Border>
 
             <!-- Schedule Overview -->
-            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="20">
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="16" Padding="20"
+                    BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*, Auto">
                         <TextBlock Text="SCHEDULE OVERVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppSubtext}" LetterSpacing="0.5" VerticalAlignment="Center"/>
@@ -282,23 +317,24 @@
             <Grid Name="ServiceCardsSection" ColumnDefinitions="*, *, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
 
                 <!-- FTP Card -->
-                <Border Grid.Column="0" Margin="0,0,6,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
-                    <StackPanel Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border Background="{DynamicResource AppCard}" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource AccentFtpBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
+                                    BoxShadow="0 1 4 #34D39920">
                                 <PathIcon Data="M6,20C3.24,20 1,17.76 1,15C1,12.56 2.78,10.53 5.12,10.12C6.04,7.18 8.77,5 12,5C15.4,5 18.25,7.44 18.88,10.68C21.22,10.9 23,12.85 23,15.25C23,17.87 20.87,20 18.25,20H6Z"
-                                          Width="16" Height="16" Foreground="{DynamicResource AccentFtp}"/>
+                                          Width="20" Height="20" Foreground="{DynamicResource AccentFtp}"/>
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="FTP SYNC" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
-                                <TextBlock Text="Website backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                                <TextBlock Text="FTP SYNC" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                                <TextBlock Text="Website backup" FontSize="11" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="FtpStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                                <TextBlock Name="FtpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                <TextBlock Name="FtpStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
                                            Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -318,42 +354,45 @@
 
                         <!-- Quick Actions -->
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button Name="BtnFtpSyncCheck" Content="Sync Check" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
-                            <Button Name="BtnFtpQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnFtpSyncCheck" Content="Sync Check" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnFtpQuickBackup" Content="Quick Backup" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnFtpMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppSurface}" Foreground="#A78BFA"
-                                BorderBrush="#A78BFA" BorderThickness="1" CornerRadius="6" Padding="6,4" FontSize="9"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
+                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
                         <Button Name="BtnGoFtp" Content="Open FTP Tab" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentFtpBg}" Foreground="{DynamicResource AccentFtp}"
+                                BorderThickness="0" CornerRadius="10" Padding="12,10" FontSize="11"
                                 FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Mailchimp Card -->
-                <Border Grid.Column="1" Margin="4,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
-                    <StackPanel Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border Background="{DynamicResource AppCard}" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                <Border Grid.Column="1" Margin="4,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource AccentMailchimpBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
+                                    BoxShadow="0 1 4 #60A5FA20">
                                 <PathIcon Data="M20,4H4C2.9,4 2,4.9 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.9 21.1,4 20,4M20,18H4V8L12,13L20,8V18M12,11L4,6H20L12,11Z"
-                                          Width="16" Height="16" Foreground="{DynamicResource AccentMailchimp}"/>
+                                          Width="20" Height="20" Foreground="{DynamicResource AccentMailchimp}"/>
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="MAILCHIMP" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
-                                <TextBlock Text="Email backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                                <TextBlock Text="MAILCHIMP" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
+                                <TextBlock Text="Email backup" FontSize="11" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="MailchimpStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                                <TextBlock Name="MailchimpStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                <TextBlock Name="MailchimpStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
                                            Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -373,42 +412,45 @@
 
                         <!-- Quick Actions -->
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button Name="BtnMcSyncCheck" Content="Sync Check" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
-                            <Button Name="BtnMcQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnMcSyncCheck" Content="Sync Check" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnMcQuickBackup" Content="Quick Backup" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnMcMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppSurface}" Foreground="#A78BFA"
-                                BorderBrush="#A78BFA" BorderThickness="1" CornerRadius="6" Padding="6,4" FontSize="9"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
+                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
                         <Button Name="BtnGoMailchimp" Content="Open Mailchimp Tab" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentMailchimpBg}" Foreground="{DynamicResource AccentMailchimp}"
+                                BorderThickness="0" CornerRadius="10" Padding="12,10" FontSize="11"
                                 FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
 
                 <!-- SQL Card -->
-                <Border Grid.Column="2" Margin="4,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
-                    <StackPanel Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border Background="{DynamicResource AppCard}" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                <Border Grid.Column="2" Margin="4,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource AccentSqlBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
+                                    BoxShadow="0 1 4 #FBBF2420">
                                 <PathIcon Data="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"
-                                          Width="16" Height="16" Foreground="{DynamicResource AccentSql}"/>
+                                          Width="20" Height="20" Foreground="{DynamicResource AccentSql}"/>
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="SQL BACKUP" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
-                                <TextBlock Text="Database backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                                <TextBlock Text="SQL BACKUP" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
+                                <TextBlock Text="Database backup" FontSize="11" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="SqlStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                                <TextBlock Name="SqlStatusText" Text="SCANNING..." FontSize="11" FontWeight="Bold"
+                                <TextBlock Name="SqlStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
                                            Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -428,41 +470,44 @@
 
                         <!-- Quick Actions -->
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button Name="BtnSqlSyncCheck" Content="Sync Check" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
-                            <Button Name="BtnSqlQuickBackup" Content="Quick Backup" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnSqlSyncCheck" Content="Sync Check" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnSqlQuickBackup" Content="Quick Backup" Classes="service-action"
+                                    Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
                         </StackPanel>
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnSqlMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppSurface}" Foreground="#A78BFA"
-                                BorderBrush="#A78BFA" BorderThickness="1" CornerRadius="6" Padding="6,4" FontSize="9"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
+                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
                         <Button Name="BtnGoSql" Content="Open SQL Tab" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                BorderThickness="0" CornerRadius="8" Padding="10,8" FontSize="11"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentSqlBg}" Foreground="{DynamicResource AccentSql}"
+                                BorderThickness="0" CornerRadius="10" Padding="12,10" FontSize="11"
                                 FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
                 <!-- Network Drive Card -->
-                <Border Grid.Column="3" Margin="6,0,0,0" Classes="background-card" CornerRadius="12" Padding="16" MinHeight="280">
-                    <StackPanel Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border Background="{DynamicResource AppCard}" CornerRadius="8" Padding="8" VerticalAlignment="Center">
+                <Border Name="NetworkDriveCard" Grid.Column="3" Margin="8,0,0,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource AccentWebsiteBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
+                                    BoxShadow="0 1 4 #A78BFA20">
                                 <PathIcon Data="M15,20A1,1 0 0,0 16,19V4A1,1 0 0,0 15,3H7A1,1 0 0,0 6,4V8H4A2,2 0 0,0 2,10V20A1,1 0 0,0 3,21H15M7,5H15V8H7V5M4,10H8V12H10V10H14V18H4V10Z"
-                                          Width="16" Height="16" Foreground="#A78BFA"/>
+                                          Width="20" Height="20" Foreground="{DynamicResource AccentWebsite}"/>
                             </Border>
                             <StackPanel Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="NETWORK DRIVE" FontSize="12" FontWeight="Bold" Foreground="#A78BFA"/>
-                                <TextBlock Text="Mirror backup" FontSize="10" Foreground="{DynamicResource AppVeryMuted}"/>
+                                <TextBlock Text="NETWORK DRIVE" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                <TextBlock Text="Mirror backup" FontSize="11" Foreground="{DynamicResource AppVeryMuted}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="NdStatusDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                                <TextBlock Name="NdStatusText" Text="CHECKING..." FontSize="11" FontWeight="Bold"
+                                <TextBlock Name="NdStatusText" Text="CHECKING..." FontSize="12" FontWeight="Bold"
                                            Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -482,8 +527,8 @@
 
                         <!-- Quick Actions -->
                         <Button Name="BtnNdMirrorAll" Content="Mirror All Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
-                                BorderThickness="0" CornerRadius="6" Padding="8,4" FontSize="10" Cursor="Hand"/>
+                                Background="{DynamicResource AccentWebsite}" Foreground="#000000"
+                                BorderThickness="0" CornerRadius="10" Padding="12,8" FontSize="11" FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Folder -->
                         <Button Name="BtnOpenNetworkDrive" Content="Open Network Drive Folder" HorizontalAlignment="Stretch"

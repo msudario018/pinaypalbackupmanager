@@ -48,6 +48,7 @@ namespace PinayPalBackupManager.UI
         private bool _startupHealthPending = true;
         private bool _configRequired;
         private string _currentTag = "Home";
+        private bool _sidebarCompact = false;
         public event Action? OnLogoutRequested;
 
         // Stored delegates to unsubscribe from static ThemeService event on window close
@@ -253,6 +254,14 @@ namespace PinayPalBackupManager.UI
                     button.Click += SidebarButton_Click;
                 }
             }
+
+            // Sidebar collapse/expand toggle
+            var sidebarToggle = this.FindControl<Button>("SidebarToggle");
+            if (sidebarToggle != null)
+                sidebarToggle.Click += (_, _) => { _sidebarCompact = !_sidebarCompact; UpdateSidebarCompactMode(); };
+
+            // Apply initial sidebar layout
+            UpdateSidebarCompactMode();
 
             var btnSysInfo = this.FindControl<Button>("BtnSystemInfo");
             if (btnSysInfo != null)
@@ -959,6 +968,74 @@ namespace PinayPalBackupManager.UI
                         var icon = btn.FindDescendantOfType<PathIcon>();
                         if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#808080");
                     }
+                }
+            }
+        }
+
+        private void UpdateSidebarCompactMode()
+        {
+            var compact = _sidebarCompact;
+
+            // Sidebar width + parent grid column
+            var sidebarBorder = this.FindControl<Border>("SidebarBorder");
+            if (sidebarBorder != null) sidebarBorder.Width = compact ? 64 : 210;
+
+            if (sidebarBorder?.Parent is Grid parentGrid && parentGrid.ColumnDefinitions.Count >= 2)
+                parentGrid.ColumnDefinitions[0] = new ColumnDefinition(compact ? new GridLength(64) : new GridLength(210));
+
+            // Logo text
+            var logoText = this.FindControl<TextBlock>("LogoText");
+            if (logoText != null) logoText.IsVisible = !compact;
+
+            // Sidebar nav items (section headers + button labels + alignment)
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar != null)
+            {
+                foreach (var child in sidebar.Children)
+                {
+                    if (child is TextBlock tb)
+                        tb.IsVisible = !compact;
+                    else if (child is Button btn)
+                    {
+                        ToggleButtonTextVisibility(btn, !compact);
+                        btn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                        btn.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
+                    }
+                }
+            }
+
+            // Profile text
+            var profileText = this.FindControl<StackPanel>("ProfileTextPanel");
+            if (profileText != null) profileText.IsVisible = !compact;
+
+            // Customize button text
+            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+            if (btnCustomize != null)
+                ToggleButtonTextVisibility(btnCustomize, !compact);
+
+            // Toggle arrow direction
+            var toggleIcon = this.FindControl<PathIcon>("SidebarToggleIcon");
+            if (toggleIcon != null)
+            {
+                toggleIcon.Data = StreamGeometry.Parse(compact
+                    ? "M8.59,16.59L10,18L16,12L10,6L8.59,7.41L13.17,12L8.59,16.59Z"
+                    : "M15.41,7.41L14,6L8,12L14,18L15.41,16.59L10.83,12L15.41,7.41Z");
+            }
+
+            // Update tooltip
+            var toggleBtn = this.FindControl<Button>("SidebarToggle");
+            if (toggleBtn != null)
+                ToolTip.SetTip(toggleBtn, compact ? "Expand sidebar" : "Collapse sidebar");
+        }
+
+        private static void ToggleButtonTextVisibility(Button btn, bool visible)
+        {
+            if (btn.Content is StackPanel sp)
+            {
+                foreach (var c in sp.Children)
+                {
+                    if (c is TextBlock tb)
+                        tb.IsVisible = visible;
                 }
             }
         }

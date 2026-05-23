@@ -53,6 +53,16 @@ namespace PinayPalBackupManager.Services
             }
 
             Current = settings;
+
+            // Defensive: if JSON omitted a section, deserialization may have left it null
+            Current.Paths         ??= new PathsSettings();
+            Current.Ftp           ??= new FtpSettings();
+            Current.Sql           ??= new SqlSettings();
+            Current.Mailchimp     ??= new MailchimpSettings();
+            Current.NetworkDrive  ??= new NetworkDriveSettings();
+            Current.Schedule      ??= new ScheduleSettings();
+            Current.Operation     ??= new OperationSettings();
+            Current.HttpServer    ??= new HttpServerSettings();
         }
 
         private static void MigrateLocalConfigToAppData()

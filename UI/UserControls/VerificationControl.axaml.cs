@@ -193,9 +193,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 var results = await ChecksumService.VerifyServiceChecksumsAsync(service);
                 if (results == null || results.Count == 0)
                 {
-                    _ = Dispatcher.UIThread.InvokeAsync(() =>
+                    // Clear progress bar so stale 100% isn't shown; let UpdateServiceStatusUI set final text
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (verifiedText != null) verifiedText.Text = "No files";
+                        if (progressBar != null) progressBar.Value = 0;
                     });
                     return;
                 }
@@ -536,8 +537,13 @@ namespace PinayPalBackupManager.UI.UserControls
             var total = serviceResults.Count;
             
             verifiedText!.Text = $"{valid}/{total}";
-            
-            if (corrupted > 0 || missing > 0)
+
+            if (total == 0)
+            {
+                statusText!.Text = "— Empty";
+                statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Gray);
+            }
+            else if (corrupted > 0 || missing > 0)
             {
                 statusText!.Text = "⚠ Issues";
                 statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Red);

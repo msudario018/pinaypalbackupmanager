@@ -13,20 +13,21 @@
     <Grid ColumnDefinitions="210, *" RowDefinitions="Auto, *, 40">
         <!-- Sidebar -->
         <Border Name="SidebarBorder" Grid.Column="0" Grid.RowSpan="2" Background="{DynamicResource AppSidebar}"
-                BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,1,0">
+                BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,1,0"
+                HorizontalAlignment="Left">
             <Border.Effect>
-                <DropShadowEffect OffsetX="4" OffsetY="0" BlurRadius="30" Opacity="0.3"/>
+                <DropShadowEffect OffsetX="8" OffsetY="0" BlurRadius="40" Opacity="0.2"/>
             </Border.Effect>
             <Grid RowDefinitions="Auto, *, Auto, Auto">
 
                 <!-- Logo Area -->
-                <Border Grid.Row="0" Padding="0,22,0,18" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource AppBorder}"
+                <Border Grid.Row="0" Padding="0,24,0,20" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource AppBorder}"
                         Background="{DynamicResource AppSidebar}">
-                    <StackPanel HorizontalAlignment="Center" Spacing="8">
-                        <Image Source="/Assets/logo.ico" Width="36" Height="36" HorizontalAlignment="Center"/>
-                        <TextBlock Text="PinayPal" FontSize="11" FontWeight="Bold"
+                    <StackPanel HorizontalAlignment="Center" Spacing="10">
+                        <Image Source="/Assets/logo.ico" Width="40" Height="40" HorizontalAlignment="Center"/>
+                        <TextBlock Name="LogoText" Text="PinayPal" FontSize="12" FontWeight="Bold"
                                    Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center"
-                                   LetterSpacing="1.5"/>
+                                   LetterSpacing="2"/>
                     </StackPanel>
                 </Border>
 
@@ -132,16 +133,6 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Section: Appearance -->
-                    <TextBlock Text="APPEARANCE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"
-                               Margin="12,10,0,4" LetterSpacing="1.5"/>
-                    <Button Name="BtnThemeToggle" Classes="SideBtn" ToolTip.Tip="Toggle Dark/Light Theme" Padding="12,0">
-                        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                            <PathIcon Name="ThemeIcon" Data="M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z"
-                                      Width="18" Height="18" Foreground="{DynamicResource SidebarIconMuted}"/>
-                            <TextBlock Text="Toggle Theme" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
                 </StackPanel>
                 </ScrollViewer>
 
@@ -170,28 +161,42 @@
                                     </Image.Clip>
                                 </Image>
                             </Grid>
-                            <StackPanel VerticalAlignment="Center" Spacing="1">
+                            <StackPanel Name="ProfileTextPanel" VerticalAlignment="Center" Spacing="1">
                                 <TextBlock Text="Profile" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AppText}"/>
                                 <TextBlock Text="Account Settings" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
                             </StackPanel>
                         </StackPanel>
                     </Button>
                 </Border>
+
+                <!-- Sidebar Collapse/Expand Toggle -->
+                <Button Name="SidebarToggle" Grid.Row="0" Grid.RowSpan="4"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Width="22" Height="44" Margin="0,0,-11,0"
+                        Background="{DynamicResource AppSurface}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                        CornerRadius="0,10,10,0"
+                        ZIndex="10" Cursor="Hand" ToolTip.Tip="Collapse sidebar">
+                    <PathIcon Name="SidebarToggleIcon"
+                              Data="M15.41,7.41L14,6L8,12L14,18L15.41,16.59L10.83,12L15.41,7.41Z"
+                              Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
+                </Button>
             </Grid>
         </Border>
 
         <!-- Top Bar -->
-        <Border Name="TopBarBorder" Grid.Row="0" Grid.Column="1" Height="62"
+        <Border Name="TopBarBorder" Grid.Row="0" Grid.Column="1" Height="64"
                 Background="{DynamicResource AppTopBar}"
                 BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1">
             <Border.Effect>
-                <DropShadowEffect OffsetX="0" OffsetY="3" BlurRadius="20" Opacity="0.15"/>
+                <DropShadowEffect OffsetX="0" OffsetY="4" BlurRadius="24" Opacity="0.15"/>
             </Border.Effect>
             <Grid ColumnDefinitions="Auto, *, Auto" Margin="20,0,20,0">
 
                 <!-- US Time Badge -->
                 <Border Grid.Column="0" Background="{DynamicResource AppSurface}"
-                        CornerRadius="10" Padding="14,8" VerticalAlignment="Center">
+                        CornerRadius="12" Padding="14,8" VerticalAlignment="Center"
+                        BoxShadow="0 1 4 #00000010">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <PathIcon Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"
                                   Width="11" Height="11" Foreground="{DynamicResource AppMuted}"/>
@@ -206,8 +211,9 @@
                 <Border Grid.Column="1"
                         Background="{DynamicResource AppBtnGreen}"
                         BorderBrush="{DynamicResource AccentFtpGlow}" BorderThickness="1"
-                        CornerRadius="10" Padding="14,8" Margin="12,0"
-                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                        CornerRadius="12" Padding="14,8" Margin="12,0"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        BoxShadow="0 1 6 #34D39920">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentFtp}"/>
                         <StackPanel VerticalAlignment="Center" Spacing="1">
@@ -223,7 +229,7 @@
                     <Grid>
                         <Button Name="BtnNotificationCenter" Background="{DynamicResource AppSurface}"
                                 BorderThickness="0" ToolTip.Tip="Notifications" Cursor="Hand"
-                                CornerRadius="10" Padding="10,9">
+                                CornerRadius="12" Padding="10,9">
                             <PathIcon Data="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29V4A2,2 0 0,1 12,2A2,2 0 0,1 14,4V4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21"
                                       Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
                         </Button>
@@ -235,10 +241,19 @@
                         </Border>
                     </Grid>
 
+                    <!-- Theme Toggle -->
+                    <Button Name="BtnThemeToggle" Background="{DynamicResource AppSurface}"
+                            BorderThickness="0" ToolTip.Tip="Toggle Dark/Light Theme" Cursor="Hand"
+                            CornerRadius="12" Padding="10,9">
+                        <PathIcon Name="ThemeIcon" Data="M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z"
+                                  Width="14" Height="14" Foreground="{DynamicResource AppSubtext}"/>
+                    </Button>
+
                     <!-- Connection Status -->
                     <Border Name="ConnectionStatus" Background="{DynamicResource AppSurface}"
-                            BorderThickness="0" CornerRadius="10" Padding="12,9"
-                            ToolTip.Tip="Firebase Connection Status">
+                            BorderThickness="0" CornerRadius="12" Padding="12,9"
+                            ToolTip.Tip="Firebase Connection Status"
+                            BoxShadow="0 1 3 #0000000A">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <Ellipse Name="ConnectionDot" Width="7" Height="7" Fill="{DynamicResource AccentFtp}" VerticalAlignment="Center"/>
                             <TextBlock Name="ConnectionText" Text="Online" FontSize="11" FontWeight="SemiBold"
@@ -247,7 +262,8 @@
                     </Border>
 
                     <!-- Version -->
-                    <Border Background="{DynamicResource AppSurface}" BorderThickness="0" CornerRadius="10" Padding="12,9">
+                    <Border Background="{DynamicResource AppSurface}" BorderThickness="0" CornerRadius="12" Padding="12,9"
+                            BoxShadow="0 1 3 #0000000A">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Name="BtnSystemInfo" Background="Transparent" BorderThickness="0"
                                     VerticalAlignment="Center" Cursor="Hand" Padding="0">
@@ -256,7 +272,7 @@
                             </Button>
                             <StackPanel VerticalAlignment="Center" Spacing="1">
                                 <TextBlock Text="VERSION" Foreground="{DynamicResource AppMuted}" FontSize="8" FontWeight="Bold" LetterSpacing="0.5"/>
-                                <TextBlock Name="TxtVersionBadge" Text="v2.15.0" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                <TextBlock Name="TxtVersionBadge" Text="v2.19.0" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

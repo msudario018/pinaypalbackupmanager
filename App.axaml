@@ -288,14 +288,14 @@
             <Setter Property="Background" Value="{DynamicResource AccentWebsiteLight}"/>
         </Style>
 
-        <!-- ProgressBar smooth value transition and style - Optimized -->
+        <!-- Modern ProgressBar with glow -->
         <Style Selector="ProgressBar">
-            <Setter Property="Height" Value="10"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Background" Value="{DynamicResource AppBorder}"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Value" Duration="0:0:0.15"/>
+                    <DoubleTransition Property="Value" Duration="0:0:0.25"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -419,163 +419,163 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <!-- Neo-Dark Midnight Theme -->
-                    <SolidColorBrush x:Key="AppBg">#06090F</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppSidebar">#090D18</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppTopBar">#090D18</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppCard">#0E1525</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppSurface">#162033</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppText">#E4EBF8</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppSubtext">#8A99B8</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppMuted">#576080</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppVeryMuted">#374060</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBorder">#1A2540</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBorder2">#0E1525</SolidColorBrush>
+                    <!-- Modern Dark Theme — Deep Space -->
+                    <SolidColorBrush x:Key="AppBg">#02040A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSidebar">#0A0F1C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTopBar">#0C1322</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCard">#111827</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSurface">#1A2332</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppText">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSubtext">#94A3B8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMuted">#64748B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppVeryMuted">#475569</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#1E293B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder2">#0F172A</SolidColorBrush>
 
                     <!-- Transparency & Glass Layers -->
-                    <SolidColorBrush x:Key="AppGlass">#FFFFFF0D</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppGlassHover">#FFFFFF18</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppShadow">#00000060</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppOverlay">#06090F90</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppTimerAutoScan">#0A1F14</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppTimerDaily">#0C1228</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppManilaTime">#00D68C</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppLogText">#C8D6EE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppWarning">#F0B429</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBtnGreen">#071C12</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBtnBlue">#071222</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBtnRed">#200A0A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppGlass">#FFFFFF08</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppGlassHover">#FFFFFF12</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppShadow">#00000080</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppOverlay">#02040ACC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerAutoScan">#052E16</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerDaily">#0C1A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppManilaTime">#34D399</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppLogText">#CBD5E1</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#FBBF24</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnGreen">#064E3B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnBlue">#0C1A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBtnRed">#450A0A</SolidColorBrush>
 
-                    <!-- FTP / Website Backup — Teal-Green -->
-                    <SolidColorBrush x:Key="AccentFtp">#00D68C</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpLight">#33FFBE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpDark">#00A86E</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpBg">#071C12</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpMuted">#00B878</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpSurface">#00D68C</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpGlow">#00D68C35</SolidColorBrush>
+                    <!-- FTP — Modern Emerald -->
+                    <SolidColorBrush x:Key="AccentFtp">#34D399</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpLight">#6EE7B7</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpDark">#059669</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpBg">#064E3B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpMuted">#10B981</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpSurface">#34D399</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpGlow">#34D39940</SolidColorBrush>
 
-                    <!-- Mailchimp — Electric Blue -->
-                    <SolidColorBrush x:Key="AccentMailchimp">#3D9CFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpLight">#7ABFFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpDark">#1A7AE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpBg">#061428</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpMuted">#5BADFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpSurface">#3D9CFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpGlow">#3D9CFF35</SolidColorBrush>
+                    <!-- Mailchimp — Modern Sky Blue -->
+                    <SolidColorBrush x:Key="AccentMailchimp">#60A5FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpLight">#93C5FD</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpDark">#2563EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpBg">#0C1A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpMuted">#3B82F6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpSurface">#60A5FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpGlow">#60A5FA40</SolidColorBrush>
 
-                    <!-- SQL — Warm Gold -->
-                    <SolidColorBrush x:Key="AccentSql">#F0B429</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlLight">#FFCD5E</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlDark">#C48E10</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlBg">#1E1500</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlMuted">#D4A030</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlSurface">#F0B429</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlGlow">#F0B42935</SolidColorBrush>
+                    <!-- SQL — Modern Amber -->
+                    <SolidColorBrush x:Key="AccentSql">#FBBF24</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlLight">#FCD34D</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlDark">#D97706</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlBg">#451A03</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlMuted">#F59E0B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlSurface">#FBBF24</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlGlow">#FBBF2440</SolidColorBrush>
 
-                    <!-- Settings / General — Indigo-Purple -->
-                    <SolidColorBrush x:Key="AccentWebsite">#9D7FFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteLight">#C5ADFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteDark">#7A5CE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteBg">#120D2A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteMuted">#B599FF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteSurface">#7A5CE0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteGlow">#9D7FFF35</SolidColorBrush>
+                    <!-- Settings / General — Modern Violet -->
+                    <SolidColorBrush x:Key="AccentWebsite">#A78BFA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteLight">#C4B5FD</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteDark">#7C3AED</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteBg">#2E1065</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteMuted">#8B5CF6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteSurface">#A78BFA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteGlow">#A78BFA40</SolidColorBrush>
 
-                    <!-- Error — Vivid Red -->
-                    <SolidColorBrush x:Key="AccentError">#FF5252</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorLight">#FF8A80</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorDark">#D63232</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorBg">#200A0A</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorMuted">#FF7070</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorSurface">#D63232</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorGlow">#FF525235</SolidColorBrush>
+                    <!-- Error — Modern Rose -->
+                    <SolidColorBrush x:Key="AccentError">#FB7185</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorLight">#FDA4AF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorDark">#E11D48</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorBg">#4C0519</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorMuted">#F43F5E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorSurface">#FB7185</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorGlow">#FB718540</SolidColorBrush>
 
                     <!-- Success / Info / Warning aliases -->
-                    <SolidColorBrush x:Key="AccentSuccess">#00D68C</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentInfo">#3D9CFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentInfoLight">#7ABFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSuccess">#34D399</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentInfo">#60A5FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentInfoLight">#93C5FD</SolidColorBrush>
 
                     <!-- Sidebar -->
-                    <SolidColorBrush x:Key="SidebarIconMuted">#576080</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarIconActive">#E4EBF8</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarSelectedBg">#121E35</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarDivider">#1A2540</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarGlow">#3D9CFF20</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarHover">#FFFFFF0C</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarIconMuted">#64748B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarIconActive">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarSelectedBg">#1E293B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarDivider">#1E293B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarGlow">#60A5FA20</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarHover">#FFFFFF0A</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <!-- Clean Light Theme -->
-                    <SolidColorBrush x:Key="AppBg">#F4F6FC</SolidColorBrush>
+                    <!-- Modern Light Theme — Clean Slate -->
+                    <SolidColorBrush x:Key="AppBg">#F8FAFC</SolidColorBrush>
                     <SolidColorBrush x:Key="AppSidebar">#FFFFFF</SolidColorBrush>
                     <SolidColorBrush x:Key="AppTopBar">#FFFFFF</SolidColorBrush>
                     <SolidColorBrush x:Key="AppCard">#FFFFFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppSurface">#EEF1FA</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppText">#111827</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppSubtext">#4B5568</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppMuted">#9CA3AF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppVeryMuted">#6B7280</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBorder">#DEE5F0</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppBorder2">#EEF1FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSurface">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppText">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppSubtext">#475569</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMuted">#94A3B8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppVeryMuted">#CBD5E1</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#E2E8F0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder2">#F1F5F9</SolidColorBrush>
 
                     <!-- Light Glass Layers -->
                     <SolidColorBrush x:Key="AppGlass">#00000005</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppGlassHover">#0000000D</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppShadow">#00000018</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppOverlay">#F4F6FCCC</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppTimerAutoScan">#EDFAF4</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppTimerDaily">#EFF1FF</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppManilaTime">#007A50</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppLogText">#111827</SolidColorBrush>
-                    <SolidColorBrush x:Key="AppWarning">#B45309</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppGlassHover">#0000000A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppShadow">#00000020</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppOverlay">#F8FAFCDD</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerAutoScan">#ECFDF5</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTimerDaily">#EFF6FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppManilaTime">#059669</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppLogText">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#92400E</SolidColorBrush>
                     <SolidColorBrush x:Key="AppBtnGreen">#D1FAE5</SolidColorBrush>
                     <SolidColorBrush x:Key="AppBtnBlue">#DBEAFE</SolidColorBrush>
                     <SolidColorBrush x:Key="AppBtnRed">#FEE2E2</SolidColorBrush>
 
-                    <!-- FTP — Green -->
+                    <!-- FTP — Modern Emerald -->
                     <SolidColorBrush x:Key="AccentFtp">#059669</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFtpLight">#10B981</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFtpDark">#047857</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFtpBg">#D1FAE5</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpMuted">#10B981</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpMuted">#34D399</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFtpSurface">#059669</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentFtpGlow">#05966930</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFtpGlow">#05966925</SolidColorBrush>
 
-                    <!-- Mailchimp — Blue -->
+                    <!-- Mailchimp — Modern Sky Blue -->
                     <SolidColorBrush x:Key="AccentMailchimp">#2563EB</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentMailchimpLight">#3B82F6</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentMailchimpDark">#1D4ED8</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentMailchimpBg">#DBEAFE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpMuted">#3B82F6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpMuted">#60A5FA</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentMailchimpSurface">#2563EB</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentMailchimpGlow">#2563EB30</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentMailchimpGlow">#2563EB25</SolidColorBrush>
 
-                    <!-- SQL — Amber -->
+                    <!-- SQL — Modern Amber -->
                     <SolidColorBrush x:Key="AccentSql">#D97706</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSqlLight">#F59E0B</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSqlDark">#B45309</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSqlBg">#FEF3C7</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlMuted">#F59E0B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlMuted">#FBBF24</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSqlSurface">#D97706</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentSqlGlow">#D9770630</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSqlGlow">#D9770625</SolidColorBrush>
 
-                    <!-- Website — Purple -->
+                    <!-- Website — Modern Violet -->
                     <SolidColorBrush x:Key="AccentWebsite">#7C3AED</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteLight">#8B5CF6</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteDark">#6D28D9</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteBg">#EDE9FE</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteMuted">#8B5CF6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteMuted">#A78BFA</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentWebsiteSurface">#7C3AED</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentWebsiteGlow">#7C3AED30</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentWebsiteGlow">#7C3AED25</SolidColorBrush>
 
-                    <!-- Error — Red -->
-                    <SolidColorBrush x:Key="AccentError">#DC2626</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorLight">#EF4444</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorDark">#B91C1C</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorBg">#FEE2E2</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorMuted">#EF4444</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorSurface">#DC2626</SolidColorBrush>
-                    <SolidColorBrush x:Key="AccentErrorGlow">#DC262630</SolidColorBrush>
+                    <!-- Error — Modern Rose -->
+                    <SolidColorBrush x:Key="AccentError">#E11D48</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorLight">#FB7185</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorDark">#BE123C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorBg">#FFE4E6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorMuted">#F43F5E</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorSurface">#E11D48</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentErrorGlow">#E11D4825</SolidColorBrush>
 
                     <!-- Success / Info / Warning aliases -->
                     <SolidColorBrush x:Key="AccentSuccess">#059669</SolidColorBrush>
@@ -583,23 +583,23 @@
                     <SolidColorBrush x:Key="AccentInfoLight">#3B82F6</SolidColorBrush>
 
                     <!-- Sidebar -->
-                    <SolidColorBrush x:Key="SidebarIconMuted">#9CA3AF</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarIconActive">#111827</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarSelectedBg">#EEF1FA</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarDivider">#DEE5F0</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarGlow">#2563EB15</SolidColorBrush>
-                    <SolidColorBrush x:Key="SidebarHover">#00000007</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarIconMuted">#94A3B8</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarIconActive">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarSelectedBg">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarDivider">#E2E8F0</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarGlow">#2563EB12</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarHover">#00000005</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-            <Color x:Key="ColorBg">#000000</Color>
-            <Color x:Key="ColorSurface">#14213D</Color>
-            <Color x:Key="ColorSurface2">#1A1F36</Color>
-            <Color x:Key="ColorBorder">#2D3748</Color>
-            <Color x:Key="ColorText">#FFFFFF</Color>
-            <Color x:Key="ColorMuted">#E5E5E5</Color>
-            <Color x:Key="ColorAccentFtp">#6b8e6b</Color>
-            <Color x:Key="ColorAccentMailchimp">#48a9c9</Color>
-            <Color x:Key="ColorAccentSql">#e6c55c</Color>
+            <Color x:Key="ColorBg">#02040A</Color>
+            <Color x:Key="ColorSurface">#1A2332</Color>
+            <Color x:Key="ColorSurface2">#111827</Color>
+            <Color x:Key="ColorBorder">#1E293B</Color>
+            <Color x:Key="ColorText">#F1F5F9</Color>
+            <Color x:Key="ColorMuted">#94A3B8</Color>
+            <Color x:Key="ColorAccentFtp">#34D399</Color>
+            <Color x:Key="ColorAccentMailchimp">#60A5FA</Color>
+            <Color x:Key="ColorAccentSql">#FBBF24</Color>
             <Color x:Key="ColorAccentWebsite">#A78BFA</Color>
             <cv:BoolToStatusTextConverter x:Key="BoolToStatusText" />
             <cv:BoolToStatusBrushConverter x:Key="BoolToStatusBrush" />
