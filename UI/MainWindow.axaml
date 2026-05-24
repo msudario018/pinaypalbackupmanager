@@ -25,7 +25,7 @@
                         Background="{DynamicResource AppSidebar}">
                     <StackPanel HorizontalAlignment="Center" Spacing="10">
                         <Image Source="/Assets/logo.ico" Width="40" Height="40" HorizontalAlignment="Center"/>
-                        <TextBlock Name="LogoText" Text="PinayPal" FontSize="12" FontWeight="Bold"
+                        <TextBlock Name="LogoText" Text="PinayPal Backup Manager" FontSize="12" FontWeight="Bold"
                                    Foreground="{DynamicResource AccentWebsite}" HorizontalAlignment="Center"
                                    LetterSpacing="2"/>
                     </StackPanel>
@@ -354,7 +354,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
                                     <Image Source="/Assets/logo.ico" Width="36" Height="36" VerticalAlignment="Center"/>
                                     <StackPanel VerticalAlignment="Center" Spacing="3">
-                                        <TextBlock Text="PinayPal Backup Manager" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                        <TextBlock Text="PinayPal Backup Manager" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
                                         <TextBlock Text="Initializing services..." FontSize="11" Foreground="{DynamicResource AppSubtext}"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -387,28 +387,29 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.22" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover">
             <Setter Property="Background" Value="{DynamicResource SidebarHover}"/>
-            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+            <Setter Property="RenderTransform" Value="scale(1.04) translateY(-1px)"/>
         </Style>
         <Style Selector="Button.SideBtn.Selected">
             <Setter Property="Background" Value="{DynamicResource SidebarSelectedBg}"/>
         </Style>
         <Style Selector="Button.SideBtn:pressed">
             <Setter Property="Background" Value="{DynamicResource AppCard}"/>
-            <Setter Property="RenderTransform" Value="scale(0.93)"/>
+            <Setter Property="RenderTransform" Value="scale(0.96)"/>
         </Style>
 
         <!-- Sidebar Button Icons -->
         <Style Selector="Button.SideBtn PathIcon">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.18"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.22" Easing="SineEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>

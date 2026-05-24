@@ -27,6 +27,16 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnExport.Click += (s, e) => ExportReport();
             }
+
+            var btnClose = this.FindControl<Button>("BtnClose");
+            if (btnClose != null)
+            {
+                btnClose.Click += (s, e) =>
+                {
+                    var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                    parentWindow?.Close();
+                };
+            }
         }
 
         private async Task RunHealthCheckAsync()

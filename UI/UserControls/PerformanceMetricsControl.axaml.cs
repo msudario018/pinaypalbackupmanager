@@ -31,6 +31,16 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnClear.Click += (s, e) => ClearOldMetrics();
             }
 
+            var btnClose = this.FindControl<Button>("BtnClose");
+            if (btnClose != null)
+            {
+                btnClose.Click += (s, e) =>
+                {
+                    var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                    parentWindow?.Close();
+                };
+            }
+
             // Load initial data
             _ = RefreshMetricsAsync();
         }

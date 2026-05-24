@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [2.20.0] - 2026-05-25
+
+### Added
+- **Custom Close Buttons**: Modern close button (X) added to all management tool dialogs
+  - Health Check, Error Reports, Performance Metrics, Backup History, Backup Schedules
+  - Each dialog now uses `SystemDecorations=None` with a custom styled close button in the header
+  - Close buttons use theme-aware colors with hover effects
+
+### Changed
+- **UI Animations**: Smoother transitions across the entire application
+  - Increased animation durations for buttons, borders, text, and cards
+  - Added `CubicEaseOut` and `SineEaseOut` easing to all transitions for more fluid motion
+  - Sidebar buttons: stronger hover scale (`1.05`), gentler press (`0.96`)
+  - Dashboard cards: lift on hover with `translateY(-3px)` and deeper shadows
+- **Toast Notifications**: Moved from top-right to bottom-right corner for less intrusive positioning
+
+### Fixed
+- **Network Drive Progress Bar**: Mirror progress bar section now stays visible when idle (matching global backup progress behavior)
+- **Sidebar Branding**: Updated sidebar logo text from "PinayPal" to "PinayPal Backup Manager"
+
 ## [2.19.0] - 2026-05-24
 
 ### Added

@@ -125,9 +125,9 @@
         <Style Selector="Button">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.18" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -136,37 +136,38 @@
         <Style Selector="Button.SideBtn">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="SineEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.SideBtn:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.08) translateY(-1px)"/>
+            <Setter Property="RenderTransform" Value="scale(1.05) translateY(-1px)"/>
         </Style>
         <Style Selector="Button.SideBtn:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+            <Setter Property="RenderTransform" Value="scale(0.96)"/>
         </Style>
         <Style Selector="Button.SideBtn.Selected">
             <Setter Property="RenderTransform" Value="scale(1.0)"/>
         </Style>
 
-        <!-- Border Animations - Optimized for faster theme switching -->
+        <!-- Border Animations - Smooth transitions -->
         <Style Selector="Border">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.08"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- TextBlock Animations - Optimized -->
+        <!-- TextBlock Animations - Smooth -->
         <Style Selector="TextBlock">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.08"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.18" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -195,22 +196,22 @@
             <Setter Property="FontSize" Value="{DynamicResource AppFontSize}"/>
         </Style>
 
-        <!-- ListBox Item Animations - Optimized -->
+        <!-- ListBox Item Animations - Smooth -->
         <Style Selector="ListBoxItem">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.08"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
 
-        <!-- DataGridRow Animations - Optimized -->
+        <!-- DataGridRow Animations - Smooth -->
         <Style Selector="DataGridRow">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.08"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.08"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>

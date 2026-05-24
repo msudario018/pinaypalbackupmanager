@@ -24,9 +24,10 @@
             <Setter Property="BoxShadow" Value="0 2 8 #00000018, 0 4 16 #0000000C"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -34,7 +35,7 @@
             <Setter Property="Background" Value="{DynamicResource AppSurface}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorder2}"/>
             <Setter Property="BoxShadow" Value="0 4 16 #00000025, 0 8 32 #00000010"/>
-            <Setter Property="RenderTransform" Value="translateY(-2px)"/>
+            <Setter Property="RenderTransform" Value="translateY(-3px)"/>
         </Style>
         <Style Selector="TextBlock.service-title">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -49,16 +50,17 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.service-action:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.03) translateY(-1px)"/>
+            <Setter Property="RenderTransform" Value="scale(1.05) translateY(-2px)"/>
         </Style>
         <Style Selector="Button.service-action:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+            <Setter Property="RenderTransform" Value="scale(0.96)"/>
         </Style>
     </UserControl.Styles>
     <Border Background="Transparent" CornerRadius="12" Padding="0">

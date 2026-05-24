@@ -38,6 +38,16 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnSave.Click += (s, e) => SaveSchedule();
             }
 
+            var btnClose = this.FindControl<Button>("BtnClose");
+            if (btnClose != null)
+            {
+                btnClose.Click += (s, e) =>
+                {
+                    var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                    parentWindow?.Close();
+                };
+            }
+
             var cmbType = this.FindControl<ComboBox>("CmbType");
             if (cmbType != null)
             {

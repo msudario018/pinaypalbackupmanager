@@ -464,7 +464,6 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (_lastMirrorProgressUpdate != checkedMirrorTime) return;
                     var idleColor = Brush.Parse("#6C7086");
 
-                    if (_cachedMirrorProgressSection != null) _cachedMirrorProgressSection.IsVisible = false;
                     if (_cachedMirrorProgressBar != null)  { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
                     if (_cachedMirrorProgressText != null)   _cachedMirrorProgressText.Text = "No active mirroring";
                     if (_cachedMirrorProgressPercent != null)    { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }
@@ -2939,7 +2938,6 @@ namespace PinayPalBackupManager.UI.UserControls
             if (_cachedGbpServiceDot != null)         _cachedGbpServiceDot.Fill = idleColor;
             if (_cachedGbpServiceName != null)        { _cachedGbpServiceName.Text = "Idle"; _cachedGbpServiceName.Foreground = idleColor; }
 
-            if (_cachedMirrorProgressSection != null) _cachedMirrorProgressSection.IsVisible = false;
             if (_cachedMirrorProgressBar != null)     { _cachedMirrorProgressBar.Value = 0; _cachedMirrorProgressBar.Foreground = idleColor; }
             if (_cachedMirrorProgressText != null)    _cachedMirrorProgressText.Text = "No active mirroring";
             if (_cachedMirrorProgressPercent != null) { _cachedMirrorProgressPercent.Text = "0%"; _cachedMirrorProgressPercent.Foreground = idleColor; }

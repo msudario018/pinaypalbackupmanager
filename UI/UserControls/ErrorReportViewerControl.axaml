@@ -16,6 +16,9 @@
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
                     <Button Name="BtnClearAll" Content="Clear All" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppSubtext}"
                             BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand"/>
+                    <Button Name="BtnClose" Content="&#x2715;" Background="Transparent" Foreground="{DynamicResource AppMuted}"
+                            BorderThickness="0" CornerRadius="16" Width="32" Height="32" FontSize="14" FontWeight="Bold"
+                            VerticalAlignment="Center" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
 

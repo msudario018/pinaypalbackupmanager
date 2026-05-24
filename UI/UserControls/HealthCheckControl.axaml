@@ -9,8 +9,13 @@
                     <TextBlock Text="SYSTEM HEALTH CHECK" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                     <TextBlock Text="Monitor system health and component status" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
                 </StackPanel>
-                <Button Name="BtnRunCheck" Grid.Column="1" Content="Run Check" Classes="Primary"
-                        BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Name="BtnRunCheck" Content="Run Check" Classes="Primary"
+                            BorderThickness="0" CornerRadius="8" Padding="16,8" FontSize="12" Cursor="Hand" VerticalAlignment="Center"/>
+                    <Button Name="BtnClose" Content="&#x2715;" Background="Transparent" Foreground="{DynamicResource AppMuted}"
+                            BorderThickness="0" CornerRadius="16" Width="32" Height="32" FontSize="14" FontWeight="Bold"
+                            VerticalAlignment="Center" Cursor="Hand"/>
+                </StackPanel>
             </Grid>
 
             <!-- Content -->

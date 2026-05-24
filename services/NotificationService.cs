@@ -122,10 +122,10 @@ namespace PinayPalBackupManager.Services
                     var mainGrid = mainWindow.Content as Grid;
                     if (mainGrid != null)
                     {
-                        // Position toast in top-right corner using absolute positioning
-                        container.Margin = new Thickness(0, 80, 20, 0);
+                        // Position toast in bottom-right corner — standard, less intrusive placement
+                        container.Margin = new Thickness(0, 0, 20, 20);
                         container.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
-                        container.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+                        container.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
                         
                         // Set toast to span all rows and be in the main content column
                         Grid.SetRow(container, 0); // Top row

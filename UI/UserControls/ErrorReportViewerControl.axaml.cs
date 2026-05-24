@@ -38,6 +38,16 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnApplyFilter.Click += async (s, e) => await LoadErrorReportsAsync();
             }
 
+            var btnClose = this.FindControl<Button>("BtnClose");
+            if (btnClose != null)
+            {
+                btnClose.Click += (s, e) =>
+                {
+                    var parentWindow = TopLevel.GetTopLevel(this) as Window;
+                    parentWindow?.Close();
+                };
+            }
+
             var cmbFilterType = this.FindControl<ComboBox>("CmbFilterType");
             if (cmbFilterType != null)
             {
