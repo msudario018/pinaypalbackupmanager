@@ -3,13 +3,13 @@
 ## v3.0.0 (2026-05-27)
 
 ### Major Release
-- **Dialog System Overhaul**: Complete redesign of all popup dialogs
-  - Fixed dialog z-order behavior across entire application
-  - Removed title bars from all dialogs for modern UI
-  - Dialogs now properly minimize/restore with main window
-  - No longer stay on top of other applications when main window loses focus
+- **Dialog System Overhaul**: Complete rewrite of dialog behavior across the entire application
+  - All dialogs now properly minimize with main window
+  - Dialogs no longer stay on top of other applications
+  - Modern title-bar-less design for all dialogs
+  - Proper z-order management with parent window activation
 
-### Major Fixes
+### All Changes from v2.3.0
 - **Verification Freezing**: Fixed "Verify All" button freezing the PC app
   - Added `Task.Yield()` to prevent UI thread blocking
   - Wrapped verifications in `Task.Run()` for thread pool execution
@@ -24,18 +24,13 @@
 - **Modern Dialog Styling**: Removed title bars from all dialogs for cleaner look
   - Added `SystemDecorations = SystemDecorations.None`
   - Added `ExtendClientAreaToDecorationsHint = true`
-- **Fixed All Dialogs**: 
+- **Fixed Missing Dialogs**: 
   - System Info dialog
   - Change Password dialog
   - Change Username dialog
   - Login History dialog
   - Two Factor Auth dialog
   - Logout Confirmation dialog
-  - User Management dialog
-  - Invite Codes dialog
-  - Settings dialogs (8 dialogs)
-  - Profile dialogs (7 dialogs)
-  - MainWindow dialogs (4 dialogs)
 
 ### Performance & Stability
 - **Fixed Synchronous I/O**: Changed `Write()` to `WriteAsync()` in `FileDownloadService`
