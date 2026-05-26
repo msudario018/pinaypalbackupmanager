@@ -176,20 +176,20 @@
                     <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Bottom">
                         <TextBlock Text="Time Since Last Backup" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppMuted}" LetterSpacing="0.5" Margin="0,0,0,4"/>
-                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="Auto, 90, *" HorizontalAlignment="Stretch">
                             <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="FTP" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceFtp" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceFtp" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto, 75, *, Auto" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="Auto, 90, *" HorizontalAlignment="Stretch">
                             <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="Mailchimp" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceMc" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceMc" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto, 65, *, Auto" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="Auto, 90, *" HorizontalAlignment="Stretch">
                             <Ellipse Grid.Column="0" Width="7" Height="7" Fill="{DynamicResource AppText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="SQL" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Name="TimeSinceSql" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                            <TextBlock Grid.Column="2" Name="TimeSinceSql" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                         </Grid>
 
                         <!-- Backup Summary (uses empty space) -->
@@ -207,9 +207,10 @@
                             <TextBlock Text="Overall Health" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Name="TimeSinceHealth" Text="--" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentSuccess}" VerticalAlignment="Center"/>
                         </Grid>
+
                     </StackPanel>
-                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0" VerticalAlignment="Center">
-                        <StackPanel Spacing="10" VerticalAlignment="Center">
+                    <Border Grid.Column="1" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="12,0,0,0" VerticalAlignment="Stretch">
+                        <StackPanel Spacing="14" VerticalAlignment="Center" HorizontalAlignment="Stretch">
                             <!-- Header row: label + active service indicator -->
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="GLOBAL BACKUP PROGRESS" FontSize="9" FontWeight="Bold"
@@ -221,8 +222,8 @@
                             </Grid>
 
                             <!-- Main progress bar -->
-                            <ProgressBar Name="GlobalBackupProgress" Value="0" Maximum="100" Height="7" CornerRadius="4"
-                                         Foreground="{DynamicResource AppText}" Background="{DynamicResource AppBorder}"/>
+                            <ProgressBar Name="GlobalBackupProgress" Value="0" Maximum="100" Height="10" CornerRadius="5"
+                                         Foreground="{DynamicResource AppText}" Background="{DynamicResource AppBorder}" HorizontalAlignment="Stretch"/>
 
                             <!-- Status + percent row -->
                             <Grid ColumnDefinitions="*, Auto">
@@ -249,11 +250,11 @@
                                 </Grid>
 
                                 <!-- Second progress bar (network drive mirror) -->
-                                <ProgressBar Name="MirrorProgressBar" Value="0" Maximum="100" Height="7" CornerRadius="4"
-                                             Foreground="#A78BFA" Background="{DynamicResource AppBorder}" Margin="15,0,0,0"/>
+                                <ProgressBar Name="MirrorProgressBar" Value="0" Maximum="100" Height="10" CornerRadius="5"
+                                             Foreground="#A78BFA" Background="{DynamicResource AppBorder}" HorizontalAlignment="Stretch"/>
 
                                 <!-- Status + percent row -->
-                                <Grid ColumnDefinitions="*, Auto" Margin="15,0,0,0">
+                                <Grid ColumnDefinitions="*, Auto">
                                     <TextBlock Grid.Column="0" Name="MirrorProgressText" Text="Idle"
                                                FontSize="9" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis"/>
                                     <TextBlock Grid.Column="1" Name="MirrorProgressPercent" Text="0%"
@@ -262,7 +263,7 @@
 
                                 <!-- Status detail line below the progress bar -->
                                 <TextBlock Name="MirrorStatusDetail" Text=""
-                                           FontSize="9" Foreground="{DynamicResource AppMuted}" TextTrimming="CharacterEllipsis" Margin="15,0,0,0"/>
+                                           FontSize="9" Foreground="{DynamicResource AppMuted}" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -279,29 +280,38 @@
                     </Grid>
                     
                     <Grid Name="ScheduleOverviewGrid" ColumnDefinitions="*, *, *">
-                        <StackPanel Grid.Column="0" Spacing="4">
+                        <StackPanel Grid.Column="0" Spacing="6">
                             <TextBlock Text="FTP" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentFtp}"/>
                             <Grid ColumnDefinitions="Auto, *">
                                 <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AccentFtp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBlock Grid.Column="1" Name="FtpScheduleTime" Text="--" FontSize="9" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <TextBlock Name="FtpScheduleStatus" Text="Scheduled" FontSize="8" Foreground="{DynamicResource AppVeryMuted}"/>
+                            <Border Height="1" Background="{DynamicResource AppBorder}" Margin="0,4"/>
+                            <TextBlock Text="Auto-Scan" FontSize="8" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Name="FtpAutoScanTimer" Text="--:--:--" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4">
+                        <StackPanel Grid.Column="1" Spacing="6">
                             <TextBlock Text="Mailchimp" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentMailchimp}"/>
                             <Grid ColumnDefinitions="Auto, *">
                                 <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AccentMailchimp}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBlock Grid.Column="1" Name="McScheduleTime" Text="--" FontSize="9" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <TextBlock Name="McScheduleStatus" Text="Scheduled" FontSize="8" Foreground="{DynamicResource AppVeryMuted}"/>
+                            <Border Height="1" Background="{DynamicResource AppBorder}" Margin="0,4"/>
+                            <TextBlock Text="Auto-Scan" FontSize="8" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Name="McAutoScanTimer" Text="--:--:--" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="4">
+                        <StackPanel Grid.Column="2" Spacing="6">
                             <TextBlock Text="SQL" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentSql}"/>
                             <Grid ColumnDefinitions="Auto, *">
                                 <Ellipse Grid.Column="0" Width="6" Height="6" Fill="{DynamicResource AccentSql}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBlock Grid.Column="1" Name="SqlScheduleTime" Text="--" FontSize="9" Foreground="{DynamicResource AppSubtext}"/>
                             </Grid>
                             <TextBlock Name="SqlScheduleStatus" Text="Scheduled" FontSize="8" Foreground="{DynamicResource AppVeryMuted}"/>
+                            <Border Height="1" Background="{DynamicResource AppBorder}" Margin="0,4"/>
+                            <TextBlock Text="Auto-Scan" FontSize="8" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Name="SqlAutoScanTimer" Text="--:--:--" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
                         </StackPanel>
                     </Grid>
                     
@@ -333,7 +343,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                        <Border Name="FtpStatusContainer" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="FtpStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                 <TextBlock Name="FtpStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
@@ -364,8 +374,8 @@
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnFtpMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
-                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsite}" Foreground="#000000"
+                                BorderThickness="0" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
@@ -391,7 +401,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                        <Border Name="MailchimpStatusContainer" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="MailchimpStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                 <TextBlock Name="MailchimpStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
@@ -422,8 +432,8 @@
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnMcMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
-                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsite}" Foreground="#000000"
+                                BorderThickness="0" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
@@ -449,7 +459,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                        <Border Name="SqlStatusContainer" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="SqlStatusDot" Classes="pulse" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                 <TextBlock Name="SqlStatusText" Text="SCANNING..." FontSize="12" FontWeight="Bold"
@@ -480,8 +490,8 @@
 
                         <!-- Mirror to Network Drive -->
                         <Button Name="BtnSqlMirror" Content="Mirror to Network Drive" HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsiteBg}" Foreground="{DynamicResource AccentWebsite}"
-                                BorderBrush="{DynamicResource AccentWebsite}" BorderThickness="1" CornerRadius="10" Padding="10,6" FontSize="10"
+                                HorizontalContentAlignment="Center" Background="{DynamicResource AccentWebsite}" Foreground="#000000"
+                                BorderThickness="0" CornerRadius="10" Padding="10,6" FontSize="10"
                                 FontWeight="SemiBold" Cursor="Hand"/>
 
                         <!-- Open Tab -->
@@ -506,7 +516,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                        <Border Name="NdStatusContainer" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Ellipse Name="NdStatusDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                 <TextBlock Name="NdStatusText" Text="CHECKING..." FontSize="12" FontWeight="Bold"

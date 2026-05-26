@@ -201,7 +201,17 @@ namespace PinayPalBackupManager.Services
             // Execute tasks outside the lock
             foreach (var taskId in tasksToRun)
             {
-                _ = Task.Run(async () => await ExecuteTask(taskId));
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await ExecuteTask(taskId);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[ADVANCED_SCHEDULER] Task {taskId} execution failed: {ex.Message}", "Error", "SYSTEM");
+                    }
+                });
             }
         }
 
@@ -284,7 +294,17 @@ namespace PinayPalBackupManager.Services
                         "Information", "SYSTEM");
 
                     await Task.Delay(retryDelay);
-                    _ = Task.Run(async () => await ExecuteTask(taskId));
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ExecuteTask(taskId);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[ADVANCED_SCHEDULER] Retry execution failed for task {taskId}: {ex.Message}", "Error", "SYSTEM");
+                        }
+                    });
                 }
                 else
                 {

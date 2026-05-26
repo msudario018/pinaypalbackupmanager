@@ -220,7 +220,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                             if (_abortRequested) throw new OperationCanceledException();
                             LogService.WriteLiveLog($"COMPLETE: {missingCount} backup(s) synchronized.", BackupConfig.FtpLogFile, "Information", trigger);
-                            var integrity = CheckIntegrity(BackupConfig.FtpLocalFolder);
+                            var integrity = await CheckIntegrityAsync(BackupConfig.FtpLocalFolder);
                             LogService.WriteLiveLog($"INTEGRITY: {integrity}", BackupConfig.FtpLogFile, "Information", trigger);
                             
                             // Verify checksums of downloaded files
@@ -610,7 +610,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public void ResetBusy() => SetBusy(false);
         public Task<bool> TriggerSyncCheckAsync() => SyncCheckAsync();
 
-        private static string CheckIntegrity(string folder)
+        private static async Task<string> CheckIntegrityAsync(string folder)
         {
             try
             {
@@ -624,10 +624,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (newest.Length == 0) return $"WARNING: {newest.Name} is zero-byte!";
                 if (newest.Extension.Equals(".gz", StringComparison.OrdinalIgnoreCase) || newest.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
                 {
-                    using var fs = File.OpenRead(newest.FullName);
+                    await using var fs = File.OpenRead(newest.FullName);
                     using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionMode.Decompress);
                     var buf = new byte[512];
-                    gz.Read(buf, 0, buf.Length);
+                    await gz.ReadAsync(buf, 0, buf.Length);
                 }
                 return $"OK — {newest.Name} ({newest.Length / 1024.0:F1} KB)";
             }

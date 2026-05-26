@@ -16,6 +16,7 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         private readonly ObservableCollection<VerificationItem> _verificationItems;
         private bool _isVerifying = false;
+        private readonly HashSet<string> _shownNotifications = new();
 
         public VerificationControl()
         {
@@ -81,22 +82,41 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void SetupEventHandlers()
         {
-            // Button handlers
-            this.FindControl<Button>("BtnVerifyAll")!.Click += async (_, _) => await VerifyAllFilesAsync();
-            this.FindControl<Button>("BtnGenerateChecksums")!.Click += async (_, _) => await GenerateAllChecksumsAsync();
-            this.FindControl<Button>("BtnExportReport")!.Click += async (_, _) => await ExportVerificationReportAsync();
-            this.FindControl<Button>("BtnRestoreFiles")!.Click += async (_, _) => await RestoreCorruptedFilesAsync();
-            this.FindControl<Button>("BtnRefreshResults")!.Click += async (_, _) => await RefreshResultsAsync();
+            // Button handlers - with null checks to prevent crashes
+            var btnVerifyAll = this.FindControl<Button>("BtnVerifyAll");
+            if (btnVerifyAll != null) btnVerifyAll.Click += async (_, _) => await VerifyAllFilesAsync();
+            
+            var btnGenerateChecksums = this.FindControl<Button>("BtnGenerateChecksums");
+            if (btnGenerateChecksums != null) btnGenerateChecksums.Click += async (_, _) => await GenerateAllChecksumsAsync();
+            
+            var btnExportReport = this.FindControl<Button>("BtnExportReport");
+            if (btnExportReport != null) btnExportReport.Click += async (_, _) => await ExportVerificationReportAsync();
+            
+            var btnRestoreFiles = this.FindControl<Button>("BtnRestoreFiles");
+            if (btnRestoreFiles != null) btnRestoreFiles.Click += async (_, _) => await RestoreCorruptedFilesAsync();
+            
+            var btnRefreshResults = this.FindControl<Button>("BtnRefreshResults");
+            if (btnRefreshResults != null) btnRefreshResults.Click += async (_, _) => await RefreshResultsAsync();
             
             // Bulk selection handlers
-            this.FindControl<Button>("BtnSelectAll")!.Click += (_, _) => SelectAllFiles();
-            this.FindControl<Button>("BtnSelectCorrupted")!.Click += (_, _) => SelectCorruptedFiles();
-            this.FindControl<Button>("BtnSelectMissing")!.Click += (_, _) => SelectMissingFiles();
+            var btnSelectAll = this.FindControl<Button>("BtnSelectAll");
+            if (btnSelectAll != null) btnSelectAll.Click += (_, _) => SelectAllFiles();
+            
+            var btnSelectCorrupted = this.FindControl<Button>("BtnSelectCorrupted");
+            if (btnSelectCorrupted != null) btnSelectCorrupted.Click += (_, _) => SelectCorruptedFiles();
+            
+            var btnSelectMissing = this.FindControl<Button>("BtnSelectMissing");
+            if (btnSelectMissing != null) btnSelectMissing.Click += (_, _) => SelectMissingFiles();
             
             // Checkbox handlers
-            this.FindControl<CheckBox>("ChkShowValid")!.IsCheckedChanged += (_, _) => FilterResults();
-            this.FindControl<CheckBox>("ChkShowCorrupted")!.IsCheckedChanged += (_, _) => FilterResults();
-            this.FindControl<CheckBox>("ChkShowMissing")!.IsCheckedChanged += (_, _) => FilterResults();
+            var chkShowValid = this.FindControl<CheckBox>("ChkShowValid");
+            if (chkShowValid != null) chkShowValid.IsCheckedChanged += (_, _) => FilterResults();
+            
+            var chkShowCorrupted = this.FindControl<CheckBox>("ChkShowCorrupted");
+            if (chkShowCorrupted != null) chkShowCorrupted.IsCheckedChanged += (_, _) => FilterResults();
+            
+            var chkShowMissing = this.FindControl<CheckBox>("ChkShowMissing");
+            if (chkShowMissing != null) chkShowMissing.IsCheckedChanged += (_, _) => FilterResults();
         }
 
         private async Task LoadInitialData()
@@ -104,6 +124,11 @@ namespace PinayPalBackupManager.UI.UserControls
             try
             {
                 LogService.WriteLiveLog("[VERIFICATION] Loading initial verification data...", "", "Information", "SYSTEM");
+                
+                // Try to load last verification history first
+                await LoadLastVerificationAsync();
+                
+                // Then refresh with current data
                 await RefreshResultsAsync();
                 await UpdateStatusOverview();
                 await UpdateServiceStatus();
@@ -112,6 +137,78 @@ namespace PinayPalBackupManager.UI.UserControls
             catch (Exception ex)
             {
                 LogService.WriteLiveLog($"[VERIFICATION] Error loading initial data: {ex.Message}", "", "Error", "SYSTEM");
+            }
+        }
+
+        private async Task LoadLastVerificationAsync()
+        {
+            try
+            {
+                var lastVerification = await VerificationHistoryService.LoadLastVerificationAsync("All");
+                if (lastVerification == null)
+                {
+                    LogService.WriteLiveLog("[VERIFICATION] No previous verification history found", "", "Information", "SYSTEM");
+                    return;
+                }
+
+                LogService.WriteLiveLog($"[VERIFICATION] Loading last verification from {lastVerification.FormattedTimestamp}", "", "Information", "SYSTEM");
+
+                // Update status overview with last verification data
+                var total = lastVerification.TotalFiles;
+                var valid = lastVerification.ValidFiles;
+                var corrupted = lastVerification.CorruptedFiles;
+                var missing = lastVerification.MissingFiles;
+
+                // Update text values
+                this.FindControl<TextBlock>("TxtTotalFiles")!.Text = total.ToString();
+                this.FindControl<TextBlock>("TxtValidFiles")!.Text = valid.ToString();
+                this.FindControl<TextBlock>("TxtCorruptedFiles")!.Text = corrupted.ToString();
+                this.FindControl<TextBlock>("TxtMissingFiles")!.Text = missing.ToString();
+
+                // Update progress bars
+                if (total > 0)
+                {
+                    this.FindControl<ProgressBar>("ProgressTotal")!.Value = 100;
+                    this.FindControl<ProgressBar>("ProgressValid")!.Value = (double)valid / total * 100;
+                    this.FindControl<ProgressBar>("ProgressCorrupted")!.Value = (double)corrupted / total * 100;
+                    this.FindControl<ProgressBar>("ProgressMissing")!.Value = (double)missing / total * 100;
+                }
+
+                // Show notification about last verification
+                if (corrupted > 0 || missing > 0)
+                {
+                    NotificationService.ShowBackupToast("Verification", 
+                        $"Last check ({lastVerification.FormattedTimestamp}): {corrupted} corrupted, {missing} missing", "Warning");
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("Verification", 
+                        $"Last check ({lastVerification.FormattedTimestamp}): All {valid} files valid", "Success");
+                }
+
+                // Load results into list
+                _verificationItems.Clear();
+                foreach (var result in lastVerification.Results)
+                {
+                    _verificationItems.Add(new VerificationItem
+                    {
+                        FileName = Path.GetFileName(result.FilePath),
+                        FilePath = result.FilePath,
+                        Service = "Unknown",
+                        Status = result.Status,
+                        FileSize = 0,
+                        Created = lastVerification.Timestamp,
+                        Hash = "",
+                        IsValid = result.IsValid
+                    });
+                }
+
+                FilterResults();
+                LogService.WriteLiveLog($"[VERIFICATION] Loaded {lastVerification.Results.Count} items from history", "", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[VERIFICATION] Error loading last verification: {ex.Message}", "", "Debug", "SYSTEM");
             }
         }
 
@@ -126,14 +223,17 @@ namespace PinayPalBackupManager.UI.UserControls
             btnVerifyAll.IsEnabled = false;
             btnVerifyAll.Content = "Verifying...";
             
+            // Yield to UI thread to update button state
+            await Task.Yield();
+            
             try
             {
                 LogService.WriteLiveLog("[VERIFICATION] Starting comprehensive file verification...", "", "Information", "SYSTEM");
                 
-                // Verify each service with timeout protection
-                var ftpTask = VerifyServiceAsync("FTP", "FtpProgressBar", "TxtFtpVerified");
-                var mcTask = VerifyServiceAsync("Mailchimp", "McProgressBar", "TxtMcVerified");
-                var sqlTask = VerifyServiceAsync("SQL", "SqlProgressBar", "TxtSqlVerified");
+                // Run verifications on thread pool to prevent UI blocking
+                var ftpTask = Task.Run(() => VerifyServiceAsync("FTP", "FtpProgressBar", "TxtFtpVerified"));
+                var mcTask = Task.Run(() => VerifyServiceAsync("Mailchimp", "McProgressBar", "TxtMcVerified"));
+                var sqlTask = Task.Run(() => VerifyServiceAsync("SQL", "SqlProgressBar", "TxtSqlVerified"));
                 
                 var timeoutTask = Task.Delay(TimeSpan.FromMinutes(5)); // 5 minute timeout
                 var verificationTask = Task.WhenAll(ftpTask, mcTask, sqlTask);
@@ -191,57 +291,104 @@ namespace PinayPalBackupManager.UI.UserControls
                 });
                 
                 var results = await ChecksumService.VerifyServiceChecksumsAsync(service);
+                
+                // Check if files exist even if no checksums
+                var actualFileCount = GetActualFileCount(service);
+                
                 if (results == null || results.Count == 0)
                 {
-                    // Clear progress bar so stale 100% isn't shown; let UpdateServiceStatusUI set final text
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    if (actualFileCount > 0)
                     {
-                        if (progressBar != null) progressBar.Value = 0;
-                    });
+                        // Files exist but no checksums - show 100% progress
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            if (progressBar != null) 
+                            {
+                                progressBar.Value = 100;
+                                progressBar.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#34D399"));
+                            }
+                            if (verifiedText != null) verifiedText.Text = $"{actualFileCount}/{actualFileCount}";
+                        });
+                        
+                        // Show notification to generate checksums
+                        NotificationService.ShowBackupToast(service, $"{actualFileCount} files found but no checksums. Click 'Generate Checksums' to verify file integrity.", "Warning");
+                    }
+                    else
+                    {
+                        // No files and no checksums
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            if (progressBar != null) progressBar.Value = 0;
+                        });
+                    }
                     return;
                 }
                 
                 var total = results.Count;
-                var processed = 0;
                 var corruptedCount = 0;
+                var issueAlerts = new List<Control>();
+                var logMessages = new List<string>();
                 
+                // Process results without blocking UI updates
+                const int maxAlertsToShow = 50; // Limit UI alerts to prevent freeze
                 foreach (var result in results)
                 {
-                    processed++;
-                    var progress = total > 0 ? (double)processed / total * 100 : 0;
-                    
-                    // Batch UI updates for better performance
-                    if (processed % 10 == 0 || processed == total)
-                    {
-                        _ = Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            if (progressBar != null) progressBar.Value = progress;
-                            if (verifiedText != null) verifiedText.Text = $"{processed}/{total}";
-                        });
-                    }
-                    
                     if (!result.IsValid)
                     {
                         corruptedCount++;
-                        _ = Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            if (issuesList != null)
-                            {
-                                var alert = CreateIssueAlert(result);
-                                issuesList.Children.Add(alert);
-                            }
-                        });
                         
-                        // Log corruption alert (batch to avoid spam)
+                        // Collect issue alerts for batching (limit to prevent UI freeze)
+                        if (issuesList != null && issueAlerts.Count < maxAlertsToShow)
+                        {
+                            issueAlerts.Add(CreateIssueAlert(result));
+                        }
+                        
+                        // Collect log messages (batch to avoid spam)
                         if (corruptedCount <= 5)
                         {
-                            LogService.WriteLiveLog($"[VERIFICATION] CORRUPTION DETECTED: {Path.GetFileName(result.FilePath)} - {result.Status}", "", "Error", "SYSTEM");
+                            logMessages.Add($"[VERIFICATION] CORRUPTION DETECTED: {Path.GetFileName(result.FilePath)} - {result.Status}");
                         }
                     }
+                }
+                
+                // Single UI update at the end - fire and forget for speed
+                _ = Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (progressBar != null) progressBar.Value = 100;
+                    if (verifiedText != null) verifiedText.Text = $"{total - corruptedCount}/{total}";
                     
-                    // Reduce delay for better performance
-                    if (processed % 50 == 0)
-                        await Task.Delay(1);
+                    // Batch add all issue alerts at once
+                    if (issuesList != null && issueAlerts.Count > 0)
+                    {
+                        foreach (var alert in issueAlerts)
+                        {
+                            issuesList.Children.Add(alert);
+                        }
+                        
+                        // Add a "more items" indicator if we hit the limit
+                        if (corruptedCount > maxAlertsToShow)
+                        {
+                            issuesList.Children.Add(new Border
+                            {
+                                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#6C7086")),
+                                CornerRadius = new Avalonia.CornerRadius(6),
+                                Padding = new Avalonia.Thickness(8, 6),
+                                Margin = new Avalonia.Thickness(0, 2),
+                                Child = new TextBlock 
+                                { 
+                                    Text = $"... and {corruptedCount - maxAlertsToShow} more corrupted files", 
+                                    FontSize = 10, 
+                                    Foreground = Avalonia.Media.Brushes.White 
+                                }
+                            });
+                        }
+                    }
+                });
+                
+                // Log any pending messages
+                foreach (var msg in logMessages)
+                {
+                    LogService.WriteLiveLog(msg, "", "Error", "SYSTEM");
                 }
                 
                 // Log summary if many corrupted files
@@ -284,24 +431,20 @@ namespace PinayPalBackupManager.UI.UserControls
                     return;
                 }
                 
-                // Generate checksums for each service folder with timeout
-                var tasks = new List<Task>();
-                
-                if (ftpFolderExists)
-                    tasks.Add(ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.FtpLocalFolder, "FTP"));
-                
-                if (mcFolderExists)
-                    tasks.Add(ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.MailchimpFolder, "Mailchimp"));
-                
-                if (sqlFolderExists)
-                    tasks.Add(ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.SqlLocalFolder, "SQL"));
-                
-                var timeoutTask = Task.Delay(TimeSpan.FromMinutes(10)); // 10 minute timeout
-                var checksumTask = Task.WhenAll(tasks);
-                
-                var completedTask = await Task.WhenAny(checksumTask, timeoutTask);
-                
-                if (completedTask == timeoutTask)
+                // Generate checksums for each service folder sequentially to avoid race conditions
+                var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromMinutes(10));
+                try
+                {
+                    if (ftpFolderExists)
+                        await ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.FtpLocalFolder, "FTP");
+                    
+                    if (mcFolderExists)
+                        await ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.MailchimpFolder, "Mailchimp");
+                    
+                    if (sqlFolderExists)
+                        await ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.SqlLocalFolder, "SQL");
+                }
+                catch (OperationCanceledException)
                 {
                     LogService.WriteLiveLog("[VERIFICATION] Checksum generation timed out", "", "Warning", "SYSTEM");
                     NotificationService.ShowBackupToast("Verification", "Checksum generation timed out", "Warning");
@@ -369,6 +512,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 
                 LogService.WriteLiveLog($"[VERIFICATION] Created {_verificationItems.Count} verification items", "", "Information", "SYSTEM");
+                
+                // Save verification history
+                await VerificationHistoryService.SaveVerificationAsync(verificationResults, "All");
                 
                 var listBox = this.FindControl<ListBox>("VerificationDataGrid");
                 if (listBox != null)
@@ -471,24 +617,38 @@ namespace PinayPalBackupManager.UI.UserControls
                 var (valid, corrupted, missing) = await ChecksumService.GetVerificationSummaryAsync();
                 var total = valid + corrupted + missing;
                 
-                // Update text values
-                this.FindControl<TextBlock>("TxtTotalFiles")!.Text = total.ToString();
-                this.FindControl<TextBlock>("TxtValidFiles")!.Text = valid.ToString();
-                this.FindControl<TextBlock>("TxtCorruptedFiles")!.Text = corrupted.ToString();
-                this.FindControl<TextBlock>("TxtMissingFiles")!.Text = missing.ToString();
+                // Update text values with null checks
+                var txtTotalFiles = this.FindControl<TextBlock>("TxtTotalFiles");
+                if (txtTotalFiles != null) txtTotalFiles.Text = total.ToString();
+                
+                var txtValidFiles = this.FindControl<TextBlock>("TxtValidFiles");
+                if (txtValidFiles != null) txtValidFiles.Text = valid.ToString();
+                
+                var txtCorruptedFiles = this.FindControl<TextBlock>("TxtCorruptedFiles");
+                if (txtCorruptedFiles != null) txtCorruptedFiles.Text = corrupted.ToString();
+                
+                var txtMissingFiles = this.FindControl<TextBlock>("TxtMissingFiles");
+                if (txtMissingFiles != null) txtMissingFiles.Text = missing.ToString();
                 
                 // Update progress bars
                 if (total > 0)
                 {
-                    this.FindControl<ProgressBar>("ProgressTotal")!.Value = 100;
-                    this.FindControl<ProgressBar>("ProgressValid")!.Value = (double)valid / total * 100;
-                    this.FindControl<ProgressBar>("ProgressCorrupted")!.Value = (double)corrupted / total * 100;
-                    this.FindControl<ProgressBar>("ProgressMissing")!.Value = (double)missing / total * 100;
+                    var progressTotal = this.FindControl<ProgressBar>("ProgressTotal");
+                    if (progressTotal != null) progressTotal.Value = 100;
+                    
+                    var progressValid = this.FindControl<ProgressBar>("ProgressValid");
+                    if (progressValid != null) progressValid.Value = (double)valid / total * 100;
+                    
+                    var progressCorrupted = this.FindControl<ProgressBar>("ProgressCorrupted");
+                    if (progressCorrupted != null) progressCorrupted.Value = (double)corrupted / total * 100;
+                    
+                    var progressMissing = this.FindControl<ProgressBar>("ProgressMissing");
+                    if (progressMissing != null) progressMissing.Value = (double)missing / total * 100;
                 }
                 
                 // Show alerts section if there are issues
                 var alertsSection = this.FindControl<Border>("AlertsSection");
-                alertsSection!.IsVisible = corrupted > 0 || missing > 0;
+                if (alertsSection != null) alertsSection.IsVisible = corrupted > 0 || missing > 0;
                 
                 if (corrupted > 0 || missing > 0)
                 {
@@ -531,27 +691,82 @@ namespace PinayPalBackupManager.UI.UserControls
             var statusText = this.FindControl<TextBlock>($"Txt{prefix}Status");
             var verifiedText = this.FindControl<TextBlock>($"Txt{prefix}Verified");
             
-            var valid = serviceResults.Count(r => r.IsValid);
-            var corrupted = serviceResults.Count(r => !r.IsValid && r.Status != "File not found");
+            var valid = serviceResults.Count(r => r.IsValid && r.Status != "Cleaned by retention");
+            var corrupted = serviceResults.Count(r => !r.IsValid && r.Status != "File not found" && r.Status != "Cleaned by retention");
             var missing = serviceResults.Count(r => r.Status == "File not found");
+            var cleanedByRetention = serviceResults.Count(r => r.Status == "Cleaned by retention");
             var total = serviceResults.Count;
             
-            verifiedText!.Text = $"{valid}/{total}";
-
-            if (total == 0)
+            // Get actual file count from folder when no checksums exist
+            var actualFileCount = GetActualFileCount(serviceName);
+            
+            if (total == 0 && actualFileCount > 0)
             {
-                statusText!.Text = "— Empty";
-                statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Gray);
-            }
-            else if (corrupted > 0 || missing > 0)
-            {
-                statusText!.Text = "⚠ Issues";
-                statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Red);
+                // Files exist but no checksums generated yet
+                verifiedText!.Text = $"{actualFileCount}/{actualFileCount}";
+                statusText!.Text = "⚠ No Checksums";
+                statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#F59E0B"));
+                
+                // Show notification to generate checksums (only once per session per service)
+                var notificationKey = $"ChecksumWarning_{serviceName}";
+                if (!_shownNotifications.Contains(notificationKey))
+                {
+                    _shownNotifications.Add(notificationKey);
+                    NotificationService.ShowBackupToast(serviceName, $"{actualFileCount} files need checksums generated. Click 'Generate Checksums' button to enable verification.", "Warning");
+                }
             }
             else
             {
-                statusText!.Text = "✓ OK";
-                statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Green);
+                verifiedText!.Text = $"{valid}/{total}";
+
+                if (total == 0)
+                {
+                    statusText!.Text = "— Empty";
+                    statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Gray);
+                }
+                else if (corrupted > 0 || missing > 0)
+                {
+                    statusText!.Text = "⚠ Issues";
+                    statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.Red);
+                }
+                else if (cleanedByRetention > 0 && valid == 0)
+                {
+                    // All files cleaned by retention - show as empty/OK
+                    statusText!.Text = "✓ Clean";
+                    statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#34D399"));
+                }
+                else
+                {
+                    statusText!.Text = "✓ OK";
+                    statusText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#34D399"));
+                }
+            }
+        }
+
+        private int GetActualFileCount(string serviceName)
+        {
+            try
+            {
+                string? folder = serviceName switch
+                {
+                    "FTP" => BackupConfig.FtpLocalFolder,
+                    "Mailchimp" => BackupConfig.MailchimpFolder,
+                    "SQL" => BackupConfig.SqlLocalFolder,
+                    _ => null
+                };
+
+                if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+                    return 0;
+
+                // Count files (excluding log and system files)
+                return Directory.GetFiles(folder, "*", SearchOption.AllDirectories)
+                    .Count(f => !f.EndsWith("backuplog.txt") && 
+                               !f.EndsWith("checksums.json") &&
+                               !Path.GetFileName(f).StartsWith("."));
+            }
+            catch
+            {
+                return 0;
             }
         }
 

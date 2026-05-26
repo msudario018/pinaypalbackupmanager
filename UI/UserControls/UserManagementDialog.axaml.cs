@@ -303,7 +303,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Brush.Parse(detailBg),
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0
@@ -442,7 +442,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Brush.Parse(detailBg),
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0
@@ -516,7 +516,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Brush.Parse("#1E1E2E"),
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0
@@ -606,7 +606,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Brush.Parse("#1E1E2E"),
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0

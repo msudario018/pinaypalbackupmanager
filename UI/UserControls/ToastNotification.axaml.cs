@@ -190,7 +190,8 @@ namespace PinayPalBackupManager.UI.UserControls
             switch (type.ToLower())
             {
                 case "success":
-                    IconCircle.Fill = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(204, 213, 174)));
+                    var successDef = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(204, 213, 174)));
+                    IconCircle.Fill = GetContextualFill(title, message, type, successDef);
                     IconPath.Data = PathGeometry.Parse(contextualIcon);
                     break;
                 case "warning":
@@ -202,10 +203,28 @@ namespace PinayPalBackupManager.UI.UserControls
                     IconPath.Data = PathGeometry.Parse(contextualIcon);
                     break;
                 default: // info
-                    IconCircle.Fill = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(149, 213, 178)));
+                    var infoDef = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(149, 213, 178)));
+                    IconCircle.Fill = GetContextualFill(title, message, type, infoDef);
                     IconPath.Data = PathGeometry.Parse(contextualIcon);
                     break;
             }
+        }
+
+        private IBrush GetContextualFill(string title, string message, string type, IBrush defaultBrush)
+        {
+            var titleLower = title.ToLower();
+            var messageLower = message.ToLower();
+
+            if (titleLower.Contains("ftp") || messageLower.Contains("ftp") || titleLower.Contains("website") || messageLower.Contains("website"))
+                return GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(52, 211, 153)));
+
+            if (titleLower.Contains("mailchimp") || messageLower.Contains("mailchimp") || titleLower.Contains("email") || messageLower.Contains("email"))
+                return GetThemeResource("AccentMailchimp", new SolidColorBrush(Color.FromRgb(96, 165, 250)));
+
+            if (titleLower.Contains("sql") || messageLower.Contains("sql") || titleLower.Contains("database") || messageLower.Contains("database"))
+                return GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(251, 191, 36)));
+
+            return defaultBrush;
         }
         
         private string GetContextualIcon(string title, string message, string type)

@@ -39,7 +39,17 @@ namespace PinayPalBackupManager.Services
                     LogService.WriteSystemLog($"[SYSTEM_STATUS] Initialized for user: {username}", "Information", "SYSTEM");
                     
                     // Initial update
-                    _ = Task.Run(async () => await UpdateSystemStatusAsync());
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await UpdateSystemStatusAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[SYSTEM_STATUS] Initial update failed: {ex.Message}", "Error", "SYSTEM");
+                        }
+                    });
                 }
                 catch (Exception ex)
                 {

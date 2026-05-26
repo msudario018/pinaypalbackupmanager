@@ -271,7 +271,17 @@ namespace PinayPalBackupManager.Services
                         new CredentialRecord { Service = "SQL", LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
                         new CredentialRecord { Service = "Mailchimp", LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
                     };
-                    _ = Task.Run(async () => await SaveCredentialsAsync(defaults));
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveCredentialsAsync(defaults);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"[SecurityAudit] Failed to save default credentials: {ex.Message}", "", "Debug", "SYSTEM");
+                        }
+                    });
                     return defaults;
                 }
 

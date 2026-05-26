@@ -164,17 +164,6 @@
                 <StackPanel Spacing="15">
                     <TextBlock Text="MANAGEMENT TOOLS" FontWeight="Bold" Foreground="{DynamicResource AccentSql}" Margin="0,0,0,10"/>
                     
-                    <Grid ColumnDefinitions="*, *, *">
-                        <Button Name="BtnHealthCheck" Classes="Secondary" Content="Health Check" HorizontalAlignment="Stretch" Margin="0,0,5,0"/>
-                        <Button Name="BtnErrorReports" Classes="Secondary" Grid.Column="1" Content="Error Reports" HorizontalAlignment="Stretch" Margin="5,0,5,0"/>
-                        <Button Name="BtnPerformance" Classes="Secondary" Grid.Column="2" Content="Performance" HorizontalAlignment="Stretch" Margin="5,0,0,0"/>
-                    </Grid>
-                    
-                    <Grid ColumnDefinitions="*, *">
-                        <Button Name="BtnBackupHistory" Classes="Secondary" Content="Backup History" HorizontalAlignment="Stretch" Margin="0,0,5,0"/>
-                        <Button Name="BtnBackupSchedules" Classes="Secondary" Grid.Column="1" Content="Backup Schedules" HorizontalAlignment="Stretch" Margin="5,0,0,0"/>
-                    </Grid>
-                    
                     <Button Name="BtnResetAllUsers" Content="Reset All Users (Local + Firebase)" Background="{DynamicResource AppBtnRed}" Foreground="{DynamicResource AccentError}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Stretch" Cursor="Hand"/>
                 </StackPanel>
             </Border>

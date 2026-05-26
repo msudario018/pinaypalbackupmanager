@@ -68,11 +68,19 @@ namespace PinayPalBackupManager.Services
                 LogService.WriteSystemLog($"[REALTIME_MONITORING] Initialized for user: {username}", "Information", "SYSTEM");
 
                 // Initial updates
-                _ = Task.Run(async () => {
-                    await UpdateConnectionStatusAsync();
-                    await UpdateSystemMonitoringAsync();
-                    await SyncBackupFilesAsync();
-                    await AddActivityAsync("info", "Real-time monitoring service started");
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await UpdateConnectionStatusAsync();
+                        await UpdateSystemMonitoringAsync();
+                        await SyncBackupFilesAsync();
+                        await AddActivityAsync("info", "Real-time monitoring service started");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[REALTIME_MONITORING] Initial update failed: {ex.Message}", "Error", "SYSTEM");
+                    }
                 });
             }
             catch (Exception ex)
@@ -628,8 +636,15 @@ namespace PinayPalBackupManager.Services
                 // Update connection status to offline before stopping
                 _ = Task.Run(async () =>
                 {
-                    await SetConnectionStatusOfflineAsync();
-                    await AddActivityAsync("info", "Real-time monitoring service stopped");
+                    try
+                    {
+                        await SetConnectionStatusOfflineAsync();
+                        await AddActivityAsync("info", "Real-time monitoring service stopped");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[REALTIME_MONITORING] Failed to set offline status: {ex.Message}", "Error", "SYSTEM");
+                    }
                 });
 
                 StopTimers();
@@ -741,75 +756,78 @@ namespace PinayPalBackupManager.Services
             }
         }
         
-        private static async void CheckAlerts(object? sender, ElapsedEventArgs e)
+        private static void CheckAlerts(object? sender, ElapsedEventArgs e)
         {
             if (!_isInitialized) return;
 
             if (Interlocked.Exchange(ref _isCheckingAlerts, 1) == 1)
                 return;
             
-            try
+            _ = Task.Run(async () =>
             {
-                var metrics = await GetSystemMetricsAsync();
-                OnMetricsUpdated?.Invoke(metrics);
-                
-                lock (_monitoringLock)
+                try
                 {
-                    foreach (var rule in _alertRules.Values)
+                    var metrics = await GetSystemMetricsAsync();
+                    OnMetricsUpdated?.Invoke(metrics);
+                    
+                    lock (_monitoringLock)
                     {
-                        if (ShouldTriggerAlert(rule, metrics))
+                        foreach (var rule in _alertRules.Values)
                         {
-                            var alert = new Alert
+                            if (ShouldTriggerAlert(rule, metrics))
                             {
-                                Id = Guid.NewGuid().ToString(),
-                                RuleId = rule.Id,
-                                RuleName = rule.Name,
-                                Severity = rule.Severity,
-                                Message = rule.Message,
-                                Timestamp = DateTime.UtcNow,
-                                Metrics = metrics
-                            };
-                            
-                            OnAlertTriggered?.Invoke(alert);
-                            
-                            // Add to event history
-                            var monitoringEvent = new MonitoringEvent
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                Type = EventType.Alert,
-                                Severity = rule.Severity,
-                                Message = $"Alert: {rule.Name} - {rule.Message}",
-                                Timestamp = DateTime.UtcNow,
-                                Data = new Dictionary<string, object>
+                                var alert = new Alert
                                 {
-                                    ["ruleId"] = rule.Id,
-                                    ["cpu"] = metrics.CpuUsage,
-                                    ["memory"] = metrics.MemoryUsage,
-                                    ["disk"] = metrics.DiskUsage
+                                    Id = Guid.NewGuid().ToString(),
+                                    RuleId = rule.Id,
+                                    RuleName = rule.Name,
+                                    Severity = rule.Severity,
+                                    Message = rule.Message,
+                                    Timestamp = DateTime.UtcNow,
+                                    Metrics = metrics
+                                };
+                                
+                                OnAlertTriggered?.Invoke(alert);
+                                
+                                // Add to event history
+                                var monitoringEvent = new MonitoringEvent
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Type = EventType.Alert,
+                                    Severity = rule.Severity,
+                                    Message = $"Alert: {rule.Name} - {rule.Message}",
+                                    Timestamp = DateTime.UtcNow,
+                                    Data = new Dictionary<string, object>
+                                    {
+                                        ["ruleId"] = rule.Id,
+                                        ["cpu"] = metrics.CpuUsage,
+                                        ["memory"] = metrics.MemoryUsage,
+                                        ["disk"] = metrics.DiskUsage
+                                    }
+                                };
+                                
+                                _eventHistory.Enqueue(monitoringEvent);
+                                
+                                // Keep event history manageable
+                                while (_eventHistory.Count > 1000)
+                                {
+                                    _eventHistory.Dequeue();
                                 }
-                            };
-                            
-                            _eventHistory.Enqueue(monitoringEvent);
-                            
-                            // Keep event history manageable
-                            while (_eventHistory.Count > 1000)
-                            {
-                                _eventHistory.Dequeue();
+                                
+                                LogService.WriteSystemLog($"[REALTIME_MONITORING] Alert triggered: {rule.Name}", rule.Severity.ToString(), "SYSTEM");
                             }
-                            
-                            LogService.WriteSystemLog($"[REALTIME_MONITORING] Alert triggered: {rule.Name}", rule.Severity.ToString(), "SYSTEM");
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[REALTIME_MONITORING] Error checking alerts: {ex.Message}", "Error", "SYSTEM");
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isCheckingAlerts, 0);
-            }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[REALTIME_MONITORING] Error checking alerts: {ex.Message}", "Error", "SYSTEM");
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isCheckingAlerts, 0);
+                }
+            });
         }
         
         private static bool ShouldTriggerAlert(AlertRule rule, SystemMetrics metrics)

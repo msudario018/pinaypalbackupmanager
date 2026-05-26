@@ -20,19 +20,25 @@ namespace PinayPalBackupManager.UI.UserControls
     {
         private readonly BackupManager _manager;
         private System.Timers.Timer? _healthRefreshTimer;
+        private System.Timers.ElapsedEventHandler? _healthRefreshTimerHandler;
         private bool _compactMode = false;
         private int _activeOperations = 0;
         private System.Timers.Timer? _activeProcessUpdateTimer;
+        private System.Timers.ElapsedEventHandler? _activeProcessUpdateTimerHandler;
         private System.Timers.Timer? _statsRefreshTimer;
+        private System.Timers.ElapsedEventHandler? _statsRefreshTimerHandler;
         private System.Timers.Timer? _dashboardRefreshTimer;
+        private System.Timers.ElapsedEventHandler? _dashboardRefreshTimerHandler;
         private int _isHealthRefreshing = 0;
         private int _isStatsRefreshing = 0;
         private int _isDashboardRefreshing = 0;
         private DateTime _lastStorageStatsRefresh = DateTime.MinValue;
         private string _cachedStorageUsed = "0 B";
         private System.Timers.Timer? _errorRefreshTimer;
+        private System.Timers.ElapsedEventHandler? _errorRefreshTimerHandler;
 
         // Cached UI controls to avoid repeated FindControl visual-tree walks in timer callbacks
+        private Border? _cachedDashHealthBadge;
         private TextBlock? _cachedDashHealthText;
         private Ellipse? _cachedDashHealthDotEllipse;
         private Border? _cachedAlertBanner;
@@ -214,6 +220,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void InitializeCachedControls()
         {
+            _cachedDashHealthBadge = this.FindControl<Border>("DashHealthBadge");
             _cachedDashHealthDotEllipse = this.FindControl<Ellipse>("DashHealthDot");
             _cachedDashHealthText = this.FindControl<TextBlock>("DashHealthText");
             _cachedAlertBanner = this.FindControl<Border>("AlertBanner");
@@ -333,6 +340,12 @@ namespace PinayPalBackupManager.UI.UserControls
                 SetTimer("FtpNextScan", _manager.NextFtpAutoScan, now);
                 SetTimer("MailchimpNextScan", _manager.NextMailchimpAutoScan, now);
                 SetTimer("SqlNextScan", _manager.NextSqlAutoScan, now);
+                
+                // Update dashboard timer controls
+                SetTimer("FtpAutoScanTimer", _manager.NextFtpAutoScan, now);
+                SetTimer("McAutoScanTimer", _manager.NextMailchimpAutoScan, now);
+                SetTimer("SqlAutoScanTimer", _manager.NextSqlAutoScan, now);
+                
                 UpdateDailySchedule(mnlTime);
 
                 // Update schedule overview
@@ -484,6 +497,12 @@ namespace PinayPalBackupManager.UI.UserControls
                 SetTimer("FtpNextScan", _manager.NextFtpAutoScan, now);
                 SetTimer("MailchimpNextScan", _manager.NextMailchimpAutoScan, now);
                 SetTimer("SqlNextScan", _manager.NextSqlAutoScan, now);
+                
+                // Update dashboard timer controls
+                SetTimer("FtpAutoScanTimer", _manager.NextFtpAutoScan, now);
+                SetTimer("McAutoScanTimer", _manager.NextMailchimpAutoScan, now);
+                SetTimer("SqlAutoScanTimer", _manager.NextSqlAutoScan, now);
+                
                 UpdateScheduleOverview(now);
             });
         }
@@ -495,6 +514,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 var now = DateTime.Now;
                 UpdateScheduleOverview(now);
                 UpdateDailySchedule(now.AddHours(15));
+                
+                // Update dashboard Next Daily timer controls
             });
         }
 
@@ -529,10 +550,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
 
                 bool allOk = alertServices.Count == 0;
-                var healthBrush = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
+                var healthBrush = allOk ? Brush.Parse("#52B788") : Brush.Parse("#F38BA8");
+                var badgeBg = allOk ? Brush.Parse("#112B1E") : Brush.Parse("#2D1515");
+                var borderBrush = allOk ? Brush.Parse("#34D39940") : Brush.Parse("#FB718540");
 
                 if (_cachedDashHealthDotEllipse != null) _cachedDashHealthDotEllipse.Fill = healthBrush;
                 if (_cachedDashHealthText != null) { _cachedDashHealthText.Text = allOk ? "ALL SYSTEMS OK" : "ATTENTION REQUIRED"; _cachedDashHealthText.Foreground = healthBrush; }
+                if (_cachedDashHealthBadge != null)
+                {
+                    _cachedDashHealthBadge.Background = badgeBg;
+                    _cachedDashHealthBadge.BorderBrush = borderBrush;
+                    _cachedDashHealthBadge.BorderThickness = new Avalonia.Thickness(1);
+                }
 
                 if (_cachedAlertBanner != null) _cachedAlertBanner.IsVisible = !allOk;
                 if (_cachedAlertText != null && !allOk)
@@ -541,7 +570,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (_cachedStatServicesOk != null)
                 {
                     _cachedStatServicesOk.Text = $"{servicesOk}/3";
-                    _cachedStatServicesOk.Foreground = allOk ? Brush.Parse("#588157") : Brush.Parse("#F38BA8");
+                    _cachedStatServicesOk.Foreground = allOk ? Brush.Parse("#52B788") : Brush.Parse("#F38BA8");
                 }
 
                 UpdateGreeting();
@@ -556,10 +585,45 @@ namespace PinayPalBackupManager.UI.UserControls
             var dot = this.FindControl<Ellipse>($"{prefix}StatusDot");
             var txt = this.FindControl<TextBlock>($"{prefix}StatusText");
             var last = this.FindControl<TextBlock>($"{prefix}LastSync");
+            var container = this.FindControl<Border>($"{prefix}StatusContainer");
 
             if (dot != null) dot.Fill = color;
             if (txt != null) { txt.Text = status; txt.Foreground = color; }
             if (last != null) last.Text = string.IsNullOrWhiteSpace(lastSync) ? "Never" : lastSync;
+
+            if (container != null)
+            {
+                UpdateStatusContainerStyle(container, color?.ToString() ?? "");
+            }
+        }
+
+        private void UpdateStatusContainerStyle(Border container, string colorStr)
+        {
+            if (colorStr.Contains("34D399") || colorStr.Contains("588157") || colorStr.Contains("52B788") || colorStr.Contains("LimeGreen") || colorStr.Contains("emerald") || colorStr.Contains("Green"))
+            {
+                container.Background = Brush.Parse("#112B1E");
+                container.BorderBrush = Brush.Parse("#34D39935");
+            }
+            else if (colorStr.Contains("e6c55c") || colorStr.Contains("FBBF24") || colorStr.Contains("FCA311") || colorStr.Contains("Yellow") || colorStr.Contains("amber"))
+            {
+                container.Background = Brush.Parse("#2A2115");
+                container.BorderBrush = Brush.Parse("#FBBF2430");
+            }
+            else if (colorStr.Contains("60A5FA") || colorStr.Contains("Blue") || colorStr.Contains("sky"))
+            {
+                container.Background = Brush.Parse("#0C1D33");
+                container.BorderBrush = Brush.Parse("#60A5FA30");
+            }
+            else if (colorStr.Contains("A78BFA") || colorStr.Contains("Purple") || colorStr.Contains("violet") || colorStr.Equals("#A78BFA", StringComparison.OrdinalIgnoreCase))
+            {
+                container.Background = Brush.Parse("#21153B");
+                container.BorderBrush = Brush.Parse("#A78BFA30");
+            }
+            else
+            {
+                if (this.TryFindResource("AppSurface", out var bg) && bg is IBrush bbg) container.Background = bbg;
+                if (this.TryFindResource("AppBorder", out var bc) && bc is IBrush bbc) container.BorderBrush = bbc;
+            }
         }
 
         private void SetTimer(string controlName, DateTime next, DateTime now)
@@ -1158,10 +1222,15 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartActiveProcessTimer()
         {
-            _activeProcessUpdateTimer?.Stop();
-            _activeProcessUpdateTimer?.Dispose();
+            if (_activeProcessUpdateTimer != null)
+            {
+                _activeProcessUpdateTimer.Elapsed -= _activeProcessUpdateTimerHandler;
+                _activeProcessUpdateTimer.Stop();
+                _activeProcessUpdateTimer.Dispose();
+            }
+            _activeProcessUpdateTimerHandler = (_, _) => UpdateActiveProcessDisplay();
             _activeProcessUpdateTimer = new System.Timers.Timer(1000);
-            _activeProcessUpdateTimer.Elapsed += (_, _) => UpdateActiveProcessDisplay();
+            _activeProcessUpdateTimer.Elapsed += _activeProcessUpdateTimerHandler;
             _activeProcessUpdateTimer.AutoReset = true;
             _activeProcessUpdateTimer.Start();
         }
@@ -1822,10 +1891,13 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartHealthAutoRefresh()
         {
-            _healthRefreshTimer?.Stop();
-            _healthRefreshTimer?.Dispose();
-            _healthRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
-            _healthRefreshTimer.Elapsed += async (sender, e) =>
+            if (_healthRefreshTimer != null)
+            {
+                _healthRefreshTimer.Elapsed -= _healthRefreshTimerHandler;
+                _healthRefreshTimer.Stop();
+                _healthRefreshTimer.Dispose();
+            }
+            _healthRefreshTimerHandler = async (sender, e) =>
             {
                 if (Interlocked.Exchange(ref _isHealthRefreshing, 1) == 1)
                     return;
@@ -1839,6 +1911,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Interlocked.Exchange(ref _isHealthRefreshing, 0);
                 }
             };
+            _healthRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
+            _healthRefreshTimer.Elapsed += _healthRefreshTimerHandler;
             _healthRefreshTimer.AutoReset = true;
             _healthRefreshTimer.Start();
             
@@ -1856,10 +1930,13 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartStatsAutoRefresh()
         {
-            _statsRefreshTimer?.Stop();
-            _statsRefreshTimer?.Dispose();
-            _statsRefreshTimer = new System.Timers.Timer(45000); // 45 seconds
-            _statsRefreshTimer.Elapsed += async (_, _) =>
+            if (_statsRefreshTimer != null)
+            {
+                _statsRefreshTimer.Elapsed -= _statsRefreshTimerHandler;
+                _statsRefreshTimer.Stop();
+                _statsRefreshTimer.Dispose();
+            }
+            _statsRefreshTimerHandler = async (_, _) =>
             {
                 if (Interlocked.Exchange(ref _isStatsRefreshing, 1) == 1)
                     return;
@@ -1873,6 +1950,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Interlocked.Exchange(ref _isStatsRefreshing, 0);
                 }
             };
+            _statsRefreshTimer = new System.Timers.Timer(45000); // 45 seconds
+            _statsRefreshTimer.Elapsed += _statsRefreshTimerHandler;
             _statsRefreshTimer.AutoReset = true;
             _statsRefreshTimer.Start();
             
@@ -1888,10 +1967,13 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartDashboardAutoRefresh()
         {
-            _dashboardRefreshTimer?.Stop();
-            _dashboardRefreshTimer?.Dispose();
-            _dashboardRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
-            _dashboardRefreshTimer.Elapsed += async (_, _) =>
+            if (_dashboardRefreshTimer != null)
+            {
+                _dashboardRefreshTimer.Elapsed -= _dashboardRefreshTimerHandler;
+                _dashboardRefreshTimer.Stop();
+                _dashboardRefreshTimer.Dispose();
+            }
+            _dashboardRefreshTimerHandler = async (_, _) =>
             {
                 if (Interlocked.Exchange(ref _isDashboardRefreshing, 1) == 1)
                     return;
@@ -1907,6 +1989,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Interlocked.Exchange(ref _isDashboardRefreshing, 0);
                 }
             };
+            _dashboardRefreshTimer = new System.Timers.Timer(30000); // 30 seconds
+            _dashboardRefreshTimer.Elapsed += _dashboardRefreshTimerHandler;
             _dashboardRefreshTimer.AutoReset = true;
             _dashboardRefreshTimer.Start();
 
@@ -1920,10 +2004,13 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void StartErrorRefreshTimer()
         {
-            _errorRefreshTimer?.Stop();
-            _errorRefreshTimer?.Dispose();
-            _errorRefreshTimer = new System.Timers.Timer(60000); // 60 seconds
-            _errorRefreshTimer.Elapsed += async (_, _) =>
+            if (_errorRefreshTimer != null)
+            {
+                _errorRefreshTimer.Elapsed -= _errorRefreshTimerHandler;
+                _errorRefreshTimer.Stop();
+                _errorRefreshTimer.Dispose();
+            }
+            _errorRefreshTimerHandler = async (_, _) =>
             {
                 if (Interlocked.Exchange(ref _isErrorRefreshing, 1) == 1)
                     return;
@@ -1937,6 +2024,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Interlocked.Exchange(ref _isErrorRefreshing, 0);
                 }
             };
+            _errorRefreshTimer = new System.Timers.Timer(60000); // 60 seconds
+            _errorRefreshTimer.Elapsed += _errorRefreshTimerHandler;
             _errorRefreshTimer.AutoReset = true;
             _errorRefreshTimer.Start();
 
@@ -2360,6 +2449,13 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             var dot = this.FindControl<Ellipse>(controlName);
             if (dot != null) dot.Fill = Brush.Parse(color);
+
+            var containerName = controlName.Replace("Dot", "Container");
+            var container = this.FindControl<Border>(containerName);
+            if (container != null)
+            {
+                UpdateStatusContainerStyle(container, color);
+            }
         }
 
         private void SetTextColor(string controlName, string color)
@@ -2983,20 +3079,42 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (button != null) button.Content = "↻";
             });
             
-            // Stop all timers
-            _healthRefreshTimer?.Stop();
-            _healthRefreshTimer?.Dispose();
-            _statsRefreshTimer?.Stop();
-            _statsRefreshTimer?.Dispose();
-            _dashboardRefreshTimer?.Stop();
-            _dashboardRefreshTimer?.Dispose();
-            _errorRefreshTimer?.Stop();
-            _errorRefreshTimer?.Dispose();
-            _activeProcessUpdateTimer?.Stop();
-            _activeProcessUpdateTimer?.Dispose();
-
-            _healthRefreshTimer = null;
-            _statsRefreshTimer = null;
+            // Stop all timers and unsubscribe events
+            if (_healthRefreshTimer != null)
+            {
+                _healthRefreshTimer.Elapsed -= _healthRefreshTimerHandler;
+                _healthRefreshTimer.Stop();
+                _healthRefreshTimer.Dispose();
+                _healthRefreshTimer = null;
+            }
+            if (_statsRefreshTimer != null)
+            {
+                _statsRefreshTimer.Elapsed -= _statsRefreshTimerHandler;
+                _statsRefreshTimer.Stop();
+                _statsRefreshTimer.Dispose();
+                _statsRefreshTimer = null;
+            }
+            if (_dashboardRefreshTimer != null)
+            {
+                _dashboardRefreshTimer.Elapsed -= _dashboardRefreshTimerHandler;
+                _dashboardRefreshTimer.Stop();
+                _dashboardRefreshTimer.Dispose();
+                _dashboardRefreshTimer = null;
+            }
+            if (_errorRefreshTimer != null)
+            {
+                _errorRefreshTimer.Elapsed -= _errorRefreshTimerHandler;
+                _errorRefreshTimer.Stop();
+                _errorRefreshTimer.Dispose();
+                _errorRefreshTimer = null;
+            }
+            if (_activeProcessUpdateTimer != null)
+            {
+                _activeProcessUpdateTimer.Elapsed -= _activeProcessUpdateTimerHandler;
+                _activeProcessUpdateTimer.Stop();
+                _activeProcessUpdateTimer.Dispose();
+                _activeProcessUpdateTimer = null;
+            }
             _dashboardRefreshTimer = null;
             _errorRefreshTimer = null;
             _activeProcessUpdateTimer = null;
@@ -3007,6 +3125,7 @@ namespace PinayPalBackupManager.UI.UserControls
             Interlocked.Exchange(ref _isErrorRefreshing, 0);
 
             // Null cached controls to allow GC
+            _cachedDashHealthBadge = null;
             _cachedDashHealthDotEllipse = null;
             _cachedDashHealthText = null;
             _cachedAlertBanner = null;

@@ -48,7 +48,17 @@ namespace PinayPalBackupManager.Services
             _pollTimer.Start();
 
             // Run an initial check immediately (fire-and-forget)
-            _ = Task.Run(async () => await CheckConnectivityAsync());
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await CheckConnectivityAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[NetworkConnectivity] Initial check failed: {ex.Message}", "", "Debug", "SYSTEM");
+                }
+            });
         }
 
         /// <summary>

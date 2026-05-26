@@ -22,11 +22,17 @@ namespace PinayPalBackupManager.UI.UserControls
             BtnYes.Click += (_, _) => OnResult?.Invoke(this, true);
         }
         
-        public static async Task<bool> ShowAsync(string title, string message)
+        public static async Task<bool> ShowAsync(string title, string message, Window? parentWindow = null)
         {
             var tcs = new TaskCompletionSource<bool>();
             
             var dialog = new ConfirmDialog(title, message);
+            
+            // Use provided parent window or find the main window as owner
+            var ownerWindow = parentWindow ?? (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null);
+            
             var window = new Window
             {
                 Content = dialog,
@@ -39,8 +45,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
                 SystemDecorations = SystemDecorations.None,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 Background = Avalonia.Media.Brushes.Transparent
+                // Note: Owner is set automatically by ShowDialog()
             };
             
             dialog.OnResult += (sender, result) => 
@@ -48,15 +55,19 @@ namespace PinayPalBackupManager.UI.UserControls
                 window.Close();
                 tcs.SetResult(result);
             };
-            
-            // Find the main window as owner
-            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
                 
-            if (mainWindow != null)
+            if (ownerWindow != null)
             {
-                await window.ShowDialog(mainWindow);
+                // Ensure parent window is active so dialog appears on top
+                ownerWindow.Activate();
+                await window.ShowDialog(ownerWindow);
+            }
+            else
+            {
+                // Fallback: show without owner if no window found
+                window.Show();
+                window.Activate();
+                await tcs.Task;
             }
             
             return await tcs.Task;

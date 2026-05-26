@@ -18,6 +18,8 @@ namespace PinayPalBackupManager.Services
         private static bool _isInitialized = false;
         private static int _isCheckingRetries = 0;
 
+        private static ElapsedEventHandler? _checkTimerHandler;
+
         public static event Action<string>? OnRetryDue;
 
         private class RetryEntry
@@ -35,11 +37,18 @@ namespace PinayPalBackupManager.Services
         {
             if (_isInitialized) return;
             _isInitialized = true;
-            _checkTimer?.Stop();
-            _checkTimer?.Dispose();
+            
+            // Properly unsubscribe and dispose old timer
+            if (_checkTimer != null)
+            {
+                _checkTimer.Elapsed -= _checkTimerHandler;
+                _checkTimer.Stop();
+                _checkTimer.Dispose();
+            }
 
+            _checkTimerHandler = async (_, _) => await CheckRetriesAsync();
             _checkTimer = new System.Timers.Timer(30000); // Check every 30 seconds
-            _checkTimer.Elapsed += async (_, _) => await CheckRetriesAsync();
+            _checkTimer.Elapsed += _checkTimerHandler;
             _checkTimer.AutoReset = true;
             _checkTimer.Start();
 
@@ -48,9 +57,13 @@ namespace PinayPalBackupManager.Services
 
         public static void Stop()
         {
-            _checkTimer?.Stop();
-            _checkTimer?.Dispose();
-            _checkTimer = null;
+            if (_checkTimer != null)
+            {
+                _checkTimer.Elapsed -= _checkTimerHandler;
+                _checkTimer.Stop();
+                _checkTimer.Dispose();
+                _checkTimer = null;
+            }
             _retryQueue.Clear();
             _isInitialized = false;
             Interlocked.Exchange(ref _isCheckingRetries, 0);

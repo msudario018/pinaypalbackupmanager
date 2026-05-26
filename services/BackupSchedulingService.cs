@@ -201,29 +201,43 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async void CheckSchedules(object? state)
+        private static void CheckSchedules(object? state)
         {
-            lock (_lock)
-            {
-                if (!_isRunning) return;
+            if (!_isRunning) return;
 
+            _ = Task.Run(async () =>
+            {
                 try
                 {
-                    var now = DateTime.UtcNow;
-                    var schedulesToRun = _schedules.Values
-                        .Where(s => s.IsEnabled && s.NextRun.HasValue && s.NextRun.Value <= now)
-                        .ToList();
+                    List<BackupSchedule> schedulesToRun;
+                    lock (_lock)
+                    {
+                        var now = DateTime.UtcNow;
+                        schedulesToRun = _schedules.Values
+                            .Where(s => s.IsEnabled && s.NextRun.HasValue && s.NextRun.Value <= now)
+                            .ToList();
+                    }
 
                     foreach (var schedule in schedulesToRun)
                     {
-                        _ = Task.Run(() => ExecuteScheduleAsync(schedule));
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await ExecuteScheduleAsync(schedule);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogService.WriteSystemLog($"Error executing schedule {schedule.Name}: {ex.Message}", "Error", "BACKUPSCHEDULE");
+                            }
+                        });
                     }
                 }
                 catch (Exception ex)
                 {
                     LogService.WriteSystemLog($"Error checking schedules: {ex.Message}", "Error", "BACKUPSCHEDULE");
                 }
-            }
+            });
         }
 
         private static async Task ExecuteScheduleAsync(BackupSchedule schedule)

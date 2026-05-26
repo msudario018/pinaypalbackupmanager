@@ -153,13 +153,13 @@ namespace PinayPalBackupManager.Services
                 }
                 else
                 {
-                    SendErrorResponse(response, 404, "Not Found");
+                    await SendErrorResponseAsync(response, 404, "Not Found");
                 }
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[FileDownloadService] Request handling error: {ex.Message}", "Error", "SYSTEM");
-                SendErrorResponse(response, 500, "Internal Server Error");
+                await SendErrorResponseAsync(response, 500, "Internal Server Error");
             }
         }
 
@@ -174,7 +174,7 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(filename) || filename.Contains("..") || filename.Contains('/') || filename.Contains('\\'))
                 {
                     LogService.WriteSystemLog($"[FileDownloadService] Invalid filename requested: {filename}", "Warning", "SYSTEM");
-                    SendErrorResponse(response, 400, "Invalid filename");
+                    await SendErrorResponseAsync(response, 400, "Invalid filename");
                     return;
                 }
 
@@ -184,7 +184,7 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 {
                     LogService.WriteSystemLog($"[FileDownloadService] File not found: {filename}", "Warning", "SYSTEM");
-                    SendErrorResponse(response, 404, "File not found");
+                    await SendErrorResponseAsync(response, 404, "File not found");
                     return;
                 }
 
@@ -205,7 +205,7 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[FileDownloadService] File download error: {ex.Message}", "Error", "SYSTEM");
-                SendErrorResponse(response, 500, "Download failed");
+                await SendErrorResponseAsync(response, 500, "Download failed");
             }
             finally
             {
@@ -268,7 +268,7 @@ namespace PinayPalBackupManager.Services
             };
         }
 
-        private static void SendErrorResponse(HttpListenerResponse response, int statusCode, string message)
+        private static async Task SendErrorResponseAsync(HttpListenerResponse response, int statusCode, string message)
         {
             response.StatusCode = statusCode;
             response.ContentType = "application/json";
@@ -283,7 +283,7 @@ namespace PinayPalBackupManager.Services
             var buffer = Encoding.UTF8.GetBytes(json);
             
             response.ContentLength64 = buffer.Length;
-            response.OutputStream.Write(buffer, 0, buffer.Length);
+            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
             response.OutputStream.Close();
         }
 

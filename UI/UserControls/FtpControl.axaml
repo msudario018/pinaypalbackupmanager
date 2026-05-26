@@ -27,10 +27,11 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <Button Name="BtnSyncCheck" Classes="Secondary" Content="Sync Check"/>
                     <Button Name="BtnTest" Classes="Secondary" Content="Test Connection"/>
+                    <Button Name="BtnClear" Classes="Secondary" Content="Clear Logs"/>
                 </StackPanel>
             </Grid>
 
-            <Grid Grid.Row="1" RowDefinitions="Auto, Auto, Auto, *, Auto" Margin="20">
+            <Grid Grid.Row="1" RowDefinitions="Auto, Auto, *, Auto" Margin="20">
 
                 <!-- Status Bar -->
 
@@ -91,16 +92,9 @@
         <ProgressBar Grid.Row="1" Name="ProgressBar" Height="10" Margin="0,0,0,15" CornerRadius="5" Background="{DynamicResource AccentFtpDark}" Foreground="{DynamicResource AccentFtp}"/>
 
 
-        <!-- Utility Buttons -->
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15" HorizontalAlignment="Right">
-            <Button Name="BtnClear" Classes="Secondary" Content="Clear"/>
-        </StackPanel>
-
-
         <!-- Logs Container -->
 
-        <Border Grid.Row="3" Background="{DynamicResource AccentFtpBg}" CornerRadius="16" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
+        <Border Grid.Row="2" Background="{DynamicResource AccentFtpBg}" CornerRadius="16" Padding="15" Margin="0,0,0,15" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
 
             <Grid RowDefinitions="Auto, *">
 
@@ -119,7 +113,7 @@
 
         <!-- Footer -->
 
-        <Button Grid.Row="4" Name="BtnViewLog" Content="OPEN LOG FILE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
+        <Button Grid.Row="3" Name="BtnViewLog" Content="OPEN LOG FILE" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" 
 
                 BorderBrush="{DynamicResource AppBorder}" Margin="0,15,0,0" Padding="10" CornerRadius="12"/>
 

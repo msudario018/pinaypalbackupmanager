@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PinayPalBackupManager.Services
@@ -13,6 +15,7 @@ namespace PinayPalBackupManager.Services
         private static readonly string ChecksumsFile = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "PinayPalBackupManager", "checksums.json");
+        private static readonly System.Threading.SemaphoreSlim _checksumsLock = new(1, 1);
 
         public class ChecksumRecord
         {
@@ -63,6 +66,22 @@ namespace PinayPalBackupManager.Services
             {
                 if (!File.Exists(record.FilePath))
                 {
+                    // Check if file was likely deleted by retention policy
+                    var retentionDays = ConfigService.Current.Operation.RetentionDays;
+                    var retentionLimit = DateTime.Now.AddDays(-retentionDays);
+                    
+                    // If the checksum record is older than retention period, it's likely cleaned by retention
+                    if (record.Created < retentionLimit)
+                    {
+                        return new VerificationResult
+                        {
+                            IsValid = true, // Consider it valid (cleaned by retention, not missing)
+                            FilePath = record.FilePath,
+                            Status = "Cleaned by retention",
+                            VerificationTime = DateTime.Now - startTime
+                        };
+                    }
+                    
                     return new VerificationResult
                     {
                         IsValid = false,
@@ -97,84 +116,207 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        public static async Task<List<VerificationResult>> VerifyAllChecksumsAsync()
+        public static async Task<List<VerificationResult>> VerifyAllChecksumsAsync(CancellationToken cancellationToken = default)
         {
             var checksums = LoadChecksums();
-            var results = new List<VerificationResult>();
+            
+            // For small batches, use sequential processing to avoid parallel overhead
+            if (checksums.Count < 50)
+            {
+                var sequentialResults = new List<VerificationResult>();
+                foreach (var record in checksums)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var result = await VerifyChecksumAsync(record);
+                    sequentialResults.Add(result);
+                }
+                return sequentialResults;
+            }
+            
+            var results = new ConcurrentBag<VerificationResult>();
 
-            foreach (var record in checksums)
+            // Parallel verification with limited concurrency
+            var options = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                CancellationToken = cancellationToken
+            };
+
+            await Parallel.ForEachAsync(checksums, options, async (record, ct) =>
             {
                 var result = await VerifyChecksumAsync(record);
                 results.Add(result);
-            }
+            });
 
-            return results;
+            return results.ToList();
         }
 
-        public static async Task<List<VerificationResult>> VerifyServiceChecksumsAsync(string service)
+        public static async Task<List<VerificationResult>> VerifyServiceChecksumsAsync(string service, CancellationToken cancellationToken = default)
         {
-            var checksums = LoadChecksums().Where(c => c.Service.Equals(service, StringComparison.OrdinalIgnoreCase));
-            var results = new List<VerificationResult>();
+            var checksums = LoadChecksums().Where(c => c.Service.Equals(service, StringComparison.OrdinalIgnoreCase)).ToList();
+            
+            // For small batches, use sequential processing to avoid parallel overhead
+            if (checksums.Count < 50)
+            {
+                var sequentialResults = new List<VerificationResult>();
+                foreach (var record in checksums)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var result = await VerifyChecksumAsync(record);
+                    sequentialResults.Add(result);
+                }
+                return sequentialResults;
+            }
+            
+            var results = new ConcurrentBag<VerificationResult>();
 
-            foreach (var record in checksums)
+            // Parallel verification with limited concurrency
+            var options = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                CancellationToken = cancellationToken
+            };
+
+            await Parallel.ForEachAsync(checksums, options, async (record, ct) =>
             {
                 var result = await VerifyChecksumAsync(record);
                 results.Add(result);
-            }
+            });
 
-            return results;
+            return results.ToList();
         }
 
         public static async Task SaveChecksumAsync(ChecksumRecord record)
         {
-            var checksums = LoadChecksums();
-            
-            // Remove existing record for same file
-            checksums.RemoveAll(c => c.FilePath.Equals(record.FilePath, StringComparison.OrdinalIgnoreCase));
-            
-            // Add new record
-            checksums.Add(record);
-            
-            // Keep only last 1000 records per service to prevent file from growing too large
-            var serviceRecords = checksums.Where(c => c.Service == record.Service).ToList();
-            if (serviceRecords.Count > 1000)
+            await _checksumsLock.WaitAsync();
+            try
             {
-                var toRemove = serviceRecords.OrderBy(c => c.Created).Take(serviceRecords.Count - 1000);
-                checksums.RemoveAll(r => toRemove.Contains(r));
+                var checksums = LoadChecksums();
+                
+                // Remove existing record for same file
+                checksums.RemoveAll(c => c.FilePath.Equals(record.FilePath, StringComparison.OrdinalIgnoreCase));
+                
+                // Add new record
+                checksums.Add(record);
+                
+                // Keep only last 1000 records per service to prevent file from growing too large
+                var serviceRecords = checksums.Where(c => c.Service == record.Service).ToList();
+                if (serviceRecords.Count > 1000)
+                {
+                    var toRemove = serviceRecords.OrderBy(c => c.Created).Take(serviceRecords.Count - 1000);
+                    checksums.RemoveAll(r => toRemove.Contains(r));
+                }
+                
+                await SaveChecksumsAsync(checksums);
+                
+                LogService.WriteLiveLog($"[CHECKSUM] Generated {record.Algorithm} for {record.FileName} ({record.FileSize / 1024.0 / 1024.0:F1} MB)", "", "Information", "SYSTEM");
             }
-            
-            await SaveChecksumsAsync(checksums);
-            
-            LogService.WriteLiveLog($"[CHECKSUM] Generated {record.Algorithm} for {record.FileName} ({record.FileSize / 1024.0 / 1024.0:F1} MB)", "", "Information", "SYSTEM");
+            finally
+            {
+                _checksumsLock.Release();
+            }
         }
 
-        public static async Task SaveChecksumsForFolderAsync(string folder, string service)
+        public static async Task SaveChecksumsForFolderAsync(string folder, string service, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!Directory.Exists(folder)) return;
 
             var files = new DirectoryInfo(folder)
                 .GetFiles("*", SearchOption.AllDirectories)
                 .Where(f => f.Name != "backuplog.txt" && f.Name != "checksums.json")
-                .OrderByDescending(f => f.LastWriteTime)
-                .Take(50) // Only checksum recent files to avoid performance issues
                 .ToList();
 
             LogService.WriteLiveLog($"[CHECKSUM] Generating checksums for {files.Count} {service} files...", "", "Information", "SYSTEM");
-
-            foreach (var file in files)
+            
+            // Show progress notification for large folders
+            if (files.Count > 100)
             {
+                NotificationService.ShowBackupToast(service, $"Generating checksums for {files.Count} files... This may take a moment.", "Info");
+            }
+
+            var newRecords = new ConcurrentBag<ChecksumRecord>();
+            var processedCount = 0;
+            var progressInterval = Math.Max(1, files.Count / 10); // Log progress every 10%
+            
+            // For small folders, use sequential processing to avoid parallel overhead
+            if (files.Count < 20)
+            {
+                foreach (var file in files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var record = await GenerateChecksumAsync(file.FullName, service);
+                        newRecords.Add(record);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteLiveLog($"[CHECKSUM] Failed to generate checksum for {file.Name}: {ex.Message}", "", "Warning", "SYSTEM");
+                    }
+                }
+            }
+            else
+            {
+                // Parallel checksum generation with limited concurrency
+                var options = new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    CancellationToken = cancellationToken
+                };
+                
+                await Parallel.ForEachAsync(files, options, async (file, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
                     var record = await GenerateChecksumAsync(file.FullName, service);
-                    await SaveChecksumAsync(record);
+                    newRecords.Add(record);
+                    
+                    var count = Interlocked.Increment(ref processedCount);
+                    if (count % progressInterval == 0)
+                    {
+                        LogService.WriteLiveLog($"[CHECKSUM] Progress: {count}/{files.Count} {service} files processed ({count * 100 / files.Count}%)", "", "Information", "SYSTEM");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     LogService.WriteLiveLog($"[CHECKSUM] Failed to generate checksum for {file.Name}: {ex.Message}", "", "Warning", "SYSTEM");
                 }
+            });
+            } // Close the else block
+
+            if (newRecords.Count > 0)
+            {
+                await _checksumsLock.WaitAsync();
+                try
+                {
+                    var checksums = LoadChecksums();
+                    // Batch remove and add for better performance
+                    var recordsList = newRecords.ToList();
+                    var filePaths = new HashSet<string>(recordsList.Select(r => r.FilePath), StringComparer.OrdinalIgnoreCase);
+                    checksums.RemoveAll(c => filePaths.Contains(c.FilePath));
+                    checksums.AddRange(recordsList);
+                    // Keep only last 1000 records per service
+                    var serviceRecords = checksums.Where(c => c.Service == service).ToList();
+                    if (serviceRecords.Count > 1000)
+                    {
+                        var toRemove = serviceRecords.OrderBy(c => c.Created).Take(serviceRecords.Count - 1000);
+                        checksums.RemoveAll(r => toRemove.Contains(r));
+                    }
+                    await SaveChecksumsAsync(checksums);
+                }
+                finally
+                {
+                    _checksumsLock.Release();
+                }
             }
 
-            LogService.WriteLiveLog($"[CHECKSUM] Completed checksum generation for {service}", "", "Information", "SYSTEM");
+            LogService.WriteLiveLog($"[CHECKSUM] Completed checksum generation for {service} ({newRecords.Count} saved)", "", "Information", "SYSTEM");
         }
 
         public static List<ChecksumRecord> LoadChecksums()
@@ -263,16 +405,24 @@ namespace PinayPalBackupManager.Services
 
         public static async Task CleanupOldChecksumsAsync(int daysToKeep = 90)
         {
-            var cutoffDate = DateTime.Now.AddDays(-daysToKeep);
-            var checksums = LoadChecksums();
-            
-            var originalCount = checksums.Count;
-            checksums.RemoveAll(c => c.Created < cutoffDate);
-            
-            if (checksums.Count < originalCount)
+            await _checksumsLock.WaitAsync();
+            try
             {
-                await SaveChecksumsAsync(checksums);
-                LogService.WriteLiveLog($"[CHECKSUM] Cleaned up {originalCount - checksums.Count} old checksum records", "", "Information", "SYSTEM");
+                var cutoffDate = DateTime.Now.AddDays(-daysToKeep);
+                var checksums = LoadChecksums();
+                
+                var originalCount = checksums.Count;
+                checksums.RemoveAll(c => c.Created < cutoffDate);
+                
+                if (checksums.Count < originalCount)
+                {
+                    await SaveChecksumsAsync(checksums);
+                    LogService.WriteLiveLog($"[CHECKSUM] Cleaned up {originalCount - checksums.Count} old checksum records", "", "Information", "SYSTEM");
+                }
+            }
+            finally
+            {
+                _checksumsLock.Release();
             }
         }
 
@@ -292,34 +442,74 @@ namespace PinayPalBackupManager.Services
             return BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant();
         }
 
-        public static async Task<(int Valid, int Corrupted, int Missing)> GetVerificationSummaryAsync()
+        public static async Task<(int Valid, int Corrupted, int Missing)> GetVerificationSummaryAsync(CancellationToken cancellationToken = default)
         {
             var checksums = LoadChecksums();
             var valid = 0;
             var corrupted = 0;
             var missing = 0;
 
-            foreach (var record in checksums)
+            // For small batches, use sequential processing to avoid parallel overhead
+            if (checksums.Count < 50)
             {
+                foreach (var record in checksums)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!File.Exists(record.FilePath))
+                    {
+                        missing++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        var actualHash = await CalculateSHA256Async(record.FilePath);
+                        if (actualHash.Equals(record.Hash, StringComparison.OrdinalIgnoreCase))
+                            valid++;
+                        else
+                            corrupted++;
+                    }
+                    catch
+                    {
+                        corrupted++;
+                    }
+                }
+                return (valid, corrupted, missing);
+            }
+
+            // Parallel verification summary with limited concurrency
+            var options = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                CancellationToken = cancellationToken
+            };
+
+            await Parallel.ForEachAsync(checksums, options, async (record, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
                 if (!File.Exists(record.FilePath))
                 {
-                    missing++;
-                    continue;
+                    Interlocked.Increment(ref missing);
+                    return;
                 }
 
                 try
                 {
                     var actualHash = await CalculateSHA256Async(record.FilePath);
                     if (actualHash.Equals(record.Hash, StringComparison.OrdinalIgnoreCase))
-                        valid++;
+                        Interlocked.Increment(ref valid);
                     else
-                        corrupted++;
+                        Interlocked.Increment(ref corrupted);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch
                 {
-                    corrupted++;
+                    Interlocked.Increment(ref corrupted);
                 }
-            }
+            });
 
             return (valid, corrupted, missing);
         }

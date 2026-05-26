@@ -148,7 +148,17 @@ namespace PinayPalBackupManager.Services
                 {
                     // Create default holidays (Philippine holidays)
                     var defaultHolidays = GetDefaultPhilippineHolidays();
-                    _ = Task.Run(async () => await SaveHolidaysAsync(defaultHolidays));
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveHolidaysAsync(defaultHolidays);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"[HolidayMode] Failed to save default holidays: {ex.Message}", "", "Debug", "SYSTEM");
+                        }
+                    });
                     return defaultHolidays;
                 }
 

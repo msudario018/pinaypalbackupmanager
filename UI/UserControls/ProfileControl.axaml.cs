@@ -228,7 +228,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 Background = Avalonia.Media.Brushes.Transparent,
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 ExtendClientAreaToDecorationsHint = true,
@@ -248,6 +248,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            parentWindow?.Activate();
             window.ShowDialog(parentWindow!);
         }
 
@@ -268,7 +269,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 Background = Avalonia.Media.Brushes.Transparent,
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 ExtendClientAreaToDecorationsHint = true,
@@ -288,6 +289,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             dialog.OnCancel += (sender, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            parentWindow?.Activate();
             window.ShowDialog(parentWindow!);
         }
 
@@ -410,7 +412,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = true,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaTitleBarHeightHint = 0
@@ -419,7 +421,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
 
                 dialog.OnClose += (sender, e) => window.Close();
-
+                parentWindow?.Activate();
                 await window.ShowDialog(parentWindow!);
             }
             finally
@@ -456,7 +458,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ExtendClientAreaTitleBarHeightHint = 0,
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
                     SystemDecorations = SystemDecorations.None,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent
                 };
 
@@ -499,8 +501,12 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
-                    Background = Avalonia.Media.Brushes.Transparent
+                    // No Topmost - ShowDialog makes it modal to parent only
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    ExtendClientAreaToDecorationsHint = true,
+                    ExtendClientAreaTitleBarHeightHint = 0,
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                    SystemDecorations = SystemDecorations.None
                 };
 
                 var parentWindow = TopLevel.GetTopLevel(this) as Window;
@@ -512,7 +518,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
 
                 dialog.OnCancel += (sender, e) => window.Close();
-
+                parentWindow?.Activate();
                 await window.ShowDialog(parentWindow!);
             }
             finally
@@ -536,7 +542,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
@@ -547,6 +553,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var parentWindow = TopLevel.GetTopLevel(this) as Window;
 
             dialog.OnClose += (s, e) => window.Close();
+            parentWindow?.Activate();
             window.ShowDialog(parentWindow!);
         }
 
@@ -565,7 +572,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,

@@ -278,20 +278,6 @@ namespace PinayPalBackupManager.UI
 
             SetStartupBusy(true);
             
-            // Hide entire sidepanel during startup for cleaner loading experience
-            var sidepanelBorder = this.FindControl<Border>("SidebarBorder");
-            if (sidepanelBorder != null) sidepanelBorder.IsVisible = false;
-            
-            // Expand main content to full width during startup
-            var mainGrid = this.FindControl<Grid>("MainGrid");
-            if (mainGrid != null)
-            {
-                // Only modify column definitions during startup, keep row definitions from XAML
-                mainGrid.ColumnDefinitions.Clear();
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) }); // Hidden sidepanel
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Full width content
-            }
-            
             // Disable notifications during startup
             NotificationService.DisableNotifications();
             
@@ -669,6 +655,9 @@ namespace PinayPalBackupManager.UI
 
             var btnProfile = this.FindControl<Button>("BtnProfile");
             if (btnProfile != null) btnProfile.IsEnabled = !busy;
+
+            var sidebarToggle = this.FindControl<Button>("SidebarToggle");
+            if (sidebarToggle != null) sidebarToggle.IsEnabled = !busy;
         }
 
         public static async System.Threading.Tasks.Task ShowSystemInfoAsync()
@@ -715,10 +704,12 @@ namespace PinayPalBackupManager.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 Background = Avalonia.Media.Brushes.Transparent,
                 ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None
             };
 
             dialog.OnOk += (sender, e) => window.Close();
@@ -728,6 +719,7 @@ namespace PinayPalBackupManager.UI
 
             if (mainWindow != null)
             {
+                mainWindow.Activate();
                 await window.ShowDialog(mainWindow);
             }
         }
@@ -976,42 +968,85 @@ namespace PinayPalBackupManager.UI
         {
             var compact = _sidebarCompact;
 
-            // Sidebar width + parent grid column
+            // Sidebar width transition drives the Auto column smoothly
             var sidebarBorder = this.FindControl<Border>("SidebarBorder");
             if (sidebarBorder != null) sidebarBorder.Width = compact ? 64 : 210;
 
-            if (sidebarBorder?.Parent is Grid parentGrid && parentGrid.ColumnDefinitions.Count >= 2)
-                parentGrid.ColumnDefinitions[0] = new ColumnDefinition(compact ? new GridLength(64) : new GridLength(210));
-
-            // Logo text
+            // Logo text - fade opacity
             var logoText = this.FindControl<TextBlock>("LogoText");
-            if (logoText != null) logoText.IsVisible = !compact;
+            if (logoText != null) logoText.Opacity = compact ? 0 : 1;
 
-            // Sidebar nav items (section headers + button labels + alignment)
+            // Sidebar nav items (section headers fade + button labels + alignment)
             var sidebar = this.FindControl<StackPanel>("Sidebar");
             if (sidebar != null)
             {
                 foreach (var child in sidebar.Children)
                 {
                     if (child is TextBlock tb)
-                        tb.IsVisible = !compact;
+                    {
+                        tb.Opacity = compact ? 0 : 1;
+                        tb.IsVisible = !compact; // Collapse section headers in compact mode
+                    }
                     else if (child is Button btn)
                     {
-                        ToggleButtonTextVisibility(btn, !compact);
+                        ToggleButtonTextOpacity(btn, compact ? 0 : 1);
+                        // In compact mode, set HorizontalContentAlignment to Center and no padding
                         btn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
                         btn.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
                     }
                 }
             }
 
-            // Profile text
+            // Profile text - fade opacity and adjust spacing
+            var profileBtn = this.FindControl<Button>("BtnProfile");
+            if (profileBtn != null)
+            {
+                profileBtn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                profileBtn.Padding = compact ? new Thickness(0) : new Thickness(8, 0);
+                if (profileBtn.Content is StackPanel profileSp)
+                {
+                    profileSp.Spacing = compact ? 0 : 10;
+                    // Center avatar in compact mode
+                    foreach (var c in profileSp.Children)
+                    {
+                        if (c is Grid avatarGrid)
+                            avatarGrid.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                    // Center the StackPanel in compact mode
+                    profileSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+                }
+            }
             var profileText = this.FindControl<StackPanel>("ProfileTextPanel");
-            if (profileText != null) profileText.IsVisible = !compact;
+            if (profileText != null)
+            {
+                profileText.Opacity = compact ? 0 : 1;
+                profileText.IsVisible = !compact; // Collapse in compact mode
+            }
 
-            // Customize button text
+            // Customize button text and spacing
             var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
             if (btnCustomize != null)
-                ToggleButtonTextVisibility(btnCustomize, !compact);
+            {
+                // Manually handle Customize button since it uses same structure
+                if (btnCustomize.Content is StackPanel customizeSp)
+                {
+                    foreach (var c in customizeSp.Children)
+                    {
+                        if (c is TextBlock tb)
+                        {
+                            tb.Opacity = compact ? 0 : 1;
+                            tb.IsVisible = !compact; // Collapse text in compact mode
+                        }
+                        else if (c is PathIcon icon)
+                            icon.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                    customizeSp.Spacing = compact ? 0 : 11;
+                    // Center the StackPanel in compact mode
+                    customizeSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+                }
+                btnCustomize.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                btnCustomize.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
+            }
 
             // Toggle arrow direction
             var toggleIcon = this.FindControl<PathIcon>("SidebarToggleIcon");
@@ -1040,6 +1075,32 @@ namespace PinayPalBackupManager.UI
             }
         }
 
+        private static void ToggleButtonTextOpacity(Button btn, double opacity)
+        {
+            if (btn.Content is StackPanel sp)
+            {
+                bool isCompact = opacity < 0.5;
+                foreach (var c in sp.Children)
+                {
+                    if (c is TextBlock tb)
+                    {
+                        tb.Opacity = opacity;
+                        // Collapse text in compact mode so it doesn't take up layout space
+                        tb.IsVisible = !isCompact;
+                    }
+                    else if (c is PathIcon icon)
+                    {
+                        // Center the icon in compact mode
+                        icon.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                }
+                // Adjust spacing: remove gap when text is hidden (compact mode)
+                sp.Spacing = isCompact ? 0 : 11;
+                // Set StackPanel alignment - stretch in expanded, center in compact
+                sp.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+            }
+        }
+
         private void OnWindowStateChanged(WindowState state)
         {
             var mainContent = this.FindControl<ContentControl>("MainContent");
@@ -1059,6 +1120,48 @@ namespace PinayPalBackupManager.UI
 
             // Update HomeControl layout for maximized state
             _homeControl?.SetMaximizedLayout(state == WindowState.Maximized);
+
+            // Minimize all owned dialog windows when main window is minimized
+            if (state == WindowState.Minimized)
+            {
+                MinimizeOwnedDialogs();
+            }
+        }
+
+        /// <summary>
+        /// Minimizes or hides all owned dialog windows when the main window is minimized.
+        /// </summary>
+        private void MinimizeOwnedDialogs()
+        {
+            // Find all open windows and minimize/hide dialog windows
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktopLifetime)
+                return;
+            
+            var allWindows = desktopLifetime.Windows;
+            if (allWindows == null) return;
+
+            foreach (var window in allWindows)
+            {
+                // Skip the main window itself
+                if (window == this) continue;
+                
+                // If it's a dialog window (owned by this window), minimize it
+                if (window.Owner == this)
+                {
+                    window.WindowState = WindowState.Minimized;
+                }
+                // Also handle windows that might have been shown as dialogs but don't have explicit owner set
+                else if (window.Title?.Contains("Confirm") == true || 
+                         window.Title?.Contains("Dialog") == true ||
+                         window.Title?.Contains("Backup") == true)
+                {
+                    // For safety, only hide if it looks like a popup dialog
+                    if (window.WindowState != WindowState.Minimized)
+                    {
+                        window.WindowState = WindowState.Minimized;
+                    }
+                }
+            }
         }
 
         private void ShowControl(UserControl control)
@@ -1338,39 +1441,6 @@ namespace PinayPalBackupManager.UI
                 {
                     _startupHealthPending = false;
                     SetStartupBusy(false);
-                    
-                    // Restore original grid layout with sidepanel first
-                    var mainGrid = this.FindControl<Grid>("MainGrid");
-                    if (mainGrid != null)
-                    {
-                        // Only restore column definitions, keep row definitions from XAML
-                        mainGrid.ColumnDefinitions.Clear();
-                        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) }); // Sidepanel width
-                        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content area
-                    }
-                    
-                    // Animate sidepanel appearance with fade-in and slide-in
-                    var sidepanelBorder = this.FindControl<Border>("SidebarBorder");
-                    if (sidepanelBorder != null)
-                    {
-                        // Set initial state for animation
-                        sidepanelBorder.IsVisible = true;
-                        sidepanelBorder.Opacity = 0;
-                        sidepanelBorder.RenderTransform = new TranslateTransform(-72, 0); // Start from left
-                        
-                        // Animate with Task.Delay for smooth transitions
-                        Task.Delay(50).ContinueWith(_ =>
-                        {
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                // Fade-in animation
-                                sidepanelBorder.Opacity = 1;
-                                
-                                // Slide-in animation
-                                sidepanelBorder.RenderTransform = new TranslateTransform(0, 0);
-                            });
-                        });
-                    }
                     
                     // Enable notifications after startup complete
                     NotificationService.EnableNotifications();
@@ -2192,7 +2262,7 @@ namespace PinayPalBackupManager.UI
                 Background = Avalonia.Media.Brushes.Transparent,
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
@@ -2206,6 +2276,7 @@ namespace PinayPalBackupManager.UI
             };
             dialog.OnCancel += (s, e) => window.Close();
 
+            this.Activate();
             await window.ShowDialog(this);
         }
 
@@ -2221,7 +2292,7 @@ namespace PinayPalBackupManager.UI
                 Background = Avalonia.Media.Brushes.Transparent,
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
@@ -2236,6 +2307,7 @@ namespace PinayPalBackupManager.UI
             };
             dialog.OnCancel += (s, e) => window.Close();
 
+            this.Activate();
             await window.ShowDialog(this);
         }
 
@@ -2307,7 +2379,7 @@ namespace PinayPalBackupManager.UI
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
@@ -2317,6 +2389,7 @@ namespace PinayPalBackupManager.UI
 
             dialog.OnClose += (s, e) => window.Close();
             window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            this.Activate();
             window.Show();
         }
 
@@ -2340,7 +2413,7 @@ namespace PinayPalBackupManager.UI
                 TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
                 CanResize = false,
                 ShowInTaskbar = false,
-                Topmost = true,
+                // No Topmost - ShowDialog makes it modal to parent only
                 ExtendClientAreaToDecorationsHint = true,
                 ExtendClientAreaTitleBarHeightHint = 0,
                 ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,

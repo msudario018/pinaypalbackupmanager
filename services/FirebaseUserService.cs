@@ -518,7 +518,17 @@ namespace PinayPalBackupManager.Services
                                     {
                                         // Conflict resolution: use LastUpdated timestamp
                                         // Firebase is considered the source of truth for role/status changes
-                                        _ = Task.Run(() => SyncUserToLocalAsync(userData));
+                                        _ = Task.Run(async () =>
+                                        {
+                                            try
+                                            {
+                                                await SyncUserToLocalAsync(userData);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                LogService.WriteLiveLog($"[FirebaseUser] Failed to sync user {username}: {ex.Message}", "", "Debug", "SYSTEM");
+                                            }
+                                        });
                                         onUserChanged?.Invoke(username, userData.Status);
                                         Console.WriteLine($"[FirebaseUser] Synced user from Firebase: {username}");
                                     }
@@ -530,7 +540,17 @@ namespace PinayPalBackupManager.Services
                                     if (!currentUsers.ContainsKey(username))
                                     {
                                         // Remove from local database
-                                        _ = Task.Run(() => RemoveUserFromLocalAsync(username));
+                                        _ = Task.Run(() =>
+                                        {
+                                            try
+                                            {
+                                                RemoveUserFromLocal(username);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                LogService.WriteLiveLog($"[FirebaseUser] Failed to remove user {username}: {ex.Message}", "", "Debug", "SYSTEM");
+                                            }
+                                        });
                                         onUserChanged?.Invoke(username, "Deleted");
                                         Console.WriteLine($"[FirebaseUser] Removed user from local DB: {username}");
                                     }
@@ -593,15 +613,25 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Remove a user from local database
         /// </summary>
-        private static void RemoveUserFromLocalAsync(string username)
+        private static void RemoveUserFromLocal(string username)
         {
             try
             {
                 var user = AuthService.GetUserByUsername(username);
                 if (user != null)
                 {
-                    _ = AuthService.DeleteUserAsync(user.Id);
-                    Console.WriteLine($"[FirebaseUser] Removed user from local DB: {username}");
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await AuthService.DeleteUserAsync(user.Id);
+                            Console.WriteLine($"[FirebaseUser] Removed user from local DB: {username}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[FirebaseUser] Failed to remove user from local DB: {ex.Message}");
+                        }
+                    });
                 }
             }
             catch (Exception ex)

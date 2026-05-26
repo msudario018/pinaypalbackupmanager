@@ -18,6 +18,8 @@ namespace PinayPalBackupManager.Services
         private static bool _isInitialized = false;
         private static int _isCleaningUp = 0;
 
+        private static ElapsedEventHandler? _cleanupTimerHandler;
+
         /// <summary>
         /// Starts the retention cleanup timer (every 6 hours).
         /// </summary>
@@ -25,25 +27,46 @@ namespace PinayPalBackupManager.Services
         {
             if (_isInitialized) return;
             _isInitialized = true;
-            _cleanupTimer?.Stop();
-            _cleanupTimer?.Dispose();
+            
+            // Properly unsubscribe and dispose old timer
+            if (_cleanupTimer != null)
+            {
+                _cleanupTimer.Elapsed -= _cleanupTimerHandler;
+                _cleanupTimer.Stop();
+                _cleanupTimer.Dispose();
+            }
 
+            _cleanupTimerHandler = async (_, _) => await RunCleanupAsync();
             _cleanupTimer = new System.Timers.Timer(TimeSpan.FromHours(6).TotalMilliseconds);
-            _cleanupTimer.Elapsed += async (_, _) => await RunCleanupAsync();
+            _cleanupTimer.Elapsed += _cleanupTimerHandler;
             _cleanupTimer.AutoReset = true;
             _cleanupTimer.Start();
 
             LogService.WriteSystemLog("[RETENTION] Auto-cleanup service initialized (interval: 6h)", "Information", "SYSTEM");
 
             // Run initial cleanup on startup
-            _ = Task.Run(RunCleanupAsync);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await RunCleanupAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[RETENTION] Initial cleanup failed: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
         }
 
         public static void Stop()
         {
-            _cleanupTimer?.Stop();
-            _cleanupTimer?.Dispose();
-            _cleanupTimer = null;
+            if (_cleanupTimer != null)
+            {
+                _cleanupTimer.Elapsed -= _cleanupTimerHandler;
+                _cleanupTimer.Stop();
+                _cleanupTimer.Dispose();
+                _cleanupTimer = null;
+            }
             _isInitialized = false;
             Interlocked.Exchange(ref _isCleaningUp, 0);
             LogService.WriteSystemLog("[RETENTION] Auto-cleanup service stopped", "Information", "SYSTEM");
@@ -69,6 +92,9 @@ namespace PinayPalBackupManager.Services
                 totalDeleted += CleanupFolder(BackupConfig.FtpLocalFolder, limitDate, "FTP", ref totalBytesFreed);
                 totalDeleted += CleanupFolder(BackupConfig.MailchimpFolder, limitDate, "Mailchimp", ref totalBytesFreed);
                 totalDeleted += CleanupFolder(BackupConfig.SqlLocalFolder, limitDate, "SQL", ref totalBytesFreed);
+
+                // Also clean up old checksum records
+                await CleanupOldChecksumsAsync(limitDate);
 
                 if (totalDeleted > 0)
                 {
@@ -125,6 +151,21 @@ namespace PinayPalBackupManager.Services
             }
 
             return deleted;
+        }
+
+        /// <summary>
+        /// Cleans up checksum records older than the retention limit.
+        /// </summary>
+        private static async Task CleanupOldChecksumsAsync(DateTime limitDate)
+        {
+            try
+            {
+                await ChecksumService.CleanupOldChecksumsAsync((int)(DateTime.Now - limitDate).TotalDays);
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[RETENTION] Failed to cleanup old checksums: {ex.Message}", "Warning", "SYSTEM");
+            }
         }
     }
 }

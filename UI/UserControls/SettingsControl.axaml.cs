@@ -207,36 +207,6 @@ namespace PinayPalBackupManager.UI.UserControls
             }
 
             // Management Tools buttons
-            var btnHealthCheck = this.FindControl<Button>("BtnHealthCheck");
-            if (btnHealthCheck != null)
-            {
-                btnHealthCheck.Click += async (s, e) => await ShowHealthCheckDialogAsync();
-            }
-
-            var btnErrorReports = this.FindControl<Button>("BtnErrorReports");
-            if (btnErrorReports != null)
-            {
-                btnErrorReports.Click += async (s, e) => await ShowErrorReportsDialogAsync();
-            }
-
-            var btnPerformance = this.FindControl<Button>("BtnPerformance");
-            if (btnPerformance != null)
-            {
-                btnPerformance.Click += async (s, e) => await ShowPerformanceDialogAsync();
-            }
-
-            var btnBackupHistory = this.FindControl<Button>("BtnBackupHistory");
-            if (btnBackupHistory != null)
-            {
-                btnBackupHistory.Click += async (s, e) => await ShowBackupHistoryDialogAsync();
-            }
-
-            var btnBackupSchedules = this.FindControl<Button>("BtnBackupSchedules");
-            if (btnBackupSchedules != null)
-            {
-                btnBackupSchedules.Click += async (s, e) => await ShowBackupSchedulesDialogAsync();
-            }
-
             var btnResetAllUsers = this.FindControl<Button>("BtnResetAllUsers");
             if (btnResetAllUsers != null)
             {
@@ -283,7 +253,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
@@ -326,7 +296,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
@@ -369,7 +339,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
@@ -413,7 +383,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brushes.Transparent,
                     ExtendClientAreaToDecorationsHint = true,
                     ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
@@ -459,7 +429,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
                         CanResize = false,
                         ShowInTaskbar = false,
-                        Topmost = true,
+                        // No Topmost - ShowDialog makes it modal to parent only
                         Background = Avalonia.Media.Brushes.Transparent,
                         ExtendClientAreaToDecorationsHint = true,
                         ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome
@@ -752,7 +722,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
                     SystemDecorations = SystemDecorations.None
                 };
@@ -784,7 +754,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
                     SystemDecorations = SystemDecorations.None
                 };
@@ -816,7 +786,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
                     SystemDecorations = SystemDecorations.None
                 };
@@ -848,7 +818,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
                     SystemDecorations = SystemDecorations.None
                 };
@@ -880,7 +850,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     CanResize = false,
                     ShowInTaskbar = false,
-                    Topmost = true,
+                    // No Topmost - ShowDialog makes it modal to parent only
                     Background = Avalonia.Media.Brush.Parse("#0D1117"),
                     SystemDecorations = SystemDecorations.None
                 };
