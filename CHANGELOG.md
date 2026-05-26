@@ -1,5 +1,75 @@
 # Changelog
 
+## v3.0.0 (2026-05-27)
+
+### Major Release
+- **Dialog System Overhaul**: Complete redesign of all popup dialogs
+  - Fixed dialog z-order behavior across entire application
+  - Removed title bars from all dialogs for modern UI
+  - Dialogs now properly minimize/restore with main window
+  - No longer stay on top of other applications when main window loses focus
+
+### Major Fixes
+- **Verification Freezing**: Fixed "Verify All" button freezing the PC app
+  - Added `Task.Yield()` to prevent UI thread blocking
+  - Wrapped verifications in `Task.Run()` for thread pool execution
+  - Limited issue alerts to 50 max to prevent UI freeze with thousands of corrupted files
+  - Added "... and X more" indicator for exceeded limits
+
+### Dialog System Improvements
+- **Fixed Dialog Z-Order**: All popup dialogs now properly appear on top of parent window
+  - Removed `Topmost = true` from all dialogs (prevents dialogs staying on top of other apps)
+  - Added `parentWindow.Activate()` before `ShowDialog()` calls
+  - Dialogs minimize with main window and restore properly
+- **Modern Dialog Styling**: Removed title bars from all dialogs for cleaner look
+  - Added `SystemDecorations = SystemDecorations.None`
+  - Added `ExtendClientAreaToDecorationsHint = true`
+- **Fixed All Dialogs**: 
+  - System Info dialog
+  - Change Password dialog
+  - Change Username dialog
+  - Login History dialog
+  - Two Factor Auth dialog
+  - Logout Confirmation dialog
+  - User Management dialog
+  - Invite Codes dialog
+  - Settings dialogs (8 dialogs)
+  - Profile dialogs (7 dialogs)
+  - MainWindow dialogs (4 dialogs)
+
+### Performance & Stability
+- **Fixed Synchronous I/O**: Changed `Write()` to `WriteAsync()` in `FileDownloadService`
+- **Fixed Async Context**: Changed `CheckIntegrity` to async method with `ReadAsync()`
+- **Fixed Timer Memory Leaks**: 
+  - Added proper event unsubscription before disposing timers
+  - Fixed `BackupRetentionService` timer cleanup
+  - Fixed `BackupRetryService` timer cleanup
+  - Fixed `HomeControl` timer cleanup (5 timers)
+- **Fixed Null Reference Issues**: Added null checks for UI controls in `VerificationControl`
+
+### Code Quality
+- **Fixed Async Patterns**: 
+  - Removed `async void` from `RealtimeMonitoringService.CheckAlerts`
+  - Removed `async void` from `NotificationService.ProcessNotificationQueue`
+- **Fixed Database Connections**: Removed duplicate `connection.OpenAsync()` calls in `PasswordResetService`
+- **Fixed JSON Serialization**: Added missing `JsonIgnore` using directive in `VerificationHistoryService`
+
+### Files Modified
+- Services/RealtimeMonitoringService.cs
+- Services/VerificationHistoryService.cs
+- Services/PasswordResetService.cs
+- Services/FileDownloadService.cs
+- Services/BackupRetentionService.cs
+- Services/BackupRetryService.cs
+- UI/MainWindow.axaml.cs
+- UI/UserControls/VerificationControl.axaml.cs
+- UI/UserControls/ConfirmDialog.axaml.cs
+- UI/UserControls/ProfileControl.axaml.cs
+- UI/UserControls/SettingsControl.axaml.cs
+- UI/UserControls/UserManagementDialog.axaml.cs
+
+---
+
 ## v2.3.0 (2026-05-27)
 
 ### Major Fixes
