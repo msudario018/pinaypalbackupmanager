@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.1 (2026-05-27)
+
+### Hotfix
+- **Velopack Release**: Bumped version to 2.3.1 for Velopack release (2.3.0 already exists in releases)
+
+---
+
 ## v2.3.0 (2026-05-27)
 
 ### Major Fixes
