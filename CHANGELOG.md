@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.1.0 (2026-05-27)
+
+### UI Improvements
+- **Responsive Dashboard Cards**: Backup service cards now adapt to window size
+  - Changed from fixed `Grid` to `WrapPanel` for automatic wrapping
+  - Cards now have `MinWidth="240"` and `MaxWidth="300"` for flexible sizing
+  - Cards are centered when wrapping to new rows
+- **Wider Default Window**: Increased default window width to accommodate 4 cards
+  - Default width: `1060` → `1320` pixels
+  - Minimum width: `780` → `1080` pixels
+  - Fits all 4 backup cards (FTP, Mailchimp, SQL, Network Drive) in one row
+
+### Files Modified
+- UI/MainWindow.axaml
+- UI/UserControls/HomeControl.axaml
+
+---
+
 ## v3.0.0 (2026-05-27)
 
 ### Major Release

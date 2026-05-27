@@ -326,10 +326,10 @@
             </Border>
 
             <!-- Service Cards -->
-            <Grid Name="ServiceCardsSection" ColumnDefinitions="*, *, *, *" MaxWidth="1200" HorizontalAlignment="Stretch">
+            <WrapPanel Name="ServiceCardsSection" MaxWidth="1200" HorizontalAlignment="Center">
 
                 <!-- FTP Card -->
-                <Border Grid.Column="0" Margin="0,0,8,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                <Border MinWidth="240" MaxWidth="300" Margin="0,0,8,8" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
                     <StackPanel Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{DynamicResource AccentFtpBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
@@ -387,7 +387,7 @@
                 </Border>
 
                 <!-- Mailchimp Card -->
-                <Border Grid.Column="1" Margin="4,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                <Border MinWidth="240" MaxWidth="300" Margin="0,0,8,8" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
                     <StackPanel Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{DynamicResource AccentMailchimpBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
@@ -445,7 +445,7 @@
                 </Border>
 
                 <!-- SQL Card -->
-                <Border Grid.Column="2" Margin="4,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                <Border MinWidth="240" MaxWidth="300" Margin="0,0,8,8" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
                     <StackPanel Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{DynamicResource AccentSqlBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
@@ -502,7 +502,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Network Drive Card -->
-                <Border Name="NetworkDriveCard" Grid.Column="3" Margin="8,0,0,0" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
+                <Border Name="NetworkDriveCard" MinWidth="240" MaxWidth="300" Margin="0,0,8,8" Classes="background-card" CornerRadius="16" Padding="20" MinHeight="280">
                     <StackPanel Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{DynamicResource AccentWebsiteBg}" CornerRadius="10" Padding="10" VerticalAlignment="Center"
@@ -549,7 +549,7 @@
                                 FontWeight="SemiBold" Cursor="Hand"/>
                     </StackPanel>
                 </Border>
-            </Grid>
+            </WrapPanel>
 
             <!-- Backup Health Dashboard -->
             <Border Background="{DynamicResource AppCard}" CornerRadius="14" Padding="20">
