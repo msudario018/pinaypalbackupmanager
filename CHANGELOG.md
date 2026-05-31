@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.1.1 (2026-05-29)
+
+### Fixed
+- **Home Dashboard Display Issues**: Fixed system status indicators showing default placeholder values ("-")
+  - Changed `Name` to `x:Name` for SystemUptime, LastHealthCheck, ActiveProcesses, StorageUsage TextBlock controls
+  - Updated HomeControl.axaml.cs to use generated x:Name fields instead of FindControl
+  - Changed `AvaloniaXamlLoader.Load(this)` to `InitializeComponent()` to ensure x:Name fields are properly populated by generated code
+  - Fixed `OnLoaded` to restart all timers (dashboard refresh, health auto refresh, stats auto refresh, error refresh) not just active process timer
+  - Rewrote `UpdateSystemStatusAsync` to be more defensive with individual try-catch blocks and `Dispatcher.UIThread.Post` for each field
+  - Added diagnostic logging to verify x:Name field population
+
+### Files Modified
+- UI/UserControls/HomeControl.axaml
+- UI/UserControls/HomeControl.axaml.cs
+- PinayPalBackupManager.csproj
+
+---
+
 ## v3.1.0 (2026-05-27)
 
 ### UI Improvements

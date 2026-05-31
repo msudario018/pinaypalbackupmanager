@@ -44,19 +44,12 @@ namespace PinayPalBackupManager.UI.UserControls
         private Border? _cachedAlertBanner;
         private TextBlock? _cachedAlertText;
         private TextBlock? _cachedStatServicesOk;
-        private TextBlock? _cachedSystemUptime;
-        private TextBlock? _cachedLastHealthCheck;
-        private TextBlock? _cachedActiveProcesses;
-        private TextBlock? _cachedStorageUsage;
         private TextBlock? _cachedStatBackupsToday;
         private TextBlock? _cachedStatSuccessRate;
         private TextBlock? _cachedStatFailedBackups;
         private TextBlock? _cachedStatStorageUsed;
         private TextBlock? _cachedTrendBackups;
         private TextBlock? _cachedTrendSuccessRate;
-        private TextBlock? _cachedTimeSinceFtp;
-        private TextBlock? _cachedTimeSinceMc;
-        private TextBlock? _cachedTimeSinceSql;
         private Border? _cachedRetryQueueBadge;
         private TextBlock? _cachedTxtRetryQueue;
         private TextBlock? _cachedHealthScoreText;
@@ -115,7 +108,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public HomeControl(BackupManager manager)
         {
-            Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            InitializeComponent();
+            LogService.WriteLiveLog($"[DIAG] SystemUptime null? {SystemUptime == null}, LastHealthCheck null? {LastHealthCheck == null}, ActiveProcesses null? {ActiveProcesses == null}, StorageUsage null? {StorageUsage == null}", "", "Info", "SYSTEM");
             _manager = manager;
             InitializeCachedControls();
 
@@ -226,19 +220,12 @@ namespace PinayPalBackupManager.UI.UserControls
             _cachedAlertBanner = this.FindControl<Border>("AlertBanner");
             _cachedAlertText = this.FindControl<TextBlock>("AlertText");
             _cachedStatServicesOk = this.FindControl<TextBlock>("StatServicesOk");
-            _cachedSystemUptime = this.FindControl<TextBlock>("SystemUptime");
-            _cachedLastHealthCheck = this.FindControl<TextBlock>("LastHealthCheck");
-            _cachedActiveProcesses = this.FindControl<TextBlock>("ActiveProcesses");
-            _cachedStorageUsage = this.FindControl<TextBlock>("StorageUsage");
             _cachedStatBackupsToday = this.FindControl<TextBlock>("StatBackupsToday");
             _cachedStatSuccessRate = this.FindControl<TextBlock>("StatSuccessRate");
             _cachedStatFailedBackups = this.FindControl<TextBlock>("StatFailedBackups");
             _cachedStatStorageUsed = this.FindControl<TextBlock>("StatStorageUsed");
             _cachedTrendBackups = this.FindControl<TextBlock>("TrendBackups");
             _cachedTrendSuccessRate = this.FindControl<TextBlock>("TrendSuccessRate");
-            _cachedTimeSinceFtp = this.FindControl<TextBlock>("TimeSinceFtp");
-            _cachedTimeSinceMc = this.FindControl<TextBlock>("TimeSinceMc");
-            _cachedTimeSinceSql = this.FindControl<TextBlock>("TimeSinceSql");
             _cachedRetryQueueBadge = this.FindControl<Border>("RetryQueueBadge");
             _cachedTxtRetryQueue = this.FindControl<TextBlock>("TxtRetryQueue");
             _cachedHealthScoreText = this.FindControl<TextBlock>("HealthScoreText");
@@ -1239,12 +1226,11 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             // Check if global backup progress should be reset (no activity for 10 seconds)
             ResetGlobalBackupProgressIfIdle();
-            
+
             var activeProcessesText = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
             Dispatcher.UIThread.Post(() =>
             {
-                var processesTextBlock = this.FindControl<TextBlock>("ActiveProcesses");
-                if (processesTextBlock != null) processesTextBlock.Text = activeProcessesText;
+                if (ActiveProcesses != null) ActiveProcesses.Text = activeProcessesText;
             });
         }
 
@@ -2062,30 +2048,33 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             await Task.Run(() =>
             {
+                // Uptime
+                string uptimeText = "-";
                 try
                 {
                     var uptime = DateTime.Now - Process.GetCurrentProcess().StartTime;
-                    var uptimeText = uptime.TotalHours < 1 ? $"{uptime.TotalMinutes:F0}m" :
-                                     uptime.TotalHours < 24 ? $"{uptime.TotalHours:F1}h" :
-                                     $"{uptime.TotalDays:F1}d";
+                    uptimeText = uptime.TotalHours < 1 ? $"{uptime.TotalMinutes:F0}m" :
+                                 uptime.TotalHours < 24 ? $"{uptime.TotalHours:F1}h" :
+                                 $"{uptime.TotalDays:F1}d";
+                }
+                catch (Exception ex) { LogService.WriteLiveLog($"[SYSTEM] Uptime error: {ex.Message}", "", "Warning", "SYSTEM"); }
+                Dispatcher.UIThread.Post(() => { if (SystemUptime != null) SystemUptime.Text = uptimeText; });
 
-                    var lastHealthCheck = "Never";
+                // Last health check
+                string lastHealthCheck = "Never";
+                try
+                {
                     if (File.Exists(AppDataPaths.SystemLogPath))
                     {
                         var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 50);
                         var healthCheckLog = logs.FirstOrDefault(l => l.Contains("HEALTH: Global health check completed"));
                         if (healthCheckLog != null)
                         {
-                            // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
                             var match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
                             if (!match.Success)
-                            {
-                                // Fallback to 24-hour format: "[2025-04-04 12:34:56]" (for old logs)
                                 match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
-                            }
                             if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var healthTime))
                             {
-                                // The log timestamp is in local time, not UTC
                                 var timeDiff = DateTime.Now - healthTime;
                                 lastHealthCheck = timeDiff.TotalMinutes < 60 ? $"{timeDiff.TotalMinutes:F0}m ago" :
                                                   timeDiff.TotalHours < 24 ? $"{timeDiff.TotalHours:F1}h ago" :
@@ -2093,52 +2082,46 @@ namespace PinayPalBackupManager.UI.UserControls
                             }
                         }
                     }
+                }
+                catch (Exception ex) { LogService.WriteLiveLog($"[SYSTEM] Health check error: {ex.Message}", "", "Warning", "SYSTEM"); }
+                Dispatcher.UIThread.Post(() => { if (LastHealthCheck != null) LastHealthCheck.Text = lastHealthCheck; });
 
-                    var activeProcesses = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
+                // Active processes
+                string activeProcesses = "0 active";
+                try
+                {
+                    activeProcesses = _manager.IsPaused ? "Paused" : $"{_activeOperations} active";
+                }
+                catch (Exception ex) { LogService.WriteLiveLog($"[SYSTEM] Active processes error: {ex.Message}", "", "Warning", "SYSTEM"); }
+                Dispatcher.UIThread.Post(() => { if (ActiveProcesses != null) ActiveProcesses.Text = activeProcesses; });
 
-                    // Calculate available disk space
+                // Storage
+                string storageText = "-";
+                try
+                {
                     long freeSpace = 0;
-                    try
+                    string backupPath = BackupConfig.FtpLocalFolder;
+                    if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                        backupPath = BackupConfig.MailchimpFolder;
+                    if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                        backupPath = BackupConfig.SqlLocalFolder;
+
+                    if (!string.IsNullOrEmpty(backupPath))
                     {
-                        // Get the drive where the first backup folder is located
-                        string backupPath = BackupConfig.FtpLocalFolder;
-                        if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
+                        var driveRoot = System.IO.Path.GetPathRoot(backupPath);
+                        if (!string.IsNullOrEmpty(driveRoot))
                         {
-                            backupPath = BackupConfig.MailchimpFolder;
-                        }
-                        if (string.IsNullOrEmpty(backupPath) || !System.IO.Path.IsPathRooted(backupPath))
-                        {
-                            backupPath = BackupConfig.SqlLocalFolder;
-                        }
-                        
-                        if (!string.IsNullOrEmpty(backupPath))
-                        {
-                            var driveRoot = System.IO.Path.GetPathRoot(backupPath);
-                            if (!string.IsNullOrEmpty(driveRoot))
-                            {
-                                var driveInfo = new DriveInfo(driveRoot);
-                                freeSpace = driveInfo.AvailableFreeSpace;
-                            }
+                            var driveInfo = new DriveInfo(driveRoot);
+                            freeSpace = driveInfo.AvailableFreeSpace;
                         }
                     }
-                    catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] UpdateStorageAsync error: {ex.Message}", "", "Warning", "SYSTEM"); }
 
-                    string storageText = freeSpace >= 1073741824 ? $"{freeSpace / 1073741824.0:F1} GB free" :
-                                     freeSpace >= 1048576 ? $"{freeSpace / 1048576.0:F1} MB free" :
-                                     freeSpace >= 1024 ? $"{freeSpace / 1024.0:F0} KB free" : "0 B free";
-
-                    Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (_cachedSystemUptime != null) _cachedSystemUptime.Text = uptimeText;
-                        if (_cachedLastHealthCheck != null) _cachedLastHealthCheck.Text = lastHealthCheck;
-                        if (_cachedActiveProcesses != null) _cachedActiveProcesses.Text = activeProcesses;
-                        if (_cachedStorageUsage != null) _cachedStorageUsage.Text = storageText;
-                    });
+                    storageText = freeSpace >= 1073741824 ? $"{freeSpace / 1073741824.0:F1} GB free" :
+                                  freeSpace >= 1048576 ? $"{freeSpace / 1048576.0:F1} MB free" :
+                                  freeSpace >= 1024 ? $"{freeSpace / 1024.0:F0} KB free" : "0 B free";
                 }
-                catch (Exception ex)
-                {
-                    LogService.WriteLiveLog($"[SYSTEM] Error updating system status: {ex.Message}", "", "Error", "SYSTEM");
-                }
+                catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] Storage update error: {ex.Message}", "", "Warning", "SYSTEM"); }
+                Dispatcher.UIThread.Post(() => { if (StorageUsage != null) StorageUsage.Text = storageText; });
             });
         }
 
@@ -2278,20 +2261,20 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     Dispatcher.UIThread.Post(() =>
                     {
-                        if (_cachedTimeSinceFtp != null)
+                        if (TimeSinceFtp != null)
                         {
-                            _cachedTimeSinceFtp.Text = ftpTimeText;
-                            _cachedTimeSinceFtp.Foreground = GetTimeAgoColor(ftpLastTime);
+                            TimeSinceFtp.Text = ftpTimeText;
+                            TimeSinceFtp.Foreground = GetTimeAgoColor(ftpLastTime);
                         }
-                        if (_cachedTimeSinceMc != null)
+                        if (TimeSinceMc != null)
                         {
-                            _cachedTimeSinceMc.Text = mcTimeText;
-                            _cachedTimeSinceMc.Foreground = GetTimeAgoColor(mcLastTime);
+                            TimeSinceMc.Text = mcTimeText;
+                            TimeSinceMc.Foreground = GetTimeAgoColor(mcLastTime);
                         }
-                        if (_cachedTimeSinceSql != null)
+                        if (TimeSinceSql != null)
                         {
-                            _cachedTimeSinceSql.Text = sqlTimeText;
-                            _cachedTimeSinceSql.Foreground = GetTimeAgoColor(sqlLastTime);
+                            TimeSinceSql.Text = sqlTimeText;
+                            TimeSinceSql.Foreground = GetTimeAgoColor(sqlLastTime);
                         }
                     });
                 }
@@ -3016,8 +2999,12 @@ namespace PinayPalBackupManager.UI.UserControls
         protected override void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);
-            // Restart timer if control was unloaded and reloaded (e.g., tab switch)
+            // Restart timers if control was unloaded and reloaded (e.g., tab switch)
             StartActiveProcessTimer();
+            StartDashboardAutoRefresh();
+            StartHealthAutoRefresh();
+            StartStatsAutoRefresh();
+            StartErrorRefreshTimer();
             // Force reset any stale progress state on reload
             _lastBackupProgressUpdate = DateTime.MinValue;
             _lastBackupWasComplete = false;
@@ -3131,19 +3118,12 @@ namespace PinayPalBackupManager.UI.UserControls
             _cachedAlertBanner = null;
             _cachedAlertText = null;
             _cachedStatServicesOk = null;
-            _cachedSystemUptime = null;
-            _cachedLastHealthCheck = null;
-            _cachedActiveProcesses = null;
-            _cachedStorageUsage = null;
             _cachedStatBackupsToday = null;
             _cachedStatSuccessRate = null;
             _cachedStatFailedBackups = null;
             _cachedStatStorageUsed = null;
             _cachedTrendBackups = null;
             _cachedTrendSuccessRate = null;
-            _cachedTimeSinceFtp = null;
-            _cachedTimeSinceMc = null;
-            _cachedTimeSinceSql = null;
             _cachedRetryQueueBadge = null;
             _cachedTxtRetryQueue = null;
             _cachedHealthScoreText = null;
