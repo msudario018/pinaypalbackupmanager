@@ -1103,28 +1103,35 @@ namespace PinayPalBackupManager.UI
 
         private void OnWindowStateChanged(WindowState state)
         {
-            var mainContent = this.FindControl<ContentControl>("MainContent");
-            if (mainContent == null) return;
-
-            // Adjust margins based on window state
-            if (state == WindowState.Maximized)
+            try
             {
-                // Smaller margin when maximized for more screen space
-                mainContent.Margin = new Thickness(8);
+                var mainContent = this.FindControl<ContentControl>("MainContent");
+                if (mainContent == null) return;
+
+                // Adjust margins based on window state
+                if (state == WindowState.Maximized)
+                {
+                    // Smaller margin when maximized for more screen space
+                    mainContent.Margin = new Thickness(8);
+                }
+                else
+                {
+                    // Standard margin for normal window
+                    mainContent.Margin = new Thickness(20);
+                }
+
+                // Update HomeControl layout for maximized state
+                _homeControl?.SetMaximizedLayout(state == WindowState.Maximized);
+
+                // Minimize all owned dialog windows when main window is minimized
+                if (state == WindowState.Minimized)
+                {
+                    MinimizeOwnedDialogs();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // Standard margin for normal window
-                mainContent.Margin = new Thickness(20);
-            }
-
-            // Update HomeControl layout for maximized state
-            _homeControl?.SetMaximizedLayout(state == WindowState.Maximized);
-
-            // Minimize all owned dialog windows when main window is minimized
-            if (state == WindowState.Minimized)
-            {
-                MinimizeOwnedDialogs();
+                LogService.WriteLiveLog($"[MainWindow] Error in OnWindowStateChanged: {ex.Message}", "", "Warning", "SYSTEM");
             }
         }
 
@@ -1142,24 +1149,34 @@ namespace PinayPalBackupManager.UI
 
             foreach (var window in allWindows)
             {
-                // Skip the main window itself
-                if (window == this) continue;
-                
-                // If it's a dialog window (owned by this window), minimize it
-                if (window.Owner == this)
+                try
                 {
-                    window.WindowState = WindowState.Minimized;
-                }
-                // Also handle windows that might have been shown as dialogs but don't have explicit owner set
-                else if (window.Title?.Contains("Confirm") == true || 
-                         window.Title?.Contains("Dialog") == true ||
-                         window.Title?.Contains("Backup") == true)
-                {
-                    // For safety, only hide if it looks like a popup dialog
-                    if (window.WindowState != WindowState.Minimized)
+                    // Skip the main window itself
+                    if (window == this) continue;
+                    
+                    // Skip already closed/disposed windows
+                    if (window.PlatformImpl == null) continue;
+                    
+                    // If it's a dialog window (owned by this window), minimize it
+                    if (window.Owner == this)
                     {
                         window.WindowState = WindowState.Minimized;
                     }
+                    // Also handle windows that might have been shown as dialogs but don't have explicit owner set
+                    else if (window.Title?.Contains("Confirm") == true || 
+                             window.Title?.Contains("Dialog") == true ||
+                             window.Title?.Contains("Backup") == true)
+                    {
+                        // For safety, only hide if it looks like a popup dialog
+                        if (window.WindowState != WindowState.Minimized)
+                        {
+                            window.WindowState = WindowState.Minimized;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[MainWindow] Error minimizing dialog: {ex.Message}", "", "Warning", "SYSTEM");
                 }
             }
         }

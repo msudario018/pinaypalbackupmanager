@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.1.2 (2026-06-03)
+
+### Fixed
+- **App Crash on Minimize**: Fixed application crash when minimizing the main window
+  - Added try-catch block in `OnWindowStateChanged` to prevent unhandled exceptions
+  - Added try-catch block in `MinimizeOwnedDialogs` to handle errors when minimizing dialog windows
+  - Added check for `window.PlatformImpl == null` to skip already disposed windows
+  - Added error logging for debugging minimize-related issues
+
+### Files Modified
+- UI/MainWindow.axaml.cs
+
+---
+
 ## v3.1.1 (2026-05-29)
 
 ### Fixed
