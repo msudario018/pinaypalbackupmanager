@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.1.3 (2026-06-06)
+
+### Fixed
+- **Minimize Crash**: Fixed application crash when minimizing the main window
+  - Simplified `OnWindowStateChanged` to only handle maximized/normal states
+  - Removed `SetMaximizedLayout` call on `_homeControl` which was causing the crash
+  - Disabled `MinimizeOwnedDialogs` to prevent dialog-related crashes
+
+### Files Modified
+- UI/MainWindow.axaml.cs
+
+---
+
 ## v3.1.2 (2026-06-03)
 
 ### Fixed
