@@ -175,7 +175,6 @@ namespace PinayPalBackupManager.UI
 
             // Handle window state changes for layout optimization
             this.GetObservable(Window.WindowStateProperty).Subscribe(OnWindowStateChanged);
-            OnWindowStateChanged(this.WindowState);
 
             _homeControl = new HomeControl(_backupManager);
             _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
@@ -1103,35 +1102,18 @@ namespace PinayPalBackupManager.UI
 
         private void OnWindowStateChanged(WindowState state)
         {
-            try
+            // Simplified to avoid crash - only handle maximized state
+            if (state == WindowState.Maximized || state == WindowState.Normal)
             {
-                var mainContent = this.FindControl<ContentControl>("MainContent");
-                if (mainContent == null) return;
-
-                // Adjust margins based on window state
-                if (state == WindowState.Maximized)
+                try
                 {
-                    // Smaller margin when maximized for more screen space
-                    mainContent.Margin = new Thickness(8);
+                    var mainContent = this.FindControl<ContentControl>("MainContent");
+                    if (mainContent != null)
+                    {
+                        mainContent.Margin = state == WindowState.Maximized ? new Thickness(8) : new Thickness(20);
+                    }
                 }
-                else
-                {
-                    // Standard margin for normal window
-                    mainContent.Margin = new Thickness(20);
-                }
-
-                // Update HomeControl layout for maximized state
-                _homeControl?.SetMaximizedLayout(state == WindowState.Maximized);
-
-                // Minimize all owned dialog windows when main window is minimized
-                if (state == WindowState.Minimized)
-                {
-                    MinimizeOwnedDialogs();
-                }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteLiveLog($"[MainWindow] Error in OnWindowStateChanged: {ex.Message}", "", "Warning", "SYSTEM");
+                catch { }
             }
         }
 
