@@ -5,13 +5,13 @@ namespace PinayPalBackupManager.Services
 {
     public static class SessionService
     {
-        private static readonly string SessionFile = AppDataPaths.GetPath("session.dat");
+        private static readonly string SessionFile = AppDataPaths.GetDataPath("session.dat");
 
         public static void SaveSession(int userId)
         {
             try
             {
-                Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
+                Directory.CreateDirectory(AppDataPaths.DataDirectory);
                 File.WriteAllText(SessionFile, userId.ToString());
                 Console.WriteLine($"[SessionService] Session saved for user ID: {userId}");
             }

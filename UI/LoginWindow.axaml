@@ -159,6 +159,14 @@
                                 <TextBlock Text="Password" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"/>
                                 <TextBox Name="TxtRegPass" Watermark="Choose a password" PasswordChar="●"/>
                             </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Email Address (for recovery)" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"/>
+                                <TextBox Name="TxtRegEmail" Watermark="you@example.com"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Birthday (YYYY-MM-DD)" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"/>
+                                <TextBox Name="TxtRegBirthDate" Watermark="YYYY-MM-DD (e.g. 1990-05-15)"/>
+                            </StackPanel>
 
                             <StackPanel Name="InviteCodePanel" Spacing="6">
                                 <TextBlock Text="Invite Code" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"/>
@@ -204,13 +212,17 @@
 
                             <!-- Sub-Panel 1: Forgot Username -->
                             <StackPanel Name="SubPanelForgotUser" Spacing="10" IsVisible="False">
-                                <TextBlock Text="Enter your registered email address to receive your username reminder."
+                                <TextBlock Text="Enter your registered email address and birthday to verify and receive your username."
                                            Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Email Address" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
                                     <TextBox Name="TxtForgotEmail" Watermark="you@example.com"/>
                                 </StackPanel>
-                                <Button Name="BtnSendUsername" Content="SEND USERNAME REMINDER"
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Birthday (Verification)" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtForgotBirthDate" Watermark="YYYY-MM-DD (e.g. 1990-05-15)"/>
+                                </StackPanel>
+                                <Button Name="BtnSendUsername" Content="VERIFY &amp; SEND USERNAME"
                                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF"
                                         FontWeight="Bold" FontSize="12" Padding="12" CornerRadius="10" Margin="0,4,0,0"/>

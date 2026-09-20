@@ -75,6 +75,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         username = user.Username,
                         role = user.Role,
                         status = user.Status,
+                        email = user.Email ?? "",
+                        birthdate = user.BirthDate ?? "",
                         is_pending = user.Status == "Pending",
                         is_active = user.Status == "Active",
                         is_disabled = user.Status == "Disabled",
@@ -298,6 +300,9 @@ namespace PinayPalBackupManager.UI.UserControls
         public string username { get; set; } = "";
         public string role { get; set; } = "";
         public string status { get; set; } = "";
+        public string email { get; set; } = "";
+        public string birthdate { get; set; } = "";
+        public string details => $"{role}" + (string.IsNullOrWhiteSpace(email) ? "" : $" • {email}") + (string.IsNullOrWhiteSpace(birthdate) ? "" : $" • {birthdate}");
         public bool is_pending { get; set; }
         public bool is_active { get; set; }
         public bool is_disabled { get; set; }

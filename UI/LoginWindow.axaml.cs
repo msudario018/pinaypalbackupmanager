@@ -379,11 +379,25 @@ namespace PinayPalBackupManager.UI
             var username = this.FindControl<TextBox>("TxtRegUser")!.Text ?? string.Empty;
             var password = this.FindControl<TextBox>("TxtRegPass")!.Text ?? string.Empty;
             var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text ?? string.Empty;
+            var email = this.FindControl<TextBox>("TxtRegEmail")?.Text?.Trim();
+            var birthDate = this.FindControl<TextBox>("TxtRegBirthDate")?.Text?.Trim();
             var errorTxt = this.FindControl<TextBlock>("TxtRegError")!;
+
+            if (!string.IsNullOrWhiteSpace(email) && (!email.Contains("@") || !email.Contains(".")))
+            {
+                errorTxt.Text = "Please enter a valid email address.";
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(birthDate) && !DateTime.TryParse(birthDate, out _))
+            {
+                errorTxt.Text = "Birthday format should be YYYY-MM-DD.";
+                return;
+            }
 
             try
             {
-                var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode);
+                var (success, message) = await AuthService.RegisterAsync(username, password, inviteCode, email, birthDate);
                 if (success)
                 {
                     // Auto-login after registration
@@ -475,6 +489,7 @@ namespace PinayPalBackupManager.UI
         private async void OnSendUsernameClick(object? sender, RoutedEventArgs e)
         {
             var emailTxt = this.FindControl<TextBox>("TxtForgotEmail")?.Text ?? string.Empty;
+            var birthDateTxt = this.FindControl<TextBox>("TxtForgotBirthDate")?.Text ?? string.Empty;
             var statusTxt = this.FindControl<TextBlock>("TxtRecoveryStatus")!;
 
             if (string.IsNullOrWhiteSpace(emailTxt))
@@ -484,10 +499,17 @@ namespace PinayPalBackupManager.UI
                 return;
             }
 
-            statusTxt.Foreground = GetBrush("AppMuted");
-            statusTxt.Text = "Searching registered account...";
+            if (string.IsNullOrWhiteSpace(birthDateTxt))
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = "Please enter your birthday (e.g. YYYY-MM-DD) for verification.";
+                return;
+            }
 
-            var (success, message, isPreview, username) = await EmailOtpService.SendUsernameRecoveryAsync(emailTxt);
+            statusTxt.Foreground = GetBrush("AppMuted");
+            statusTxt.Text = "Verifying account details...";
+
+            var (success, message, isPreview, username) = await EmailOtpService.SendUsernameRecoveryAsync(emailTxt, birthDateTxt);
             if (success)
             {
                 statusTxt.Foreground = GetBrush("AccentSuccess");

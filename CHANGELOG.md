@@ -1,5 +1,33 @@
 # Changelog
 
+## v3.2.4 (2026-09-21)
+
+### Added
+- **Official Apple Liquid Glass Material Architecture (iOS)**:
+  - Upgraded iOS design system to official Apple Liquid Glass specification (`developer.apple.com/documentation/technologyoverviews/liquid-glass`).
+  - Implemented dynamic optical high-transmittance material base (`.ultraThinMaterial` / `.thinMaterial`) with continuous concentric corner geometry (`style: .continuous`).
+  - Added directional 135° specular rim highlight gradient (`LiquidTheme.specularRimGradient`) that models real micro-bevel glass refraction.
+  - Implemented interactive fluid morphing button modifier (`.liquidMorph()`) with spring dynamics and depth deflection.
+  - Added floating liquid glass capsule bars, status pills, and backdrop chromatic dispersion layers.
+- **Layered Liquid Glass iOS App Icon**:
+  - Redesigned app icon adhering to Apple's layered icon specification: deep obsidian ambient base, translucent liquid glass middle shield with 135° specular rim, and crisp solid gold backup emblem.
+  - Rendered in 1024x1024 single-size universal appiconset with zero asset compilation warnings.
+- **Structured Data Store & Logs Separation**:
+  - Restructured storage architecture into distinct folders under the application directory:
+    - `AppDir/Data` (`%LOCALAPPDATA%/PinayPal.PinayPalBackupManager/Data`): Houses persistent data stores including `users.db`, `settings.json`, `session.dat`, `config_salt.bin`, `firebase_config.txt`, `update_prefs.txt`, and user avatars.
+    - `AppDir/Data/logs` (`%LOCALAPPDATA%/PinayPal.PinayPalBackupManager/Data/logs`): Dedicated logging directory for `system_log.txt`, `startup.log`, and live activity logs.
+  - Implemented automatic seamless file migration in `AppDataPaths.MigrateKnownFiles()` ensuring backwards compatibility with existing installations.
+- **Multi-Factor Account Recovery (Email + Birthday)**:
+  - Enhanced account security by requiring both registered **Email Address** and **Birthday** (`YYYY-MM-DD`) for forgotten username retrieval.
+  - Added Email and Birthday input fields to Initial Setup Wizard (`SetupWizardWindow`), User Registration (`LoginWindow`), and Forgot Username dialog.
+  - Added Email and Birthday displays in User Profile (`ProfileControl`) with interactive "Edit Email & Birthday" update dialog.
+  - Enriched User Management (`UserManagementControl`) list with registered email and birthday columns.
+- **User Database Reset & Clean Setup Workflow**:
+  - Added "Reset User Database (Initial Setup)" action in Profile Administrator Options.
+  - Backs up existing `users.db` with a timestamp, cleans active sessions and cached tokens, re-initializes SQLite schema, resets setup flags, and re-launches the Initial Setup Wizard for fresh onboarding.
+
+---
+
 ## v3.2.3 (2026-09-20)
 
 ### Fixed

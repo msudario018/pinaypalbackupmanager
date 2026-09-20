@@ -325,6 +325,23 @@ namespace PinayPalBackupManager.UI
                 valid = false;
             }
 
+            var email = this.FindControl<TextBox>("TxtAdminEmail")?.Text?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(email) && (!email.Contains("@") || !email.Contains(".")))
+            {
+                ShowError("ErrorAdminEmail", "Please enter a valid email address");
+                valid = false;
+            }
+
+            var birthDate = this.FindControl<TextBox>("TxtAdminBirthDate")?.Text?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(birthDate))
+            {
+                if (!DateTime.TryParse(birthDate, out _))
+                {
+                    ShowError("ErrorAdminBirthDate", "Birthday format should be YYYY-MM-DD");
+                    valid = false;
+                }
+            }
+
             // Validate invite code if not admin PC
             if (!_isAdminPC && string.IsNullOrWhiteSpace(inviteCode))
             {
@@ -403,6 +420,7 @@ namespace PinayPalBackupManager.UI
             var errorControls = new[]
             {
                 "ErrorAdminUsername", "ErrorAdminPassword", "ErrorAdminPasswordConfirm",
+                "ErrorAdminEmail", "ErrorAdminBirthDate",
                 "ErrorFtpHost", "ErrorSqlHost", "ErrorMcApiKey", "ErrorMcAudienceId"
             };
 
@@ -763,11 +781,13 @@ namespace PinayPalBackupManager.UI
             {
                 var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
                 var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
+                var email = this.FindControl<TextBox>("TxtAdminEmail")?.Text?.Trim();
+                var birthDate = this.FindControl<TextBox>("TxtAdminBirthDate")?.Text?.Trim();
 
                 if (_isAdminPC)
                 {
                     // Admin PC: create admin directly (no invite code needed)
-                    var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active");
+                    var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active", email, birthDate);
                     if (!success)
                     {
                         await ShowErrorDialog($"Failed to create admin user: {message}");
@@ -795,7 +815,7 @@ namespace PinayPalBackupManager.UI
                         return;
                     }
 
-                    var (success, message) = AuthService.CreateUser(username, password, "User", "Pending");
+                    var (success, message) = AuthService.CreateUser(username, password, "User", "Pending", email, birthDate);
                     if (!success)
                     {
                         await ShowErrorDialog($"Failed to create user: {message}");

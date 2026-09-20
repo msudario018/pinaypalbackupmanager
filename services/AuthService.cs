@@ -39,7 +39,7 @@ namespace PinayPalBackupManager.Services
         public static async Task InitializeAsync()
         {
             AppDataPaths.MigrateKnownFiles();
-            _dbPath = AppDataPaths.GetPath("users.db");
+            _dbPath = AppDataPaths.UsersDatabasePath;
             DatabaseService.Initialize(_dbPath);
             EnsureDatabase();
 
@@ -85,7 +85,9 @@ namespace PinayPalBackupManager.Services
                     Role TEXT NOT NULL DEFAULT 'User',
                     Status TEXT NOT NULL DEFAULT 'Pending',
                     CreatedAt TEXT NOT NULL,
-                    AvatarPath TEXT
+                    AvatarPath TEXT,
+                    Email TEXT,
+                    BirthDate TEXT
                 );
                 CREATE TABLE IF NOT EXISTS AppConfig (
                     Key TEXT PRIMARY KEY,
@@ -125,6 +127,14 @@ namespace PinayPalBackupManager.Services
                 cmd.ExecuteNonQuery();
             }
             catch { /* Column may already exist */ }
+
+            // Migrate: Add BirthDate column if not exists
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Users ADD COLUMN BirthDate TEXT";
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* Column may already exist */ }
         }
 
         public static bool HasAnyUsers()
@@ -138,7 +148,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Register the very first user as Admin (auto-active). Subsequent users need a valid invite code.
         /// </summary>
-        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null)
+        public static async Task<(bool success, string message)> RegisterAsync(string username, string password, string? inviteCode = null, string? email = null, string? birthDate = null)
         {
             // Validate username
             var usernameValidation = InputValidationService.ValidateUsername(username);
@@ -189,13 +199,15 @@ namespace PinayPalBackupManager.Services
                 // Insert user into database
                 using var conn = DatabaseService.GetConnection();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt) VALUES (@u, @h, @s, @r, @st, @ca)";
+                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, BirthDate) VALUES (@u, @h, @s, @r, @st, @ca, @e, @b)";
                 cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
                 cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
                 cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
                 cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("@e", (object?)email?.Trim() ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@b", (object?)birthDate?.Trim() ?? DBNull.Value);
                 cmd.ExecuteNonQuery();
 
                 // Log user creation
@@ -251,11 +263,11 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Synchronous wrapper for backward compatibility
         /// </summary>
-        public static (bool success, string message) Register(string username, string password, string? inviteCode = null)
+        public static (bool success, string message) Register(string username, string password, string? inviteCode = null, string? email = null, string? birthDate = null)
         {
             try
             {
-                return RegisterAsync(username, password, inviteCode).GetAwaiter().GetResult();
+                return RegisterAsync(username, password, inviteCode, email, birthDate).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -282,7 +294,7 @@ namespace PinayPalBackupManager.Services
 
             using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
-            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd2.Parameters.AddWithValue("@u", usernameValidation.sanitized);
 
             using var reader = cmd2.ExecuteReader();
@@ -370,7 +382,7 @@ namespace PinayPalBackupManager.Services
 
             using var conn2 = DatabaseService.GetConnection();
             using var cmd2 = conn2.CreateCommand();
-            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
+            cmd2.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd2.Parameters.AddWithValue("@u", username.Trim());
 
             using var reader = cmd2.ExecuteReader();
@@ -557,7 +569,7 @@ namespace PinayPalBackupManager.Services
             using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users WHERE TRIM(Username) = @u COLLATE NOCASE";
             cmd.Parameters.AddWithValue("@u", username);
             using var reader = cmd.ExecuteReader();
             if (reader.Read())
@@ -570,7 +582,7 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Admin creates a user directly (no invite code required). Returns (success, message).
         /// </summary>
-        public static (bool success, string message) CreateUser(string username, string password, string role = "User", string status = "Active")
+        public static (bool success, string message) CreateUser(string username, string password, string role = "User", string status = "Active", string? email = null, string? birthDate = null)
         {
             var usernameValidation = InputValidationService.ValidateUsername(username);
             if (!usernameValidation.isValid)
@@ -599,13 +611,15 @@ namespace PinayPalBackupManager.Services
                 using var conn = DatabaseService.GetConnection();
                 conn.Open();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt) VALUES (@u, @h, @s, @r, @st, @ca)";
+                cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, BirthDate) VALUES (@u, @h, @s, @r, @st, @ca, @e, @b)";
                 cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
                 cmd.Parameters.AddWithValue("@r", role);
                 cmd.Parameters.AddWithValue("@st", status);
                 cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("@e", (object?)email?.Trim() ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@b", (object?)birthDate?.Trim() ?? DBNull.Value);
                 cmd.ExecuteNonQuery();
 
                 LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {role}, Status: {status}, Created by admin");
@@ -639,7 +653,7 @@ namespace PinayPalBackupManager.Services
             using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users ORDER BY CreatedAt";
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users ORDER BY CreatedAt";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -730,7 +744,7 @@ namespace PinayPalBackupManager.Services
             using var conn = DatabaseService.GetConnection();
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt FROM Users WHERE Id = @id";
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users WHERE Id = @id";
             cmd.Parameters.AddWithValue("@id", userId);
             using var reader = cmd.ExecuteReader();
             if (reader.Read())
@@ -775,24 +789,54 @@ namespace PinayPalBackupManager.Services
             if (string.IsNullOrWhiteSpace(email)) return null;
             var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, AvatarPath FROM Users WHERE TRIM(Email) = @e COLLATE NOCASE LIMIT 1";
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users WHERE TRIM(Email) = @e COLLATE NOCASE LIMIT 1";
             cmd.Parameters.AddWithValue("@e", email.Trim());
             using var reader = cmd.ExecuteReader();
             if (reader.Read())
             {
-                return new AppUser
-                {
-                    Id = reader.GetInt32(0),
-                    Username = reader.GetString(1),
-                    PasswordHash = reader.GetString(2),
-                    Salt = reader.GetString(3),
-                    Role = reader.GetString(4),
-                    Status = reader.GetString(5),
-                    CreatedAt = DateTime.Parse(reader.GetString(6)),
-                    Email = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    AvatarPath = reader.IsDBNull(8) ? null : reader.GetString(8)
-                };
+                return ReadUser(reader);
             }
+            return null;
+        }
+
+        public static AppUser? GetUserByEmailAndBirthDate(string email, string birthDate)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var cleanEmail = email.Trim();
+            var cleanBirthDate = birthDate?.Trim() ?? string.Empty;
+
+            var conn = DatabaseService.GetConnection();
+
+            // First try matching both email and birthdate
+            if (!string.IsNullOrEmpty(cleanBirthDate))
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate 
+                                   FROM Users 
+                                   WHERE TRIM(Email) = @e COLLATE NOCASE AND TRIM(BirthDate) = @b 
+                                   LIMIT 1";
+                cmd.Parameters.AddWithValue("@e", cleanEmail);
+                cmd.Parameters.AddWithValue("@b", cleanBirthDate);
+                using var reader = cmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    return ReadUser(reader);
+                }
+            }
+
+            // Fallback for legacy users who have no BirthDate configured yet
+            using var cmdFallback = conn.CreateCommand();
+            cmdFallback.CommandText = @"SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate 
+                                       FROM Users 
+                                       WHERE TRIM(Email) = @e COLLATE NOCASE AND (BirthDate IS NULL OR TRIM(BirthDate) = '') 
+                                       LIMIT 1";
+            cmdFallback.Parameters.AddWithValue("@e", cleanEmail);
+            using var readerFallback = cmdFallback.ExecuteReader();
+            if (readerFallback.Read())
+            {
+                return ReadUser(readerFallback);
+            }
+
             return null;
         }
 
@@ -802,7 +846,7 @@ namespace PinayPalBackupManager.Services
             var clean = identifier.Trim();
             var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, AvatarPath 
+            cmd.CommandText = @"SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate 
                                FROM Users 
                                WHERE (TRIM(Username) = @id COLLATE NOCASE OR TRIM(Email) = @id COLLATE NOCASE) 
                                LIMIT 1";
@@ -810,18 +854,7 @@ namespace PinayPalBackupManager.Services
             using var reader = cmd.ExecuteReader();
             if (reader.Read())
             {
-                return new AppUser
-                {
-                    Id = reader.GetInt32(0),
-                    Username = reader.GetString(1),
-                    PasswordHash = reader.GetString(2),
-                    Salt = reader.GetString(3),
-                    Role = reader.GetString(4),
-                    Status = reader.GetString(5),
-                    CreatedAt = DateTime.Parse(reader.GetString(6)),
-                    Email = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    AvatarPath = reader.IsDBNull(8) ? null : reader.GetString(8)
-                };
+                return ReadUser(reader);
             }
             return null;
         }
@@ -834,7 +867,31 @@ namespace PinayPalBackupManager.Services
             cmd.CommandText = "UPDATE Users SET Email = @e WHERE Id = @id";
             cmd.Parameters.AddWithValue("@e", email.Trim());
             cmd.Parameters.AddWithValue("@id", userId);
-            return cmd.ExecuteNonQuery() > 0;
+            var updated = cmd.ExecuteNonQuery() > 0;
+            if (updated && CurrentUser != null && CurrentUser.Id == userId)
+            {
+                CurrentUser.Email = email.Trim();
+                OnUserChanged?.Invoke(CurrentUser);
+            }
+            return updated;
+        }
+
+        public static bool UpdateUserProfile(int userId, string? email, string? birthDate)
+        {
+            var conn = DatabaseService.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Users SET Email = @e, BirthDate = @b WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@e", (object?)email?.Trim() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@b", (object?)birthDate?.Trim() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@id", userId);
+            var updated = cmd.ExecuteNonQuery() > 0;
+            if (updated && CurrentUser != null && CurrentUser.Id == userId)
+            {
+                CurrentUser.Email = email?.Trim();
+                CurrentUser.BirthDate = birthDate?.Trim();
+                OnUserChanged?.Invoke(CurrentUser);
+            }
+            return updated;
         }
 
         public static bool ChangeUsername(int userId, string newUsername)
@@ -942,7 +999,7 @@ namespace PinayPalBackupManager.Services
 
         private static AppUser ReadUser(SqliteDataReader reader)
         {
-            return new AppUser
+            var user = new AppUser
             {
                 Id = reader.GetInt32(0),
                 Username = reader.GetString(1),
@@ -952,6 +1009,17 @@ namespace PinayPalBackupManager.Services
                 Status = reader.GetString(5),
                 CreatedAt = DateTime.Parse(reader.GetString(6))
             };
+
+            if (reader.FieldCount > 7 && !reader.IsDBNull(7))
+                user.AvatarPath = reader.GetString(7);
+
+            if (reader.FieldCount > 8 && !reader.IsDBNull(8))
+                user.Email = reader.GetString(8);
+
+            if (reader.FieldCount > 9 && !reader.IsDBNull(9))
+                user.BirthDate = reader.GetString(9);
+
+            return user;
         }
 
         private static string GenerateSalt()
@@ -1211,6 +1279,64 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 return (false, $"Failed to reset users: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Complete reset of user database and session to return app to Initial Setup state.
+        /// </summary>
+        public static async Task<(bool success, string message)> ResetUserDatabaseAsync()
+        {
+            try
+            {
+                Logout();
+                SessionService.ClearSession();
+                ConfigService.Current.Operation.SetupCompleted = false;
+                ConfigService.Save();
+
+                DatabaseService.CloseConnection();
+                await Task.Delay(100);
+
+                if (File.Exists(_dbPath))
+                {
+                    var backupPath = $"{_dbPath}.bak.{DateTime.UtcNow:yyyyMMddHHmmss}";
+                    try { File.Copy(_dbPath, backupPath, true); } catch { }
+                    try
+                    {
+                        File.Delete(_dbPath);
+                        var walFile = _dbPath + "-wal";
+                        if (File.Exists(walFile)) File.Delete(walFile);
+                        var shmFile = _dbPath + "-shm";
+                        if (File.Exists(shmFile)) File.Delete(shmFile);
+                    }
+                    catch
+                    {
+                        // If file delete is locked, wipe table contents directly
+                        DatabaseService.Initialize(_dbPath);
+                        using var conn = DatabaseService.GetConnection();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+                            DELETE FROM Users;
+                            DELETE FROM FailedLoginAttempts;
+                            DELETE FROM AuditLog;
+                            DELETE FROM PasswordResetTokens;
+                            DELETE FROM sqlite_sequence WHERE name IN ('Users','FailedLoginAttempts','AuditLog','PasswordResetTokens');
+                        ";
+                        try { cmd.ExecuteNonQuery(); } catch { }
+                    }
+                }
+
+                DatabaseService.Initialize(_dbPath);
+                EnsureDatabase();
+                await PasswordResetService.InitializeAsync();
+
+                LogService.WriteLiveLog("[AuthService] User database reset to initial setup state.", "", "Information", "SYSTEM");
+                return (true, "User database reset successfully. You can now configure initial setup again.");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[AuthService] ResetUserDatabase failed: {ex.Message}", "", "Error", "SYSTEM");
+                return (false, $"Failed to reset user database: {ex.Message}");
             }
         }
 

@@ -56,7 +56,7 @@
                                 <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="0,6">
                                     <StackPanel Grid.Column="0" Spacing="2">
                                         <TextBlock Text="{Binding username}" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
-                                        <TextBlock Text="{Binding role}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                        <TextBlock Text="{Binding details}" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding status}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0"/>
                                     <Button Grid.Column="2" Name="BtnApproveUser" Classes="Success" Content="Approve" Padding="8,4" FontSize="10" Margin="5,0,0,0" IsVisible="{Binding is_pending}"/>

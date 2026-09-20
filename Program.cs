@@ -20,7 +20,7 @@ namespace PinayPalBackupManager
             }
 
             AppDataPaths.MigrateKnownFiles();
-            var logPath = AppDataPaths.GetPath("startup.log");
+            var logPath = AppDataPaths.GetLogPath("startup.log");
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);

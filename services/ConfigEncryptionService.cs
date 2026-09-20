@@ -18,7 +18,7 @@ namespace PinayPalBackupManager.Services
             0x76, 0x65, 0x64, 0x65, 0x76, 0x49, 0x76, 0x61 
         };
 
-        private static readonly string SaltFilePath = AppDataPaths.GetPath("config_salt.bin");
+        private static readonly string SaltFilePath = AppDataPaths.GetDataPath("config_salt.bin");
         private static byte[]? _cachedSalt;
         private static byte[]? _cachedKey;
 

@@ -41,24 +41,37 @@
                         </StackPanel>
                         
                         <!-- Account Stats -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="30" Margin="0,20,0,0">
-                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10">
+                        <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,20,0,0">
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,15,10">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Account Type" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
                                     <TextBlock Name="TxtAccountType" Text="Standard" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10">
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,15,10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Email Address" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtUserEmail" Text="Not configured" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,15,10">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Birthday (Recovery)" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Name="TxtUserBirthDate" Text="Not configured" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="8" Padding="15,10" Margin="0,0,15,10">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Member Since" FontSize="10" Foreground="{DynamicResource AppMuted}"/>
                                     <TextBlock Name="TxtMemberSince" Text="Today" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
+                        </WrapPanel>
                         
                         <!-- Quick Actions -->
                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,20,0,0">
                             <Button Name="BtnUploadAvatar" Classes="SecondaryBtn" Content="Upload Avatar"/>
+                            <Button Name="BtnEditProfile" Classes="SecondaryBtn" Content="Edit Email &amp; Birthday"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -133,6 +146,8 @@
                                 </Button.Tag>
                             </Button>
                         </Grid>
+
+                        <Button Name="BtnResetUserDatabase" Classes="Danger" Content="Reset User Database (Initial Setup)" HorizontalAlignment="Stretch" Margin="0,5,0,0"/>
                     </StackPanel>
                 </Border>
                 

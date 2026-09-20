@@ -10,7 +10,7 @@ namespace PinayPalBackupManager.Services
             get
             {
                 AppDataPaths.MigrateFile("firebase_config.txt");
-                return AppDataPaths.GetPath("firebase_config.txt");
+                return AppDataPaths.GetDataPath("firebase_config.txt");
             }
         }
 

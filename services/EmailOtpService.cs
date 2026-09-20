@@ -10,20 +10,26 @@ namespace PinayPalBackupManager.Services
         private const int OtpExpirationMinutes = 10;
 
         /// <summary>
-        /// Sends username reminder to the email address associated with the account.
+        /// Sends username reminder to the email address associated with the account after verifying email and birthday.
         /// </summary>
-        public static async Task<(bool success, string message, bool isPreview, string? previewUsername)> SendUsernameRecoveryAsync(string email)
+        public static async Task<(bool success, string message, bool isPreview, string? previewUsername)> SendUsernameRecoveryAsync(string email, string? birthDate = null)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return (false, "Please enter your email address.", false, null);
 
             var cleanEmail = email.Trim();
-            var user = AuthService.GetUserByEmail(cleanEmail);
+            var cleanBirthDate = birthDate?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(cleanBirthDate))
+            {
+                return (false, "Please enter your birthday (e.g. YYYY-MM-DD) for account verification.", false, null);
+            }
+
+            var user = AuthService.GetUserByEmailAndBirthDate(cleanEmail, cleanBirthDate);
 
             if (user == null)
             {
-                // To avoid email enumeration while providing dev clarity, return gentle message
-                return (false, $"No registered account found with email '{cleanEmail}'. Please verify the address.", false, null);
+                return (false, $"No account found matching email '{cleanEmail}' and the provided birthday. Please verify your details.", false, null);
             }
 
             var subject = "PinayPal Backup Manager — Username Recovery";

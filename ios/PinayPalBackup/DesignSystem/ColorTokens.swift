@@ -14,6 +14,18 @@ public struct LiquidTheme {
     public static let textSecondary = Color(red: 0.545, green: 0.580, blue: 0.620) // #8B949E
 
     // Liquid Glass Gradients
+    public static let specularRimGradient = LinearGradient(
+        stops: [
+            .init(color: Color.white.opacity(0.70), location: 0.0),
+            .init(color: Color.white.opacity(0.25), location: 0.18),
+            .init(color: Color.white.opacity(0.05), location: 0.52),
+            .init(color: gold.opacity(0.45), location: 0.82),
+            .init(color: Color.white.opacity(0.20), location: 1.0)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     public static let glassBorderGradient = LinearGradient(
         colors: [
             Color.white.opacity(0.35),

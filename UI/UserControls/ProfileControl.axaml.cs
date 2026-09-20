@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -99,6 +100,18 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnUploadAvatar.Click += async (s, e) => await UploadAvatar();
             }
+
+            var btnEditProfile = this.FindControl<Button>("BtnEditProfile");
+            if (btnEditProfile != null)
+            {
+                btnEditProfile.Click += async (s, e) => await ShowEditProfileDialog();
+            }
+
+            var btnResetUserDatabase = this.FindControl<Button>("BtnResetUserDatabase");
+            if (btnResetUserDatabase != null)
+            {
+                btnResetUserDatabase.Click += async (s, e) => await ShowResetUserDatabaseConfirmation();
+            }
             
             // Logout
             var btnLogout = this.FindControl<Button>("BtnLogout");
@@ -136,6 +149,8 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtUserStatus = this.FindControl<TextBlock>("TxtUserStatus");
             var txtAccountType = this.FindControl<TextBlock>("TxtAccountType");
             var txtMemberSince = this.FindControl<TextBlock>("TxtMemberSince");
+            var txtUserEmail = this.FindControl<TextBlock>("TxtUserEmail");
+            var txtUserBirthDate = this.FindControl<TextBlock>("TxtUserBirthDate");
             var adminSection = this.FindControl<Border>("AdminSection");
             var btnDeleteAccount = this.FindControl<Button>("BtnDeleteAccount");
             var txtDeleteAdminNote = this.FindControl<TextBlock>("TxtDeleteAdminNote");
@@ -152,6 +167,11 @@ namespace PinayPalBackupManager.UI.UserControls
                 txtAccountType!.Text = currentUser.Role;
                 txtMemberSince!.Text = currentUser.CreatedAt.ToString("MMM dd, yyyy");
 
+                if (txtUserEmail != null)
+                    txtUserEmail.Text = string.IsNullOrWhiteSpace(currentUser.Email) ? "Not configured" : currentUser.Email;
+                if (txtUserBirthDate != null)
+                    txtUserBirthDate.Text = string.IsNullOrWhiteSpace(currentUser.BirthDate) ? "Not configured" : currentUser.BirthDate;
+
                 // Show admin section only to admins
                 adminSection!.IsVisible = AuthService.IsAdmin;
 
@@ -167,6 +187,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 txtUserStatus!.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
                 txtAccountType!.Text = "Limited";
                 txtMemberSince!.Text = "N/A";
+                if (txtUserEmail != null) txtUserEmail.Text = "N/A";
+                if (txtUserBirthDate != null) txtUserBirthDate.Text = "N/A";
                 adminSection!.IsVisible = false;
 
                 if (btnDeleteAccount != null) btnDeleteAccount.IsEnabled = false;
@@ -189,7 +211,7 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             try
             {
-                var logDir = AppDataPaths.CurrentDirectory;
+                var logDir = AppDataPaths.LogsDirectory;
                 if (Directory.Exists(logDir))
                 {
                     Process.Start(new ProcessStartInfo
@@ -324,7 +346,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     var localPath = file.Path.LocalPath;
                     
                     // Copy to app data directory (per-user)
-                    var avatarPath = AppDataPaths.GetPath("avatar.png");
+                    var avatarPath = AppDataPaths.GetDataPath("avatar.png");
                     File.Copy(localPath, avatarPath, true);
 
                     // Persist avatar path to the current user profile if available
@@ -946,6 +968,254 @@ namespace PinayPalBackupManager.UI.UserControls
             }
             catch { }
             return false;
+        }
+
+        private async Task ShowEditProfileDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            var txtEmail = new TextBox
+            {
+                Text = user.Email ?? string.Empty,
+                Watermark = "e.g. you@example.com"
+            };
+
+            var txtBirthDate = new TextBox
+            {
+                Text = user.BirthDate ?? string.Empty,
+                Watermark = "YYYY-MM-DD (e.g. 1990-05-15)"
+            };
+
+            var txtError = new TextBlock
+            {
+                Foreground = Avalonia.Media.Brush.Parse("#F38BA8"),
+                FontSize = 11,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                IsVisible = false
+            };
+
+            var btnCancel = new Button
+            {
+                Content = "Cancel",
+                Classes = { "Secondary" },
+                Padding = new Thickness(16, 8),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var btnSave = new Button
+            {
+                Content = "Save Changes",
+                Classes = { "Primary" },
+                Padding = new Thickness(16, 8),
+                CornerRadius = new CornerRadius(8),
+                FontWeight = FontWeight.Bold
+            };
+
+            var window = new Window
+            {
+                Title = "Edit Profile",
+                Width = 420,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                SystemDecorations = SystemDecorations.Full
+            };
+
+            var content = new Border
+            {
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                Padding = new Thickness(24)
+            };
+
+            var layout = new StackPanel { Spacing = 14 };
+            layout.Children.Add(new TextBlock
+            {
+                Text = "Edit Profile Details",
+                FontSize = 18,
+                FontWeight = FontWeight.Bold,
+                Foreground = Avalonia.Media.Brushes.White
+            });
+            layout.Children.Add(new TextBlock
+            {
+                Text = "Set your email and birthday to enable account recovery and verification.",
+                FontSize = 12,
+                Foreground = Avalonia.Media.Brush.Parse("#A6ADC8"),
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+            });
+
+            var emailPanel = new StackPanel { Spacing = 4 };
+            emailPanel.Children.Add(new TextBlock { Text = "Email Address", Foreground = Avalonia.Media.Brush.Parse("#CDD6F4"), FontSize = 12, FontWeight = FontWeight.SemiBold });
+            emailPanel.Children.Add(txtEmail);
+            layout.Children.Add(emailPanel);
+
+            var birthPanel = new StackPanel { Spacing = 4 };
+            birthPanel.Children.Add(new TextBlock { Text = "Birthday (YYYY-MM-DD)", Foreground = Avalonia.Media.Brush.Parse("#CDD6F4"), FontSize = 12, FontWeight = FontWeight.SemiBold });
+            birthPanel.Children.Add(txtBirthDate);
+            layout.Children.Add(birthPanel);
+
+            layout.Children.Add(txtError);
+
+            var btnPanel = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            btnPanel.Children.Add(btnCancel);
+            btnPanel.Children.Add(btnSave);
+            layout.Children.Add(btnPanel);
+
+            content.Child = layout;
+            window.Content = content;
+
+            btnCancel.Click += (_, _) => window.Close();
+            btnSave.Click += (_, _) =>
+            {
+                var email = txtEmail.Text?.Trim();
+                var birthDate = txtBirthDate.Text?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(email) && (!email.Contains("@") || !email.Contains(".")))
+                {
+                    txtError.Text = "Please enter a valid email address.";
+                    txtError.IsVisible = true;
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(birthDate) && !DateTime.TryParse(birthDate, out _))
+                {
+                    txtError.Text = "Birthday format should be YYYY-MM-DD.";
+                    txtError.IsVisible = true;
+                    return;
+                }
+
+                var updated = AuthService.UpdateUserProfile(user.Id, email, birthDate);
+                if (updated)
+                {
+                    window.Close();
+                    UpdateProfileDisplay();
+                    NotificationService.ShowBackupToast("Profile", "Profile details updated successfully!", "Success");
+                }
+                else
+                {
+                    txtError.Text = "Failed to update profile details.";
+                    txtError.IsVisible = true;
+                }
+            };
+
+            var parentWindow = TopLevel.GetTopLevel(this) as Window;
+            await window.ShowDialog(parentWindow!);
+        }
+
+        private async Task ShowResetUserDatabaseConfirmation()
+        {
+            var btnCancel = new Button
+            {
+                Content = "Cancel",
+                Classes = { "Secondary" },
+                Padding = new Thickness(16, 8),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var btnReset = new Button
+            {
+                Content = "RESET USER DATABASE",
+                Classes = { "Danger" },
+                Background = Avalonia.Media.Brush.Parse("#F38BA8"),
+                Foreground = Avalonia.Media.Brushes.White,
+                Padding = new Thickness(16, 8),
+                CornerRadius = new CornerRadius(8),
+                FontWeight = FontWeight.Bold
+            };
+
+            var window = new Window
+            {
+                Title = "Reset User Database",
+                Width = 440,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                SystemDecorations = SystemDecorations.Full
+            };
+
+            var content = new Border
+            {
+                Background = Avalonia.Media.Brush.Parse("#1E1E2E"),
+                Padding = new Thickness(24)
+            };
+
+            var layout = new StackPanel { Spacing = 14 };
+            layout.Children.Add(new TextBlock
+            {
+                Text = "Reset User Database",
+                FontSize = 18,
+                FontWeight = FontWeight.Bold,
+                Foreground = Avalonia.Media.Brush.Parse("#F38BA8")
+            });
+            layout.Children.Add(new TextBlock
+            {
+                Text = "Are you sure you want to reset the user database?\n\nThis will remove all local user accounts and restart the Initial Setup Wizard so you can set up everything fresh.\n\nA backup of the current database will be saved before reset.",
+                FontSize = 13,
+                Foreground = Avalonia.Media.Brush.Parse("#CDD6F4"),
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+            });
+
+            var btnPanel = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            btnPanel.Children.Add(btnCancel);
+            btnPanel.Children.Add(btnReset);
+            layout.Children.Add(btnPanel);
+
+            content.Child = layout;
+            window.Content = content;
+
+            btnCancel.Click += (_, _) => window.Close();
+            btnReset.Click += async (_, _) =>
+            {
+                btnReset.IsEnabled = false;
+                btnReset.Content = "Resetting...";
+                var (success, msg) = await AuthService.ResetUserDatabaseAsync();
+                if (success)
+                {
+                    window.Close();
+                    var parentWindow = TopLevel.GetTopLevel(this) as Window;
+
+                    if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                    {
+                        var setupWizard = new SetupWizardWindow();
+                        setupWizard.OnSetupComplete += () =>
+                        {
+                            var newMain = new MainWindow();
+                            desktop.MainWindow = newMain;
+                            newMain.Show();
+                            setupWizard.Close();
+                        };
+                        desktop.MainWindow = setupWizard;
+                        setupWizard.Show();
+                    }
+
+                    parentWindow?.Close();
+                }
+                else
+                {
+                    NotificationService.ShowBackupToast("Reset Error", msg, "Error");
+                    btnReset.IsEnabled = true;
+                    btnReset.Content = "RESET USER DATABASE";
+                }
+            };
+
+            var parent = TopLevel.GetTopLevel(this) as Window;
+            await window.ShowDialog(parent!);
         }
     }
 }

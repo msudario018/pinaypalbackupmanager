@@ -106,6 +106,18 @@
                                     <TextBlock x:Name="ErrorAdminPasswordConfirm" Classes="error" Text="" IsVisible="False"/>
                                 </StackPanel>
 
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Email Address (for Account Recovery)" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtAdminEmail" Watermark="e.g. admin@example.com"/>
+                                    <TextBlock x:Name="ErrorAdminEmail" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Birthday (for Security Verification)" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                    <TextBox x:Name="TxtAdminBirthDate" Watermark="YYYY-MM-DD (e.g. 1990-05-15)"/>
+                                    <TextBlock x:Name="ErrorAdminBirthDate" Classes="error" Text="" IsVisible="False"/>
+                                </StackPanel>
+
                                 <StackPanel x:Name="InviteCodePanel" Spacing="6" IsVisible="False">
                                     <TextBlock Text="Invite Code" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
                                     <TextBox x:Name="TxtInviteCode" Watermark="Enter invite code"/>

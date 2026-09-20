@@ -10,7 +10,7 @@ namespace PinayPalBackupManager.Services
             get
             {
                 AppDataPaths.MigrateFile("update_prefs.txt");
-                return AppDataPaths.GetPath("update_prefs.txt");
+                return AppDataPaths.GetDataPath("update_prefs.txt");
             }
         }
 
