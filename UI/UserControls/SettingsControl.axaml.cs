@@ -113,9 +113,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
             if (btnSaveWeb != null)
             {
-                btnSaveWeb.Click += (s, e) =>
+                btnSaveWeb.Click += async (s, e) =>
                 {
-                    ConfigService.Current.HttpServer.Enabled = chkEnableWeb?.IsChecked == true;
+                    bool enabled = chkEnableWeb?.IsChecked == true;
+                    ConfigService.Current.HttpServer.Enabled = enabled;
                     if (int.TryParse(txtWebPort?.Text?.Trim(), out int port) && port > 0 && port < 65535)
                     {
                         ConfigService.Current.HttpServer.Port = port;
@@ -123,17 +124,52 @@ namespace PinayPalBackupManager.UI.UserControls
                     ConfigService.Current.HttpServer.RequireAuth = chkRequireWebAuth?.IsChecked == true;
                     ConfigService.Current.HttpServer.WebPin = txtWebPin?.Text?.Trim() ?? string.Empty;
                     ConfigService.SaveHttpServerSettings();
-                    NotificationService.ShowBackupToast("Web Dashboard", "Web Dashboard settings saved.", "Success");
+
+                    try
+                    {
+                        if (enabled)
+                        {
+                            var username = AuthService.CurrentUser?.Username ?? "admin";
+                            var backupDir = ConfigService.Current.Paths.FtpLocalFolder;
+                            FileDownloadService.Initialize(username, backupDir, ConfigService.Current.HttpServer.Port);
+                            if (FileDownloadService.IsRunning)
+                            {
+                                await FileDownloadService.RestartAsync(ConfigService.Current.HttpServer.Port);
+                            }
+                            else
+                            {
+                                await FileDownloadService.StartAsync();
+                            }
+                            NotificationService.ShowBackupToast("Web Dashboard", $"Web server running on port {ConfigService.Current.HttpServer.Port}.", "Success");
+                        }
+                        else
+                        {
+                            FileDownloadService.Stop();
+                            NotificationService.ShowBackupToast("Web Dashboard", "Web server stopped.", "Info");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        NotificationService.ShowBackupToast("Web Dashboard Error", $"Failed to start server: {ex.Message}", "Error");
+                    }
                 };
             }
 
             if (btnOpenWeb != null)
             {
-                btnOpenWeb.Click += (s, e) =>
+                btnOpenWeb.Click += async (s, e) =>
                 {
                     try
                     {
-                        int port = ConfigService.Current.HttpServer.Port;
+                        int port = ConfigService.Current.HttpServer.Port > 0 ? ConfigService.Current.HttpServer.Port : 8080;
+                        if (!FileDownloadService.IsRunning)
+                        {
+                            var username = AuthService.CurrentUser?.Username ?? "admin";
+                            var backupDir = ConfigService.Current.Paths.FtpLocalFolder;
+                            FileDownloadService.Initialize(username, backupDir, port);
+                            await FileDownloadService.StartAsync();
+                        }
+
                         var url = $"http://localhost:{port}/";
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                         {

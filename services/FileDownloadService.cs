@@ -40,6 +40,13 @@ namespace PinayPalBackupManager.Services
             LogService.WriteSystemLog($"[FileDownloadService] Initialized with username: {username}, port: {port}", "Information", "SYSTEM");
         }
 
+        public static async Task RestartAsync(int port)
+        {
+            Stop();
+            _port = port;
+            await StartAsync();
+        }
+
         public static async Task StartAsync()
         {
             await Task.Yield();
@@ -51,9 +58,15 @@ namespace PinayPalBackupManager.Services
 
             if (string.IsNullOrEmpty(_username))
             {
-                LogService.WriteSystemLog("[FileDownloadService] Not initialized - call Initialize first", "Error", "SYSTEM");
-                OnError?.Invoke("Service not initialized");
-                return;
+                _username = AuthService.CurrentUser?.Username ?? "admin";
+            }
+            if (string.IsNullOrEmpty(_backupDirectory))
+            {
+                _backupDirectory = ConfigService.Current.Paths.FtpLocalFolder;
+            }
+            if (_port <= 0)
+            {
+                _port = ConfigService.Current.HttpServer.Port > 0 ? ConfigService.Current.HttpServer.Port : 8080;
             }
 
             try
