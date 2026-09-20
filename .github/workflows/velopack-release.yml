@@ -33,7 +33,7 @@ jobs:
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
           # Extract changelog for current version
-          NOTES=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | head -n -1 | sed '1d')
+          NOTES=$(sed -n "/## .*$VERSION/,/## /p" CHANGELOG.md | head -n -1 | sed '1d')
           if [ -z "$NOTES" ]; then
             NOTES="Release v$VERSION"
           fi

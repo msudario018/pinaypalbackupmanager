@@ -621,7 +621,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.2.2</span>
+                <span class=""version-badge"" id=""app-version"">v3.2.3</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>

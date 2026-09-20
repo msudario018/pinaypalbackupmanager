@@ -64,6 +64,6 @@ jobs:
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PinayPalBackup-iOS-v3.2.2
+          name: PinayPalBackup-iOS-v3.2.3
           path: PinayPalBackup.ipa
           retention-days: 14

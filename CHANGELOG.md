@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.2.3 (2026-09-20)
+
+### Fixed
+- **iOS IPA Cloud Build Pipeline & Sideloading Compatibility**:
+  - **Fixed App Bundle Discovery Failure**: Resolved build failure in GitHub Actions where `find build` returned `No such file or directory` by configuring absolute `SYMROOT` and `BUILD_DIR` paths in `ios-build.yml` and using recursive bundle search (`find . -name "PinayPalBackup.app"`).
+  - **Standardized App Icon Catalog**: Transitioned `AppIcon.appiconset` to Apple's modern Single-Size Universal 1024x1024 specification (`AppIcon-1024.png` generated from `Assets\logo.ico`), eliminating Xcode `actool` asset compilation warnings and idiom conflicts.
+  - **SwiftUI Biometrics Binding**: Replaced `.onChange(of: enableBiometrics)` with direct `Binding(get:set:)` on the Face ID settings toggle in `ServerConfigSheet.swift`, ensuring 100% compatibility across Swift 5.10, Xcode 15/16, and iOS 17+.
+  - **Feather Sideload Ready**: Verified multi-megabyte `.ipa` archive generation with standard `Payload/PinayPalBackup.app` packaging structure for direct import into Feather, AltStore, and TrollStore.
+
+- **Desktop Taskbar Icon & Window Restore Reliability**:
+  - **Fixed Windows Taskbar Icon**: Registered explicit `AppUserModelID` (`PinayPal.PinayPalBackupManager`) and injected Win32 `WM_SETICON` (32x32 taskbar & 16x16 titlebar) from `Assets/logo.ico`.
+  - **Fixed Window Hidden Permanently on Minimize**: Prevented silent crash in `SetupSystemTray()`, kept taskbar button active on standard minimize (`_`), improved `RestoreFromTray()` foreground window activation, and implemented `EventWaitHandle` single-instance auto-restore listener.
+
+- **Real-Time Remote Settings & Biometrics**:
+  - Full biometric Face ID & Touch ID security protection on app launch with in-app test button and immediate lock switch.
+  - Real-time synchronization between iOS and Desktop PC for daily backup schedules (FTP, SQL, Mailchimp Manila times), retention periods, and health check automation.
+
+---
+
 ## v3.2.2 (2026-09-20)
 
 ### Added
