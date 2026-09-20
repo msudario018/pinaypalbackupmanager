@@ -165,7 +165,15 @@ public struct ServerConfigSheet: View {
 
             // Settings & Toggle Card
             VStack(spacing: 16) {
-                Toggle(isOn: $enableBiometrics) {
+                Toggle(isOn: Binding(
+                    get: { enableBiometrics },
+                    set: { newVal in
+                        enableBiometrics = newVal
+                        UserDefaults.standard.set(newVal, forKey: "pp_biometrics_enabled")
+                        let haptic = UINotificationFeedbackGenerator()
+                        haptic.notificationOccurred(.success)
+                    }
+                )) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Require Face ID / Touch ID")
                             .font(.system(size: 14, weight: .bold))
@@ -177,11 +185,6 @@ public struct ServerConfigSheet: View {
                     }
                 }
                 .tint(LiquidTheme.gold)
-                .onChange(of: enableBiometrics) { newValue in
-                    UserDefaults.standard.set(newValue, forKey: "pp_biometrics_enabled")
-                    let haptic = UINotificationFeedbackGenerator()
-                    haptic.notificationOccurred(.success)
-                }
 
                 Divider().background(Color.white.opacity(0.1))
 

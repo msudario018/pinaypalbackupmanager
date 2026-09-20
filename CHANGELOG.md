@@ -39,9 +39,10 @@
     - Added `GET /api/settings` and `POST /api/settings` in `WebDashboardService.cs` enabling iOS to remotely configure daily sync schedules (FTP, SQL, Mailchimp Manila times), retention days, and daily health check automation.
     - Changes saved on iPhone dispatch through `Avalonia.Threading.Dispatcher.UIThread` and `ConfigService.TriggerScheduleChanged()`, immediately updating the desktop application GUI, recalculating next runs, and showing desktop notification toasts in real time.
     - Added remote `POST /api/emergency-stop` to halt backups from iPhone with emergency toast notifications.
-  - **iOS App Icon from Assets/logo.ico**:
-    - Converted high-resolution frame from `Assets\logo.ico` into the full multi-resolution asset catalog (`icon-20`, `icon-29`, `icon-40`, `icon-60`, `icon-76`, `icon-83.5`, and `AppIcon-1024.png`).
-    - Configured `Contents.json` with all iOS idioms (`iphone`, `ipad`, `universal`, `ios-marketing`) ensuring 100% compatibility with Feather sideloading, AltStore, and iOS 16-18 SpringBoard.
+  - **iOS App Icon & Build Pipeline Fixes**:
+    - Standardized `AppIcon.appiconset` to the single-size universal 1024x1024 specification (`AppIcon-1024.png` derived from `Assets\logo.ico`), eliminating Apple `actool` asset compilation warnings and idiom conflicts.
+    - Updated `ServerConfigSheet.swift` biometric settings toggle to use explicit `Binding(get:set:)`, resolving Swift 5.10 / Xcode 15+ closure signature mismatches with `.onChange`.
+    - Fixed GitHub Actions iOS workflow (`.github/workflows/ios-build.yml`): explicitly set `SYMROOT` and `BUILD_DIR` to absolute paths and modernized bundle discovery (`find . -name "PinayPalBackup.app"`), resolving the build failure where the compiled `.app` bundle was located under `ios/build` instead of root `build`.
   - **Dual Navigation Mode**: Seamless switching between **Native Liquid HUD** (interactive cards, hardware gauges, partition graphs, live terminal logs) and **Live Web Dashboard** (`WKWebView` with native pull-to-refresh).
   - **Automated Cloud CI/CD for Feather Sideloading**: GitHub Actions workflow (`.github/workflows/ios-build.yml`) packages a complete multi-megabyte unsigned `.ipa` with `Payload/PinayPalBackup.app` hierarchy ready for direct import into the Feather app.
 
