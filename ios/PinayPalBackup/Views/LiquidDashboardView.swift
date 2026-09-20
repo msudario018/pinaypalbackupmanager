@@ -419,9 +419,28 @@ public struct LiquidDashboardView: View {
     // MARK: - Schedules Card
     private func schedulesCard(sched: ScheduleSpecs) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("⏰ AUTOMATED DAILY SCHEDULES")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(LiquidTheme.textSecondary)
+            HStack {
+                Text("⏰ AUTOMATED DAILY SCHEDULES")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(LiquidTheme.textSecondary)
+
+                Spacer()
+
+                Button {
+                    showSettingsSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("Manage")
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(LiquidTheme.gold.opacity(0.12))
+                    .cornerRadius(8)
+                }
+            }
 
             VStack(spacing: 8) {
                 scheduleRow(title: "Website FTP", time: sched.ftpDaily ?? "22:00 MNL", interval: sched.ftpInterval ?? "3h")

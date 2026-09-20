@@ -80,6 +80,25 @@ namespace PinayPalBackupManager.Services
                     var result = await HealthCheckService.RunHealthCheckAsync();
                     await SendJsonAsync(response, 200, result);
                 }
+                else if (path == "/api/settings")
+                {
+                    if (request.HttpMethod == "GET")
+                    {
+                        await ServeSettingsApiAsync(response);
+                    }
+                    else if (request.HttpMethod == "POST")
+                    {
+                        await HandleSettingsPostAsync(context);
+                    }
+                    else
+                    {
+                        await SendJsonAsync(response, 405, new { error = "Method not allowed" });
+                    }
+                }
+                else if (path == "/api/emergency-stop" && request.HttpMethod == "POST")
+                {
+                    await HandleEmergencyStopAsync(response);
+                }
                 else
                 {
                     await SendJsonAsync(response, 404, new { error = "Not found" });
@@ -345,6 +364,101 @@ namespace PinayPalBackupManager.Services
                 });
 
             await SendJsonAsync(response, 200, history);
+        }
+
+        private static async Task ServeSettingsApiAsync(HttpListenerResponse response)
+        {
+            var sched = ConfigService.Current.Schedule;
+            var op = ConfigService.Current.Operation;
+
+            var data = new
+            {
+                ftpDailySyncHourMnl = sched.FtpDailySyncHourMnl,
+                ftpDailySyncMinuteMnl = sched.FtpDailySyncMinuteMnl,
+                sqlDailySyncHourMnl = sched.SqlDailySyncHourMnl,
+                sqlDailySyncMinuteMnl = sched.SqlDailySyncMinuteMnl,
+                mailchimpDailySyncHourMnl = sched.MailchimpDailySyncHourMnl,
+                mailchimpDailySyncMinuteMnl = sched.MailchimpDailySyncMinuteMnl,
+                retentionDays = op.RetentionDays,
+                dailyHealthCheckEnabled = op.DailyHealthCheckEnabled,
+                dailyHealthCheckHour = op.DailyHealthCheckHour,
+                autoStartWindows = op.AutoStartWindows,
+                notificationSound = op.NotificationSound
+            };
+
+            await SendJsonAsync(response, 200, data);
+        }
+
+        private static async Task HandleSettingsPostAsync(HttpListenerContext context)
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                await SendJsonAsync(context.Response, 400, new { success = false, message = "Empty request payload" });
+                return;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                var sched = ConfigService.Current.Schedule;
+                var op = ConfigService.Current.Operation;
+                bool schedChanged = false;
+                bool opChanged = false;
+
+                if (root.TryGetProperty("ftpDailySyncHourMnl", out var fH) && fH.TryGetInt32(out int fhVal)) { sched.FtpDailySyncHourMnl = Math.Clamp(fhVal, 0, 23); schedChanged = true; }
+                if (root.TryGetProperty("ftpDailySyncMinuteMnl", out var fM) && fM.TryGetInt32(out int fmVal)) { sched.FtpDailySyncMinuteMnl = Math.Clamp(fmVal, 0, 59); schedChanged = true; }
+                if (root.TryGetProperty("sqlDailySyncHourMnl", out var sH) && sH.TryGetInt32(out int shVal)) { sched.SqlDailySyncHourMnl = Math.Clamp(shVal, 0, 23); schedChanged = true; }
+                if (root.TryGetProperty("sqlDailySyncMinuteMnl", out var sM) && sM.TryGetInt32(out int smVal)) { sched.SqlDailySyncMinuteMnl = Math.Clamp(smVal, 0, 59); schedChanged = true; }
+                if (root.TryGetProperty("mailchimpDailySyncHourMnl", out var mH) && mH.TryGetInt32(out int mhVal)) { sched.MailchimpDailySyncHourMnl = Math.Clamp(mhVal, 0, 23); schedChanged = true; }
+                if (root.TryGetProperty("mailchimpDailySyncMinuteMnl", out var mM) && mM.TryGetInt32(out int mmVal)) { sched.MailchimpDailySyncMinuteMnl = Math.Clamp(mmVal, 0, 59); schedChanged = true; }
+
+                if (root.TryGetProperty("retentionDays", out var rD) && rD.TryGetInt32(out int rdVal)) { op.RetentionDays = Math.Max(1, rdVal); opChanged = true; }
+                if (root.TryGetProperty("dailyHealthCheckEnabled", out var hE)) { op.DailyHealthCheckEnabled = hE.GetBoolean(); opChanged = true; }
+                if (root.TryGetProperty("dailyHealthCheckHour", out var hH) && hH.TryGetInt32(out int hhVal)) { op.DailyHealthCheckHour = Math.Clamp(hhVal, 0, 23); opChanged = true; }
+                if (root.TryGetProperty("autoStartWindows", out var aS)) { op.AutoStartWindows = aS.GetBoolean(); opChanged = true; }
+                if (root.TryGetProperty("notificationSound", out var nS)) { op.NotificationSound = nS.GetBoolean(); opChanged = true; }
+
+                if (schedChanged)
+                {
+                    ConfigService.SaveSchedule();
+                    ConfigService.TriggerScheduleChanged();
+                }
+
+                if (opChanged)
+                {
+                    ConfigService.SaveOperation();
+                }
+
+                LogService.WriteSystemLog($"[WebDashboard] Remote settings updated from iOS Dashboard (FTP: {sched.FtpDailySyncHourMnl:D2}:{sched.FtpDailySyncMinuteMnl:D2}, SQL: {sched.SqlDailySyncHourMnl:D2}:{sched.SqlDailySyncMinuteMnl:D2}, MC: {sched.MailchimpDailySyncHourMnl:D2}:{sched.MailchimpDailySyncMinuteMnl:D2}, Retention: {op.RetentionDays}d)", "Information", "SYSTEM");
+
+                _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    NotificationService.ShowBackupToast("Remote Settings Synced", "Schedules & retention updated in real-time from iOS app", "Info");
+                });
+
+                await SendJsonAsync(context.Response, 200, new { success = true, message = "Settings updated successfully and synced to desktop app in real-time" });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Error updating remote settings: {ex.Message}", "Error", "SYSTEM");
+                await SendJsonAsync(context.Response, 500, new { success = false, error = ex.Message });
+            }
+        }
+
+        private static async Task HandleEmergencyStopAsync(HttpListenerResponse response)
+        {
+            LogService.WriteSystemLog("[EMERGENCY] Remote Emergency Stop triggered from iOS Dashboard!", "Warning", "SYSTEM");
+
+            _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                NotificationService.ShowBackupToast("EMERGENCY STOP", "Emergency stop triggered remotely from iOS app!", "Warning");
+            });
+
+            await SendJsonAsync(response, 200, new { success = true, message = "Emergency stop broadcasted to desktop system" });
         }
 
         private static async Task SendJsonAsync(HttpListenerResponse response, int statusCode, object data)

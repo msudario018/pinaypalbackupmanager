@@ -122,3 +122,44 @@ public struct TriggerResponse: Codable {
     public let success: Bool
     public let message: String?
 }
+
+public struct RemoteSettings: Codable, Equatable {
+    public var ftpDailySyncHourMnl: Int
+    public var ftpDailySyncMinuteMnl: Int
+    public var sqlDailySyncHourMnl: Int
+    public var sqlDailySyncMinuteMnl: Int
+    public var mailchimpDailySyncHourMnl: Int
+    public var mailchimpDailySyncMinuteMnl: Int
+    public var retentionDays: Int
+    public var dailyHealthCheckEnabled: Bool
+    public var dailyHealthCheckHour: Int
+    public var autoStartWindows: Bool
+    public var notificationSound: Bool
+
+    public init(
+        ftpDailySyncHourMnl: Int = 22,
+        ftpDailySyncMinuteMnl: Int = 0,
+        sqlDailySyncHourMnl: Int = 17,
+        sqlDailySyncMinuteMnl: Int = 0,
+        mailchimpDailySyncHourMnl: Int = 18,
+        mailchimpDailySyncMinuteMnl: Int = 0,
+        retentionDays: Int = 7,
+        dailyHealthCheckEnabled: Bool = true,
+        dailyHealthCheckHour: Int = 8,
+        autoStartWindows: Bool = false,
+        notificationSound: Bool = true
+    ) {
+        self.ftpDailySyncHourMnl = ftpDailySyncHourMnl
+        self.ftpDailySyncMinuteMnl = ftpDailySyncMinuteMnl
+        self.sqlDailySyncHourMnl = sqlDailySyncHourMnl
+        self.sqlDailySyncMinuteMnl = sqlDailySyncMinuteMnl
+        self.mailchimpDailySyncHourMnl = mailchimpDailySyncHourMnl
+        self.mailchimpDailySyncMinuteMnl = mailchimpDailySyncMinuteMnl
+        self.retentionDays = retentionDays
+        self.dailyHealthCheckEnabled = dailyHealthCheckEnabled
+        self.dailyHealthCheckHour = dailyHealthCheckHour
+        self.autoStartWindows = autoStartWindows
+        self.notificationSound = notificationSound
+    }
+}
+

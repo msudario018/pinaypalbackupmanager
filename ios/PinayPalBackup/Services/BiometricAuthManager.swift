@@ -58,4 +58,27 @@ public class BiometricAuthManager: ObservableObject {
             isUnlocked = false
         }
     }
+
+    public func testBiometrics() async -> (success: Bool, message: String) {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            let desc = error?.localizedDescription ?? "Face ID / Touch ID not configured or available."
+            return (false, desc)
+        }
+
+        do {
+            let success = try await context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: "Verify Face ID Biometric Recognition"
+            )
+            if success {
+                return (true, "Biometric authentication confirmed successfully!")
+            } else {
+                return (false, "Biometric verification failed.")
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
 }

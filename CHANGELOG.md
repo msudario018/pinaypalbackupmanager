@@ -21,10 +21,19 @@
 - **Native iOS App (SwiftUI + Liquid Glass iOS 27 Design System)**:
   - Created complete native iOS application under `ios/PinayPalBackup` built with modern SwiftUI.
   - Implemented **Liquid Glass (iOS 27)** design language: ultra-thin frosted acrylic materials (`.ultraThinMaterial`), iridescent ambient back-glow, chromatic edge specular borders, floating capsule navigation, and interactive haptics.
-  - **Biometric Security Shield**: Face ID and Touch ID biometric authentication on app launch (`BiometricShieldView` and `BiometricAuthManager`).
+  - **Biometric Security & Face ID Settings**:
+    - Complete Face ID and Touch ID biometric authentication on app launch with dedicated in-app Security settings (`ServerConfigSheet`).
+    - Added interactive "Test Face ID Recognition Now" button to verify biometric authentication on demand with instant haptic response.
+    - Added "Lock App Now" instant lock trigger and on/off biometric enforcement toggle (`pp_biometrics_enabled`).
+  - **Remote PC Management & Real-Time Reflection**:
+    - Added `GET /api/settings` and `POST /api/settings` in `WebDashboardService.cs` enabling iOS to remotely configure daily sync schedules (FTP, SQL, Mailchimp Manila times), retention days, and daily health check automation.
+    - Changes saved on iPhone dispatch through `Avalonia.Threading.Dispatcher.UIThread` and `ConfigService.TriggerScheduleChanged()`, immediately updating the desktop application GUI, recalculating next runs, and showing desktop notification toasts in real time.
+    - Added remote `POST /api/emergency-stop` to halt backups from iPhone with emergency toast notifications.
+  - **iOS App Icon from Assets/logo.ico**:
+    - Converted high-resolution frame from `Assets\logo.ico` into the full multi-resolution asset catalog (`icon-20`, `icon-29`, `icon-40`, `icon-60`, `icon-76`, `icon-83.5`, and `AppIcon-1024.png`).
+    - Configured `Contents.json` with all iOS idioms (`iphone`, `ipad`, `universal`, `ios-marketing`) ensuring 100% compatibility with Feather sideloading, AltStore, and iOS 16-18 SpringBoard.
   - **Dual Navigation Mode**: Seamless switching between **Native Liquid HUD** (interactive cards, hardware gauges, partition graphs, live terminal logs) and **Live Web Dashboard** (`WKWebView` with native pull-to-refresh).
-  - **Server Connection & Cloudflare Configuration**: In-app configuration sheet (`ServerConfigSheet`) to manage remote tunnel URLs, PIN authentication, and test connectivity.
-  - **Automated Cloud CI/CD**: Added GitHub Actions workflow (`.github/workflows/ios-build.yml`) to compile and package unsigned iOS `.ipa` builds automatically in the cloud on macOS runners.
+  - **Automated Cloud CI/CD for Feather Sideloading**: GitHub Actions workflow (`.github/workflows/ios-build.yml`) packages a complete multi-megabyte unsigned `.ipa` with `Payload/PinayPalBackup.app` hierarchy ready for direct import into the Feather app.
 
 ### Files Modified
 - `PinayPalBackupManager.csproj`

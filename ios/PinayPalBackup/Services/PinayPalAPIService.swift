@@ -7,6 +7,7 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var accessPin: String = UserDefaults.standard.string(forKey: "pp_access_pin") ?? ""
     
     @Published public var status: StatusResponse? = nil
+    @Published public var remoteSettings: RemoteSettings? = nil
     @Published public var history: [BackupHistoryItem] = []
     @Published public var logs: [String] = []
     @Published public var isConnecting: Bool = false
@@ -50,6 +51,7 @@ public class PinayPalAPIService: ObservableObject {
         isConnecting = true
         defer { isConnecting = false }
         await fetchStatus()
+        await fetchRemoteSettings()
         await fetchHistory()
         await fetchLogs()
     }
@@ -134,6 +136,65 @@ public class PinayPalAPIService: ObservableObject {
         guard let url = URL(string: "\(serverUrl)/api/health/run") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        if !accessPin.isEmpty {
+            request.addValue("Bearer \(accessPin)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                await fetchStatus()
+                return true
+            }
+        } catch { }
+        return false
+    }
+
+    public func fetchRemoteSettings() async {
+        guard let url = URL(string: "\(serverUrl)/api/settings") else { return }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        if !accessPin.isEmpty {
+            request.addValue("Bearer \(accessPin)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                let decoded = try JSONDecoder().decode(RemoteSettings.self, from: data)
+                self.remoteSettings = decoded
+            }
+        } catch { }
+    }
+
+    public func saveRemoteSettings(_ settings: RemoteSettings) async -> Bool {
+        guard let url = URL(string: "\(serverUrl)/api/settings") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 8
+        if !accessPin.isEmpty {
+            request.addValue("Bearer \(accessPin)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let bodyData = try JSONEncoder().encode(settings)
+            request.httpBody = bodyData
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                self.remoteSettings = settings
+                await fetchStatus()
+                return true
+            }
+        } catch { }
+        return false
+    }
+
+    public func triggerEmergencyStop() async -> Bool {
+        guard let url = URL(string: "\(serverUrl)/api/emergency-stop") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 6
         if !accessPin.isEmpty {
             request.addValue("Bearer \(accessPin)", forHTTPHeaderField: "Authorization")
         }

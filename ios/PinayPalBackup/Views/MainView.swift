@@ -33,7 +33,7 @@ public struct MainView: View {
                     }
                 }
                 .sheet(isPresented: $showSettingsSheet) {
-                    ServerConfigSheet(api: api)
+                    ServerConfigSheet(api: api, authManager: authManager)
                 }
             }
         }

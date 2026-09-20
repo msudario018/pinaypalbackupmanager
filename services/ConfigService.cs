@@ -9,6 +9,11 @@ namespace PinayPalBackupManager.Services
     {
         public static event Action? OnScheduleChanged;
 
+        public static void TriggerScheduleChanged()
+        {
+            OnScheduleChanged?.Invoke();
+        }
+
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,
