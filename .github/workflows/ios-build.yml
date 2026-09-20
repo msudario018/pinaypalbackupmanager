@@ -19,9 +19,11 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Build PinayPal iOS App (Unsigned IPA)
+      - name: Build & Package PinayPal iOS IPA
         run: |
-          mkdir -p build/Payload
+          set -eo pipefail
+
+          echo "==> Building PinayPalBackup target..."
           xcodebuild clean build \
             -project ios/PinayPalBackup.xcodeproj \
             -scheme PinayPalBackup \
@@ -31,15 +33,36 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CONFIGURATION_BUILD_DIR=build/Payload
+            BUILD_DIR=build
 
-          cd build
-          zip -r PinayPalBackup.ipa Payload
+          echo "==> Locating compiled PinayPalBackup.app bundle..."
+          APP_PATH=$(find build -name "PinayPalBackup.app" -type d | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: PinayPalBackup.app bundle was not found!"
+            find build -maxdepth 4
+            exit 1
+          fi
+
+          echo "==> Found bundle at: $APP_PATH"
+
+          echo "==> Packaging into Payload structure for Feather & sideloaders..."
+          rm -rf ipa_staging
+          mkdir -p ipa_staging/Payload
+          cp -R "$APP_PATH" ipa_staging/Payload/
+
+          echo "==> Creating PinayPalBackup.ipa..."
+          cd ipa_staging
+          zip -r -y ../PinayPalBackup.ipa Payload
           cd ..
+
+          echo "==> Verification:"
+          ls -lh PinayPalBackup.ipa
+          du -h PinayPalBackup.ipa
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PinayPalBackup-iOS-v3.2.2
-          path: build/PinayPalBackup.ipa
+          path: PinayPalBackup.ipa
           retention-days: 14
