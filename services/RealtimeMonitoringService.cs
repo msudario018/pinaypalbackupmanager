@@ -159,14 +159,14 @@ namespace PinayPalBackupManager.Services
             try
             {
                 var cpuUsage = await GetCpuUsageAsync();
-                var memoryUsage = await GetMemoryUsageAsync();
+                var memoryUsage = GetFormattedMemoryUsage();
 
                 var systemStatsData = new
                 {
                     cpu = cpuUsage,
                     memory = memoryUsage,
-                    pcAppUptime = await GetPcAppUptimeAsync(),
-                    uptime = await GetSystemUptimeAsync()
+                    pcAppUptime = GetPcAppUptime(),
+                    uptime = GetSystemUptime()
                 };
 
                 await _database
@@ -214,7 +214,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async Task<string> GetMemoryUsageAsync()
+        private static string GetFormattedMemoryUsage()
         {
             try
             {
@@ -236,7 +236,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async Task<string> GetSystemUptimeAsync()
+        private static string GetSystemUptime()
         {
             try
             {
@@ -262,7 +262,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async Task<string> GetPcAppUptimeAsync()
+        private static string GetPcAppUptime()
         {
             try
             {

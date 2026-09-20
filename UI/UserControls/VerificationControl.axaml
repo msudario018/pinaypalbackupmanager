@@ -175,6 +175,20 @@
                         <Button Grid.Column="6" Name="BtnSelectMissing" Content="Select Missing" Background="{DynamicResource AccentMailchimp}" Foreground="White" BorderThickness="0" CornerRadius="6" Padding="12,6" FontSize="11" Cursor="Hand"/>
                     </Grid>
                     
+                    <!-- Column Headers -->
+                    <Border Background="{DynamicResource AppSurface}" CornerRadius="6" Padding="12,8" Margin="0,4,0,0">
+                        <Grid ColumnDefinitions="30, 200, 80, 100, 80, 120, 150, *">
+                            <TextBlock Grid.Column="0" Text="" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="1" Text="FILE NAME" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="2" Text="SERVICE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="3" Text="STATUS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="4" Text="SIZE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="5" Text="DATE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="6" Text="SHA-256 HASH" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                            <TextBlock Grid.Column="7" Text="FILE PATH" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppMuted}"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Results List -->
                     <ScrollViewer Height="300" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <ListBox Name="VerificationDataGrid" Background="{DynamicResource AppCard}" BorderThickness="0">

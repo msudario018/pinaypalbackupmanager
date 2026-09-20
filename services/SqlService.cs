@@ -35,9 +35,21 @@ namespace PinayPalBackupManager.Services
                 UserName = user,
                 Password = password,
                 PortNumber = 21,
-                FtpSecure = FtpSecure.Explicit,
-                TlsHostCertificateFingerprint = fingerprint
+                FtpSecure = FtpSecure.Explicit
             };
+            if (ConfigService.Current.Operation.AcceptAnyTlsCert)
+            {
+                _options.GiveUpSecurityAndAcceptAnyTlsHostCertificate = true;
+            }
+            else if (!string.IsNullOrWhiteSpace(fingerprint))
+            {
+                _options.TlsHostCertificateFingerprint = fingerprint;
+            }
+        }
+
+        public static string ScanTlsFingerprint(string host, int port = 21)
+        {
+            return FtpService.ScanTlsFingerprint(host, port);
         }
 
         public async Task<bool> ConnectAsync()
@@ -69,6 +81,40 @@ namespace PinayPalBackupManager.Services
                     LogService.WriteLiveLog($"SQL CONNECTION FAILED: {ex.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     if (ex.InnerException != null)
                         LogService.WriteLiveLog($"SQL INNER ERROR: {ex.InnerException.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
+
+                    // Handle TLS certificate rotation / fingerprint mismatch
+                    if (ConfigService.Current.Operation.AutoUpdateTlsFingerprint && 
+                        (ex.Message.Contains("certificate", StringComparison.OrdinalIgnoreCase) || 
+                         ex.Message.Contains("fingerprint", StringComparison.OrdinalIgnoreCase) ||
+                         ex.Message.Contains("TLS", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        try
+                        {
+                            LogService.WriteLiveLog("SQL: Attempting auto-recovery for rotated TLS certificate...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                            string newFingerprint = ScanTlsFingerprint(_options.HostName, _options.PortNumber);
+                            if (!string.IsNullOrWhiteSpace(newFingerprint) && newFingerprint != _options.TlsHostCertificateFingerprint)
+                            {
+                                LogService.WriteLiveLog($"SQL: New TLS fingerprint detected: {newFingerprint}. Updating configuration...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                                _options.TlsHostCertificateFingerprint = newFingerprint;
+                                ConfigService.Current.Sql.TlsFingerprint = newFingerprint;
+                                try { ConfigService.SaveCredentials(); } catch { }
+                                NotificationService.ShowBackupToast("TLS Updated", "Server TLS certificate changed and fingerprint was automatically updated.", "Info");
+
+                                // Retry with new fingerprint
+                                _session?.Dispose();
+                                _session = new Session();
+                                _session.FileTransferProgress += Session_FileTransferProgress;
+                                _session.Open(_options);
+                                LogService.WriteLiveLog("SQL CONNECT: Successfully connected with updated TLS certificate.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                                return true;
+                            }
+                        }
+                        catch (Exception retryEx)
+                        {
+                            LogService.WriteLiveLog($"SQL AUTO-RECOVERY FAILED: {retryEx.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
+                        }
+                    }
+
                     return false;
                 }
             });

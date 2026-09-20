@@ -444,7 +444,7 @@ namespace PinayPalBackupManager.UI
             }
         }
 
-        private async void OnImportAllClick(object? sender, RoutedEventArgs e)
+        private void OnImportAllClick(object? sender, RoutedEventArgs e)
         {
             var filePath = this.FindControl<TextBox>("TxtImportFile")!.Text?.Trim();
             var resultText = this.FindControl<TextBlock>("TxtImportResult")!;
@@ -618,7 +618,7 @@ namespace PinayPalBackupManager.UI
             }
         }
 
-        private async void OnTestFtpClick(object? sender, RoutedEventArgs e)
+        private void OnTestFtpClick(object? sender, RoutedEventArgs e)
         {
             var btn = this.FindControl<Button>("BtnTestFTP")!;
             var result = this.FindControl<TextBlock>("TxtFtpTestResult")!;
@@ -709,7 +709,7 @@ namespace PinayPalBackupManager.UI
             }
         }
 
-        private async void OnTestMailchimpClick(object? sender, RoutedEventArgs e)
+        private void OnTestMailchimpClick(object? sender, RoutedEventArgs e)
         {
             var btn = this.FindControl<Button>("BtnTestMailchimp")!;
             var result = this.FindControl<TextBlock>("TxtMcTestResult")!;

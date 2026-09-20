@@ -47,6 +47,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task RefreshMetricsAsync()
         {
+            await Task.Yield();
             try
             {
                 var report = PerformanceMetricsService.GeneratePerformanceReport();

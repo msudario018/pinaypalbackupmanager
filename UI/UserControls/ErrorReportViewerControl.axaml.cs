@@ -51,7 +51,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var cmbFilterType = this.FindControl<ComboBox>("CmbFilterType");
             if (cmbFilterType != null)
             {
-                cmbFilterType.SelectionChanged += async (s, e) => 
+                cmbFilterType.SelectionChanged += (s, e) => 
                 {
                     var txtFilterSource = this.FindControl<TextBox>("TxtFilterSource");
                     if (txtFilterSource != null)
@@ -77,6 +77,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task LoadErrorReportsAsync()
         {
+            await Task.Yield();
             try
             {
                 var cmbFilterType = this.FindControl<ComboBox>("CmbFilterType");

@@ -134,6 +134,7 @@ namespace PinayPalBackupManager.Services
 
             if (!IsPaused && mnlTime.Second == 0)
             {
+                _ = HealthCheckService.CheckAndRunDailyHealthCheckAsync();
                 var todayMnl = mnlTime.Date;
 
                 if (mnlTime.Hour == BackupConfig.FtpDailySyncHourMnl && mnlTime.Minute == BackupConfig.FtpDailySyncMinuteMnl && _lastFtpDailyRunMnlDate != todayMnl)

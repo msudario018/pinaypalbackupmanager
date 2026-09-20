@@ -46,10 +46,44 @@ namespace PinayPalBackupManager.Services
             public long BackupPathSizeMB { get; set; }
         }
 
+        private static readonly string CacheFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PinayPalBackupManager", "health_check_result.json");
         private static readonly List<ComponentHealth> _componentHistory = new();
         private static HealthCheckResult? _lastResult;
+        private static DateTime _lastDailyRunDate = DateTime.MinValue;
 
-        public static HealthCheckResult? GetLastResult() => _lastResult;
+        public static HealthCheckResult? GetLastResult()
+        {
+            if (_lastResult != null) return _lastResult;
+            try
+            {
+                if (File.Exists(CacheFilePath))
+                {
+                    var json = File.ReadAllText(CacheFilePath);
+                    _lastResult = System.Text.Json.JsonSerializer.Deserialize<HealthCheckResult>(json);
+                }
+            }
+            catch { }
+            return _lastResult;
+        }
+
+        public static async Task CheckAndRunDailyHealthCheckAsync()
+        {
+            if (!ConfigService.Current.Operation.DailyHealthCheckEnabled) return;
+            var now = DateTime.Now;
+            int targetHour = ConfigService.Current.Operation.DailyHealthCheckHour;
+            if (now.Date > _lastDailyRunDate.Date && now.Hour >= targetHour)
+            {
+                _lastDailyRunDate = now;
+                LogService.WriteSystemLog("[HealthCheckService] Running scheduled daily health check...", "Information", "HEALTHCHECK");
+                var result = await RunHealthCheckAsync();
+                if (!result.IsHealthy)
+                {
+                    NotificationService.ShowBackupToast("Daily Health Alert", $"System Health Degraded: {result.Status}", "Warning");
+                }
+            }
+        }
 
         public static async Task<HealthCheckResult> RunHealthCheckAsync()
         {
@@ -111,6 +145,14 @@ namespace PinayPalBackupManager.Services
                 }
 
                 _lastResult = result;
+                try
+                {
+                    var dir = Path.GetDirectoryName(CacheFilePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    var json = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(CacheFilePath, json);
+                }
+                catch { }
                 LogService.WriteSystemLog($"Health check completed: {result.Status}", "Information", "HEALTHCHECK");
             }
             catch (Exception ex)

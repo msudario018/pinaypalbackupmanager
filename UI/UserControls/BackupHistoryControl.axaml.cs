@@ -49,6 +49,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task LoadBackupHistoryAsync()
         {
+            await Task.Yield();
             try
             {
                 var cmbService = this.FindControl<ComboBox>("CmbService");

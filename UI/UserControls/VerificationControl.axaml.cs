@@ -38,21 +38,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     listBox.ItemsSource = _verificationItems;
                     LogService.WriteLiveLog("[VERIFICATION] ListBox initialized successfully", "", "Information", "SYSTEM");
-                    
-                    // Add a test item to verify the ListBox is working
-                    _verificationItems.Add(new VerificationItem
-                    {
-                        FileName = "test_file.zip",
-                        FilePath = "C:\\test\\test_file.zip",
-                        Service = "Test",
-                        Status = "Valid",
-                        FileSize = 1024 * 1024,
-                        Created = DateTime.Now,
-                        Hash = "abc123def456",
-                        IsValid = true
-                    });
-                    
-                    LogService.WriteLiveLog("[VERIFICATION] Added test item to ListBox", "", "Information", "SYSTEM");
                 }
                 else
                 {
@@ -579,9 +564,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 
                 var filtered = _verificationItems.Where(item =>
                 {
-                    if (item.Status == "Valid" && showValid) return true;
-                    if (item.Status == "Corrupted" && showCorrupted) return true;
-                    if (item.Status == "File not found" && showMissing) return true;
+                    bool isValid = item.Status == "Valid" || item.Status == "Cleaned by retention";
+                    bool isMissing = item.Status == "File not found";
+                    bool isCorrupted = !item.IsValid && !isMissing && item.Status != "Cleaned by retention";
+
+                    if (isValid && showValid) return true;
+                    if (isCorrupted && showCorrupted) return true;
+                    if (isMissing && showMissing) return true;
                     return false;
                 }).ToList();
                 
@@ -902,7 +891,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var selectedCount = 0;
                 foreach (var item in _verificationItems)
                 {
-                    item.IsSelected = item.Status == "Corrupted";
+                    item.IsSelected = !item.IsValid && item.Status != "File not found" && item.Status != "Cleaned by retention";
                     if (item.IsSelected) selectedCount++;
                 }
                 LogService.WriteLiveLog($"[VERIFICATION] Selected {selectedCount} corrupted files", "", "Information", "SYSTEM");

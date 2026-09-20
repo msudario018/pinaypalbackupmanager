@@ -17,6 +17,12 @@ namespace PinayPalBackupManager.Services
         public int RetentionDays { get; set; } = 7;
         public bool AutoStartWindows { get; set; } = false;
         public bool StartMinimized { get; set; } = false;
+        public bool MinimizeToTray { get; set; } = true;
+        public bool CloseToTray { get; set; } = false;
+        public bool AutoUpdateTlsFingerprint { get; set; } = true;
+        public bool AcceptAnyTlsCert { get; set; } = false;
+        public bool DailyHealthCheckEnabled { get; set; } = true;
+        public int DailyHealthCheckHour { get; set; } = 8;
         public bool NotificationSound { get; set; } = true;
         public bool ThemeAutoSchedule { get; set; } = false;
         public int ThemeDarkHour { get; set; } = 18; // 6 PM
@@ -99,5 +105,7 @@ namespace PinayPalBackupManager.Services
     {
         public int Port { get; set; } = 8080;
         public bool Enabled { get; set; } = true;
+        public string WebPin { get; set; } = "";
+        public bool RequireAuth { get; set; } = false;
     }
 }

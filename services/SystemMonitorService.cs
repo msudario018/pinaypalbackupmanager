@@ -21,6 +21,7 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task<string> GetNetworkUsageAsync()
         {
+            await Task.Yield();
             try
             {
                 var interfaces = NetworkInterface.GetAllNetworkInterfaces()
@@ -177,6 +178,7 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<string> GetFallbackDiskIoAsync()
         {
+            await Task.Yield();
             try
             {
                 var drives = DriveInfo.GetDrives().Where(d => d.IsReady);
@@ -224,6 +226,7 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task<(string upload, string download, string total)> GetNetworkDetailsAsync()
         {
+            await Task.Yield();
             try
             {
                 var interfaces = NetworkInterface.GetAllNetworkInterfaces()

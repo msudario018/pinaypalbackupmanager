@@ -1,5 +1,89 @@
 # Changelog
 
+## v3.2.0 (2026-09-20)
+
+### Added
+- **Web-Based Dashboard & Remote Access**:
+  - Built-in embedded Cyberpunk dark-slate Web Dashboard accessible from any web browser (`services/WebDashboardService.cs`).
+  - Optional PIN authentication (`RequireAuth` and `WebPin`).
+  - Full REST API endpoints: `/api/status`, `/api/health`, `/api/health/run`, `/api/history`, `/api/backup/{service}`.
+  - Direct backup download links via `/download/{service}/{filename}`.
+  - Added Web Dashboard configuration card and "Open Web Dashboard" button in Settings Control.
+  - Added comprehensive `docs/REMOTE_ACCESS_GUIDE.md` documenting Cloudflare Tunnel (Quick and Named Tunnels) and Tailscale setup.
+- **TLS Certificate Auto-Recovery & Probing**:
+  - Added `ScanTlsFingerprint(host, port)` in `FtpService.cs` and `SqlService.cs` using WinSCP's `Session.ScanFingerprint`.
+  - Automatic detection and recovery when FTPS server certificate rotates: probes new fingerprint, updates config, saves credentials, notifies via toast, and auto-retries connection without manual WinSCP GUI intervention.
+  - Added "Auto-Fetch" button in Credentials Dialog to automatically retrieve TLS certificate fingerprint directly from the server.
+  - Added `AcceptAnyTlsCert` toggle option in Settings for environments with self-signed certificates.
+- **Persistent & Scheduled Health Checks**:
+  - Persisted health check results to `health_check_result.json` in LocalApplicationData so historical diagnostics show immediately on app launch.
+  - Added automated daily scheduled health check (`DailyHealthCheckEnabled`, `DailyHealthCheckHour`).
+  - Fixed "Last check: Never" display issue and fixed UI text clipping for "Operational".
+- **Structured Backup History & Checksum Automation**:
+  - Connected `FtpControl`, `SqlControl`, and `MailchimpControl` to automatically record backup starts, durations, file counts, and sizes in `BackupHistoryService`.
+  - Automated checksum calculation via `ChecksumService.SaveChecksumsForFolderAsync()` upon backup completion.
+
+### Fixed
+- **System Tray & Window Minimize**:
+  - Fixed window minimize crash by safely hiding from taskbar (`ShowInTaskbar = false; Hide()`) when `MinimizeToTray` is enabled.
+  - Added `CloseToTray` option to minimize on window close button.
+  - Added safe `RestoreFromTray()` to restore window state smoothly without layout crashes.
+- **Backup Schedule Engine**:
+  - Replaced mock `Task.Delay(2000)` simulation in `BackupSchedulingService` with real backup execution routines.
+  - Removed duplicate event handler subscription on schedule type combo box in `BackupScheduleControl`.
+  - Removed dummy sample schedules and fake history data generators that contaminated real data.
+- **Verification & Statistics Tabs**:
+  - Fixed missing column headers in Verification DataGrid.
+  - Removed dummy `test_file.zip` from Verification Control.
+  - Fixed status filter to properly include all error, corrupted, and mismatched states.
+  - Updated Statistics tab to prioritize structured backup history.
+- **Compiler Warnings**:
+  - Resolved all 24 CS1998 compiler warnings across services and controls for a clean 0-warning build.
+
+### Files Modified
+- `PinayPalBackupManager.csproj`
+- `CHANGELOG.md`
+- `services/AppSettings.cs`
+- `services/ConfigService.cs`
+- `services/FtpService.cs`
+- `services/SqlService.cs`
+- `services/HealthCheckService.cs`
+- `services/BackupManager.cs`
+- `services/BackupSchedulingService.cs`
+- `services/BackupHistoryService.cs`
+- `services/FileDownloadService.cs`
+- `services/WebDashboardService.cs` [NEW]
+- `docs/REMOTE_ACCESS_GUIDE.md` [NEW]
+- `UI/MainWindow.axaml.cs`
+- `UI/LoginWindow.axaml.cs`
+- `UI/SetupWizardWindow.axaml.cs`
+- `UI/UserControls/CredentialsDialog.axaml`
+- `UI/UserControls/CredentialsDialog.axaml.cs`
+- `UI/UserControls/SettingsControl.axaml`
+- `UI/UserControls/SettingsControl.axaml.cs`
+- `UI/UserControls/HealthCheckControl.axaml.cs`
+- `UI/UserControls/BackupScheduleControl.axaml.cs`
+- `UI/UserControls/VerificationControl.axaml`
+- `UI/UserControls/VerificationControl.axaml.cs`
+- `UI/UserControls/StatisticsControl.axaml.cs`
+- `UI/UserControls/FtpControl.axaml.cs`
+- `UI/UserControls/SqlControl.axaml.cs`
+- `UI/UserControls/MailchimpControl.axaml.cs`
+- `UI/UserControls/ErrorReportViewerControl.axaml.cs`
+- `UI/UserControls/HomeControl.axaml.cs`
+- `UI/UserControls/PerformanceMetricsControl.axaml.cs`
+- `UI/UserControls/UserManagementControl.axaml.cs`
+- `UI/UserControls/BackupHistoryControl.axaml.cs`
+- `services/AuthService.cs`
+- `services/ErrorReportingService.cs`
+- `services/FirebaseUserService.cs`
+- `services/RealtimeMonitoringService.cs`
+- `services/SystemMonitorService.cs`
+- `services/SmartOperationsService.cs`
+- `services/SystemStatusService.cs`
+
+---
+
 ## v3.1.3 (2026-06-06)
 
 ### Fixed

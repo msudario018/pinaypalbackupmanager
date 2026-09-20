@@ -154,7 +154,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             this.FindControl<Button>("BtnPingAll")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnOpenSchedule")!.Click += async (_, _) => await OpenScheduleDialogAsync();
-            this.FindControl<Button>("BtnBackupAll")!.Click += async (_, _) => OnRunAllBackupsParallel?.Invoke();
+            this.FindControl<Button>("BtnBackupAll")!.Click += (_, _) => OnRunAllBackupsParallel?.Invoke();
             this.FindControl<Button>("BtnTestAllConn")!.Click += async (_, _) => await PingAllAsync();
             this.FindControl<Button>("BtnRetryFailed")!.Click += (_, _) => { SetOpStatus("Retrying all services...", "#dad7cd"); OnRunAllChecks?.Invoke(); SetOpStatus("Retry triggered. Check service tabs for results.", "#588157"); };
             this.FindControl<Button>("BtnEmergencyStop")!.Click += (_, _) => { OnEmergencyStop?.Invoke(); SetOpStatus("Emergency stop sent to all services.", "#F38BA8"); };

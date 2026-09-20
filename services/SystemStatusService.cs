@@ -657,6 +657,7 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<string> GetDiskSpaceAsync()
         {
+            await Task.Yield();
             try
             {
                 var drive = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:");

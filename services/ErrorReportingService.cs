@@ -408,7 +408,7 @@ namespace PinayPalBackupManager.Services
         {
             // Placeholder for external error reporting (e.g., Sentry, Bugsnag, custom API)
             // This would be implemented when an external error reporting service is available
-            
+            await Task.CompletedTask;
             try
             {
                 // Mark as reported

@@ -22,7 +22,7 @@ namespace PinayPalBackupManager.Services
                 LogService.WriteLiveLog("FTP INIT WARNING: Password is empty after decryption!", AppDataPaths.SystemLogPath, "Warning", "SYSTEM");
             }
 
-            bool useTls = !string.IsNullOrWhiteSpace(fingerprint);
+            bool useTls = !string.IsNullOrWhiteSpace(fingerprint) || ConfigService.Current.Operation.AcceptAnyTlsCert;
             _options = new SessionOptions
             {
                 Protocol = Protocol.Ftp,
@@ -32,9 +32,34 @@ namespace PinayPalBackupManager.Services
                 PortNumber = port,
                 FtpSecure = useTls ? FtpSecure.Explicit : FtpSecure.None
             };
-            if (useTls)
+            if (ConfigService.Current.Operation.AcceptAnyTlsCert)
+            {
+                _options.GiveUpSecurityAndAcceptAnyTlsHostCertificate = true;
+            }
+            else if (useTls && !string.IsNullOrWhiteSpace(fingerprint))
             {
                 _options.TlsHostCertificateFingerprint = fingerprint;
+            }
+        }
+
+        public static string ScanTlsFingerprint(string host, int port = 21)
+        {
+            try
+            {
+                var options = new SessionOptions
+                {
+                    Protocol = Protocol.Ftp,
+                    HostName = host,
+                    PortNumber = port,
+                    FtpSecure = FtpSecure.Explicit
+                };
+                using var session = new Session();
+                return session.ScanFingerprint(options, "SHA-256") ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[FtpService] ScanTlsFingerprint failed: {ex.Message}", "Warning", "SYSTEM");
+                return string.Empty;
             }
         }
 
@@ -67,6 +92,40 @@ namespace PinayPalBackupManager.Services
                     LogService.WriteLiveLog($"FTP CONNECTION FAILED: {ex.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
                     if (ex.InnerException != null)
                         LogService.WriteLiveLog($"FTP INNER ERROR: {ex.InnerException.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
+
+                    // Handle TLS certificate rotation / fingerprint mismatch
+                    if (ConfigService.Current.Operation.AutoUpdateTlsFingerprint && 
+                        (ex.Message.Contains("certificate", StringComparison.OrdinalIgnoreCase) || 
+                         ex.Message.Contains("fingerprint", StringComparison.OrdinalIgnoreCase) ||
+                         ex.Message.Contains("TLS", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        try
+                        {
+                            LogService.WriteLiveLog("FTP: Attempting auto-recovery for rotated TLS certificate...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                            string newFingerprint = ScanTlsFingerprint(_options.HostName, _options.PortNumber);
+                            if (!string.IsNullOrWhiteSpace(newFingerprint) && newFingerprint != _options.TlsHostCertificateFingerprint)
+                            {
+                                LogService.WriteLiveLog($"FTP: New TLS fingerprint detected: {newFingerprint}. Updating configuration...", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                                _options.TlsHostCertificateFingerprint = newFingerprint;
+                                ConfigService.Current.Ftp.TlsFingerprint = newFingerprint;
+                                try { ConfigService.SaveCredentials(); } catch { }
+                                NotificationService.ShowBackupToast("TLS Updated", "Server TLS certificate changed and fingerprint was automatically updated.", "Info");
+
+                                // Retry with new fingerprint
+                                _session?.Dispose();
+                                _session = new Session();
+                                _session.FileTransferProgress += Session_FileTransferProgress;
+                                _session.Open(_options);
+                                LogService.WriteLiveLog("FTP CONNECT: Successfully connected with updated TLS certificate.", AppDataPaths.SystemLogPath, "Information", "SYSTEM");
+                                return true;
+                            }
+                        }
+                        catch (Exception retryEx)
+                        {
+                            LogService.WriteLiveLog($"FTP AUTO-RECOVERY FAILED: {retryEx.Message}", AppDataPaths.SystemLogPath, "Error", "SYSTEM");
+                        }
+                    }
+
                     return false;
                 }
             });

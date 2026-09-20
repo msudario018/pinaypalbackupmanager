@@ -37,6 +37,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     parentWindow?.Close();
                 };
             }
+
+            // Auto-load previous or cached health check result
+            var previousResult = HealthCheckService.GetLastResult();
+            if (previousResult != null)
+            {
+                UpdateUI(previousResult);
+            }
         }
 
         private async Task RunHealthCheckAsync()
@@ -61,11 +68,11 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private void UpdateUI(HealthCheckService.HealthCheckResult result)
         {
-            // Update last run time
-            var txtLastRun = this.FindControl<TextBlock>("TxtLastRun");
+            // Update last run time (supports both TxtLastRun and TxtLastCheck)
+            var txtLastRun = this.FindControl<TextBlock>("TxtLastRun") ?? this.FindControl<TextBlock>("TxtLastCheck");
             if (txtLastRun != null)
             {
-                txtLastRun.Text = $"Last check: {result.Timestamp:yyyy-MM-dd HH:mm:ss}";
+                txtLastRun.Text = $"Last check: {result.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
             }
 
             // Update overall status
@@ -135,8 +142,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         Foreground = component.IsHealthy ? Brush.Parse("#3FB950") : Brush.Parse("#F85149"),
                         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
                         VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                        TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
-                        Margin = new Avalonia.Thickness(10, 0, 0, 0)
+                        Margin = new Avalonia.Thickness(10, 0, 12, 0)
                     };
 
                     Grid.SetColumn(statusDot, 0);

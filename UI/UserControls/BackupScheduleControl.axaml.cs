@@ -48,12 +48,6 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
-            var cmbType = this.FindControl<ComboBox>("CmbType");
-            if (cmbType != null)
-            {
-                cmbType.SelectionChanged += OnTypeChanged;
-            }
-
             // Load initial data
             LoadSchedules();
         }

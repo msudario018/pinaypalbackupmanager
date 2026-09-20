@@ -282,7 +282,7 @@ namespace PinayPalBackupManager.Services
             {
                 // Track failed login (user not found)
                 RecordFailedLoginAttempt(usernameValidation.sanitized);
-                _ = LoginHistoryService.AddLoginAsync(usernameValidation.sanitized, false, "User not found");
+                await LoginHistoryService.AddLoginAsync(usernameValidation.sanitized, false, "User not found");
                 return (false, "Invalid username or password.");
             }
 
@@ -301,7 +301,7 @@ namespace PinayPalBackupManager.Services
             {
                 // Track failed login
                 RecordFailedLoginAttempt(user.Username);
-                _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
+                await LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
                 
                 var failedCount = GetFailedLoginCount(user.Username);
                 if (failedCount >= 5)
@@ -320,7 +320,7 @@ namespace PinayPalBackupManager.Services
             OnUserChanged?.Invoke(user);
             
             // Track successful login
-            _ = LoginHistoryService.AddLoginAsync(user.Username, true);
+            await LoginHistoryService.AddLoginAsync(user.Username, true);
             
             // Start session timeout monitoring
             SessionTimeoutService.Start();
@@ -368,7 +368,7 @@ namespace PinayPalBackupManager.Services
             using var reader = cmd2.ExecuteReader();
             if (!reader.Read())
             {
-                _ = LoginHistoryService.AddLoginAsync(username.Trim(), false, "User not found");
+                await LoginHistoryService.AddLoginAsync(username.Trim(), false, "User not found");
                 return (false, null, "Invalid username or password.");
             }
 
@@ -385,10 +385,11 @@ namespace PinayPalBackupManager.Services
 
             if (!VerifyPassword(password, user.Salt, user.PasswordHash))
             {
-                _ = LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
+                await LoginHistoryService.AddLoginAsync(user.Username, false, "Invalid password");
                 return (false, null, "Invalid username or password.");
             }
 
+            await Task.CompletedTask;
             return (true, user, "Credentials verified");
         }
 

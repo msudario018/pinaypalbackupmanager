@@ -144,6 +144,13 @@ namespace PinayPalBackupManager.Services
                 var existing = File.Exists(appDataPath) ? ReadFile(appDataPath) : new AppSettings();
                 existing.Operation.RetentionDays    = Current.Operation.RetentionDays;
                 existing.Operation.AutoStartWindows = Current.Operation.AutoStartWindows;
+                existing.Operation.StartMinimized   = Current.Operation.StartMinimized;
+                existing.Operation.MinimizeToTray   = Current.Operation.MinimizeToTray;
+                existing.Operation.CloseToTray      = Current.Operation.CloseToTray;
+                existing.Operation.AutoUpdateTlsFingerprint = Current.Operation.AutoUpdateTlsFingerprint;
+                existing.Operation.AcceptAnyTlsCert = Current.Operation.AcceptAnyTlsCert;
+                existing.Operation.DailyHealthCheckEnabled = Current.Operation.DailyHealthCheckEnabled;
+                existing.Operation.DailyHealthCheckHour = Current.Operation.DailyHealthCheckHour;
                 var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);
@@ -162,6 +169,8 @@ namespace PinayPalBackupManager.Services
                 var existing = File.Exists(appDataPath) ? ReadFile(appDataPath) : new AppSettings();
                 existing.HttpServer.Port = Current.HttpServer.Port;
                 existing.HttpServer.Enabled = Current.HttpServer.Enabled;
+                existing.HttpServer.WebPin = Current.HttpServer.WebPin;
+                existing.HttpServer.RequireAuth = Current.HttpServer.RequireAuth;
                 var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);
@@ -792,6 +801,18 @@ namespace PinayPalBackupManager.Services
 
             if (source.Operation.RetentionDays != 0) target.Operation.RetentionDays = source.Operation.RetentionDays;
             if (source.Operation.AutoStartWindows) target.Operation.AutoStartWindows = true;
+            target.Operation.StartMinimized = source.Operation.StartMinimized;
+            target.Operation.MinimizeToTray = source.Operation.MinimizeToTray;
+            target.Operation.CloseToTray = source.Operation.CloseToTray;
+            target.Operation.AutoUpdateTlsFingerprint = source.Operation.AutoUpdateTlsFingerprint;
+            target.Operation.AcceptAnyTlsCert = source.Operation.AcceptAnyTlsCert;
+            target.Operation.DailyHealthCheckEnabled = source.Operation.DailyHealthCheckEnabled;
+            if (source.Operation.DailyHealthCheckHour != 0) target.Operation.DailyHealthCheckHour = source.Operation.DailyHealthCheckHour;
+
+            if (source.HttpServer.Port != 0) target.HttpServer.Port = source.HttpServer.Port;
+            target.HttpServer.Enabled = source.HttpServer.Enabled;
+            if (!string.IsNullOrWhiteSpace(source.HttpServer.WebPin)) target.HttpServer.WebPin = source.HttpServer.WebPin;
+            target.HttpServer.RequireAuth = source.HttpServer.RequireAuth;
         }
 
         public static bool IsFirstRun()
@@ -816,6 +837,9 @@ namespace PinayPalBackupManager.Services
             Current.Operation.SetupCompleted = true;
             Save();
         }
+
+        public static void SaveCredentials() => Save();
+        public static void SavePaths() => Save();
 
         public static void Save()
         {

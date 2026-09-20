@@ -584,7 +584,7 @@ namespace PinayPalBackupManager.Services
                 {
                     // Update existing user (only sync non-sensitive fields)
                     using var conn = new SqliteConnection(_connectionString);
-                    conn.Open();
+                    await conn.OpenAsync();
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
                         UPDATE Users 
@@ -593,7 +593,7 @@ namespace PinayPalBackupManager.Services
                     cmd.Parameters.AddWithValue("@r", firebaseUser.Role);
                     cmd.Parameters.AddWithValue("@s", firebaseUser.Status);
                     cmd.Parameters.AddWithValue("@u", firebaseUser.Username);
-                    cmd.ExecuteNonQuery();
+                    await cmd.ExecuteNonQueryAsync();
 
                     Console.WriteLine($"[FirebaseUser] Updated local user: {firebaseUser.Username}");
                 }

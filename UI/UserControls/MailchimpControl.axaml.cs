@@ -162,6 +162,8 @@ namespace PinayPalBackupManager.UI.UserControls
             // Reload config to ensure we have latest settings
             ConfigService.Load();
             
+            DateTime backupStartTime = DateTime.UtcNow;
+            string historyId = BackupHistoryService.RecordBackupStart("Mailchimp", trigger);
             SetBusy(true);
             _abortRequested = false;
             bool mcError = false;
@@ -274,8 +276,34 @@ namespace PinayPalBackupManager.UI.UserControls
                         _ = SystemStatusService.UpdateMailchimpBackupTimestampAsync();
                         // Write backup history to Firebase
                         _ = SystemStatusService.WriteBackupHistoryAsync("mailchimp", "success");
+
+                        // Record local structured backup history & update checksums
+                        var duration = DateTime.UtcNow - backupStartTime;
+                        long totalSize = 0;
+                        int fileCount = 0;
+                        try
+                        {
+                            if (Directory.Exists(BackupConfig.MailchimpFolder))
+                            {
+                                var di = new DirectoryInfo(BackupConfig.MailchimpFolder);
+                                var files = di.GetFiles("*", SearchOption.AllDirectories).Where(f => f.Name != "backuplog.txt" && f.Name != "checksums.json").ToList();
+                                fileCount = files.Count;
+                                totalSize = files.Sum(f => f.Length);
+                            }
+                        }
+                        catch { }
+                        BackupHistoryService.RecordBackupSuccess(historyId, duration, totalSize, BackupConfig.MailchimpFolder, fileCount);
+                        _ = Task.Run(async () =>
+                        {
+                            try { await ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.MailchimpFolder, "Mailchimp"); }
+                            catch (Exception csEx) { LogService.WriteLiveLog($"[CHECKSUM] Failed to update checksums: {csEx.Message}", BackupConfig.McLogFile, "Warning", "Mailchimp"); }
+                        });
                     }
-                    else _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
+                    else
+                    {
+                        _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
+                        BackupHistoryService.RecordBackupCancellation(historyId, DateTime.UtcNow - backupStartTime);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -288,6 +316,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("Mailchimp", 0, "CANCELLED");
+                    BackupHistoryService.RecordBackupCancellation(historyId, DateTime.UtcNow - backupStartTime);
                 }
                 catch (Exception ex)
                 {
@@ -299,6 +328,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORT ERROR");
+                    BackupHistoryService.RecordBackupFailure(historyId, DateTime.UtcNow - backupStartTime, ex.Message);
                     // Register for auto-retry
                     Services.BackupRetryService.RegisterFailure("Mailchimp");
                 }

@@ -72,13 +72,6 @@ namespace PinayPalBackupManager.Services
                     }
 
                     LoadSchedules();
-
-                    // Generate sample data if no schedules exist
-                    if (_schedules.Count == 0)
-                    {
-                        GenerateSampleData();
-                    }
-
                     CalculateNextRuns();
                     StartScheduler();
                 }
@@ -88,6 +81,8 @@ namespace PinayPalBackupManager.Services
                 }
             }
         }
+
+        public static Func<string, string, Task<bool>>? BackupExecutor { get; set; }
 
         private static void GenerateSampleData()
         {
@@ -220,17 +215,14 @@ namespace PinayPalBackupManager.Services
 
                     foreach (var schedule in schedulesToRun)
                     {
-                        _ = Task.Run(async () =>
+                        try
                         {
-                            try
-                            {
-                                await ExecuteScheduleAsync(schedule);
-                            }
-                            catch (Exception ex)
-                            {
-                                LogService.WriteSystemLog($"Error executing schedule {schedule.Name}: {ex.Message}", "Error", "BACKUPSCHEDULE");
-                            }
-                        });
+                            await ExecuteScheduleAsync(schedule);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"Error executing schedule {schedule.Name}: {ex.Message}", "Error", "BACKUPSCHEDULE");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -304,15 +296,13 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<bool> ExecuteBackupAsync(string service, string backupType)
         {
-            // This is a placeholder - the actual backup execution would be handled by the BackupManager
-            // For now, we'll simulate a successful backup
-            await Task.Delay(TimeSpan.FromSeconds(2));
-            
-            // In a real implementation, this would call the appropriate backup methods:
-            // if (service == "ftp" || service == "all") await BackupManager.BackupFtpAsync();
-            // if (service == "sql" || service == "all") await BackupManager.BackupSqlAsync();
-            // if (service == "mailchimp" || service == "all") await BackupManager.BackupMailchimpAsync();
-            
+            if (BackupExecutor != null)
+            {
+                return await BackupExecutor(service, backupType);
+            }
+
+            LogService.WriteSystemLog($"[BACKUPSCHEDULE] No executor registered for scheduled backup {service}", "Warning", "BACKUPSCHEDULE");
+            await Task.Delay(500);
             return true;
         }
 

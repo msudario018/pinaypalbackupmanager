@@ -42,6 +42,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task StartAsync()
         {
+            await Task.Yield();
             if (_isRunning)
             {
                 LogService.WriteSystemLog("[FileDownloadService] Server already running", "Warning", "SYSTEM");
@@ -153,7 +154,7 @@ namespace PinayPalBackupManager.Services
                 }
                 else
                 {
-                    await SendErrorResponseAsync(response, 404, "Not Found");
+                    await WebDashboardService.HandleWebRequestAsync(context);
                 }
             }
             catch (Exception ex)

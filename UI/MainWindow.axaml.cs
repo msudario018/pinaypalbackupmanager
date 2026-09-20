@@ -210,6 +210,49 @@ namespace PinayPalBackupManager.UI
             _performanceControl = new PerformanceMetricsControl();
             _backupHistoryControl = new BackupHistoryControl();
             _backupScheduleControl = new BackupScheduleControl();
+
+            BackupSchedulingService.BackupExecutor = async (service, backupType) =>
+            {
+                try
+                {
+                    LogService.WriteSystemLog($"[MainWindow] Executing scheduled backup for {service} ({backupType})", "Information", "BACKUPSCHEDULE");
+                    switch (service.ToLowerInvariant())
+                    {
+                        case "ftp":
+                            if (_ftpControl != null)
+                            {
+                                await _ftpControl.RunBackupTaskAsync("SCHEDULED");
+                                return true;
+                            }
+                            break;
+                        case "mailchimp":
+                            if (_mailchimpControl != null)
+                            {
+                                await _mailchimpControl.RunBackupTaskAsync("SCHEDULED");
+                                return true;
+                            }
+                            break;
+                        case "sql":
+                            if (_sqlControl != null)
+                            {
+                                await _sqlControl.RunBackupTaskAsync("SCHEDULED");
+                                return true;
+                            }
+                            break;
+                        case "all":
+                        default:
+                            await RunAllBackupsParallelAsync();
+                            return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MainWindow] Scheduled backup failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
+                    return false;
+                }
+                return false;
+            };
+
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;
@@ -1102,7 +1145,6 @@ namespace PinayPalBackupManager.UI
 
         private void OnWindowStateChanged(WindowState state)
         {
-            // Simplified to avoid crash - only handle maximized state
             if (state == WindowState.Maximized || state == WindowState.Normal)
             {
                 try
@@ -1114,6 +1156,21 @@ namespace PinayPalBackupManager.UI
                     }
                 }
                 catch { }
+            }
+            else if (state == WindowState.Minimized)
+            {
+                if (ConfigService.Current.Operation.MinimizeToTray)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        try
+                        {
+                            this.ShowInTaskbar = false;
+                            this.Hide();
+                        }
+                        catch { }
+                    });
+                }
             }
         }
 
@@ -1560,6 +1617,22 @@ namespace PinayPalBackupManager.UI
 
             if (!_allowClose)
             {
+                if (ConfigService.Current.Operation.CloseToTray)
+                {
+                    e.Cancel = true;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        try
+                        {
+                            this.ShowInTaskbar = false;
+                            this.Hide();
+                            NotificationService.ShowBackupToast("Minimized to Tray", "PinayPal Backup Manager is still running in background.", "Info");
+                        }
+                        catch { }
+                    });
+                    return;
+                }
+
                 e.Cancel = true;
                 _ = ConfirmCloseAsync();
                 return;
@@ -1690,6 +1763,21 @@ namespace PinayPalBackupManager.UI
             if (count != null) count.Text = unread > 9 ? "9+" : unread.ToString();
         }
 
+        private void RestoreFromTray()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    this.Show();
+                    this.ShowInTaskbar = true;
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
+                }
+                catch { }
+            });
+        }
+
         private void SetupSystemTray()
         {
             try
@@ -1697,19 +1785,19 @@ namespace PinayPalBackupManager.UI
                 var tray = new Avalonia.Controls.TrayIcon();
                 tray.Icon = new Avalonia.Controls.WindowIcon(new Avalonia.Media.Imaging.Bitmap(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico")));
                 tray.ToolTipText = "PinayPal Backup Manager";
-                tray.Clicked += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
+                tray.Clicked += (_, _) => RestoreFromTray();
                 var menu = new Avalonia.Controls.NativeMenu();
                 
                 // Backup Now
                 var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Backup Now" };
-                backupItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); _ = RunAllBackupsParallelAsync(); });
+                backupItem.Click += (_, _) => { RestoreFromTray(); _ = RunAllBackupsParallelAsync(); };
                 
                 // Open Dashboard
                 var dashboardItem = new Avalonia.Controls.NativeMenuItem { Header = "Open Dashboard" };
-                dashboardItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); });
+                dashboardItem.Click += (_, _) => { RestoreFromTray(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); };
                 
                 var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show" };
-                showItem.Click += (_, _) => Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
+                showItem.Click += (_, _) => RestoreFromTray();
                 
                 var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit" };
                 exitItem.Click += (_, _) => { _allowClose = true; Close(); };

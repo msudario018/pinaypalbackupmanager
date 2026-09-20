@@ -301,6 +301,7 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<PreFlightResult> CheckMailchimpPreFlight()
         {
+            await Task.Yield();
             var result = new PreFlightResult { Service = "Mailchimp" };
 
             // Check API key

@@ -86,6 +86,10 @@
                     <TextBlock Text="SYSTEM CONFIGURATION" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,6"/>
                     <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
                     <CheckBox Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkMinimizeToTray" Content="Minimize to System Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkCloseToTray" Content="Close Button (X) Minimizes to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkAutoTls" Content="Auto-Update TLS Certificate on Renewal" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Name="ChkDailyHealth" Content="Run Daily Automated Health Check" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                                         <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -107,6 +111,29 @@
                     </Grid>
                     <Button Name="BtnSaveRetention" Content="Save Retention Policy" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand"/>
                     <Button Name="BtnExportLogs" Content="Export Logs (ZIP)" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" HorizontalAlignment="Left" Cursor="Hand" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Web Dashboard & Remote Access -->
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="WEB DASHBOARD &amp; REMOTE ACCESS" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" Margin="0,0,0,6"/>
+                    <TextBlock Text="Access your backup manager from local web browsers or remotely via Cloudflare Tunnel." Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                    <CheckBox Name="ChkEnableWebDashboard" Content="Enable Built-in Web Dashboard" Foreground="{DynamicResource AppText}"/>
+                    <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,8,0,0">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Web Server Port" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Local port used by the web dashboard (default 8080)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                        </StackPanel>
+                        <TextBox Grid.Column="1" Name="TxtWebPort" Width="70" TextAlignment="Center" FontSize="13" FontWeight="Bold" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AccentWebsite}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,5" Margin="10,0,6,0"/>
+                        <TextBlock Grid.Column="2" Text="port" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <CheckBox Name="ChkRequireWebAuth" Content="Require Access PIN for Web Dashboard" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <TextBox Name="TxtWebPin" Watermark="Optional Web Access PIN" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="10,6" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                        <Button Name="BtnSaveWebSettings" Content="Save Web Settings" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnOpenWebDashboard" Content="Open Web Dashboard" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

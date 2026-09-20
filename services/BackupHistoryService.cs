@@ -75,12 +75,6 @@ namespace PinayPalBackupManager.Services
                     }
 
                     LoadHistory();
-
-                    // Generate sample data if no history exists
-                    if (_history.Count == 0)
-                    {
-                        GenerateSampleData();
-                    }
                 }
                 catch (Exception ex)
                 {

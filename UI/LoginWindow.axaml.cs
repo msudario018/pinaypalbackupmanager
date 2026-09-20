@@ -329,6 +329,7 @@ namespace PinayPalBackupManager.UI
 
         private async Task CompleteLoginAsync(AppUser user)
         {
+            await Task.Yield();
             _statusListenerCts?.Cancel();
             var rememberMe = this.FindControl<CheckBox>("ChkRememberMe")?.IsChecked == true;
             if (rememberMe)

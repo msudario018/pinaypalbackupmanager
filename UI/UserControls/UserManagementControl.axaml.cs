@@ -63,6 +63,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task LoadUsersAsync()
         {
+            await Task.Yield();
             try
             {
                 var users = AuthService.GetAllUsers();

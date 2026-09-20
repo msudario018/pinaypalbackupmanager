@@ -48,6 +48,43 @@ namespace PinayPalBackupManager.UI.UserControls
             txtMcApiKey!.Text = settings.Mailchimp.ApiKey;
             txtMcAudienceId!.Text = settings.Mailchimp.AudienceId;
 
+            var btnFetchTls = this.FindControl<Button>("BtnFetchTls");
+            if (btnFetchTls != null)
+            {
+                btnFetchTls.Click += async (s, e) =>
+                {
+                    var host = txtSharedHost?.Text?.Trim() ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(host))
+                    {
+                        if (txtStatus != null) txtStatus.Text = "Please enter Host/IP first.";
+                        return;
+                    }
+
+                    int port = 21;
+                    if (int.TryParse(txtFtpPort?.Text?.Trim(), out int parsedPort)) port = parsedPort;
+
+                    btnFetchTls.IsEnabled = false;
+                    btnFetchTls.Content = "Scanning...";
+                    if (txtStatus != null) txtStatus.Text = "Connecting to server to retrieve TLS certificate...";
+
+                    var scanned = await Task.Run(() => FtpService.ScanTlsFingerprint(host, port));
+                    btnFetchTls.IsEnabled = true;
+                    btnFetchTls.Content = "Auto-Fetch";
+
+                    if (!string.IsNullOrWhiteSpace(scanned))
+                    {
+                        if (txtSharedTls != null) txtSharedTls.Text = scanned;
+                        if (txtStatus != null) txtStatus.Text = "TLS Fingerprint successfully retrieved!";
+                        NotificationService.ShowBackupToast("TLS Retrieved", "Server TLS fingerprint fetched successfully.", "Success");
+                    }
+                    else
+                    {
+                        if (txtStatus != null) txtStatus.Text = "Failed to retrieve TLS fingerprint. Verify host and port.";
+                        NotificationService.ShowBackupToast("TLS Error", "Could not fetch TLS certificate from server.", "Warning");
+                    }
+                };
+            }
+
             btnCancel!.Click += (s, e) => OnCancel?.Invoke(this, EventArgs.Empty);
             
             btnSave!.Click += (s, e) =>

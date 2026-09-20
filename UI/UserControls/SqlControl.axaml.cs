@@ -126,6 +126,8 @@ namespace PinayPalBackupManager.UI.UserControls
             ConfigService.Load();
             
             string taskError = string.Empty;
+            DateTime backupStartTime = DateTime.UtcNow;
+            string historyId = BackupHistoryService.RecordBackupStart("SQL", trigger);
             NotificationService.ShowBackupToast("SQL Backup Started", $"Trigger: {trigger}. Connecting to MySQL staged folder...", "Info");
 
             SetBusy(true);
@@ -350,6 +352,28 @@ namespace PinayPalBackupManager.UI.UserControls
                         _ = SystemStatusService.UpdateSqlBackupTimestampAsync();
                         // Write backup history to Firebase
                         _ = SystemStatusService.WriteBackupHistoryAsync("sql", "success");
+
+                        // Record local structured backup history & update checksums
+                        var duration = DateTime.UtcNow - backupStartTime;
+                        long totalSize = 0;
+                        int fileCount = 0;
+                        try
+                        {
+                            if (Directory.Exists(BackupConfig.SqlLocalFolder))
+                            {
+                                var di = new DirectoryInfo(BackupConfig.SqlLocalFolder);
+                                var files = di.GetFiles("*", SearchOption.AllDirectories).Where(f => f.Name != "backuplog.txt" && f.Name != "checksums.json").ToList();
+                                fileCount = files.Count;
+                                totalSize = files.Sum(f => f.Length);
+                            }
+                        }
+                        catch { }
+                        BackupHistoryService.RecordBackupSuccess(historyId, duration, totalSize, BackupConfig.SqlLocalFolder, fileCount);
+                        _ = Task.Run(async () =>
+                        {
+                            try { await ChecksumService.SaveChecksumsForFolderAsync(BackupConfig.SqlLocalFolder, "SQL"); }
+                            catch (Exception csEx) { LogService.WriteLiveLog($"[CHECKSUM] Failed to update checksums: {csEx.Message}", BackupConfig.SqlLogFile, "Warning", "SQL"); }
+                        });
                     }
                     else
                     {
@@ -362,6 +386,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         });
                         // Report global backup progress failed
                         _manager?.ReportBackupProgress("SQL", 0, "LOGIN FAILED");
+                        BackupHistoryService.RecordBackupFailure(historyId, DateTime.UtcNow - backupStartTime, taskError);
                     }
                 }
                 catch (OperationCanceledException)
@@ -375,6 +400,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("SQL", 0, "CANCELLED");
+                    BackupHistoryService.RecordBackupCancellation(historyId, DateTime.UtcNow - backupStartTime);
                 }
                 catch (Exception ex) when (_abortRequested && ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
                 {
@@ -387,6 +413,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("SQL", 0, "CANCELLED");
+                    BackupHistoryService.RecordBackupCancellation(historyId, DateTime.UtcNow - backupStartTime);
                 }
                 catch (Exception ex)
                 {
@@ -399,6 +426,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("SQL", 0, "SYNC ERROR");
+                    BackupHistoryService.RecordBackupFailure(historyId, DateTime.UtcNow - backupStartTime, taskError);
                     // Register for auto-retry
                     if (!taskError.Contains("Cancelled", StringComparison.OrdinalIgnoreCase))
                     {

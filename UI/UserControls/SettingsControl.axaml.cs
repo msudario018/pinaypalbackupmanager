@@ -46,6 +46,108 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Minimize to Tray
+            var chkMinimizeToTray = this.FindControl<CheckBox>("ChkMinimizeToTray");
+            if (chkMinimizeToTray != null)
+            {
+                chkMinimizeToTray.IsChecked = ConfigService.Current.Operation.MinimizeToTray;
+                chkMinimizeToTray.IsCheckedChanged += (_, _) =>
+                {
+                    ConfigService.Current.Operation.MinimizeToTray = chkMinimizeToTray.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Minimize to tray " + (chkMinimizeToTray.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Close to Tray
+            var chkCloseToTray = this.FindControl<CheckBox>("ChkCloseToTray");
+            if (chkCloseToTray != null)
+            {
+                chkCloseToTray.IsChecked = ConfigService.Current.Operation.CloseToTray;
+                chkCloseToTray.IsCheckedChanged += (_, _) =>
+                {
+                    ConfigService.Current.Operation.CloseToTray = chkCloseToTray.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Close to tray " + (chkCloseToTray.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Auto-Update TLS Certificate
+            var chkAutoTls = this.FindControl<CheckBox>("ChkAutoTls");
+            if (chkAutoTls != null)
+            {
+                chkAutoTls.IsChecked = ConfigService.Current.Operation.AutoUpdateTlsFingerprint;
+                chkAutoTls.IsCheckedChanged += (_, _) =>
+                {
+                    ConfigService.Current.Operation.AutoUpdateTlsFingerprint = chkAutoTls.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "TLS auto-rotation " + (chkAutoTls.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Daily Health Check
+            var chkDailyHealth = this.FindControl<CheckBox>("ChkDailyHealth");
+            if (chkDailyHealth != null)
+            {
+                chkDailyHealth.IsChecked = ConfigService.Current.Operation.DailyHealthCheckEnabled;
+                chkDailyHealth.IsCheckedChanged += (_, _) =>
+                {
+                    ConfigService.Current.Operation.DailyHealthCheckEnabled = chkDailyHealth.IsChecked == true;
+                    ConfigService.SaveOperation();
+                    NotificationService.ShowBackupToast("Settings", "Daily health check " + (chkDailyHealth.IsChecked == true ? "enabled" : "disabled"), "Info");
+                };
+            }
+
+            // Web Dashboard settings
+            var chkEnableWeb = this.FindControl<CheckBox>("ChkEnableWebDashboard");
+            var txtWebPort = this.FindControl<TextBox>("TxtWebPort");
+            var chkRequireWebAuth = this.FindControl<CheckBox>("ChkRequireWebAuth");
+            var txtWebPin = this.FindControl<TextBox>("TxtWebPin");
+            var btnSaveWeb = this.FindControl<Button>("BtnSaveWebSettings");
+            var btnOpenWeb = this.FindControl<Button>("BtnOpenWebDashboard");
+
+            if (chkEnableWeb != null) chkEnableWeb.IsChecked = ConfigService.Current.HttpServer.Enabled;
+            if (txtWebPort != null) txtWebPort.Text = ConfigService.Current.HttpServer.Port.ToString();
+            if (chkRequireWebAuth != null) chkRequireWebAuth.IsChecked = ConfigService.Current.HttpServer.RequireAuth;
+            if (txtWebPin != null) txtWebPin.Text = ConfigService.Current.HttpServer.WebPin;
+
+            if (btnSaveWeb != null)
+            {
+                btnSaveWeb.Click += (s, e) =>
+                {
+                    ConfigService.Current.HttpServer.Enabled = chkEnableWeb?.IsChecked == true;
+                    if (int.TryParse(txtWebPort?.Text?.Trim(), out int port) && port > 0 && port < 65535)
+                    {
+                        ConfigService.Current.HttpServer.Port = port;
+                    }
+                    ConfigService.Current.HttpServer.RequireAuth = chkRequireWebAuth?.IsChecked == true;
+                    ConfigService.Current.HttpServer.WebPin = txtWebPin?.Text?.Trim() ?? string.Empty;
+                    ConfigService.SaveHttpServerSettings();
+                    NotificationService.ShowBackupToast("Web Dashboard", "Web Dashboard settings saved.", "Success");
+                };
+            }
+
+            if (btnOpenWeb != null)
+            {
+                btnOpenWeb.Click += (s, e) =>
+                {
+                    try
+                    {
+                        int port = ConfigService.Current.HttpServer.Port;
+                        var url = $"http://localhost:{port}/";
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = url,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        NotificationService.ShowBackupToast("Web Dashboard", $"Failed to open browser: {ex.Message}", "Warning");
+                    }
+                };
+            }
+
             // Load Notification Sound setting
             var chkNotificationSound = this.FindControl<CheckBox>("ChkNotificationSound");
             if (chkNotificationSound != null)

@@ -129,26 +129,49 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task LoadStatisticsDataInternal(CancellationToken cancellationToken)
         {
+            await Task.Yield();
             try
             {
                 LogService.WriteLiveLog("[STATISTICS] Loading statistics data...", "", "Information", "SYSTEM");
                 
                 _statistics.Clear();
-                
-                // Import logs from all services
-                var ftpLogs = ImportServiceLogs(BackupConfig.FtpLogFile);
-                var mcLogs = ImportServiceLogs(BackupConfig.McLogFile);
-                var sqlLogs = ImportServiceLogs(BackupConfig.SqlLogFile);
-                
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-                
-                LogService.WriteLiveLog($"[STATISTICS] Imported logs - FTP: {ftpLogs.Count}, MC: {mcLogs.Count}, SQL: {sqlLogs.Count}", "", "Information", "SYSTEM");
-                
-                // Process logs for each service
-                ProcessServiceLogs("FTP", ftpLogs);
-                ProcessServiceLogs("Mailchimp", mcLogs);
-                ProcessServiceLogs("SQL", sqlLogs);
+
+                // Primary source: Load structured records from BackupHistoryService
+                var historyEntries = BackupHistoryService.GetHistory();
+                if (historyEntries != null && historyEntries.Count > 0)
+                {
+                    foreach (var entry in historyEntries)
+                    {
+                        if (cancellationToken.IsCancellationRequested) return;
+                        if (entry.Timestamp < _dateRangeStart || entry.Timestamp > _dateRangeEnd)
+                            continue;
+
+                        _statistics.Add(new BackupStatistic
+                        {
+                            Date = entry.Timestamp.ToLocalTime().Date,
+                            Service = entry.Service,
+                            Success = entry.Status.Equals("Success", StringComparison.OrdinalIgnoreCase),
+                            Duration = entry.Duration,
+                            StorageSize = entry.SizeBytes
+                        });
+                    }
+                    LogService.WriteLiveLog($"[STATISTICS] Loaded {_statistics.Count} records from BackupHistoryService", "", "Information", "SYSTEM");
+                }
+
+                // Fallback: If history has few records, also import from log files
+                if (_statistics.Count == 0)
+                {
+                    var ftpLogs = ImportServiceLogs(BackupConfig.FtpLogFile);
+                    var mcLogs = ImportServiceLogs(BackupConfig.McLogFile);
+                    var sqlLogs = ImportServiceLogs(BackupConfig.SqlLogFile);
+                    
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+                    
+                    ProcessServiceLogs("FTP", ftpLogs);
+                    ProcessServiceLogs("Mailchimp", mcLogs);
+                    ProcessServiceLogs("SQL", sqlLogs);
+                }
                 
                 if (cancellationToken.IsCancellationRequested)
                     return;
