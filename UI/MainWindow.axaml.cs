@@ -215,42 +215,47 @@ namespace PinayPalBackupManager.UI
             {
                 try
                 {
-                    LogService.WriteSystemLog($"[MainWindow] Executing scheduled backup for {service} ({backupType})", "Information", "BACKUPSCHEDULE");
-                    switch (service.ToLowerInvariant())
+                    LogService.WriteSystemLog($"[MainWindow] Executing backup for {service} (Trigger: {backupType})", "Information", "BACKUPSCHEDULE");
+                    NotificationService.ShowBackupToast("Backup Triggered", $"Starting {service.ToUpper()} backup ({backupType})", "Info");
+
+                    return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        case "ftp":
-                            if (_ftpControl != null)
-                            {
-                                await _ftpControl.RunBackupTaskAsync("SCHEDULED");
+                        switch (service.ToLowerInvariant())
+                        {
+                            case "ftp":
+                                if (_ftpControl != null)
+                                {
+                                    await _ftpControl.RunBackupTaskAsync(backupType);
+                                    return true;
+                                }
+                                break;
+                            case "mailchimp":
+                                if (_mailchimpControl != null)
+                                {
+                                    await _mailchimpControl.RunBackupTaskAsync(backupType);
+                                    return true;
+                                }
+                                break;
+                            case "sql":
+                                if (_sqlControl != null)
+                                {
+                                    await _sqlControl.RunBackupTaskAsync(backupType);
+                                    return true;
+                                }
+                                break;
+                            case "all":
+                            default:
+                                await RunAllBackupsParallelAsync();
                                 return true;
-                            }
-                            break;
-                        case "mailchimp":
-                            if (_mailchimpControl != null)
-                            {
-                                await _mailchimpControl.RunBackupTaskAsync("SCHEDULED");
-                                return true;
-                            }
-                            break;
-                        case "sql":
-                            if (_sqlControl != null)
-                            {
-                                await _sqlControl.RunBackupTaskAsync("SCHEDULED");
-                                return true;
-                            }
-                            break;
-                        case "all":
-                        default:
-                            await RunAllBackupsParallelAsync();
-                            return true;
-                    }
+                        }
+                        return false;
+                    });
                 }
                 catch (Exception ex)
                 {
-                    LogService.WriteSystemLog($"[MainWindow] Scheduled backup failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
+                    LogService.WriteSystemLog($"[MainWindow] Backup execution failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
                     return false;
                 }
-                return false;
             };
 
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;

@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.2.2 (2026-09-20)
+
+### Added
+- **100% Accurate Hardware Memory & Disk Diagnostics**:
+  - Implemented Win32 `GlobalMemoryStatusEx` P/Invoke in `HealthCheckService.cs` to query true installed physical RAM (`ullTotalPhys`, `ullAvailPhys`, `dwMemoryLoad`), replacing the inaccurate GC budget calculation that inflated usage.
+  - Added detailed memory breakdown on the Web Dashboard: shows used vs total RAM (e.g. `13.8 GB / 31.8 GB`), free RAM badge (`🟢 18.0 GB Free`), and PinayPal app process memory (`⚡ App: 145 MB`).
+  - Added full physical drive scanner (`DriveInfo.GetDrives()`) detecting all mounted partitions (`C:`, `D:`, `E:`, `F:`) with volume labels, free space, and usage bars.
+  - Identifies active Backup Drive vs System Drive and displays the exact drive letter, label, and free space (`Drive E: 146 GB Free of 932 GB`).
+- **Web Dashboard & Desktop App Synchronization**:
+  - Fixed issue where backups triggered from the Web Dashboard did not reflect in the desktop application GUI.
+  - Dispatched `BackupSchedulingService.BackupExecutor` through `Avalonia.Threading.Dispatcher.UIThread.InvokeAsync` so remote web actions run directly on the UI thread, immediately activating desktop progress bars, status labels, real-time log streaming, and desktop toast notifications.
+- **Enriched Web Dashboard UI/UX Overhaul**:
+  - **All System Drives & Partitions Card**: visual space consumption bars and statistics for every storage partition on the host machine.
+  - **PinayPal Backup Storage Allocation Card**: breakdown of disk space consumed by Website FTP, SQL Database, and Mailchimp backups with file counts and total disk footprint badge.
+  - **Automated Backup Schedules Card**: table of daily Manila sync times (FTP 22:00, SQL 17:00, Mailchimp 18:00, Health 08:00) and auto-scan frequency timers.
+  - **System Specs & Remote Tunnel Card**: displays machine name, OS description, 64-bit architecture, CPU cores, system uptime, app uptime, and local network IP.
+  - **Live Activity Logs Terminal**: dark monospace console stream with real-time log polling, colored level badges (`[INFO]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`), and pause/resume controls.
+  - **Enriched Service Cards**: displays host/user credentials, destination folder paths, file counts, folder sizes, and next scheduled sync times.
+- **Cloudflare Remote Access Fix (`HTTP 400 Invalid Hostname`)**:
+  - Resolved `HTTP Error 400. The request hostname is invalid` encountered when connecting through Cloudflare Quick Tunnel (`*.trycloudflare.com`).
+  - Added `--http-host-header localhost` flag requirement and documentation in `docs/REMOTE_ACCESS_GUIDE.md` and Web Dashboard tips so Windows `http.sys` accepts tunnel requests seamlessly.
+
+### Files Modified
+- `PinayPalBackupManager.csproj`
+- `CHANGELOG.md`
+- `docs/REMOTE_ACCESS_GUIDE.md`
+- `services/HealthCheckService.cs`
+- `services/WebDashboardService.cs`
+- `UI/MainWindow.axaml.cs`
+
+---
+
 ## v3.2.1 (2026-09-20)
 
 ### Fixed

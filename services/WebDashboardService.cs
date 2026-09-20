@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -63,6 +65,10 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/history")
                 {
                     await ServeHistoryApiAsync(response);
+                }
+                else if (path == "/api/logs")
+                {
+                    await ServeLogsApiAsync(response);
                 }
                 else if (path.StartsWith("/api/backup/") && request.HttpMethod == "POST")
                 {
@@ -168,8 +174,40 @@ namespace PinayPalBackupManager.Services
         private static async Task ServeStatusApiAsync(HttpListenerResponse response)
         {
             var health = HealthCheckService.GetLastResult();
+            if (health == null)
+            {
+                health = await HealthCheckService.RunHealthCheckAsync();
+            }
+
             var history = BackupHistoryService.GetHistory();
             var lastSuccess = history?.Where(h => h.Status == "Success").OrderByDescending(h => h.Timestamp).FirstOrDefault();
+
+            string localIp = "127.0.0.1";
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                var ip = host.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                if (ip != null) localIp = ip.ToString();
+            }
+            catch { }
+
+            var sysUptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+            string sysUptimeStr = sysUptime.Days > 0 ? $"{sysUptime.Days}d {sysUptime.Hours}h {sysUptime.Minutes}m" : $"{sysUptime.Hours}h {sysUptime.Minutes}m";
+
+            string appUptimeStr = "--";
+            try
+            {
+                var procUptime = DateTime.Now - Process.GetCurrentProcess().StartTime;
+                appUptimeStr = procUptime.Days > 0 ? $"{procUptime.Days}d {procUptime.Hours}h {procUptime.Minutes}m" : $"{procUptime.Hours}h {procUptime.Minutes}m";
+            }
+            catch { }
+
+            var sched = ConfigService.Current.Schedule;
+
+            // Per-service folder stats
+            var ftpFolderInfo = health.Resources.BackupFolders.FirstOrDefault(f => f.Service.Contains("FTP", StringComparison.OrdinalIgnoreCase));
+            var sqlFolderInfo = health.Resources.BackupFolders.FirstOrDefault(f => f.Service.Contains("SQL", StringComparison.OrdinalIgnoreCase));
+            var mcFolderInfo = health.Resources.BackupFolders.FirstOrDefault(f => f.Service.Contains("Mailchimp", StringComparison.OrdinalIgnoreCase));
 
             var status = new
             {
@@ -177,37 +215,88 @@ namespace PinayPalBackupManager.Services
                 version = BackupConfig.AppVersion,
                 timestamp = DateTime.UtcNow,
                 isOnline = true,
+                system = new
+                {
+                    hostname = Environment.MachineName,
+                    os = RuntimeInformation.OSDescription,
+                    architecture = RuntimeInformation.OSArchitecture.ToString(),
+                    cores = Environment.ProcessorCount,
+                    systemUptime = sysUptimeStr,
+                    appUptime = appUptimeStr,
+                    localIp = localIp
+                },
+                schedules = new
+                {
+                    ftpDaily = $"{sched.FtpDailySyncHourMnl:D2}:{sched.FtpDailySyncMinuteMnl:D2} MNL",
+                    sqlDaily = $"{sched.SqlDailySyncHourMnl:D2}:{sched.SqlDailySyncMinuteMnl:D2} MNL",
+                    mailchimpDaily = $"{sched.MailchimpDailySyncHourMnl:D2}:{sched.MailchimpDailySyncMinuteMnl:D2} MNL",
+                    healthDaily = $"{ConfigService.Current.Operation.DailyHealthCheckHour:D2}:00",
+                    ftpInterval = $"{sched.FtpAutoScanHours}h {sched.FtpAutoScanMinutes}m",
+                    sqlInterval = $"{sched.SqlAutoScanHours}h {sched.SqlAutoScanMinutes}m",
+                    mailchimpInterval = $"{sched.MailchimpAutoScanHours}h {sched.MailchimpAutoScanMinutes}m"
+                },
                 services = new
                 {
                     ftp = new
                     {
-                        name = "FTP / Website",
+                        name = "FTP Website Sync",
                         host = BackupConfig.FtpHost,
                         port = BackupConfig.FtpPort,
-                        configured = !string.IsNullOrEmpty(BackupConfig.FtpHost)
+                        user = BackupConfig.FtpUser,
+                        folder = BackupConfig.FtpLocalFolder,
+                        configured = !string.IsNullOrEmpty(BackupConfig.FtpHost),
+                        fileCount = ftpFolderInfo?.FileCount ?? 0,
+                        sizeBytes = ftpFolderInfo?.TotalSizeBytes ?? 0
                     },
                     sql = new
                     {
-                        name = "MySQL / Database",
+                        name = "SQL Database",
                         host = BackupConfig.FtpHost,
                         user = BackupConfig.SqlUser,
-                        configured = !string.IsNullOrEmpty(BackupConfig.SqlUser)
+                        remotePath = BackupConfig.SqlRemotePath,
+                        folder = BackupConfig.SqlLocalFolder,
+                        configured = !string.IsNullOrEmpty(BackupConfig.SqlUser),
+                        fileCount = sqlFolderInfo?.FileCount ?? 0,
+                        sizeBytes = sqlFolderInfo?.TotalSizeBytes ?? 0
                     },
                     mailchimp = new
                     {
-                        name = "Mailchimp",
-                        configured = !string.IsNullOrEmpty(BackupConfig.McApiKey)
+                        name = "Mailchimp Sync",
+                        audienceId = ConfigService.Current.Mailchimp.AudienceId,
+                        folder = BackupConfig.MailchimpFolder,
+                        configured = !string.IsNullOrEmpty(BackupConfig.McApiKey),
+                        fileCount = mcFolderInfo?.FileCount ?? 0,
+                        sizeBytes = mcFolderInfo?.TotalSizeBytes ?? 0
                     }
                 },
-                health = health != null ? new
+                health = new
                 {
                     status = health.Status,
                     isHealthy = health.IsHealthy,
                     lastCheck = health.Timestamp,
                     cpu = health.Resources.CpuUsagePercent,
-                    memory = health.Resources.MemoryUsagePercent,
-                    disk = health.Resources.DiskUsagePercent
-                } : null,
+                    memory = new
+                    {
+                        percent = health.Resources.MemoryUsagePercent,
+                        totalBytes = health.Resources.TotalMemoryBytes,
+                        usedBytes = health.Resources.UsedMemoryBytes,
+                        availableBytes = health.Resources.AvailableMemoryBytes,
+                        appBytes = health.Resources.AppMemoryBytes
+                    },
+                    disk = new
+                    {
+                        percent = health.Resources.DiskUsagePercent,
+                        primaryDriveLetter = health.Resources.PrimaryDriveLetter,
+                        primaryDriveLabel = health.Resources.PrimaryDriveLabel,
+                        totalGB = health.Resources.TotalDiskSpaceGB,
+                        availableGB = health.Resources.AvailableDiskSpaceGB,
+                        usedGB = health.Resources.UsedDiskSpaceGB,
+                        backupPath = health.Resources.BackupPath
+                    },
+                    drives = health.Resources.Drives,
+                    backupFolders = health.Resources.BackupFolders,
+                    backupPathSizeMB = health.Resources.BackupPathSizeMB
+                },
                 lastBackup = lastSuccess != null ? new
                 {
                     service = lastSuccess.Service,
@@ -218,6 +307,13 @@ namespace PinayPalBackupManager.Services
             };
 
             await SendJsonAsync(response, 200, status);
+        }
+
+        private static async Task ServeLogsApiAsync(HttpListenerResponse response)
+        {
+            var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 40);
+            logs.Reverse();
+            await SendJsonAsync(response, 200, logs);
         }
 
         private static async Task ServeHealthApiAsync(HttpListenerResponse response)
@@ -331,18 +427,26 @@ namespace PinayPalBackupManager.Services
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .title { display: flex; align-items: center; gap: 12px; }
-        .logo { font-size: 28px; font-weight: 900; color: var(--gold); letter-spacing: -0.5px; }
-        .badge { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
-        .badge::before { content: ''; width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; }
+        .container { max-width: 1260px; margin: 0 auto; }
+        
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 14px; }
+        .header-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .logo { font-size: 26px; font-weight: 900; color: var(--gold); letter-spacing: -0.5px; }
+        .version-badge { background: #21262D; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+        .badge-online { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .badge-online::before { content: ''; width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px var(--green); }
+        .sys-badge { background: #161B22; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--muted); }
+        
+        .header-actions { display: flex; gap: 10px; }
         .btn-primary { background: var(--gold); color: #000; border: none; font-weight: 700; border-radius: 8px; padding: 10px 18px; cursor: pointer; transition: all 0.2s; font-size: 13px; }
         .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); font-weight: 600; border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: all 0.2s; font-size: 12px; }
         .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
         
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        /* Grids & Cards */
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px; margin-bottom: 24px; }
         .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
         .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
         .card-ftp::before { background: var(--green); }
@@ -350,110 +454,324 @@ namespace PinayPalBackupManager.Services
         .card-mc::before { background: var(--cyan); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .card-title { font-size: 15px; font-weight: 700; }
-        .card-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; min-height: 36px; }
-        .card-actions { display: flex; gap: 8px; }
+        .card-meta { font-size: 12px; color: var(--muted); margin-bottom: 14px; min-height: 48px; line-height: 1.5; }
+        .card-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+        .pill { background: #0D1117; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+        .pill-gold { color: var(--gold); border-color: rgba(252,163,17,0.3); }
+        .pill-blue { color: var(--blue); border-color: rgba(88,166,255,0.3); }
+        .pill-green { color: var(--green); border-color: rgba(63,185,80,0.3); }
 
+        /* Health & Resource Top Cards */
         .health-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-        .resources { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-top: 16px; }
-        .res-item { background: var(--card); padding: 14px; border-radius: 8px; border: 1px solid var(--border); }
-        .res-name { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
-        .res-val { font-size: 22px; font-weight: 800; color: var(--text); }
-        .progress-bar { width: 100%; height: 6px; background: #0D1117; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+        .resources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
+        .res-item { background: var(--card); padding: 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; }
+        .res-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .res-name { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .res-target { font-size: 10px; font-weight: 700; background: #0D1117; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+        .res-val { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.1; }
+        .res-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .res-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .progress-bar { width: 100%; height: 7px; background: #0D1117; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
 
-        .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        /* Tables & Detailed Breakdown */
+        .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         th { text-align: left; padding: 10px 12px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; font-weight: 700; }
-        td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(48, 54, 61, 0.5); }
+        td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(48, 54, 61, 0.4); }
         .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
         .tag-success { background: rgba(63,185,80,0.15); color: var(--green); }
         .tag-failed { background: rgba(248,81,73,0.15); color: var(--red); }
+        .tag-sys { background: rgba(88,166,255,0.15); color: var(--blue); }
+        .tag-backup { background: rgba(252,163,17,0.15); color: var(--gold); }
         a.dl { color: var(--blue); text-decoration: none; font-weight: 600; }
         a.dl:hover { text-decoration: underline; }
-        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--gold); color: #FFF; padding: 14px 20px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; font-weight: 600; }
+
+        /* Terminal Logs Card */
+        .term-box { background: #0D1117; border: 1px solid var(--border); border-radius: 8px; padding: 14px; height: 260px; overflow-y: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; line-height: 1.6; color: #C9D1D9; }
+        .term-line { white-space: pre-wrap; word-break: break-all; margin-bottom: 3px; }
+        .log-info { color: #58A6FF; }
+        .log-warn { color: #E3B341; }
+        .log-err { color: #F85149; }
+        .log-ok { color: #3FB950; }
+
+        .tip-box { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #C9D1D9; line-height: 1.5; margin-top: 14px; }
+        .tip-code { background: #0D1117; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: var(--gold); }
+
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--gold); color: #FFF; padding: 14px 20px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; font-weight: 600; z-index: 1000; }
     </style>
 </head>
 <body>
     <div class=""container"">
+        <!-- Header -->
         <header>
-            <div class=""title"">
+            <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <div class=""badge"">ONLINE</div>
+                <span class=""version-badge"" id=""app-version"">v3.2.2</span>
+                <div class=""badge-online"">ONLINE</div>
+                <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
-            <div>
+            <div class=""header-actions"">
+                <button class=""btn-secondary"" onclick=""runHealthCheck()"">⚡ Diagnostics</button>
                 <button class=""btn-primary"" onclick=""triggerBackup('all')"">🚀 Run All Backups</button>
             </div>
         </header>
 
-        <!-- Services -->
+        <!-- Services Cards -->
         <div class=""grid-3"">
+            <!-- FTP Website -->
             <div class=""card card-ftp"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--green)"">🌐 FTP Website Sync</div>
                     <span id=""ftp-badge"" class=""tag tag-success"">READY</span>
                 </div>
                 <div class=""card-meta"" id=""ftp-meta"">Loading server configuration...</div>
+                <div class=""card-pills"">
+                    <span class=""pill pill-green"" id=""ftp-storage"">Files: -- | Size: --</span>
+                    <span class=""pill pill-blue"" id=""ftp-sched"">Daily: 22:00 MNL</span>
+                </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('ftp')"">Backup Website</button>
                 </div>
             </div>
 
+            <!-- SQL Database -->
             <div class=""card card-sql"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--gold)"">🗄️ SQL Database</div>
                     <span id=""sql-badge"" class=""tag tag-success"">READY</span>
                 </div>
                 <div class=""card-meta"" id=""sql-meta"">Loading database configuration...</div>
+                <div class=""card-pills"">
+                    <span class=""pill pill-gold"" id=""sql-storage"">Files: -- | Size: --</span>
+                    <span class=""pill pill-blue"" id=""sql-sched"">Daily: 17:00 MNL</span>
+                </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('sql')"">Backup Database</button>
                 </div>
             </div>
 
+            <!-- Mailchimp -->
             <div class=""card card-mc"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--cyan)"">🐵 Mailchimp Sync</div>
                     <span id=""mc-badge"" class=""tag tag-success"">READY</span>
                 </div>
-                <div class=""card-meta"" id=""mc-meta"">Audience, templates and campaigns</div>
+                <div class=""card-meta"" id=""mc-meta"">Audience, templates, and campaign archives</div>
+                <div class=""card-pills"">
+                    <span class=""pill pill-blue"" id=""mc-storage"">Files: -- | Size: --</span>
+                    <span class=""pill pill-blue"" id=""mc-sched"">Daily: 18:00 MNL</span>
+                </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('mailchimp')"">Backup Mailchimp</button>
                 </div>
             </div>
         </div>
 
-        <!-- Health & Resources -->
+        <!-- Health & Resources Section -->
         <div class=""health-card"">
             <div style=""display: flex; justify-content: space-between; align-items: center;"">
-                <div style=""font-weight: 700; font-size: 15px;"">⚡ SYSTEM HEALTH &amp; RESOURCES</div>
-                <button class=""btn-secondary"" onclick=""runHealthCheck()"">Run Diagnostics</button>
+                <div style=""font-weight: 700; font-size: 15px; letter-spacing: 0.5px;"">⚡ SYSTEM HEALTH &amp; HARDWARE METRICS</div>
+                <div style=""font-size: 12px; color: var(--muted);"" id=""last-check-text"">Last check: --</div>
             </div>
+
             <div class=""resources"">
+                <!-- Status -->
                 <div class=""res-item"">
-                    <div class=""res-name"">Status</div>
-                    <div class=""res-val"" id=""health-status"" style=""color: var(--green); font-size: 18px;"">Healthy</div>
-                    <div style=""font-size: 10px; color: var(--muted); margin-top: 4px;"" id=""health-time"">Last check: --</div>
+                    <div class=""res-top"">
+                        <div class=""res-name"">Status</div>
+                        <span class=""tag tag-success"" id=""health-badge"">OK</span>
+                    </div>
+                    <div class=""res-val"" id=""health-status"" style=""color: var(--green);"">Healthy</div>
+                    <div class=""res-sub"" id=""health-sub"">All components operational</div>
+                    <div class=""progress-bar""><div class=""progress-fill"" style=""background: var(--green); width: 100%;""></div></div>
                 </div>
+
+                <!-- CPU -->
                 <div class=""res-item"">
-                    <div class=""res-name"">CPU Usage</div>
+                    <div class=""res-top"">
+                        <div class=""res-name"">CPU Usage</div>
+                        <span class=""res-target"" id=""cpu-cores"">-- Cores</span>
+                    </div>
                     <div class=""res-val"" id=""cpu-val"">0%</div>
+                    <div class=""res-sub"">Processor Load</div>
                     <div class=""progress-bar""><div class=""progress-fill"" id=""cpu-fill"" style=""background: var(--blue); width: 0%;""></div></div>
                 </div>
+
+                <!-- Memory -->
                 <div class=""res-item"">
-                    <div class=""res-name"">Memory Usage</div>
+                    <div class=""res-top"">
+                        <div class=""res-name"">Memory Usage</div>
+                        <span class=""res-target"" id=""mem-target"">Physical RAM</span>
+                    </div>
                     <div class=""res-val"" id=""mem-val"">0%</div>
+                    <div class=""res-sub"" id=""mem-size"">0 GB / 0 GB</div>
+                    <div class=""res-pills"">
+                        <span class=""pill pill-green"" id=""mem-free"">-- Free</span>
+                        <span class=""pill pill-gold"" id=""mem-app"">App: --</span>
+                    </div>
                     <div class=""progress-bar""><div class=""progress-fill"" id=""mem-fill"" style=""background: var(--purple); width: 0%;""></div></div>
                 </div>
+
+                <!-- Disk -->
                 <div class=""res-item"">
-                    <div class=""res-name"">Disk Usage</div>
+                    <div class=""res-top"">
+                        <div class=""res-name"">Disk Usage</div>
+                        <span class=""res-target"" id=""disk-drive-name"">Drive --</span>
+                    </div>
                     <div class=""res-val"" id=""disk-val"">0%</div>
+                    <div class=""res-sub"" id=""disk-size"">0 GB Free of 0 GB</div>
+                    <div class=""res-pills"">
+                        <span class=""pill pill-gold"" id=""disk-label"">Backup Drive</span>
+                    </div>
                     <div class=""progress-bar""><div class=""progress-fill"" id=""disk-fill"" style=""background: var(--green); width: 0%;""></div></div>
                 </div>
             </div>
         </div>
 
-        <!-- History -->
+        <!-- Partitions & Backup Storage Breakdown -->
+        <div class=""grid-2"">
+            <!-- All Physical Drives -->
+            <div class=""table-card"">
+                <div style=""display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;"">
+                    <div style=""font-weight: 700; font-size: 14px;"">💾 ALL SYSTEM DRIVES &amp; PARTITIONS</div>
+                    <span style=""font-size: 11px; color: var(--muted);"" id=""drive-count"">-- Ready</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drive</th>
+                            <th>Label</th>
+                            <th>Free / Total</th>
+                            <th>Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody id=""drives-tbody"">
+                        <tr><td colspan=""4"" style=""text-align: center; color: var(--muted);"">Scanning system drives...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Backup Storage Allocation -->
+            <div class=""table-card"">
+                <div style=""display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;"">
+                    <div style=""font-weight: 700; font-size: 14px;"">📁 PINAYPAL BACKUP STORAGE ALLOCATION</div>
+                    <span class=""pill pill-gold"" id=""total-backup-size"">Total: 0 MB</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Path</th>
+                            <th>Files</th>
+                            <th>Disk Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id=""folders-tbody"">
+                        <tr><td colspan=""4"" style=""text-align: center; color: var(--muted);"">Analyzing backup folders...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Upcoming Schedules & System Specs -->
+        <div class=""grid-2"">
+            <!-- Automated Schedules -->
+            <div class=""table-card"">
+                <div style=""font-weight: 700; font-size: 14px; margin-bottom: 12px;"">⏰ AUTOMATED BACKUP SCHEDULES (MANILA TIME)</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Daily Sync</th>
+                            <th>Auto-Scan Interval</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>🌐 Website FTP</strong></td>
+                            <td id=""sched-ftp-daily"">22:00 MNL</td>
+                            <td id=""sched-ftp-interval"">Every 3h</td>
+                            <td><span class=""tag tag-success"">ACTIVE</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🗄️ SQL Database</strong></td>
+                            <td id=""sched-sql-daily"">17:00 MNL</td>
+                            <td id=""sched-sql-interval"">Every 2h 15m</td>
+                            <td><span class=""tag tag-success"">ACTIVE</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🐵 Mailchimp</strong></td>
+                            <td id=""sched-mc-daily"">18:00 MNL</td>
+                            <td id=""sched-mc-interval"">Every 2h</td>
+                            <td><span class=""tag tag-success"">ACTIVE</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🩺 Health Diagnostics</strong></td>
+                            <td id=""sched-health-daily"">08:00 AM</td>
+                            <td>Daily</td>
+                            <td><span class=""tag tag-success"">ACTIVE</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- System Specs & Remote Access -->
+            <div class=""table-card"">
+                <div style=""font-weight: 700; font-size: 14px; margin-bottom: 12px;"">⚙️ SYSTEM SPECS &amp; REMOTE TUNNEL</div>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td style=""color: var(--muted); width: 140px;"">Host / Machine:</td>
+                            <td id=""spec-host"">--</td>
+                        </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">Operating System:</td>
+                            <td id=""spec-os"">--</td>
+                        </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">System Uptime:</td>
+                            <td id=""spec-sys-uptime"">--</td>
+                        </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">App Uptime:</td>
+                            <td id=""spec-app-uptime"">--</td>
+                        </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">Local IP:</td>
+                            <td id=""spec-ip"">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class=""tip-box"">
+                    <strong>💡 Cloudflare Remote Tunnel Tip:</strong><br>
+                    To access remotely without <code>HTTP 400 Invalid Hostname</code> errors, start cloudflared with:<br>
+                    <span class=""tip-code"">cloudflared tunnel --url http://localhost:8080 --http-host-header localhost</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Activity Logs Terminal -->
         <div class=""table-card"">
-            <div style=""font-weight: 700; font-size: 15px; margin-bottom: 8px;"">📜 RECENT BACKUPS</div>
+            <div style=""display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;"">
+                <div style=""display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px;"">
+                    <span>📜 LIVE ACTIVITY &amp; DIAGNOSTIC LOGS</span>
+                    <span style=""width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; box-shadow: 0 0 6px var(--green);""></span>
+                </div>
+                <div style=""display: flex; gap: 8px;"">
+                    <button class=""btn-secondary"" style=""padding: 4px 10px; font-size: 11px;"" onclick=""toggleLogsPause()"" id=""btn-pause-logs"">⏸ Pause</button>
+                    <button class=""btn-secondary"" style=""padding: 4px 10px; font-size: 11px;"" onclick=""loadLogs()"">🔄 Refresh</button>
+                </div>
+            </div>
+            <div class=""term-box"" id=""term-box"">
+                <div style=""color: var(--muted);"">Connecting to live log stream...</div>
+            </div>
+        </div>
+
+        <!-- Backup History -->
+        <div class=""table-card"">
+            <div style=""font-weight: 700; font-size: 14px; margin-bottom: 8px;"">📜 RECENT BACKUP EXECUTIONS</div>
             <table>
                 <thead>
                     <tr>
@@ -475,11 +793,18 @@ namespace PinayPalBackupManager.Services
     <div class=""toast"" id=""toast""></div>
 
     <script>
+        let logsPaused = false;
+
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.textContent = msg;
             t.style.display = 'block';
             setTimeout(() => { t.style.display = 'none'; }, 3500);
+        }
+
+        function toggleLogsPause() {
+            logsPaused = !logsPaused;
+            document.getElementById('btn-pause-logs').textContent = logsPaused ? '▶ Resume' : '⏸ Pause';
         }
 
         async function triggerBackup(service) {
@@ -488,7 +813,8 @@ namespace PinayPalBackupManager.Services
                 const res = await fetch('/api/backup/' + service, { method: 'POST' });
                 const d = await res.json();
                 showToast(d.message || 'Backup triggered');
-                setTimeout(loadData, 2000);
+                setTimeout(loadData, 1500);
+                setTimeout(loadLogs, 1500);
             } catch(e) {
                 showToast('Error triggering backup');
             }
@@ -515,6 +841,32 @@ namespace PinayPalBackupManager.Services
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
+        async function loadLogs() {
+            if (logsPaused) return;
+            try {
+                const res = await fetch('/api/logs');
+                const logs = await res.json();
+                const term = document.getElementById('term-box');
+                if (logs && logs.length > 0) {
+                    term.innerHTML = logs.map(l => {
+                        let cls = '';
+                        if (l.includes('[ERROR]') || l.includes('FAIL')) cls = 'log-err';
+                        else if (l.includes('[WARN]') || l.includes('CANCEL')) cls = 'log-warn';
+                        else if (l.includes('[SUCCESS]') || l.includes('COMPLETE')) cls = 'log-ok';
+                        else if (l.includes('[INFO]') || l.includes('SYNC')) cls = 'log-info';
+                        return `<div class=""term-line ${cls}"">${escapeHtml(l)}</div>`;
+                    }).join('');
+                    term.scrollTop = term.scrollHeight;
+                } else {
+                    term.innerHTML = '<div style=""color: var(--muted);"">No logs recorded yet.</div>';
+                }
+            } catch(e) { }
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         async function loadData() {
             try {
                 const [sRes, hRes] = await Promise.all([
@@ -522,28 +874,143 @@ namespace PinayPalBackupManager.Services
                     fetch('/api/history').then(r => r.json())
                 ]);
 
-                // FTP
-                document.getElementById('ftp-meta').textContent = 'Host: ' + (sRes.services.ftp.host || 'Not set') + ' (Port ' + sRes.services.ftp.port + ')';
-                // SQL
-                document.getElementById('sql-meta').textContent = 'User: ' + (sRes.services.sql.user || 'Not set') + ' | Remote sync';
+                // Header & System info
+                if (sRes.version) document.getElementById('app-version').textContent = sRes.version;
+                if (sRes.system) {
+                    document.getElementById('header-sys-info').textContent = `${sRes.system.hostname} | ${sRes.system.cores} Cores | Up: ${sRes.system.systemUptime}`;
+                    document.getElementById('spec-host').textContent = sRes.system.hostname;
+                    document.getElementById('spec-os').textContent = `${sRes.system.os} (${sRes.system.architecture})`;
+                    document.getElementById('spec-sys-uptime').textContent = sRes.system.systemUptime;
+                    document.getElementById('spec-app-uptime').textContent = sRes.system.appUptime;
+                    document.getElementById('spec-ip').textContent = sRes.system.localIp;
+                    document.getElementById('cpu-cores').textContent = `${sRes.system.cores} Cores`;
+                }
 
-                // Health & Resources
+                // Services
+                if (sRes.services) {
+                    // FTP
+                    const ftp = sRes.services.ftp;
+                    document.getElementById('ftp-meta').textContent = `Host: ${ftp.host || 'Not configured'} (Port ${ftp.port}) | User: ${ftp.user || 'None'}\nPath: ${ftp.folder || 'Not configured'}`;
+                    document.getElementById('ftp-storage').textContent = `Files: ${ftp.fileCount} | Size: ${formatBytes(ftp.sizeBytes)}`;
+
+                    // SQL
+                    const sql = sRes.services.sql;
+                    document.getElementById('sql-meta').textContent = `User: ${sql.user || 'Not configured'} | Remote: ${sql.remotePath || 'Default'}\nPath: ${sql.folder || 'Not configured'}`;
+                    document.getElementById('sql-storage').textContent = `Files: ${sql.fileCount} | Size: ${formatBytes(sql.sizeBytes)}`;
+
+                    // Mailchimp
+                    const mc = sRes.services.mailchimp;
+                    document.getElementById('mc-meta').textContent = `Audience ID: ${mc.audienceId || 'Default'}\nPath: ${mc.folder || 'Not configured'}`;
+                    document.getElementById('mc-storage').textContent = `Files: ${mc.fileCount} | Size: ${formatBytes(mc.sizeBytes)}`;
+                }
+
+                // Schedules
+                if (sRes.schedules) {
+                    document.getElementById('ftp-sched').textContent = `Daily: ${sRes.schedules.ftpDaily}`;
+                    document.getElementById('sql-sched').textContent = `Daily: ${sRes.schedules.sqlDaily}`;
+                    document.getElementById('mc-sched').textContent = `Daily: ${sRes.schedules.mailchimpDaily}`;
+
+                    document.getElementById('sched-ftp-daily').textContent = sRes.schedules.ftpDaily;
+                    document.getElementById('sched-ftp-interval').textContent = `Every ${sRes.schedules.ftpInterval}`;
+
+                    document.getElementById('sched-sql-daily').textContent = sRes.schedules.sqlDaily;
+                    document.getElementById('sched-sql-interval').textContent = `Every ${sRes.schedules.sqlInterval}`;
+
+                    document.getElementById('sched-mc-daily').textContent = sRes.schedules.mailchimpDaily;
+                    document.getElementById('sched-mc-interval').textContent = `Every ${sRes.schedules.mailchimpInterval}`;
+
+                    document.getElementById('sched-health-daily').textContent = sRes.schedules.healthDaily;
+                }
+
+                // Health & Hardware Metrics
                 if (sRes.health) {
-                    document.getElementById('health-status').textContent = sRes.health.status;
-                    document.getElementById('health-status').style.color = sRes.health.isHealthy ? 'var(--green)' : 'var(--red)';
-                    document.getElementById('health-time').textContent = 'Last check: ' + new Date(sRes.health.lastCheck).toLocaleTimeString();
-                    
-                    const cpu = Math.round(sRes.health.cpu || 0);
+                    const h = sRes.health;
+                    document.getElementById('health-status').textContent = h.status;
+                    document.getElementById('health-status').style.color = h.isHealthy ? 'var(--green)' : 'var(--red)';
+                    document.getElementById('health-badge').textContent = h.isHealthy ? 'HEALTHY' : 'DEGRADED';
+                    document.getElementById('health-badge').className = `tag ${h.isHealthy ? 'tag-success' : 'tag-failed'}`;
+                    document.getElementById('last-check-text').textContent = 'Last check: ' + new Date(h.lastCheck).toLocaleTimeString();
+
+                    // CPU
+                    const cpu = Math.round(h.cpu || 0);
                     document.getElementById('cpu-val').textContent = cpu + '%';
-                    document.getElementById('cpu-fill').style.width = cpu + '%';
+                    document.getElementById('cpu-fill').style.width = Math.min(100, Math.max(2, cpu)) + '%';
 
-                    const mem = Math.round(sRes.health.memory || 0);
-                    document.getElementById('mem-val').textContent = mem + '%';
-                    document.getElementById('mem-fill').style.width = mem + '%';
+                    // Memory (Physical RAM)
+                    if (h.memory) {
+                        const m = h.memory;
+                        const memPct = Math.round(m.percent || 0);
+                        document.getElementById('mem-val').textContent = memPct + '%';
+                        document.getElementById('mem-fill').style.width = Math.min(100, memPct) + '%';
+                        
+                        const usedGb = (m.usedBytes / (1024 * 1024 * 1024)).toFixed(1);
+                        const totalGb = (m.totalBytes / (1024 * 1024 * 1024)).toFixed(1);
+                        const freeGb = (m.availableBytes / (1024 * 1024 * 1024)).toFixed(1);
+                        const appMb = (m.appBytes / (1024 * 1024)).toFixed(0);
 
-                    const disk = Math.round(sRes.health.disk || 0);
-                    document.getElementById('disk-val').textContent = disk + '%';
-                    document.getElementById('disk-fill').style.width = disk + '%';
+                        document.getElementById('mem-size').textContent = `${usedGb} GB / ${totalGb} GB`;
+                        document.getElementById('mem-free').textContent = `🟢 ${freeGb} GB Free`;
+                        document.getElementById('mem-app').textContent = `⚡ App: ${appMb} MB`;
+                    }
+
+                    // Disk Usage
+                    if (h.disk) {
+                        const d = h.disk;
+                        const diskPct = Math.round(d.percent || 0);
+                        document.getElementById('disk-val').textContent = diskPct + '%';
+                        document.getElementById('disk-fill').style.width = Math.min(100, diskPct) + '%';
+                        document.getElementById('disk-fill').style.background = diskPct >= 90 ? 'var(--red)' : (diskPct >= 75 ? 'var(--gold)' : 'var(--green)');
+
+                        document.getElementById('disk-size').textContent = `${d.availableGB} GB Free of ${d.totalGB} GB`;
+                        document.getElementById('disk-drive-name').textContent = d.primaryDriveLetter ? `Drive ${d.primaryDriveLetter}` : 'Drive';
+                        document.getElementById('disk-label').textContent = d.primaryDriveLabel ? `${d.primaryDriveLabel}` : 'Backup Drive';
+                    }
+
+                    // All Physical Drives Table
+                    if (h.drives && h.drives.length > 0) {
+                        document.getElementById('drive-count').textContent = `${h.drives.length} Drives Ready`;
+                        const tbody = document.getElementById('drives-tbody');
+                        tbody.innerHTML = h.drives.map(drive => {
+                            const freeGb = (drive.freeBytes / (1024 * 1024 * 1024)).toFixed(1);
+                            const totalGb = (drive.totalBytes / (1024 * 1024 * 1024)).toFixed(1);
+                            const pct = drive.usedPercent;
+                            const barColor = pct >= 90 ? 'var(--red)' : (pct >= 75 ? 'var(--gold)' : 'var(--green)');
+                            const badge = drive.isBackupDrive 
+                                ? '<span class=""tag tag-backup"">BACKUP</span>' 
+                                : (drive.isSystemDrive ? '<span class=""tag tag-sys"">SYSTEM</span>' : '');
+
+                            return `
+                                <tr>
+                                    <td><strong>${drive.name}</strong> ${badge}</td>
+                                    <td><span style=""color: var(--muted);"">${drive.volumeLabel || 'Local Disk'}</span></td>
+                                    <td>${freeGb} GB / ${totalGb} GB</td>
+                                    <td style=""min-width: 130px;"">
+                                        <div style=""display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;"">
+                                            <span>${pct}%</span>
+                                        </div>
+                                        <div class=""progress-bar"" style=""margin-top: 0; height: 5px;"">
+                                            <div class=""progress-fill"" style=""width: ${pct}%; background: ${barColor};""></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+
+                    // Backup Folders Table
+                    if (h.backupFolders && h.backupFolders.length > 0) {
+                        const totalBytes = h.backupFolders.reduce((acc, f) => acc + (f.totalSizeBytes || 0), 0);
+                        document.getElementById('total-backup-size').textContent = `Total: ${formatBytes(totalBytes)}`;
+                        const tbody = document.getElementById('folders-tbody');
+                        tbody.innerHTML = h.backupFolders.map(folder => `
+                            <tr>
+                                <td><strong>${folder.service}</strong></td>
+                                <td style=""max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted);"">${folder.path || 'Not set'}</td>
+                                <td>${folder.fileCount}</td>
+                                <td><strong>${formatBytes(folder.totalSizeBytes)}</strong></td>
+                            </tr>
+                        `).join('');
+                    }
                 }
 
                 // History table
@@ -568,7 +1035,9 @@ namespace PinayPalBackupManager.Services
         }
 
         loadData();
-        setInterval(loadData, 5000);
+        loadLogs();
+        setInterval(loadData, 4000);
+        setInterval(loadLogs, 3000);
     </script>
 </body>
 </html>";

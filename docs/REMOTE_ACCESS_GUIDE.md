@@ -22,8 +22,10 @@ This is the fastest method to test remote access immediately:
 2. **Run the Quick Tunnel**:
    - Open PowerShell or Command Prompt in that folder and run:
      ```powershell
-     .\cloudflared.exe tunnel --url http://localhost:8080
+     .\cloudflared.exe tunnel --url http://localhost:8080 --http-host-header localhost
      ```
+   - > [!IMPORTANT]
+   - > **Always include `--http-host-header localhost`** on Windows! Without this flag, Windows `http.sys` will return `HTTP Error 400. The request hostname is invalid.` because Windows restricts incoming host headers on local port bindings.
    - Cloudflare will output an instant secure HTTPS link:
      ```text
      https://random-name-1234.trycloudflare.com
@@ -60,6 +62,7 @@ If you own a domain (e.g. `yourdomain.com`) or want a fixed URL like `https://ba
    - **Domain**: `yourdomain.com`
    - **Type**: `HTTP`
    - **URL**: `localhost:8080` (or your configured port)
+   - Expand **Additional application settings** &rarr; **HTTP Settings** &rarr; set **HTTP Host Header** to `localhost`.
 3. Click **Save Hostname**.
 
 Your dashboard is now live 24/7 at `https://backup.yourdomain.com`!
