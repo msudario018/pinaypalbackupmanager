@@ -1,0 +1,378 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10001 /* PinayPalBackupApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001 /* PinayPalBackupApp.swift */; };
+		A10002 /* ColorTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002 /* ColorTokens.swift */; };
+		A10003 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003 /* LiquidGlass.swift */; };
+		A10004 /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004 /* DashboardModels.swift */; };
+		A10005 /* BiometricAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005 /* BiometricAuthManager.swift */; };
+		A10006 /* PinayPalAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006 /* PinayPalAPIService.swift */; };
+		A10007 /* BiometricShieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007 /* BiometricShieldView.swift */; };
+		A10008 /* ServerConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008 /* ServerConfigSheet.swift */; };
+		A10009 /* LiquidDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009 /* LiquidDashboardView.swift */; };
+		A10010 /* LiquidWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010 /* LiquidWebView.swift */; };
+		A10011 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10011 /* MainView.swift */; };
+		A10012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10012 /* Assets.xcassets */; };
+		A10013 /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10013 /* LocalAuthentication.framework */; };
+		A10014 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10014 /* WebKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B00001 /* PinayPalBackup.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PinayPalBackup.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10001 /* PinayPalBackupApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinayPalBackupApp.swift; sourceTree = "<group>"; };
+		B10002 /* ColorTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTokens.swift; sourceTree = "<group>"; };
+		B10003 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
+		B10004 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
+		B10005 /* BiometricAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthManager.swift; sourceTree = "<group>"; };
+		B10006 /* PinayPalAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinayPalAPIService.swift; sourceTree = "<group>"; };
+		B10007 /* BiometricShieldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricShieldView.swift; sourceTree = "<group>"; };
+		B10008 /* ServerConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConfigSheet.swift; sourceTree = "<group>"; };
+		B10009 /* LiquidDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidDashboardView.swift; sourceTree = "<group>"; };
+		B10010 /* LiquidWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidWebView.swift; sourceTree = "<group>"; };
+		B10011 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		B10012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10013 /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
+		B10014 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		B10015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C00001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10013 /* LocalAuthentication.framework in Frameworks */,
+				A10014 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D00001 = {
+			isa = PBXGroup;
+			children = (
+				D10001 /* PinayPalBackup */,
+				D20001 /* Frameworks */,
+				D30001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D10001 /* PinayPalBackup */ = {
+			isa = PBXGroup;
+			children = (
+				B10001 /* PinayPalBackupApp.swift */,
+				D10002 /* DesignSystem */,
+				D10003 /* Models */,
+				D10004 /* Services */,
+				D10005 /* Views */,
+				B10012 /* Assets.xcassets */,
+				B10015 /* Info.plist */,
+			);
+			path = PinayPalBackup;
+			sourceTree = "<group>";
+		};
+		D10002 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				B10002 /* ColorTokens.swift */,
+				B10003 /* LiquidGlass.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		D10003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10004 /* DashboardModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D10004 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B10005 /* BiometricAuthManager.swift */,
+				B10006 /* PinayPalAPIService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		D10005 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B10011 /* MainView.swift */,
+				B10007 /* BiometricShieldView.swift */,
+				B10008 /* ServerConfigSheet.swift */,
+				B10009 /* LiquidDashboardView.swift */,
+				B10010 /* LiquidWebView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D20001 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B10013 /* LocalAuthentication.framework */,
+				B10014 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D30001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B00001 /* PinayPalBackup.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E00001 /* PinayPalBackup */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00001 /* Build configuration list for PBXNativeTarget "PinayPalBackup" */;
+			buildPhases = (
+				G00001 /* Sources */,
+				C00001 /* Frameworks */,
+				H00001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PinayPalBackup;
+			productName = PinayPalBackup;
+			productReference = B00001 /* PinayPalBackup.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		I00001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					E00001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = J00001 /* Build configuration list for PBXProject "PinayPalBackup" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D00001;
+			productRefGroup = D30001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E00001 /* PinayPalBackup */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		H00001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10012 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		G00001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* PinayPalBackupApp.swift in Sources */,
+				A10002 /* ColorTokens.swift in Sources */,
+				A10003 /* LiquidGlass.swift in Sources */,
+				A10004 /* DashboardModels.swift in Sources */,
+				A10005 /* BiometricAuthManager.swift in Sources */,
+				A10006 /* PinayPalAPIService.swift in Sources */,
+				A10007 /* BiometricShieldView.swift in Sources */,
+				A10008 /* ServerConfigSheet.swift in Sources */,
+				A10009 /* LiquidDashboardView.swift in Sources */,
+				A10010 /* LiquidWebView.swift in Sources */,
+				A10011 /* MainView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		K00001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		K00002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		K00003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PinayPalBackup/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PinayPal;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 3.2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		K00004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PinayPalBackup/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PinayPal;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 3.2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F00001 /* Build configuration list for PBXNativeTarget "PinayPalBackup" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				K00003 /* Debug */,
+				K00004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		J00001 /* Build configuration list for PBXProject "PinayPalBackup" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				K00001 /* Debug */,
+				K00002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = I00001 /* Project object */;
+}

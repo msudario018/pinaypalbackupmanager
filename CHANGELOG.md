@@ -18,9 +18,13 @@
   - **System Specs & Remote Tunnel Card**: displays machine name, OS description, 64-bit architecture, CPU cores, system uptime, app uptime, and local network IP.
   - **Live Activity Logs Terminal**: dark monospace console stream with real-time log polling, colored level badges (`[INFO]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`), and pause/resume controls.
   - **Enriched Service Cards**: displays host/user credentials, destination folder paths, file counts, folder sizes, and next scheduled sync times.
-- **Cloudflare Remote Access Fix (`HTTP 400 Invalid Hostname`)**:
-  - Resolved `HTTP Error 400. The request hostname is invalid` encountered when connecting through Cloudflare Quick Tunnel (`*.trycloudflare.com`).
-  - Added `--http-host-header localhost` flag requirement and documentation in `docs/REMOTE_ACCESS_GUIDE.md` and Web Dashboard tips so Windows `http.sys` accepts tunnel requests seamlessly.
+- **Native iOS App (SwiftUI + Liquid Glass iOS 27 Design System)**:
+  - Created complete native iOS application under `ios/PinayPalBackup` built with modern SwiftUI.
+  - Implemented **Liquid Glass (iOS 27)** design language: ultra-thin frosted acrylic materials (`.ultraThinMaterial`), iridescent ambient back-glow, chromatic edge specular borders, floating capsule navigation, and interactive haptics.
+  - **Biometric Security Shield**: Face ID and Touch ID biometric authentication on app launch (`BiometricShieldView` and `BiometricAuthManager`).
+  - **Dual Navigation Mode**: Seamless switching between **Native Liquid HUD** (interactive cards, hardware gauges, partition graphs, live terminal logs) and **Live Web Dashboard** (`WKWebView` with native pull-to-refresh).
+  - **Server Connection & Cloudflare Configuration**: In-app configuration sheet (`ServerConfigSheet`) to manage remote tunnel URLs, PIN authentication, and test connectivity.
+  - **Automated Cloud CI/CD**: Added GitHub Actions workflow (`.github/workflows/ios-build.yml`) to compile and package unsigned iOS `.ipa` builds automatically in the cloud on macOS runners.
 
 ### Files Modified
 - `PinayPalBackupManager.csproj`

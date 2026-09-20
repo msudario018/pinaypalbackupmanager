@@ -1,0 +1,45 @@
+name: Build iOS Native App
+
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Build PinayPal iOS App (Unsigned IPA)
+        run: |
+          mkdir -p build/Payload
+          xcodebuild clean build \
+            -project ios/PinayPalBackup.xcodeproj \
+            -scheme PinayPalBackup \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CONFIGURATION_BUILD_DIR=build/Payload
+
+          cd build
+          zip -r PinayPalBackup.ipa Payload
+          cd ..
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinayPalBackup-iOS-v3.2.2
+          path: build/PinayPalBackup.ipa
+          retention-days: 14
