@@ -55,6 +55,9 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Content Include="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 </Project>

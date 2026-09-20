@@ -27,6 +27,8 @@ namespace PinayPalBackupManager.UI
         public LoginWindow()
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            this.Icon = AppIconHelper.GetAppWindowIcon();
+            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
 
             // Note: First-run setup is now handled by SetupWizardWindow
             // This login window only handles returning users

@@ -8,7 +8,7 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
         Foreground="{DynamicResource AppText}"
-        Icon="/Assets/logo.ico">
+        Icon="avares://PinayPalBackupManager/Assets/logo.ico">
     
     <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, *, 40">
         <!-- Sidebar -->

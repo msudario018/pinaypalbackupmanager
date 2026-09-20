@@ -10,7 +10,8 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="#1E1E2E"
-        Foreground="#CDD6F4">
+        Foreground="#CDD6F4"
+        Icon="avares://PinayPalBackupManager/Assets/logo.ico">
 
     <Window.Styles>
         <Style Selector="Button">

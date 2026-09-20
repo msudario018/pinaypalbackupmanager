@@ -64,6 +64,10 @@ namespace PinayPalBackupManager.UI
         public MainWindow()
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            this.Icon = AppIconHelper.GetAppWindowIcon();
+            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
+            AppIconHelper.StartSingleInstanceListener(() => RestoreFromTray());
+
             _backupManager = new BackupManager();
             _backupManager.OnTimeUpdate += UpdateTime;
             _backupManager.OnHealthUpdate += UpdateHealthStatus;
@@ -1164,7 +1168,10 @@ namespace PinayPalBackupManager.UI
             }
             else if (state == WindowState.Minimized)
             {
-                if (ConfigService.Current.Operation.MinimizeToTray)
+                // Keeping ShowInTaskbar = true ensures user can always click taskbar button to restore!
+                this.ShowInTaskbar = true;
+
+                if (ConfigService.Current.Operation.MinimizeToTray && _trayIcon != null)
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
@@ -1172,6 +1179,10 @@ namespace PinayPalBackupManager.UI
                         {
                             this.ShowInTaskbar = false;
                             this.Hide();
+                            NotificationService.ShowBackupToast(
+                                "Minimized to Tray", 
+                                "PinayPal is running in background. Click the tray icon near the clock to restore.", 
+                                "Info");
                         }
                         catch { }
                     });
@@ -1768,18 +1779,29 @@ namespace PinayPalBackupManager.UI
             if (count != null) count.Text = unread > 9 ? "9+" : unread.ToString();
         }
 
-        private void RestoreFromTray()
+        private Avalonia.Controls.TrayIcon? _trayIcon;
+
+        public void RestoreFromTray()
         {
             Dispatcher.UIThread.Post(() =>
             {
                 try
                 {
-                    this.Show();
                     this.ShowInTaskbar = true;
-                    this.WindowState = WindowState.Normal;
+                    this.Show();
+                    if (this.WindowState == WindowState.Minimized)
+                    {
+                        this.WindowState = WindowState.Normal;
+                    }
+                    this.BringIntoView();
                     this.Activate();
+                    AppIconHelper.ForceForeground(this);
+                    this.Focus();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[Tray] Error restoring window from tray: {ex.Message}", "Error", "SYSTEM");
+                }
             });
         }
 
@@ -1787,36 +1809,49 @@ namespace PinayPalBackupManager.UI
         {
             try
             {
-                var tray = new Avalonia.Controls.TrayIcon();
-                tray.Icon = new Avalonia.Controls.WindowIcon(new Avalonia.Media.Imaging.Bitmap(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico")));
-                tray.ToolTipText = "PinayPal Backup Manager";
-                tray.Clicked += (_, _) => RestoreFromTray();
+                _trayIcon = new Avalonia.Controls.TrayIcon();
+                var icon = AppIconHelper.GetAppWindowIcon();
+                if (icon != null)
+                {
+                    _trayIcon.Icon = icon;
+                }
+                _trayIcon.ToolTipText = "PinayPal Backup Manager";
+                _trayIcon.Clicked += (_, _) => RestoreFromTray();
+                
                 var menu = new Avalonia.Controls.NativeMenu();
                 
-                // Backup Now
-                var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Backup Now" };
-                backupItem.Click += (_, _) => { RestoreFromTray(); _ = RunAllBackupsParallelAsync(); };
-                
+                // Show Window
+                var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show Window" };
+                showItem.Click += (_, _) => RestoreFromTray();
+
                 // Open Dashboard
                 var dashboardItem = new Avalonia.Controls.NativeMenuItem { Header = "Open Dashboard" };
                 dashboardItem.Click += (_, _) => { RestoreFromTray(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); };
-                
-                var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show" };
-                showItem.Click += (_, _) => RestoreFromTray();
-                
-                var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit" };
+
+                // Backup Now
+                var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Run All Backups Now" };
+                backupItem.Click += (_, _) => { RestoreFromTray(); _ = RunAllBackupsParallelAsync(); };
+
+                // Exit
+                var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit PinayPal" };
                 exitItem.Click += (_, _) => { _allowClose = true; Close(); };
-                
-                menu.Items.Add(backupItem);
-                menu.Items.Add(dashboardItem);
-                menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
+
                 menu.Items.Add(showItem);
+                menu.Items.Add(dashboardItem);
+                menu.Items.Add(backupItem);
                 menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
                 menu.Items.Add(exitItem);
-                tray.Menu = menu;
-                Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { tray });
+
+                _trayIcon.Menu = menu;
+                _trayIcon.IsVisible = true;
+
+                Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { _trayIcon });
+                LogService.WriteSystemLog("[Tray] System tray icon initialized successfully", "Information", "SYSTEM");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Tray] System tray setup error: {ex.Message}", "Warning", "SYSTEM");
+            }
         }
 
         

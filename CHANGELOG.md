@@ -8,7 +8,17 @@
   - Added detailed memory breakdown on the Web Dashboard: shows used vs total RAM (e.g. `13.8 GB / 31.8 GB`), free RAM badge (`🟢 18.0 GB Free`), and PinayPal app process memory (`⚡ App: 145 MB`).
   - Added full physical drive scanner (`DriveInfo.GetDrives()`) detecting all mounted partitions (`C:`, `D:`, `E:`, `F:`) with volume labels, free space, and usage bars.
   - Identifies active Backup Drive vs System Drive and displays the exact drive letter, label, and free space (`Drive E: 146 GB Free of 932 GB`).
-- **Web Dashboard & Desktop App Synchronization**:
+- **Desktop Taskbar Icon & Window Restore Fixes**:
+  - **Fixed Windows Taskbar Icon**:
+    - Extracted 256x256 high-resolution PNG (`Assets/logo.png`) from `Assets/logo.ico`.
+    - Added `<Content Include="Assets\**"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>` in `PinayPalBackupManager.csproj` so icons are always present in the build and publish output directories.
+    - Implemented `AppIconHelper.cs`: registered explicit Windows `AppUserModelID` (`PinayPal.PinayPalBackupManager`), resolving generic/missing taskbar icons.
+    - Injected Win32 `WM_SETICON` messages directly to the window handle for both large (32x32 taskbar/Alt-Tab) and small (16x16 titlebar) icons.
+  - **Fixed Window Becoming Permanently Hidden on Minimize**:
+    - Identified and fixed crash in `SetupSystemTray()` caused by attempting to load `Assets/logo.ico` from disk before it was copied to the output directory, which caused the tray icon to fail silently.
+    - Ensured `ShowInTaskbar = true` on standard minimize (`_`), so users can always click the Windows taskbar button to restore the window immediately.
+    - Re-engineered `RestoreFromTray()` to properly unhide, restore window state to normal, bring to front (`SetForegroundWindow`), and focus.
+    - Added single-instance restore listener (`EventWaitHandle`): launching the application again from the desktop or Start menu automatically signals and pops up the running instance instead of creating duplicates.
   - Fixed issue where backups triggered from the Web Dashboard did not reflect in the desktop application GUI.
   - Dispatched `BackupSchedulingService.BackupExecutor` through `Avalonia.Threading.Dispatcher.UIThread.InvokeAsync` so remote web actions run directly on the UI thread, immediately activating desktop progress bars, status labels, real-time log streaming, and desktop toast notifications.
 - **Enriched Web Dashboard UI/UX Overhaul**:

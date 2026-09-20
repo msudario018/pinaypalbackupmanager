@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
         public int RetentionDays { get; set; } = 7;
         public bool AutoStartWindows { get; set; } = false;
         public bool StartMinimized { get; set; } = false;
-        public bool MinimizeToTray { get; set; } = true;
+        public bool MinimizeToTray { get; set; } = false;
         public bool CloseToTray { get; set; } = false;
         public bool AutoUpdateTlsFingerprint { get; set; } = true;
         public bool AcceptAnyTlsCert { get; set; } = false;

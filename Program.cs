@@ -13,6 +13,12 @@ namespace PinayPalBackupManager
         [STAThread]
         public static async Task Main(string[] args)
         {
+            AppIconHelper.EnsureAppUserModelId();
+            if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
+            {
+                return;
+            }
+
             AppDataPaths.MigrateKnownFiles();
             var logPath = AppDataPaths.GetPath("startup.log");
             try

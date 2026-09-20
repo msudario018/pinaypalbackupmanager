@@ -7,7 +7,7 @@
         CanResize="False"
         Background="{DynamicResource AppBg}"
         Foreground="{DynamicResource AppText}"
-        Icon="/Assets/logo.ico">
+        Icon="avares://PinayPalBackupManager/Assets/logo.ico">
 
     <!-- Root: centered card on dark canvas -->
     <Grid>
