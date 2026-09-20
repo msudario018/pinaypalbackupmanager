@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.2.1 (2026-09-20)
+
+### Fixed
+- **Web Dashboard Dynamic Runtime Activation**:
+  - Fixed issue where Web Dashboard port `8080` refused connections if enabled after application startup.
+  - Clicking **"Save Web Settings"** or **"Open Web Dashboard"** now immediately boots or restarts the HTTP server dynamically at runtime without requiring an application restart.
+  - Added `FileDownloadService.RestartAsync(port)` for dynamic port reconfiguration.
+  - Added safe fallback defaults for username and backup paths in `FileDownloadService.StartAsync()` so runtime startup never fails on uninitialized properties.
+
+### Files Modified
+- `PinayPalBackupManager.csproj`
+- `CHANGELOG.md`
+- `services/FileDownloadService.cs`
+- `UI/UserControls/SettingsControl.axaml.cs`
+
+---
+
 ## v3.2.0 (2026-09-20)
 
 ### Added
