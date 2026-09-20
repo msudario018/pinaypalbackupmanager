@@ -21,6 +21,8 @@
 		A10012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10012 /* Assets.xcassets */; };
 		A10013 /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10013 /* LocalAuthentication.framework */; };
 		A10014 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10014 /* WebKit.framework */; };
+		A10015 /* ConnectionSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10016 /* ConnectionSetupView.swift */; };
+		A10016 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10017 /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		B10013 /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
 		B10014 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		B10015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10016 /* ConnectionSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionSetupView.swift; sourceTree = "<group>"; };
+		B10017 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +111,8 @@
 		D10005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B10016 /* ConnectionSetupView.swift */,
+				B10017 /* LoginView.swift */,
 				B10011 /* MainView.swift */,
 				B10007 /* BiometricShieldView.swift */,
 				B10008 /* ServerConfigSheet.swift */,
@@ -213,6 +219,8 @@
 				A10009 /* LiquidDashboardView.swift in Sources */,
 				A10010 /* LiquidWebView.swift in Sources */,
 				A10011 /* MainView.swift in Sources */,
+				A10015 /* ConnectionSetupView.swift in Sources */,
+				A10016 /* LoginView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

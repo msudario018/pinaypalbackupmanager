@@ -14,7 +14,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task InitializeAsync()
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -39,7 +39,7 @@ namespace PinayPalBackupManager.Services
             var expiresAt = DateTime.UtcNow.AddHours(TokenExpirationHours);
             var createdAt = DateTime.UtcNow;
 
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -61,7 +61,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<bool> ValidateTokenAsync(string token)
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -100,7 +100,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<int?> GetUserIdByTokenAsync(string token)
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -123,7 +123,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task MarkTokenAsUsedAsync(string token)
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -141,7 +141,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task CleanupExpiredTokensAsync()
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();
@@ -161,7 +161,7 @@ namespace PinayPalBackupManager.Services
 
         public static async Task InvalidateUserTokensAsync(int userId)
         {
-            using var connection = DatabaseService.GetConnection();
+            var connection = DatabaseService.GetConnection();
             // Connection is already opened by GetConnection()
 
             var command = connection.CreateCommand();

@@ -11,5 +11,7 @@ namespace PinayPalBackupManager.Models
         public string Role { get; set; } = "User";       // "Admin" or "User"
         public string Status { get; set; } = "Pending";   // "Active", "Pending", "Disabled"
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? Email { get; set; }
+        public string? AvatarPath { get; set; }
     }
 }

@@ -163,3 +163,39 @@ public struct RemoteSettings: Codable, Equatable {
     }
 }
 
+public struct PingResponse: Codable {
+    public let appName: String?
+    public let version: String?
+    public let status: String?
+    public let hostname: String?
+    public let localIp: String?
+    public let port: Int?
+    public let hasUsers: Bool?
+    public let requireAuth: Bool?
+    public let serverTime: String?
+}
+
+public struct AppUserProfile: Codable, Equatable {
+    public let id: Int
+    public let username: String
+    public let email: String?
+    public let role: String
+    public let fullName: String?
+    public let avatarUrl: String?
+
+    public init(id: Int, username: String, email: String? = nil, role: String = "User", fullName: String? = nil, avatarUrl: String? = nil) {
+        self.id = id
+        self.username = username
+        self.email = email
+        self.role = role
+        self.fullName = fullName
+        self.avatarUrl = avatarUrl
+    }
+}
+
+public struct UserLoginResponse: Codable {
+    public let success: Bool
+    public let token: String?
+    public let message: String?
+    public let user: AppUserProfile?
+}

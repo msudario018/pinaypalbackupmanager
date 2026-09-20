@@ -11,6 +11,11 @@ public struct ServerConfigSheet: View {
     // Connection States
     @State private var inputUrl: String = ""
     @State private var inputPin: String = ""
+    @State private var failoverUrl: String = UserDefaults.standard.string(forKey: "pp_failover_url") ?? ""
+    @State private var bgSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "pp_bg_sync_enabled")
+    @State private var notifyFailure: Bool = UserDefaults.standard.object(forKey: "pp_notify_failure") == nil ? true : UserDefaults.standard.bool(forKey: "pp_notify_failure")
+    @State private var notifySuccess: Bool = UserDefaults.standard.bool(forKey: "pp_notify_success")
+    @State private var pollIntervalSec: Int = UserDefaults.standard.integer(forKey: "pp_poll_interval") == 0 ? 4 : UserDefaults.standard.integer(forKey: "pp_poll_interval")
     @State private var isTesting = false
     @State private var testResult: String? = nil
 
@@ -94,7 +99,7 @@ public struct ServerConfigSheet: View {
         HStack(spacing: 6) {
             segmentButton(title: "Face ID", icon: "faceid", index: 0)
             segmentButton(title: "Remote PC", icon: "desktopcomputer", index: 1)
-            segmentButton(title: "Connection", icon: "antenna.radiowaves.left.and.right", index: 2)
+            segmentButton(title: "App & Net", icon: "gearshape.2.fill", index: 2)
         }
         .padding(4)
         .background(Color.white.opacity(0.06))
@@ -483,20 +488,172 @@ public struct ServerConfigSheet: View {
         }
     }
 
-    // MARK: - Section 2: Connection
+    // MARK: - Section 2: App, Account & Network Connection
     private var connectionSection: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("TUNNEL / HOST URL")
+        VStack(spacing: 18) {
+            // 1. Current Authenticated User Account Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(LiquidTheme.gold.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(LiquidTheme.gold)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(api.currentUser?.username ?? "Desktop User")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundColor(LiquidTheme.textPrimary)
+
+                            Text(api.currentUser?.role ?? "User")
+                                .font(.system(size: 10, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.gold.opacity(0.2))
+                                .foregroundColor(LiquidTheme.gold)
+                                .cornerRadius(6)
+                        }
+
+                        Text(api.currentUser?.email ?? "Connected to desktop SQLite database")
+                            .font(.system(size: 11))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+
+                    Spacer()
+                }
+
+                Divider().background(Color.white.opacity(0.08))
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task {
+                            await api.logout()
+                            dismiss()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Sign Out")
+                        }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(LiquidTheme.coral)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(LiquidTheme.coral.opacity(0.12))
+                        .cornerRadius(8)
+                    }
+
+                    Button {
+                        api.disconnectServer()
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.slash.fill")
+                            Text("Disconnect Server")
+                        }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.gold.opacity(0.15))
+
+            // 2. iOS App Settings: Background Monitoring & Local Alerts
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "bell.badge.fill")
+                        .foregroundColor(LiquidTheme.cyan)
+                    Text("IOS BACKGROUND MONITORING & ALERTS")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.cyan)
+                }
+
+                Toggle(isOn: $bgSyncEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Run App in Background")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("Periodically syncs status & verifies scheduled jobs")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                }
+                .tint(LiquidTheme.cyan)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                Toggle(isOn: $notifyFailure) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Alert on Backup Failures")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("Trigger critical notification if FTP or SQL job fails")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                }
+                .tint(LiquidTheme.coral)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                Toggle(isOn: $notifySuccess) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Alert on Backup Success")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("Send quiet summary when daily backups complete")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                }
+                .tint(LiquidTheme.emerald)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("HUD Live Polling Interval")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("How often active HUD requests live metrics")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                    Spacer()
+                    Picker("Interval", selection: $pollIntervalSec) {
+                        Text("2 seconds").tag(2)
+                        Text("4 seconds").tag(4)
+                        Text("8 seconds").tag(8)
+                        Text("15 seconds").tag(15)
+                    }
+                    .pickerStyle(.menu)
+                    .tint(LiquidTheme.gold)
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.cyan.opacity(0.12))
+
+            // 3. Network Connection & Failover Configuration
+            VStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PRIMARY HOST / LOCAL WI-FI URL")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(LiquidTheme.textSecondary)
 
-                    TextField("https://your-tunnel.trycloudflare.com", text: $inputUrl)
+                    TextField("http://192.168.1.100:8080", text: $inputUrl)
                         .keyboardType(.URL)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
-                        .padding(14)
+                        .padding(12)
                         .background(Color(red: 0.05, green: 0.07, blue: 0.1))
                         .cornerRadius(10)
                         .foregroundColor(.white)
@@ -506,13 +663,32 @@ public struct ServerConfigSheet: View {
                         )
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("REMOTE FAILOVER URL (CLOUDFLARE TUNNEL)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+
+                    TextField("https://backup.yourdomain.com", text: $failoverUrl)
+                        .keyboardType(.URL)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .padding(12)
+                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .cornerRadius(10)
+                        .foregroundColor(.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
                     Text("WEB ACCESS PIN (OPTIONAL)")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(LiquidTheme.textSecondary)
 
                     SecureField("Enter PIN if configured", text: $inputPin)
-                        .padding(14)
+                        .padding(12)
                         .background(Color(red: 0.05, green: 0.07, blue: 0.1))
                         .cornerRadius(10)
                         .foregroundColor(.white)
@@ -524,31 +700,6 @@ public struct ServerConfigSheet: View {
             }
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
-
-            // Cloudflare Tunnel Guide Note
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "lightbulb.fill")
-                        .foregroundColor(LiquidTheme.gold)
-                    Text("Cloudflare Tunnel Host Flag")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(LiquidTheme.gold)
-                }
-
-                Text("Run your tunnel on Windows with the host header flag:")
-                    .font(.system(size: 12))
-                    .foregroundColor(LiquidTheme.textSecondary)
-
-                Text("cloudflared tunnel --url http://localhost:8080 --http-host-header localhost")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(LiquidTheme.textPrimary)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.4))
-                    .cornerRadius(8)
-            }
-            .padding(16)
-            .liquidGlassCard(cornerRadius: 14, glow: LiquidTheme.cyan.opacity(0.1))
 
             // Test Connection & Save
             VStack(spacing: 12) {
@@ -583,7 +734,7 @@ public struct ServerConfigSheet: View {
                 Button {
                     saveConnectionAndDismiss()
                 } label: {
-                    Text("Save Connection")
+                    Text("Save App & Network Settings")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
@@ -730,6 +881,11 @@ public struct ServerConfigSheet: View {
 
     private func saveConnectionAndDismiss() {
         UserDefaults.standard.set(enableBiometrics, forKey: "pp_biometrics_enabled")
+        UserDefaults.standard.set(failoverUrl.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pp_failover_url")
+        UserDefaults.standard.set(bgSyncEnabled, forKey: "pp_bg_sync_enabled")
+        UserDefaults.standard.set(notifyFailure, forKey: "pp_notify_failure")
+        UserDefaults.standard.set(notifySuccess, forKey: "pp_notify_success")
+        UserDefaults.standard.set(pollIntervalSec, forKey: "pp_poll_interval")
         api.saveSettings(url: inputUrl, pin: inputPin)
         dismiss()
     }

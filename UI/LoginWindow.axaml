@@ -77,9 +77,20 @@
                                     FontSize="13" Padding="14" CornerRadius="10"
                                     Margin="0,4,0,0"/>
 
-                            <CheckBox Name="ChkRememberMe" Content="Stay signed in" Classes="Modern"
-                                      Foreground="{DynamicResource AppMuted}" FontSize="11"
-                                      HorizontalAlignment="Center"/>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,-4,0,0">
+                                <CheckBox Name="ChkRememberMe" Content="Stay signed in" Classes="Modern"
+                                          Foreground="{DynamicResource AppMuted}" FontSize="11" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Button Name="BtnForgotUser" Content="Forgot user?" Classes="Link"
+                                            Foreground="{DynamicResource AppMuted}" FontSize="11"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"/>
+                                    <TextBlock Text="•" Foreground="{DynamicResource AppBorder}" FontSize="11" VerticalAlignment="Center"/>
+                                    <Button Name="BtnForgotPass" Content="Forgot password?" Classes="Link"
+                                            Foreground="{DynamicResource AccentWebsite}" FontSize="11"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                            FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
 
                             <!-- Divider -->
                             <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="0,2"/>
@@ -171,6 +182,107 @@
                                         Background="Transparent" BorderThickness="0" Padding="2,0"
                                         Cursor="Hand" FontWeight="SemiBold"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Recovery Panel (Forgot Username & Password OTP) -->
+                    <Border Name="RecoveryPanel" IsVisible="False" Padding="28,18,28,22">
+                        <StackPanel Spacing="11">
+                            <!-- Segmented Mode Header -->
+                            <Border Background="{DynamicResource AppSurface}" CornerRadius="10" Padding="4">
+                                <Grid ColumnDefinitions="*,*">
+                                    <Button Name="BtnTabForgotUser" Content="Forgot Username"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                            Padding="8,6" CornerRadius="8" FontSize="11" FontWeight="Bold"
+                                            Background="Transparent" Foreground="{DynamicResource AppMuted}" Cursor="Hand"/>
+                                    <Button Grid.Column="1" Name="BtnTabForgotPass" Content="Forgot Password"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                            Padding="8,6" CornerRadius="8" FontSize="11" FontWeight="Bold"
+                                            Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF" Cursor="Hand"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Sub-Panel 1: Forgot Username -->
+                            <StackPanel Name="SubPanelForgotUser" Spacing="10" IsVisible="False">
+                                <TextBlock Text="Enter your registered email address to receive your username reminder."
+                                           Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Email Address" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtForgotEmail" Watermark="you@example.com"/>
+                                </StackPanel>
+                                <Button Name="BtnSendUsername" Content="SEND USERNAME REMINDER"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF"
+                                        FontWeight="Bold" FontSize="12" Padding="12" CornerRadius="10" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Sub-Panel 2: Forgot Password - Step 1: Request OTP -->
+                            <StackPanel Name="SubPanelPassStep1" Spacing="10" IsVisible="True">
+                                <TextBlock Text="Enter your username or email address to receive a 6-digit verification code."
+                                           Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Username or Email" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtPassResetIdentifier" Watermark="Enter username or email"/>
+                                </StackPanel>
+                                <!-- Optional email field if account has no email yet -->
+                                <StackPanel Name="PnlOverrideEmail" Spacing="4" IsVisible="False">
+                                    <TextBlock Text="Recovery Email (No email on account yet)" Foreground="{DynamicResource AccentWebsite}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtOverrideEmail" Watermark="Enter email to receive OTP"/>
+                                </StackPanel>
+                                <Button Name="BtnRequestOtp" Content="SEND 6-DIGIT OTP CODE"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF"
+                                        FontWeight="Bold" FontSize="12" Padding="12" CornerRadius="10" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Sub-Panel 2: Forgot Password - Step 2: Verify OTP -->
+                            <StackPanel Name="SubPanelPassStep2" Spacing="10" IsVisible="False">
+                                <TextBlock Name="TxtOtpSentNotice" Text="Enter the 6-digit verification code sent to your email."
+                                           Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="6-Digit Verification Code" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtOtpInput" Watermark="000000" FontSize="20" HorizontalContentAlignment="Center"
+                                             LetterSpacing="6" MaxLength="6"/>
+                                </StackPanel>
+                                <Button Name="BtnVerifyOtp" Content="VERIFY OTP CODE"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF"
+                                        FontWeight="Bold" FontSize="12" Padding="12" CornerRadius="10" Margin="0,4,0,0"/>
+                                <Button Name="BtnResendOtp" Content="Resend Verification Code" Classes="Link"
+                                        HorizontalAlignment="Center" Foreground="{DynamicResource AccentWebsite}"
+                                        FontSize="11" Background="Transparent" BorderThickness="0" Cursor="Hand"/>
+                            </StackPanel>
+
+                            <!-- Sub-Panel 2: Forgot Password - Step 3: New Password -->
+                            <StackPanel Name="SubPanelPassStep3" Spacing="10" IsVisible="False">
+                                <TextBlock Text="Create a secure new password for your account."
+                                           Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="New Password" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtNewPassword" Watermark="Enter new password" PasswordChar="●"/>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Confirm New Password" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBox Name="TxtConfirmNewPassword" Watermark="Re-enter new password" PasswordChar="●"/>
+                                </StackPanel>
+                                <Button Name="BtnSaveNewPassword" Content="RESET PASSWORD &amp; SIGN IN"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="{DynamicResource AccentWebsite}" Foreground="#FFFFFF"
+                                        FontWeight="Bold" FontSize="12" Padding="12" CornerRadius="10" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Recovery Status / Error Text -->
+                            <TextBlock Name="TxtRecoveryStatus" Text="" Foreground="{DynamicResource AccentError}"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                            <!-- Divider -->
+                            <Rectangle Height="1" Fill="{DynamicResource AppBorder}" Margin="0,2"/>
+
+                            <!-- Back to Login Button -->
+                            <Button Name="BtnBackFromRecovery" Content="← Back to Sign In" Classes="Link"
+                                    HorizontalAlignment="Center" Foreground="{DynamicResource AppMuted}"
+                                    FontSize="11" Background="Transparent" BorderThickness="0"
+                                    Padding="4" Cursor="Hand" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
                 </Grid>

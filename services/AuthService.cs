@@ -117,6 +117,14 @@ namespace PinayPalBackupManager.Services
                 cmd.ExecuteNonQuery();
             }
             catch { /* Column may already exist */ }
+
+            // Migrate: Add Email column if not exists
+            try
+            {
+                cmd.CommandText = "ALTER TABLE Users ADD COLUMN Email TEXT";
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* Column may already exist */ }
         }
 
         public static bool HasAnyUsers()
@@ -745,8 +753,7 @@ namespace PinayPalBackupManager.Services
             var salt = GenerateSalt();
             var hash = HashPassword(newPassword, salt);
 
-            using var conn = DatabaseService.GetConnection();
-            conn.Open();
+            var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET PasswordHash = @h, Salt = @s WHERE Id = @id";
             cmd.Parameters.AddWithValue("@h", hash);
@@ -761,6 +768,73 @@ namespace PinayPalBackupManager.Services
             }
 
             return result;
+        }
+
+        public static AppUser? GetUserByEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var conn = DatabaseService.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, AvatarPath FROM Users WHERE TRIM(Email) = @e COLLATE NOCASE LIMIT 1";
+            cmd.Parameters.AddWithValue("@e", email.Trim());
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                return new AppUser
+                {
+                    Id = reader.GetInt32(0),
+                    Username = reader.GetString(1),
+                    PasswordHash = reader.GetString(2),
+                    Salt = reader.GetString(3),
+                    Role = reader.GetString(4),
+                    Status = reader.GetString(5),
+                    CreatedAt = DateTime.Parse(reader.GetString(6)),
+                    Email = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    AvatarPath = reader.IsDBNull(8) ? null : reader.GetString(8)
+                };
+            }
+            return null;
+        }
+
+        public static AppUser? GetUserByUsernameOrEmail(string identifier)
+        {
+            if (string.IsNullOrWhiteSpace(identifier)) return null;
+            var clean = identifier.Trim();
+            var conn = DatabaseService.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, AvatarPath 
+                               FROM Users 
+                               WHERE (TRIM(Username) = @id COLLATE NOCASE OR TRIM(Email) = @id COLLATE NOCASE) 
+                               LIMIT 1";
+            cmd.Parameters.AddWithValue("@id", clean);
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                return new AppUser
+                {
+                    Id = reader.GetInt32(0),
+                    Username = reader.GetString(1),
+                    PasswordHash = reader.GetString(2),
+                    Salt = reader.GetString(3),
+                    Role = reader.GetString(4),
+                    Status = reader.GetString(5),
+                    CreatedAt = DateTime.Parse(reader.GetString(6)),
+                    Email = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    AvatarPath = reader.IsDBNull(8) ? null : reader.GetString(8)
+                };
+            }
+            return null;
+        }
+
+        public static bool UpdateUserEmail(int userId, string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+            var conn = DatabaseService.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Users SET Email = @e WHERE Id = @id";
+            cmd.Parameters.AddWithValue("@e", email.Trim());
+            cmd.Parameters.AddWithValue("@id", userId);
+            return cmd.ExecuteNonQuery() > 0;
         }
 
         public static bool ChangeUsername(int userId, string newUsername)

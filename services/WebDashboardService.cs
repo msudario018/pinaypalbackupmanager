@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -32,14 +34,17 @@ namespace PinayPalBackupManager.Services
                 return;
             }
 
-            // PIN Authentication check if enabled
-            if (ConfigService.Current.HttpServer.RequireAuth && !string.IsNullOrWhiteSpace(ConfigService.Current.HttpServer.WebPin))
+            // Public endpoints that do not require auth check:
+            bool isPublicEndpoint = path == "/api/ping" || path == "/api/user-login" || path == "/login";
+
+            // PIN or Session Token Authentication check if enabled
+            if (!isPublicEndpoint && ConfigService.Current.HttpServer.RequireAuth && !string.IsNullOrWhiteSpace(ConfigService.Current.HttpServer.WebPin))
             {
                 if (!IsAuthorized(request))
                 {
-                    if (path == "/login" && request.HttpMethod == "POST")
+                    if (path.StartsWith("/api/"))
                     {
-                        await HandleLoginPostAsync(context);
+                        await SendJsonAsync(response, 401, new { error = "Unauthorized. Please authenticate first." });
                         return;
                     }
 
@@ -53,6 +58,34 @@ namespace PinayPalBackupManager.Services
                 if (path == "/" || path == "/index.html" || path == "/dashboard")
                 {
                     await ServeDashboardHtmlAsync(response);
+                }
+                else if (path == "/api/ping")
+                {
+                    var localIp = GetLocalIpAddress();
+                    await SendJsonAsync(response, 200, new
+                    {
+                        appName = "PinayPal Backup Manager",
+                        version = "3.2.3",
+                        status = "online",
+                        hostname = Environment.MachineName,
+                        localIp = localIp,
+                        port = ConfigService.Current.HttpServer.Port,
+                        hasUsers = AuthService.HasAnyUsers(),
+                        requireAuth = ConfigService.Current.HttpServer.RequireAuth,
+                        serverTime = DateTime.UtcNow.ToString("o")
+                    });
+                }
+                else if (path == "/api/user-login" && request.HttpMethod == "POST")
+                {
+                    await HandleUserLoginPostAsync(context);
+                }
+                else if (path == "/api/user-logout" && request.HttpMethod == "POST")
+                {
+                    await HandleUserLogoutPostAsync(context);
+                }
+                else if (path == "/login" && request.HttpMethod == "POST")
+                {
+                    await HandleLoginPostAsync(context);
                 }
                 else if (path == "/api/status")
                 {
@@ -111,28 +144,138 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        private static readonly ConcurrentDictionary<string, (AppUser User, DateTime Expiry)> _activeSessions = new();
+
         private static bool IsAuthorized(HttpListenerRequest request)
         {
-            var expectedPin = ConfigService.Current.HttpServer.WebPin.Trim();
-            if (string.IsNullOrEmpty(expectedPin)) return true;
+            var expectedPin = ConfigService.Current.HttpServer.WebPin?.Trim() ?? "";
 
-            // Check query parameter ?pin=...
-            var pinQuery = request.QueryString["pin"];
-            if (!string.IsNullOrEmpty(pinQuery) && pinQuery == expectedPin) return true;
-
-            // Check Authorization header
+            // Check Authorization header: Bearer <token_or_pin>
             var authHeader = request.Headers["Authorization"];
             if (!string.IsNullOrEmpty(authHeader))
             {
                 var token = authHeader.Replace("Bearer ", "").Trim();
-                if (token == expectedPin) return true;
+                if (_activeSessions.TryGetValue(token, out var sess))
+                {
+                    if (DateTime.UtcNow < sess.Expiry) return true;
+                    _activeSessions.TryRemove(token, out _);
+                }
+                if (!string.IsNullOrEmpty(expectedPin) && token == expectedPin) return true;
+            }
+
+            // Check query parameter ?pin=... or ?token=...
+            var pinQuery = request.QueryString["pin"];
+            if (!string.IsNullOrEmpty(pinQuery) && !string.IsNullOrEmpty(expectedPin) && pinQuery == expectedPin) return true;
+
+            var tokenQuery = request.QueryString["token"];
+            if (!string.IsNullOrEmpty(tokenQuery) && _activeSessions.TryGetValue(tokenQuery, out var qSess) && DateTime.UtcNow < qSess.Expiry)
+            {
+                return true;
+            }
+
+            // Check Cookie pp_token
+            var tokenCookie = request.Cookies["pp_token"];
+            if (tokenCookie != null && _activeSessions.TryGetValue(tokenCookie.Value, out var cSess) && DateTime.UtcNow < cSess.Expiry)
+            {
+                return true;
             }
 
             // Check Cookie pp_pin
             var cookie = request.Cookies["pp_pin"];
-            if (cookie != null && cookie.Value == expectedPin) return true;
+            if (cookie != null && !string.IsNullOrEmpty(expectedPin) && cookie.Value == expectedPin) return true;
+
+            if (string.IsNullOrEmpty(expectedPin) && !ConfigService.Current.HttpServer.RequireAuth) return true;
 
             return false;
+        }
+
+        private static async Task HandleUserLoginPostAsync(HttpListenerContext context)
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+
+            string username = "";
+            string password = "";
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("username", out var uElem))
+                    username = uElem.GetString() ?? "";
+                if (doc.RootElement.TryGetProperty("password", out var pElem))
+                    password = pElem.GetString() ?? "";
+            }
+            catch
+            {
+                await SendJsonAsync(context.Response, 400, new { success = false, message = "Invalid JSON payload" });
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                await SendJsonAsync(context.Response, 400, new { success = false, message = "Username and password are required" });
+                return;
+            }
+
+            var (success, user, message) = await AuthService.VerifyCredentialsAsync(username, password);
+            if (!success || user == null)
+            {
+                await SendJsonAsync(context.Response, 401, new { success = false, message });
+                return;
+            }
+
+            // Generate session token (valid 30 days)
+            var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+            _activeSessions[sessionToken] = (user, DateTime.UtcNow.AddDays(30));
+
+            context.Response.AppendCookie(new Cookie("pp_token", sessionToken, "/") { Expires = DateTime.Now.AddDays(30) });
+
+            LogService.WriteSystemLog($"[WebDashboard] User '{user.Username}' authenticated successfully via remote API", "Information", "SYSTEM");
+
+            await SendJsonAsync(context.Response, 200, new
+            {
+                success = true,
+                token = sessionToken,
+                message = "Authenticated successfully",
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email ?? "",
+                    role = user.Role,
+                    fullName = user.Username,
+                    avatarUrl = ""
+                }
+            });
+        }
+
+        private static async Task HandleUserLogoutPostAsync(HttpListenerContext context)
+        {
+            var authHeader = context.Request.Headers["Authorization"]?.Replace("Bearer ", "").Trim();
+            var cookieToken = context.Request.Cookies["pp_token"]?.Value;
+
+            if (!string.IsNullOrEmpty(authHeader)) _activeSessions.TryRemove(authHeader, out _);
+            if (!string.IsNullOrEmpty(cookieToken)) _activeSessions.TryRemove(cookieToken, out _);
+
+            context.Response.AppendCookie(new Cookie("pp_token", "", "/") { Expires = DateTime.Now.AddDays(-1) });
+            await SendJsonAsync(context.Response, 200, new { success = true, message = "Logged out successfully" });
+        }
+
+        private static string GetLocalIpAddress()
+        {
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                    {
+                        return ip.ToString();
+                    }
+                }
+            }
+            catch { }
+            return "127.0.0.1";
         }
 
         private static async Task HandleLoginPostAsync(HttpListenerContext context)

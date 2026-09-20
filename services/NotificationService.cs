@@ -404,6 +404,40 @@ namespace PinayPalBackupManager.Services
                 return false;
             }
         }
+
+        public static async Task<bool> SendDirectEmailAsync(string toEmail, string subject, string body, bool isHtml = false)
+        {
+            if (string.IsNullOrWhiteSpace(_settings.SmtpHost) || string.IsNullOrWhiteSpace(_settings.EmailFrom))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+                {
+                    EnableSsl = _settings.SmtpUseSsl,
+                    Credentials = new NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
+                };
+
+                var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(_settings.EmailFrom, "PinayPal Backup Manager"),
+                    Subject = subject,
+                    Body = body,
+                    IsBodyHtml = isHtml
+                };
+                mailMessage.To.Add(toEmail);
+
+                await client.SendMailAsync(mailMessage);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[NOTIFICATION] Direct email to {toEmail} failed: {ex.Message}", "Error", "SYSTEM");
+                return false;
+            }
+        }
         
         private static async Task<bool> SendSmsNotification(NotificationMessage notification)
         {

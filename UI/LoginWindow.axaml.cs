@@ -41,6 +41,37 @@ namespace PinayPalBackupManager.UI
             this.FindControl<Button>("BtnShowRegister")!.Click += (_, _) => ShowRegisterPanel(isFirstUser: false);
             this.FindControl<Button>("BtnShowLogin")!.Click += (_, _) => ShowLoginPanel();
 
+            // Wire Account Recovery buttons
+            var btnForgotUser = this.FindControl<Button>("BtnForgotUser");
+            if (btnForgotUser != null) btnForgotUser.Click += (_, _) => ShowRecoveryPanel(isForgotPass: false);
+
+            var btnForgotPass = this.FindControl<Button>("BtnForgotPass");
+            if (btnForgotPass != null) btnForgotPass.Click += (_, _) => ShowRecoveryPanel(isForgotPass: true);
+
+            var btnTabForgotUser = this.FindControl<Button>("BtnTabForgotUser");
+            if (btnTabForgotUser != null) btnTabForgotUser.Click += (_, _) => SwitchRecoveryTab(isForgotPass: false);
+
+            var btnTabForgotPass = this.FindControl<Button>("BtnTabForgotPass");
+            if (btnTabForgotPass != null) btnTabForgotPass.Click += (_, _) => SwitchRecoveryTab(isForgotPass: true);
+
+            var btnSendUsername = this.FindControl<Button>("BtnSendUsername");
+            if (btnSendUsername != null) btnSendUsername.Click += OnSendUsernameClick;
+
+            var btnRequestOtp = this.FindControl<Button>("BtnRequestOtp");
+            if (btnRequestOtp != null) btnRequestOtp.Click += OnRequestOtpClick;
+
+            var btnVerifyOtp = this.FindControl<Button>("BtnVerifyOtp");
+            if (btnVerifyOtp != null) btnVerifyOtp.Click += OnVerifyOtpClick;
+
+            var btnResendOtp = this.FindControl<Button>("BtnResendOtp");
+            if (btnResendOtp != null) btnResendOtp.Click += OnRequestOtpClick;
+
+            var btnSaveNewPass = this.FindControl<Button>("BtnSaveNewPassword");
+            if (btnSaveNewPass != null) btnSaveNewPass.Click += OnSaveNewPasswordClick;
+
+            var btnBackRecovery = this.FindControl<Button>("BtnBackFromRecovery");
+            if (btnBackRecovery != null) btnBackRecovery.Click += (_, _) => ShowLoginPanel();
+
             // Emergency admin button — dev-only, visible on login screen for recovery
             var btnEmergency = this.FindControl<Button>("BtnEmergencyAdmin");
             if (btnEmergency != null)
@@ -159,6 +190,8 @@ namespace PinayPalBackupManager.UI
         {
             this.FindControl<Border>("LoginPanel")!.IsVisible = true;
             this.FindControl<Border>("RegisterPanel")!.IsVisible = false;
+            var recPanel = this.FindControl<Border>("RecoveryPanel");
+            if (recPanel != null) recPanel.IsVisible = false;
             this.FindControl<TextBlock>("TxtSubtitle")!.Text = "Sign in to continue";
             ClearErrors();
         }
@@ -381,8 +414,208 @@ namespace PinayPalBackupManager.UI
         {
             this.FindControl<TextBlock>("TxtLoginError")!.Text = string.Empty;
             this.FindControl<TextBlock>("TxtRegError")!.Text = string.Empty;
+            var recStatus = this.FindControl<TextBlock>("TxtRecoveryStatus");
+            if (recStatus != null) recStatus.Text = string.Empty;
             var loginErr = this.FindControl<TextBlock>("TxtLoginError")!;
             loginErr.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+        }
+
+        // ── Recovery Handlers ──
+        private int _recoveryUserId = 0;
+        private string _recoveryOtpCode = "";
+        private string _recoveryIdentifier = "";
+
+        private void ShowRecoveryPanel(bool isForgotPass)
+        {
+            this.FindControl<Border>("LoginPanel")!.IsVisible = false;
+            this.FindControl<Border>("RegisterPanel")!.IsVisible = false;
+            var twoFa = this.FindControl<Border>("TwoFactorPanel");
+            if (twoFa != null) twoFa.IsVisible = false;
+
+            var recPanel = this.FindControl<Border>("RecoveryPanel");
+            if (recPanel != null) recPanel.IsVisible = true;
+
+            this.FindControl<TextBlock>("TxtSubtitle")!.Text = isForgotPass ? "Reset your account password" : "Recover your account username";
+            SwitchRecoveryTab(isForgotPass);
+            ClearErrors();
+        }
+
+        private void SwitchRecoveryTab(bool isForgotPass)
+        {
+            var btnTabUser = this.FindControl<Button>("BtnTabForgotUser");
+            var btnTabPass = this.FindControl<Button>("BtnTabForgotPass");
+            var pnlUser = this.FindControl<StackPanel>("SubPanelForgotUser");
+            var pnlPass1 = this.FindControl<StackPanel>("SubPanelPassStep1");
+            var pnlPass2 = this.FindControl<StackPanel>("SubPanelPassStep2");
+            var pnlPass3 = this.FindControl<StackPanel>("SubPanelPassStep3");
+            var recStatus = this.FindControl<TextBlock>("TxtRecoveryStatus");
+
+            if (recStatus != null) recStatus.Text = string.Empty;
+
+            if (isForgotPass)
+            {
+                if (btnTabUser != null) { btnTabUser.Background = Brushes.Transparent; btnTabUser.Foreground = GetBrush("AppMuted"); }
+                if (btnTabPass != null) { btnTabPass.Background = GetBrush("AccentWebsite"); btnTabPass.Foreground = Brushes.White; }
+                if (pnlUser != null) pnlUser.IsVisible = false;
+                if (pnlPass1 != null) pnlPass1.IsVisible = true;
+                if (pnlPass2 != null) pnlPass2.IsVisible = false;
+                if (pnlPass3 != null) pnlPass3.IsVisible = false;
+            }
+            else
+            {
+                if (btnTabUser != null) { btnTabUser.Background = GetBrush("AccentWebsite"); btnTabUser.Foreground = Brushes.White; }
+                if (btnTabPass != null) { btnTabPass.Background = Brushes.Transparent; btnTabPass.Foreground = GetBrush("AppMuted"); }
+                if (pnlUser != null) pnlUser.IsVisible = true;
+                if (pnlPass1 != null) pnlPass1.IsVisible = false;
+                if (pnlPass2 != null) pnlPass2.IsVisible = false;
+                if (pnlPass3 != null) pnlPass3.IsVisible = false;
+            }
+        }
+
+        private async void OnSendUsernameClick(object? sender, RoutedEventArgs e)
+        {
+            var emailTxt = this.FindControl<TextBox>("TxtForgotEmail")?.Text ?? string.Empty;
+            var statusTxt = this.FindControl<TextBlock>("TxtRecoveryStatus")!;
+
+            if (string.IsNullOrWhiteSpace(emailTxt))
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = "Please enter your email address.";
+                return;
+            }
+
+            statusTxt.Foreground = GetBrush("AppMuted");
+            statusTxt.Text = "Searching registered account...";
+
+            var (success, message, isPreview, username) = await EmailOtpService.SendUsernameRecoveryAsync(emailTxt);
+            if (success)
+            {
+                statusTxt.Foreground = GetBrush("AccentSuccess");
+                statusTxt.Text = message;
+            }
+            else
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = message;
+            }
+        }
+
+        private async void OnRequestOtpClick(object? sender, RoutedEventArgs e)
+        {
+            var identifier = this.FindControl<TextBox>("TxtPassResetIdentifier")?.Text ?? string.Empty;
+            var overrideEmail = this.FindControl<TextBox>("TxtOverrideEmail")?.Text;
+            var statusTxt = this.FindControl<TextBlock>("TxtRecoveryStatus")!;
+            var pnlOverride = this.FindControl<StackPanel>("PnlOverrideEmail");
+
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = "Please enter your username or email.";
+                return;
+            }
+
+            _recoveryIdentifier = identifier.Trim();
+            statusTxt.Foreground = GetBrush("AppMuted");
+            statusTxt.Text = "Generating 6-digit OTP code...";
+
+            var (success, message, userId, email, isPreview, previewOtp) = await EmailOtpService.SendPasswordResetOtpAsync(identifier, overrideEmail);
+
+            if (!success && message == "NO_EMAIL_CONFIGURED")
+            {
+                if (pnlOverride != null) pnlOverride.IsVisible = true;
+                statusTxt.Foreground = GetBrush("AccentWebsite");
+                statusTxt.Text = "This account does not have a recovery email yet. Please enter your email above to link it and receive your OTP.";
+                return;
+            }
+
+            if (success && userId.HasValue)
+            {
+                _recoveryUserId = userId.Value;
+                statusTxt.Foreground = GetBrush("AccentSuccess");
+                statusTxt.Text = message;
+
+                // Move to Step 2
+                var pnlPass1 = this.FindControl<StackPanel>("SubPanelPassStep1");
+                var pnlPass2 = this.FindControl<StackPanel>("SubPanelPassStep2");
+                if (pnlPass1 != null) pnlPass1.IsVisible = false;
+                if (pnlPass2 != null) pnlPass2.IsVisible = true;
+
+                var txtSentNotice = this.FindControl<TextBlock>("TxtOtpSentNotice");
+                if (txtSentNotice != null && !string.IsNullOrEmpty(email))
+                {
+                    txtSentNotice.Text = $"Enter the 6-digit verification code sent to {email}.";
+                }
+            }
+            else
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = message;
+            }
+        }
+
+        private async void OnVerifyOtpClick(object? sender, RoutedEventArgs e)
+        {
+            var otpInput = this.FindControl<TextBox>("TxtOtpInput")?.Text ?? string.Empty;
+            var statusTxt = this.FindControl<TextBlock>("TxtRecoveryStatus")!;
+
+            if (string.IsNullOrWhiteSpace(otpInput))
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = "Please enter the 6-digit verification code.";
+                return;
+            }
+
+            statusTxt.Foreground = GetBrush("AppMuted");
+            statusTxt.Text = "Verifying code...";
+
+            var (valid, message) = await EmailOtpService.VerifyOtpAsync(_recoveryUserId, otpInput);
+            if (valid)
+            {
+                _recoveryOtpCode = otpInput.Trim();
+                statusTxt.Foreground = GetBrush("AccentSuccess");
+                statusTxt.Text = "Code verified! Now create your new password.";
+
+                // Move to Step 3
+                var pnlPass2 = this.FindControl<StackPanel>("SubPanelPassStep2");
+                var pnlPass3 = this.FindControl<StackPanel>("SubPanelPassStep3");
+                if (pnlPass2 != null) pnlPass2.IsVisible = false;
+                if (pnlPass3 != null) pnlPass3.IsVisible = true;
+            }
+            else
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = message;
+            }
+        }
+
+        private async void OnSaveNewPasswordClick(object? sender, RoutedEventArgs e)
+        {
+            var newPass = this.FindControl<TextBox>("TxtNewPassword")?.Text ?? string.Empty;
+            var confirmPass = this.FindControl<TextBox>("TxtConfirmNewPassword")?.Text ?? string.Empty;
+            var statusTxt = this.FindControl<TextBlock>("TxtRecoveryStatus")!;
+
+            statusTxt.Foreground = GetBrush("AppMuted");
+            statusTxt.Text = "Updating password...";
+
+            var (success, message) = await EmailOtpService.ResetPasswordWithOtpAsync(_recoveryUserId, _recoveryOtpCode, newPass, confirmPass);
+            if (success)
+            {
+                // Return to login with username prefilled
+                ShowLoginPanel();
+                var loginUserTxt = this.FindControl<TextBox>("TxtLoginUser");
+                if (loginUserTxt != null && !string.IsNullOrWhiteSpace(_recoveryIdentifier))
+                {
+                    loginUserTxt.Text = _recoveryIdentifier;
+                }
+                var loginErr = this.FindControl<TextBlock>("TxtLoginError")!;
+                loginErr.Foreground = GetBrush("AccentSuccess");
+                loginErr.Text = "Password reset successfully! Please sign in with your new password.";
+            }
+            else
+            {
+                statusTxt.Foreground = GetBrush("AccentError");
+                statusTxt.Text = message;
+            }
         }
     }
 }

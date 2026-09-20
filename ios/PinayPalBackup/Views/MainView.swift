@@ -9,7 +9,16 @@ public struct MainView: View {
 
     public var body: some View {
         ZStack {
-            if !authManager.isUnlocked {
+            if !api.isConfigured {
+                ConnectionSetupView()
+                    .environmentObject(api)
+                    .transition(.asymmetric(insertion: .move(edge: .leading), removal: .opacity))
+            } else if !api.isLoggedIn {
+                LoginView()
+                    .environmentObject(api)
+                    .environmentObject(authManager)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
+            } else if !authManager.isUnlocked {
                 BiometricShieldView(authManager: authManager) {
                     // Unlocked
                 }
@@ -37,6 +46,9 @@ public struct MainView: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: api.isConfigured)
+        .animation(.easeInOut(duration: 0.3), value: api.isLoggedIn)
+        .animation(.easeInOut(duration: 0.3), value: authManager.isUnlocked)
         .preferredColorScheme(.dark)
     }
 
