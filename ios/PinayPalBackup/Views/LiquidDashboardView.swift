@@ -124,7 +124,7 @@ public struct LiquidDashboardView: View {
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.gold)
 
-                Text(api.status?.version ?? "v3.3.3")
+                Text(api.status?.version ?? "v3.3.4")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

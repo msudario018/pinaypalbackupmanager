@@ -24,7 +24,7 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Build & Package PinayPal iOS IPA
+      - name: Build & Package unsigned PinayPal iOS IPA
         run: |
           set -eo pipefail
 
@@ -52,15 +52,21 @@ jobs:
 
           echo "==> Found bundle at: $APP_PATH"
 
-          echo "==> Packaging into Payload structure for Feather & sideloaders..."
+          echo "==> Validating the app bundle before sideload packaging..."
+          plutil -lint "$APP_PATH/Info.plist"
+          test -f "$APP_PATH/Assets.car"
+          test -d "$APP_PATH/PlugIns/PinayPalBackupWidgets.appex"
+          plutil -lint "$APP_PATH/PlugIns/PinayPalBackupWidgets.appex/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$APP_PATH/PlugIns/PinayPalBackupWidgets.appex/Info.plist")" = "XPC!"
+          echo "Bundle, app icon catalog, and Live Activity extension are present."
+
+          echo "==> Packaging into a standard unsigned IPA for Feather..."
           rm -rf ipa_staging PinayPalBackup.ipa
           mkdir -p ipa_staging/Payload
           cp -R "$APP_PATH" ipa_staging/Payload/
 
-          echo "==> Creating PinayPalBackup.ipa..."
-          cd ipa_staging
-          zip -r -y ../PinayPalBackup.ipa Payload
-          cd ..
+          echo "==> Creating PinayPalBackup.ipa with ditto (preserves bundle metadata)..."
+          ditto -c -k --sequesterRsrc --keepParent ipa_staging/Payload PinayPalBackup.ipa
 
           echo "==> Verification:"
           ls -lh PinayPalBackup.ipa
@@ -69,7 +75,7 @@ jobs:
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PinayPalBackup-iOS-${{ github.ref_name }}
+          name: PinayPalBackup-iOS-unsigned-${{ github.ref_name }}
           path: PinayPalBackup.ipa
           retention-days: 14
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.4 (2026-09-22)
+
+### Fixed
+- Hardened the unsigned iOS IPA packaging path for Feather: validate the compiled app icon catalog and embedded Live Activity extension before packaging, then use macOS `ditto` to preserve the IPA bundle metadata.
+- Added the required version metadata to the WidgetKit extension so it stays aligned with the host app during sideload signing.
+- Optimized the desktop web dashboard for the iOS in-app browser with a compact, touch-friendly single-column layout, safe-area spacing, responsive controls, scrollable tables, and a mobile-sized QR pairing modal.
+
 ## v3.3.3 (2026-09-21)
 
 ### Fixed

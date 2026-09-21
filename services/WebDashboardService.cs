@@ -69,7 +69,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.3",
+                        version = "3.3.4",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -777,7 +777,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.3"
+                    version = "3.3.4"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -1077,6 +1077,39 @@ namespace PinayPalBackupManager.Services
             display: block;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
+
+        /* Mobile / iOS WebView layout. Keep actions large enough for touch and
+           prevent desktop tables/cards from forcing horizontal page overflow. */
+        @media (max-width: 700px) {
+            body { padding: 12px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+            .container { max-width: none; }
+            header { align-items: stretch; margin-bottom: 16px; padding-bottom: 14px; gap: 12px; }
+            .header-left { gap: 8px; }
+            .logo { font-size: 22px; }
+            .sys-badge { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 8px; }
+            .header-actions .btn-primary { grid-column: 1 / -1; }
+            .btn-primary, .btn-secondary { min-height: 42px; padding: 10px 12px; font-size: 12px; }
+            .grid-3, .grid-2 { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 16px; }
+            .card, .health-card, .table-card { padding: 14px; border-radius: 14px; margin-bottom: 16px; }
+            .service-card:hover { transform: none; }
+            .card-header { gap: 8px; align-items: flex-start; }
+            .card-title { font-size: 14px; }
+            .card-meta { min-height: 0; margin-bottom: 12px; }
+            .card-actions .btn-secondary { width: 100%; }
+            .service-console { max-height: 220px; font-size: 10px; }
+            .active-backup-banner { padding: 12px; margin-bottom: 14px; gap: 10px; align-items: stretch; flex-direction: column; }
+            .active-backup-banner > div:last-child .btn-secondary { width: 100%; }
+            .resources { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+            .res-item { padding: 13px; }
+            .res-val { font-size: 23px; }
+            .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table { min-width: 540px; }
+            .term-box { height: 220px; padding: 10px; font-size: 11px; }
+            .modal-card { width: calc(100% - 24px); padding: 18px 14px; }
+            .modal-qr-img { width: min(220px, 72vw); height: min(220px, 72vw); }
+            .toast { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -1085,7 +1118,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.3</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.4</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
