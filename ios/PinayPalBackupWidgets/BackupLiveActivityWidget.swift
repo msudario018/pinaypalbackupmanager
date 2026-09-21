@@ -10,7 +10,7 @@ struct PinayPalBackupWidgets: WidgetBundle {
 }
 
 struct BackupLiveActivityWidget: Widget {
-    var body: some Widget {
+    var body: some WidgetConfiguration {
         ActivityConfiguration(for: BackupActivityAttributes.self) { context in
             HStack(spacing: 12) {
                 Image(systemName: context.state.serviceIcon ?? "arrow.triangle.2.circlepath")
@@ -66,7 +66,7 @@ struct BackupLiveActivityWidget: Widget {
                 Image(systemName: context.state.serviceIcon ?? "arrow.triangle.2.circlepath")
             }
             .widgetURL(URL(string: "pinaypal://activity"))
-            .keylineTint(.tint)
+            .keylineTint(.accentColor)
         }
     }
 }
