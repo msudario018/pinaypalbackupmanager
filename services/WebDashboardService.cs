@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PinayPalBackupManager.Models;
+using QRCoder;
 
 namespace PinayPalBackupManager.Services
 {
@@ -65,7 +66,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.2.7",
+                        version = "3.2.8",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -131,6 +132,14 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/emergency-stop" && request.HttpMethod == "POST")
                 {
                     await HandleEmergencyStopAsync(response);
+                }
+                else if (path == "/api/connection-qr")
+                {
+                    await ServeConnectionQrAsync(response);
+                }
+                else if (path == "/api/active-backup")
+                {
+                    await ServeActiveBackupStatusAsync(response);
                 }
                 else
                 {
@@ -389,10 +398,10 @@ namespace PinayPalBackupManager.Services
                 },
                 schedules = new
                 {
-                    ftpDaily = $"{sched.FtpDailySyncHourMnl:D2}:{sched.FtpDailySyncMinuteMnl:D2} MNL",
-                    sqlDaily = $"{sched.SqlDailySyncHourMnl:D2}:{sched.SqlDailySyncMinuteMnl:D2} MNL",
-                    mailchimpDaily = $"{sched.MailchimpDailySyncHourMnl:D2}:{sched.MailchimpDailySyncMinuteMnl:D2} MNL",
-                    healthDaily = $"{ConfigService.Current.Operation.DailyHealthCheckHour:D2}:00",
+                    ftpDaily = FormatTime12h(sched.FtpDailySyncHourMnl, sched.FtpDailySyncMinuteMnl) + " MNL",
+                    sqlDaily = FormatTime12h(sched.SqlDailySyncHourMnl, sched.SqlDailySyncMinuteMnl) + " MNL",
+                    mailchimpDaily = FormatTime12h(sched.MailchimpDailySyncHourMnl, sched.MailchimpDailySyncMinuteMnl) + " MNL",
+                    healthDaily = FormatTime12h(ConfigService.Current.Operation.DailyHealthCheckHour, 0),
                     ftpInterval = $"{sched.FtpAutoScanHours}h {sched.FtpAutoScanMinutes}m",
                     sqlInterval = $"{sched.SqlAutoScanHours}h {sched.SqlAutoScanMinutes}m",
                     mailchimpInterval = $"{sched.MailchimpAutoScanHours}h {sched.MailchimpAutoScanMinutes}m"
@@ -465,7 +474,15 @@ namespace PinayPalBackupManager.Services
                     time = lastSuccess.Timestamp,
                     duration = lastSuccess.Duration.TotalSeconds,
                     sizeBytes = lastSuccess.SizeBytes
-                } : null
+                } : null,
+                activeBackup = new
+                {
+                    isBusy = BackupStateTracker.CurrentState.IsBusy,
+                    service = BackupStateTracker.CurrentState.Service,
+                    statusText = BackupStateTracker.CurrentState.StatusText,
+                    progress = BackupStateTracker.CurrentState.Progress,
+                    startedAt = BackupStateTracker.CurrentState.StartedAt?.ToString("o")
+                }
             };
 
             await SendJsonAsync(response, 200, status);
@@ -602,6 +619,71 @@ namespace PinayPalBackupManager.Services
             });
 
             await SendJsonAsync(response, 200, new { success = true, message = "Emergency stop broadcasted to desktop system" });
+        }
+
+        // ─── Helpers ────────────────────────────────────────────────────────────────
+
+        private static string FormatTime12h(int hour, int minute)
+        {
+            var h12 = hour % 12;
+            if (h12 == 0) h12 = 12;
+            var ampm = hour < 12 ? "AM" : "PM";
+            return $"{h12}:{minute:D2} {ampm}";
+        }
+
+        // ─── QR Connection Pairing Endpoint ─────────────────────────────────────────
+
+        private static async Task ServeConnectionQrAsync(HttpListenerResponse response)
+        {
+            try
+            {
+                var localIp = GetLocalIpAddress();
+                var port = ConfigService.Current.HttpServer.Port;
+                var pin = ConfigService.Current.HttpServer.WebPin ?? "";
+                var cloudflare = ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
+                var hostname = Environment.MachineName;
+
+                var payload = JsonSerializer.Serialize(new
+                {
+                    localUrl = $"http://{localIp}:{port}",
+                    fallbackUrl = cloudflare,
+                    pin = pin,
+                    hostname = hostname,
+                    version = "3.2.8"
+                });
+
+                var generator = new QRCodeGenerator();
+                using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+                var pngQr = new PngByteQRCode(data);
+                var bytes = pngQr.GetGraphic(8, new byte[] { 0, 0, 0 }, new byte[] { 255, 255, 255 }, true);
+
+                response.StatusCode = 200;
+                response.ContentType = "image/png";
+                response.ContentLength64 = bytes.Length;
+                response.AddHeader("Cache-Control", "no-cache");
+                await response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
+                response.Close();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] QR generation failed: {ex.Message}", "Error", "SYSTEM");
+                await SendJsonAsync(response, 500, new { error = ex.Message });
+            }
+        }
+
+        // ─── Active Backup Status ────────────────────────────────────────────────────
+
+        private static async Task ServeActiveBackupStatusAsync(HttpListenerResponse response)
+        {
+            var status = BackupStateTracker.CurrentState;
+            await SendJsonAsync(response, 200, new
+            {
+                isBusy = status.IsBusy,
+                service = status.Service,
+                statusText = status.StatusText,
+                progress = status.Progress,
+                startedAt = status.StartedAt?.ToString("o")
+            });
         }
 
         private static async Task SendJsonAsync(HttpListenerResponse response, int statusCode, object data)
@@ -756,6 +838,64 @@ namespace PinayPalBackupManager.Services
         .tip-code { background: #0D1117; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: var(--gold); }
 
         .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--gold); color: #FFF; padding: 14px 20px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; font-weight: 600; z-index: 1000; }
+
+        /* Active Backup Live Banner */
+        .active-backup-banner {
+            display: none;
+            background: linear-gradient(90deg, rgba(252,163,17,0.18), rgba(88,166,255,0.18));
+            border: 1px solid var(--gold);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: space-between;
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(252,163,17,0.2); }
+            50% { box-shadow: 0 0 25px rgba(252,163,17,0.45); }
+        }
+        .active-pulse-dot {
+            width: 10px; height: 10px; background: var(--gold); border-radius: 50%; display: inline-block;
+            box-shadow: 0 0 8px var(--gold);
+            animation: blinkDot 1s infinite alternate;
+        }
+        @keyframes blinkDot {
+            from { opacity: 0.4; transform: scale(0.85); }
+            to { opacity: 1; transform: scale(1.15); }
+        }
+
+        /* QR Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-card {
+            background: var(--surface);
+            border: 1px solid var(--gold);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .modal-qr-img {
+            width: 220px;
+            height: 220px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 10px;
+            margin: 16px auto;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
@@ -764,15 +904,34 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.2.7</span>
+                <span class=""version-badge"" id=""app-version"">v3.2.8</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
             <div class=""header-actions"">
+                <button class=""btn-secondary"" onclick=""openQrModal()"">📱 Pair iOS App</button>
                 <button class=""btn-secondary"" onclick=""runHealthCheck()"">⚡ Diagnostics</button>
                 <button class=""btn-primary"" onclick=""triggerBackup('all')"">🚀 Run All Backups</button>
             </div>
         </header>
+
+        <!-- Active Backup Realtime Banner -->
+        <div class=""active-backup-banner"" id=""active-backup-banner"">
+            <div style=""display: flex; align-items: center; gap: 12px;"">
+                <span class=""active-pulse-dot""></span>
+                <div>
+                    <div style=""font-size: 14px; font-weight: 800; color: var(--gold);"">
+                        BACKUP IN PROGRESS: <span id=""active-service-name"">--</span>
+                    </div>
+                    <div style=""font-size: 12px; color: var(--text); margin-top: 2px;"" id=""active-service-status"">
+                        Processing sync operation...
+                    </div>
+                </div>
+            </div>
+            <div style=""display: flex; gap: 8px;"">
+                <button class=""btn-secondary"" style=""border-color: var(--red); color: var(--red); font-size: 11px;"" onclick=""fetch('/api/emergency-stop', {method:'POST'}).then(loadData)"">🛑 Emergency Stop</button>
+            </div>
+        </div>
 
         <!-- Services Cards -->
         <div class=""grid-3"">
@@ -785,7 +944,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-meta"" id=""ftp-meta"">Loading server configuration...</div>
                 <div class=""card-pills"">
                     <span class=""pill pill-green"" id=""ftp-storage"">Files: -- | Size: --</span>
-                    <span class=""pill pill-blue"" id=""ftp-sched"">Daily: 22:00 MNL</span>
+                    <span class=""pill pill-blue"" id=""ftp-sched"">Daily: 10:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('ftp')"">Backup Website</button>
@@ -801,7 +960,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-meta"" id=""sql-meta"">Loading database configuration...</div>
                 <div class=""card-pills"">
                     <span class=""pill pill-gold"" id=""sql-storage"">Files: -- | Size: --</span>
-                    <span class=""pill pill-blue"" id=""sql-sched"">Daily: 17:00 MNL</span>
+                    <span class=""pill pill-blue"" id=""sql-sched"">Daily: 05:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('sql')"">Backup Database</button>
@@ -817,7 +976,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-meta"" id=""mc-meta"">Audience, templates, and campaign archives</div>
                 <div class=""card-pills"">
                     <span class=""pill pill-blue"" id=""mc-storage"">Files: -- | Size: --</span>
-                    <span class=""pill pill-blue"" id=""mc-sched"">Daily: 18:00 MNL</span>
+                    <span class=""pill pill-blue"" id=""mc-sched"">Daily: 06:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""triggerBackup('mailchimp')"">Backup Mailchimp</button>
@@ -1046,11 +1205,36 @@ namespace PinayPalBackupManager.Services
             </table>
         </div>
     </div>
+    <!-- Pair iOS App QR Modal -->
+    <div class=""modal-overlay"" id=""qr-modal"" onclick=""if(event.target === this) closeQrModal()"">
+        <div class=""modal-card"">
+            <div style=""font-size: 20px; font-weight: 800; color: var(--gold); margin-bottom: 8px;"">📱 Pair iOS App</div>
+            <p style=""font-size: 13px; color: var(--muted); margin-bottom: 12px;"">
+                Open <strong>PinayPal Backup</strong> on your iPhone, select <em>Scan QR</em>, and point your camera at this code.
+            </p>
+            <img id=""qr-modal-img"" class=""modal-qr-img"" src="""" alt=""Pairing QR Code"" />
+            <div style=""font-size: 11px; color: var(--muted); margin-top: 10px; word-break: break-all;"">
+                Auto-configures your local IP and security PIN in one step.
+            </div>
+            <div style=""margin-top: 20px;"">
+                <button class=""btn-secondary"" style=""width: 100%;"" onclick=""closeQrModal()"">Close</button>
+            </div>
+        </div>
+    </div>
 
     <div class=""toast"" id=""toast""></div>
 
     <script>
         let logsPaused = false;
+
+        function openQrModal() {
+            document.getElementById('qr-modal-img').src = '/api/connection-qr?t=' + Date.now();
+            document.getElementById('qr-modal').style.display = 'flex';
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').style.display = 'none';
+        }
 
         function showToast(msg) {
             const t = document.getElementById('toast');
@@ -1177,6 +1361,15 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('sched-mc-interval').textContent = `Every ${sRes.schedules.mailchimpInterval}`;
 
                     document.getElementById('sched-health-daily').textContent = sRes.schedules.healthDaily;
+                }
+
+                // Active Backup Banner Realtime Update
+                if (sRes.activeBackup && sRes.activeBackup.isBusy) {
+                    document.getElementById('active-backup-banner').style.display = 'flex';
+                    document.getElementById('active-service-name').textContent = (sRes.activeBackup.service || 'Backup').toUpperCase();
+                    document.getElementById('active-service-status').textContent = sRes.activeBackup.statusText || 'In Progress...';
+                } else {
+                    document.getElementById('active-backup-banner').style.display = 'none';
                 }
 
                 // Health & Hardware Metrics

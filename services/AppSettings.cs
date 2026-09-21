@@ -107,5 +107,6 @@ namespace PinayPalBackupManager.Services
         public bool Enabled { get; set; } = true;
         public string WebPin { get; set; } = "";
         public bool RequireAuth { get; set; } = false;
+        public string CloudflareUrl { get; set; } = "";
     }
 }

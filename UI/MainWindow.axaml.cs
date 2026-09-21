@@ -217,6 +217,7 @@ namespace PinayPalBackupManager.UI
 
             BackupSchedulingService.BackupExecutor = async (service, backupType) =>
             {
+                BackupStateTracker.SetRunning(service, $"Backing up {service.ToUpper()} ({backupType})...");
                 try
                 {
                     LogService.WriteSystemLog($"[MainWindow] Executing backup for {service} (Trigger: {backupType})", "Information", "BACKUPSCHEDULE");
@@ -224,39 +225,47 @@ namespace PinayPalBackupManager.UI
 
                     return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        switch (service.ToLowerInvariant())
+                        try
                         {
-                            case "ftp":
-                                if (_ftpControl != null)
-                                {
-                                    await _ftpControl.RunBackupTaskAsync(backupType);
+                            switch (service.ToLowerInvariant())
+                            {
+                                case "ftp":
+                                    if (_ftpControl != null)
+                                    {
+                                        await _ftpControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "mailchimp":
+                                    if (_mailchimpControl != null)
+                                    {
+                                        await _mailchimpControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "sql":
+                                    if (_sqlControl != null)
+                                    {
+                                        await _sqlControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "all":
+                                default:
+                                    await RunAllBackupsParallelAsync();
                                     return true;
-                                }
-                                break;
-                            case "mailchimp":
-                                if (_mailchimpControl != null)
-                                {
-                                    await _mailchimpControl.RunBackupTaskAsync(backupType);
-                                    return true;
-                                }
-                                break;
-                            case "sql":
-                                if (_sqlControl != null)
-                                {
-                                    await _sqlControl.RunBackupTaskAsync(backupType);
-                                    return true;
-                                }
-                                break;
-                            case "all":
-                            default:
-                                await RunAllBackupsParallelAsync();
-                                return true;
+                            }
+                            return false;
                         }
-                        return false;
+                        finally
+                        {
+                            BackupStateTracker.SetIdle(service, "Idle");
+                        }
                     });
                 }
                 catch (Exception ex)
                 {
+                    BackupStateTracker.SetIdle(service, "Failed");
                     LogService.WriteSystemLog($"[MainWindow] Backup execution failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
                     return false;
                 }

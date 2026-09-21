@@ -9,6 +9,23 @@ public struct StatusResponse: Codable {
     public let services: ServicesContainer?
     public let health: HealthSpecs?
     public let lastBackup: LastBackupSpec?
+    public let activeBackup: ActiveBackupSpec?
+}
+
+public struct ActiveBackupSpec: Codable {
+    public let isBusy: Bool?
+    public let service: String?
+    public let statusText: String?
+    public let progress: Int?
+    public let startedAt: String?
+}
+
+public struct ConnectionQrPayload: Codable {
+    public let localUrl: String
+    public let fallbackUrl: String?
+    public let pin: String?
+    public let hostname: String?
+    public let version: String?
 }
 
 public struct SystemSpecs: Codable {

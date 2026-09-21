@@ -9,7 +9,8 @@ public struct ConnectionSetupView: View {
     @State private var isTesting: Bool = false
     @State private var discoveredServers: [(url: String, ping: PingResponse?)] = []
     @State private var testResult: (success: Bool, message: String)? = nil
-    @State private var activeTab: Int = 0 // 0: Auto Discover, 1: Manual / Tunnel
+    @State private var activeTab: Int = 0 // 0: Auto Discover, 1: Manual / Tunnel, 2: Scan QR
+    @State private var showQrScanner: Bool = false
 
     public init() {}
 
@@ -40,9 +41,11 @@ public struct ConnectionSetupView: View {
                                 )
                                 .shadow(color: LiquidTheme.gold.opacity(0.3), radius: 16, x: 0, y: 6)
 
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 34, weight: .bold))
-                                .foregroundStyle(LiquidTheme.liquidGoldGradient)
+                            Image("AppLogo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .cornerRadius(10)
                         }
                         .padding(.top, 24)
 
@@ -50,21 +53,21 @@ public struct ConnectionSetupView: View {
                             .font(.system(size: 24, weight: .black, design: .rounded))
                             .foregroundColor(LiquidTheme.textPrimary)
 
-                        Text("Pair this iPhone with your desktop PinayPal Backup Manager via Wi-Fi or Cloudflare Tunnel")
+                        Text("Pair this iPhone with your desktop PinayPal Backup Manager via QR code, Wi-Fi or Tunnel")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundColor(LiquidTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                     }
 
-                    // Mode Switcher (Wi-Fi Auto-Discovery vs Manual/Tunnel)
+                    // Mode Switcher (Wi-Fi vs Manual vs QR Scan)
                     HStack(spacing: 0) {
                         Button(action: { withAnimation(.spring()) { activeTab = 0 } }) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "wifi")
-                                Text("Wi-Fi Discovery")
+                                Text("Wi-Fi")
                             }
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundColor(activeTab == 0 ? .black : LiquidTheme.textSecondary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
@@ -73,15 +76,31 @@ public struct ConnectionSetupView: View {
                         }
 
                         Button(action: { withAnimation(.spring()) { activeTab = 1 } }) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "link")
-                                Text("Manual / Tunnel")
+                                Text("Manual")
                             }
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundColor(activeTab == 1 ? .black : LiquidTheme.textSecondary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(activeTab == 1 ? LiquidTheme.gold : Color.clear)
+                            .cornerRadius(10)
+                        }
+
+                        Button(action: {
+                            withAnimation(.spring()) { activeTab = 2 }
+                            showQrScanner = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "qrcode.viewfinder")
+                                Text("Scan QR")
+                            }
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(activeTab == 2 ? .black : LiquidTheme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(activeTab == 2 ? LiquidTheme.gold : Color.clear)
                             .cornerRadius(10)
                         }
                     }
@@ -244,6 +263,55 @@ public struct ConnectionSetupView: View {
                         .padding(.horizontal, 20)
                     }
 
+                    // Tab 2: QR Scanner
+                    if activeTab == 2 {
+                        VStack(spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(Color.white.opacity(0.04))
+                                    .frame(height: 170)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18)
+                                            .strokeBorder(LiquidTheme.gold.opacity(0.4), lineWidth: 1)
+                                    )
+
+                                VStack(spacing: 12) {
+                                    Image(systemName: "qrcode.viewfinder")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(LiquidTheme.gold)
+
+                                    Text("Instant QR Pairing")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(LiquidTheme.textPrimary)
+
+                                    Text("Tap below to scan the Pairing QR on your PC Web Dashboard or App")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(LiquidTheme.textSecondary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 20)
+                                }
+                            }
+
+                            Button {
+                                showQrScanner = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "camera.fill")
+                                    Text("Launch Camera Scanner")
+                                }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(LiquidTheme.gold)
+                                .cornerRadius(12)
+                            }
+                        }
+                        .padding(20)
+                        .modifier(LiquidGlassCardModifier(cornerRadius: 20, glowColor: LiquidTheme.gold.opacity(0.2)))
+                        .padding(.horizontal, 20)
+                    }
+
                     // Test Connection & Ping Area
                     VStack(spacing: 12) {
                         Button(action: testConnection) {
@@ -297,6 +365,22 @@ public struct ConnectionSetupView: View {
                     .padding(.bottom, 40)
                 }
             }
+        }
+        .sheet(isPresented: $showQrScanner) {
+            QRScannerView(
+                onScanSuccess: { payload in
+                    serverUrlInput = payload.localUrl
+                    if let pin = payload.pin, !pin.isEmpty {
+                        pinInput = pin
+                    }
+                    showQrScanner = false
+                    activeTab = 1
+                    testConnection()
+                },
+                onDismiss: {
+                    showQrScanner = false
+                }
+            )
         }
         .onAppear {
             if !api.serverUrl.isEmpty {

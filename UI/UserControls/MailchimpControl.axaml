@@ -67,8 +67,9 @@
                 <TextBlock Text="TERMINAL LOGS" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimpLight}" Margin="0,0,0,10"/>
 
                 <TextBox Grid.Row="1" Name="TxtLogs" IsReadOnly="True" Background="Transparent" BorderThickness="0"
-                         CornerRadius="12" FontFamily="Consolas" Foreground="{DynamicResource AppLogText}" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
-                         ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                         CornerRadius="12" FontFamily="Consolas" Foreground="#F8FAFC" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap"
+                         ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Watermark="Waiting for backup to start… Click 'START MAILCHIMP BACKUP' to begin."/>
             </Grid>
         </Border>
 
@@ -81,7 +82,14 @@
 
     <UserControl.Styles>
         <Style Selector="TextBox#TxtLogs">
-            <Setter Property="Foreground" Value="{DynamicResource AppLogText}"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="CaretBrush" Value="#F8FAFC"/>
+        </Style>
+        <Style Selector="TextBox#TxtLogs:pointerover">
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+        </Style>
+        <Style Selector="TextBox#TxtLogs:focus">
+            <Setter Property="Foreground" Value="#F8FAFC"/>
         </Style>
         <Style Selector="TextBox#TxtLogs:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent"/>

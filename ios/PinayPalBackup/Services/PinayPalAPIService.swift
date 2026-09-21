@@ -19,6 +19,7 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var lastErrorMessage: String? = nil
 
     private var pollTimer: AnyCancellable?
+    private var lastRecordedBusyService: String? = nil
 
     public init() {
         // Load saved user profile if exists
@@ -259,11 +260,47 @@ public class PinayPalAPIService: ObservableObject {
                 return
             }
 
-            let decoder = JSONDecoder()
-            let decoded = try decoder.decode(StatusResponse.self, from: data)
+            let wasBusy = self.status?.activeBackup?.isBusy == true
+            let prevService = self.status?.activeBackup?.service ?? lastRecordedBusyService
+
             self.status = decoded
             self.isOnline = true
             self.lastErrorMessage = nil
+
+            let nowBusy = decoded.activeBackup?.isBusy == true
+            let curService = decoded.activeBackup?.service ?? "Backup"
+
+            if nowBusy {
+                lastRecordedBusyService = curService
+                if !BackupLiveActivityManager.shared.isActivityActive {
+                    BackupLiveActivityManager.shared.startBackupActivity(service: curService)
+                } else {
+                    let prog = Double(decoded.activeBackup?.progress ?? 50) / 100.0
+                    BackupLiveActivityManager.shared.updateBackupActivity(
+                        progress: prog,
+                        status: decoded.activeBackup?.statusText ?? "In Progress",
+                        message: "Backing up \(curService.uppercased())..."
+                    )
+                }
+            } else if wasBusy {
+                let sName = (prevService ?? "Backup").uppercased()
+                BackupLiveActivityManager.shared.endBackupActivity(success: true, message: "\(sName) completed successfully")
+                NotificationService.shared.sendBackupNotification(
+                    service: sName,
+                    success: true,
+                    details: "Backup routine for \(sName) completed successfully."
+                )
+                lastRecordedBusyService = nil
+            }
+
+            // Disk space alert check
+            if let disk = decoded.health?.disk, let pct = disk.percent, pct > 88 {
+                NotificationService.shared.sendLowDiskAlert(
+                    diskLetter: disk.primaryDriveLetter ?? "C:",
+                    freeGb: disk.availableGB ?? 0,
+                    percentUsed: pct
+                )
+            }
         } catch {
             self.isOnline = false
             self.lastErrorMessage = error.localizedDescription
@@ -299,6 +336,8 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func triggerBackup(service: String) async -> Bool {
+        BackupLiveActivityManager.shared.startBackupActivity(service: service)
+
         guard let url = URL(string: "\(serverUrl)/api/backup/\(service)") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

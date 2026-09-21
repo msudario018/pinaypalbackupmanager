@@ -25,6 +25,11 @@ public struct LiquidDashboardView: View {
                     // Top App Bar
                     headerBar
 
+                    // Real-time Active Backup Banner
+                    if let active = api.status?.activeBackup, active.isBusy == true {
+                        activeBackupBanner(active: active)
+                    }
+
                     // Master Action Banner
                     masterActionBanner
 
@@ -87,15 +92,17 @@ public struct LiquidDashboardView: View {
     private var headerBar: some View {
         HStack {
             HStack(spacing: 8) {
-                Image(systemName: "shield.fill")
-                    .foregroundColor(LiquidTheme.gold)
-                    .font(.system(size: 20))
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+                    .cornerRadius(6)
 
                 Text("PinayPal")
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.gold)
 
-                Text(api.status?.version ?? "v3.2.7")
+                Text(api.status?.version ?? "v3.2.8")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -137,6 +144,57 @@ public struct LiquidDashboardView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Active Backup Banner
+    private func activeBackupBanner(active: ActiveBackupSpec) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(LiquidTheme.gold.opacity(0.2))
+                    .frame(width: 36, height: 36)
+
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: LiquidTheme.gold))
+                    .scaleEffect(0.85)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("BACKUP IN PROGRESS")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(LiquidTheme.gold)
+
+                    Text("• \((active.service ?? "Backup").uppercased())")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                Text(active.statusText ?? "Executing backup routine...")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(LiquidTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                Task {
+                    _ = await api.triggerEmergencyStop()
+                }
+            } label: {
+                Text("STOP")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.coral)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(LiquidTheme.coral.opacity(0.15))
+                    .cornerRadius(8)
+            }
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.gold.opacity(0.4), variant: .prominent)
+        .transition(.scale.combined(with: .opacity))
     }
 
     // MARK: - 4 Top Metrics Grid
@@ -449,9 +507,9 @@ public struct LiquidDashboardView: View {
             }
 
             VStack(spacing: 8) {
-                scheduleRow(title: "Website FTP", time: sched.ftpDaily ?? "22:00 MNL", interval: sched.ftpInterval ?? "3h")
-                scheduleRow(title: "SQL Database", time: sched.sqlDaily ?? "17:00 MNL", interval: sched.sqlInterval ?? "2h 15m")
-                scheduleRow(title: "Mailchimp", time: sched.mailchimpDaily ?? "18:00 MNL", interval: sched.mailchimpInterval ?? "2h")
+                scheduleRow(title: "Website FTP", time: sched.ftpDaily ?? "10:00 PM MNL", interval: sched.ftpInterval ?? "3h")
+                scheduleRow(title: "SQL Database", time: sched.sqlDaily ?? "5:00 PM MNL", interval: sched.sqlInterval ?? "2h 15m")
+                scheduleRow(title: "Mailchimp", time: sched.mailchimpDaily ?? "6:00 PM MNL", interval: sched.mailchimpInterval ?? "2h")
             }
         }
         .padding(16)

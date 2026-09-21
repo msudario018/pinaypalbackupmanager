@@ -336,7 +336,9 @@ public struct ServerConfigSheet: View {
                     Spacer()
                     Picker("Hour", selection: $healthHour) {
                         ForEach(0..<24, id: \.self) { h in
-                            Text(String(format: "%02d:00", h)).tag(h)
+                            let h12 = (h % 12 == 0) ? 12 : (h % 12)
+                            let ampm = h < 12 ? "AM" : "PM"
+                            Text(String(format: "%d:00 %@", h12, ampm)).tag(h)
                         }
                     }
                     .pickerStyle(.menu)
@@ -462,7 +464,34 @@ public struct ServerConfigSheet: View {
     }
 
     private func schedulePickerRow(label: String, hour: Binding<Int>, minute: Binding<Int>) -> some View {
-        HStack {
+        let hour12Binding = Binding<Int>(
+            get: {
+                let h = hour.wrappedValue % 12
+                return h == 0 ? 12 : h
+            },
+            set: { new12 in
+                let isPM = hour.wrappedValue >= 12
+                if isPM {
+                    hour.wrappedValue = (new12 == 12 ? 12 : new12 + 12)
+                } else {
+                    hour.wrappedValue = (new12 == 12 ? 0 : new12)
+                }
+            }
+        )
+
+        let isPmBinding = Binding<Bool>(
+            get: { hour.wrappedValue >= 12 },
+            set: { newIsPm in
+                let cur12 = hour.wrappedValue % 12
+                if newIsPm {
+                    hour.wrappedValue = (cur12 == 0 ? 12 : cur12 + 12)
+                } else {
+                    hour.wrappedValue = (cur12 == 0 ? 0 : cur12)
+                }
+            }
+        )
+
+        return HStack {
             Text(label)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(LiquidTheme.textPrimary)
@@ -470,8 +499,8 @@ public struct ServerConfigSheet: View {
             Spacer()
 
             HStack(spacing: 4) {
-                Picker("Hour", selection: hour) {
-                    ForEach(0..<24, id: \.self) { h in
+                Picker("Hour", selection: hour12Binding) {
+                    ForEach(1...12, id: \.self) { h in
                         Text(String(format: "%02d", h)).tag(h)
                     }
                 }
@@ -486,6 +515,13 @@ public struct ServerConfigSheet: View {
                     ForEach([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55], id: \.self) { m in
                         Text(String(format: "%02d", m)).tag(m)
                     }
+                }
+                .pickerStyle(.menu)
+                .tint(LiquidTheme.gold)
+
+                Picker("AM/PM", selection: isPmBinding) {
+                    Text("AM").tag(false)
+                    Text("PM").tag(true)
                 }
                 .pickerStyle(.menu)
                 .tint(LiquidTheme.gold)

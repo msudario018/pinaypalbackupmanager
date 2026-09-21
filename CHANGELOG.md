@@ -1,5 +1,39 @@
 # Changelog
 
+## v3.2.8 (2026-09-21)
+
+### Added
+- **Instant QR Code Server Pairing (PC ↔ iOS)**:
+  - Added `/api/connection-qr` endpoint in `WebDashboardService.cs` using `QRCoder` to serve a high-density pairing QR code containing local network URL, fallback Cloudflare URL, security PIN, and hostname.
+  - Added "📱 Pair iOS App" button and modal in the Web Dashboard.
+  - Created native `QRScannerView.swift` utilizing `AVCaptureSession` camera scanning with a targeting reticle, haptic feedback, and simulator fallback.
+  - Added a dedicated "Scan QR" tab in `ConnectionSetupView.swift` for one-tap camera discovery and configuration.
+- **Dynamic Island & Live Activities (ActivityKit)**:
+  - Implemented `BackupActivityAttributes.swift` and `BackupLiveActivityManager.swift` with ActivityKit support for iOS 16.2+.
+  - Displays dynamic backup progress, service badge, and status updates in the iPhone Dynamic Island and Lock Screen.
+  - Added `NSSupportsLiveActivities` and `NSCameraUsageDescription` to `Info.plist`.
+- **iOS Local Push Notifications**:
+  - Added `NotificationService.swift` with `UNUserNotificationCenter` integration for background and lock screen notifications on backup completion, backup failure, and low disk space warnings (>88% capacity).
+  - Added notification preference toggles in `ServerConfigSheet.swift`.
+- **Real-time Active Backup Banners & Dynamic Status**:
+  - Added thread-safe `BackupStateTracker.cs` tracking active backup operations, services, progress, and elapsed time.
+  - Added pulsing glowing active backup banner in iOS `LiquidDashboardView.swift` with quick Emergency Stop action.
+  - Added pulsing active backup banner in the Web Dashboard.
+  - Added active backup indicator dots to bottom navigation buttons (HUD & Console) in `MainView.swift`.
+- **Official App Logo in iOS Header**:
+  - Added `AppLogo.imageset` in `Assets.xcassets` using `Assets/logo.png`.
+  - Replaced generic shield SF Symbol in `LiquidDashboardView.swift` with the official PinayPal logo.
+
+### Fixed & Improved
+- **PC App Terminal Log Text Visibility**:
+  - Fixed an issue where terminal logs in `SqlControl.axaml`, `FtpControl.axaml`, and `MailchimpControl.axaml` were invisible due to Avalonia FluentTheme pointer-over and focus overrides.
+  - Enforced high-contrast `#F8FAFC` foreground and caret brush, and added informative watermark placeholders when idle.
+- **12-Hour Schedule Formatting**:
+  - Converted schedule displays from 24-hour (`22:00 MNL`) to 12-hour AM/PM (`10:00 PM MNL`) across the Web Dashboard, `/api/status`, and iOS views.
+  - Updated `ServerConfigSheet.swift` daily schedule pickers and health check pickers to 12-hour format with AM/PM selector.
+- **Version Bump**:
+  - Bumped version to `v3.2.8` across `PinayPalBackupManager.csproj`, `WebDashboardService.cs`, `project.pbxproj`, and `Info.plist`.
+
 ## v3.2.7 (2026-09-21)
 
 ### Fixed

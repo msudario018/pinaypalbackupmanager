@@ -84,6 +84,8 @@ public struct MainView: View {
 
     private func tabButton(title: String, icon: String, index: Int) -> some View {
         let isSelected = selectedTab == index
+        let isBackupBusy = api.status?.activeBackup?.isBusy == true
+        let hasActiveActivity = isBackupBusy && (index == 0 || index == 2)
 
         return Button {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -93,15 +95,32 @@ public struct MainView: View {
             haptic.impactOccurred()
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .bold))
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .bold))
+
+                    if hasActiveActivity {
+                        Circle()
+                            .fill(LiquidTheme.gold)
+                            .frame(width: 6, height: 6)
+                            .offset(x: 4, y: -4)
+                            .shadow(color: LiquidTheme.gold, radius: 3)
+                    }
+                }
+
                 if isSelected {
                     Text(title)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .transition(.opacity.combined(with: .scale))
+
+                    if isBackupBusy && index == 0 {
+                        Text("•")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(isSelected ? .black : LiquidTheme.gold)
+                    }
                 }
             }
-            .foregroundColor(isSelected ? .black : LiquidTheme.textSecondary)
+            .foregroundColor(isSelected ? .black : (hasActiveActivity ? LiquidTheme.gold : LiquidTheme.textSecondary))
             .padding(.horizontal, isSelected ? 14 : 10)
             .padding(.vertical, 9)
             .background {

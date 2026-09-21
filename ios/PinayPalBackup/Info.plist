@@ -17,13 +17,17 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.2.7</string>
+    <string>3.2.8</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSFaceIDUsageDescription</key>
     <string>Protect access to your PinayPal Backup Manager Dashboard with Face ID.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>PinayPal Backup uses your camera to scan server pairing QR codes.</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
