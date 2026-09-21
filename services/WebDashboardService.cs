@@ -66,7 +66,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.1",
+                        version = "3.3.2",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -745,7 +745,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.1"
+                    version = "3.3.2"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -912,6 +912,12 @@ namespace PinayPalBackupManager.Services
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 20px; margin-bottom: 24px; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px; margin-bottom: 24px; }
         .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+        .service-card { cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+        .service-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+        .service-detail { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); cursor: default; }
+        .service-card.expanded .service-detail { display: block; }
+        .service-console { max-height: 180px; overflow: auto; background: #080b10; border-radius: 8px; padding: 10px; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .service-detail-title { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
         .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
         .card-ftp::before { background: var(--green); }
         .card-sql::before { background: var(--gold); }
@@ -1038,7 +1044,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.1</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.2</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -1085,7 +1091,7 @@ namespace PinayPalBackupManager.Services
         <!-- Services Cards -->
         <div class=""grid-3"">
             <!-- FTP Website -->
-            <div class=""card card-ftp"">
+            <div class=""card card-ftp service-card"" onclick=""toggleServiceCard('ftp')"" role=""button"" tabindex=""0"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--green)"">🌐 FTP Website Sync</div>
                     <span id=""ftp-badge"" class=""tag tag-success"">READY</span>
@@ -1096,12 +1102,13 @@ namespace PinayPalBackupManager.Services
                     <span class=""pill pill-blue"" id=""ftp-sched"">Daily: 10:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
-                    <button class=""btn-secondary"" onclick=""triggerBackup('ftp')"">Backup Website</button>
+                    <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('ftp')"">Backup Website</button>
                 </div>
+                <div class=""service-detail"" id=""ftp-detail""><div class=""service-detail-title"">FTP service console</div><div class=""service-console"" id=""ftp-console"">Loading FTP logs…</div></div>
             </div>
 
             <!-- SQL Database -->
-            <div class=""card card-sql"">
+            <div class=""card card-sql service-card"" onclick=""toggleServiceCard('sql')"" role=""button"" tabindex=""0"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--gold)"">🗄️ SQL Database</div>
                     <span id=""sql-badge"" class=""tag tag-success"">READY</span>
@@ -1112,12 +1119,13 @@ namespace PinayPalBackupManager.Services
                     <span class=""pill pill-blue"" id=""sql-sched"">Daily: 05:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
-                    <button class=""btn-secondary"" onclick=""triggerBackup('sql')"">Backup Database</button>
+                    <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('sql')"">Backup Database</button>
                 </div>
+                <div class=""service-detail"" id=""sql-detail""><div class=""service-detail-title"">SQL service console</div><div class=""service-console"" id=""sql-console"">Loading SQL logs…</div></div>
             </div>
 
             <!-- Mailchimp -->
-            <div class=""card card-mc"">
+            <div class=""card card-mc service-card"" onclick=""toggleServiceCard('mailchimp')"" role=""button"" tabindex=""0"">
                 <div class=""card-header"">
                     <div class=""card-title"" style=""color: var(--cyan)"">🐵 Mailchimp Sync</div>
                     <span id=""mc-badge"" class=""tag tag-success"">READY</span>
@@ -1128,8 +1136,9 @@ namespace PinayPalBackupManager.Services
                     <span class=""pill pill-blue"" id=""mc-sched"">Daily: 06:00 PM MNL</span>
                 </div>
                 <div class=""card-actions"">
-                    <button class=""btn-secondary"" onclick=""triggerBackup('mailchimp')"">Backup Mailchimp</button>
+                    <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('mailchimp')"">Backup Mailchimp</button>
                 </div>
+                <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
             </div>
         </div>
 
@@ -1375,6 +1384,28 @@ namespace PinayPalBackupManager.Services
 
     <script>
         let logsPaused = false;
+        let latestLogs = [];
+        let expandedService = null;
+
+        function toggleServiceCard(service) {
+            expandedService = expandedService === service ? null : service;
+            ['ftp', 'sql', 'mailchimp'].forEach(key => {
+                const card = document.querySelector('.card-' + (key === 'mailchimp' ? 'mc' : key));
+                if (card) card.classList.toggle('expanded', expandedService === key);
+            });
+            renderServiceConsoles();
+        }
+
+        function renderServiceConsoles() {
+            ['ftp', 'sql', 'mailchimp'].forEach(service => {
+                const consoleEl = document.getElementById(service + '-console');
+                if (!consoleEl) return;
+                const lines = latestLogs.filter(line => line.toLowerCase().includes(service));
+                consoleEl.innerHTML = lines.length
+                    ? lines.slice(-40).map(line => `<div>${escapeHtml(line)}</div>`).join('')
+                    : `<div style=""color:var(--muted)"">No ${service} log entries recorded yet.</div>`;
+            });
+        }
 
         function openQrModal() {
             document.getElementById('qr-modal-img').src = '/api/connection-qr?t=' + Date.now();
@@ -1532,6 +1563,7 @@ namespace PinayPalBackupManager.Services
             try {
                 const res = await fetch('/api/logs');
                 const logs = await res.json();
+                latestLogs.splice(0, latestLogs.length, ...(logs || []));
                 const term = document.getElementById('term-box');
                 if (logs && logs.length > 0) {
                     term.innerHTML = logs.map(l => {
@@ -1546,6 +1578,7 @@ namespace PinayPalBackupManager.Services
                 } else {
                     term.innerHTML = '<div style=""color: var(--muted);"">No logs recorded yet.</div>';
                 }
+                renderServiceConsoles();
             } catch(e) { }
         }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.3.2 (2026-09-21)
+
+### Added & Improved
+- Added a WidgetKit Live Activity extension with Lock Screen and Dynamic Island layouts for backup progress, status, speed, and ETA.
+- Completed iOS local notification permission, foreground presentation, retry/details actions, deep navigation, and low-disk alert throttling.
+- Replaced the custom draggable navigation dock with native SwiftUI tab navigation that adopts the system Liquid Glass treatment on current iOS releases.
+- Added expandable FTP, SQL, and Mailchimp service cards in the web dashboard, plus native iOS service detail pages with individual backup controls, scoped logs, status, storage, freshness, and recent history.
+
 ## v3.3.1 (2026-09-21)
 
 ### Added & Fixed

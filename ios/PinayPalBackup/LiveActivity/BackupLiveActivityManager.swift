@@ -11,10 +11,20 @@ public class BackupLiveActivityManager: ObservableObject {
     @Published public var currentService: String = ""
 
     #if canImport(ActivityKit)
-    private var currentActivity: Any? = nil
+    private var currentActivity: Activity<BackupActivityAttributes>?
     #endif
 
     private init() {}
+
+    public func restoreActiveActivityIfNeeded() {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            currentActivity = Activity<BackupActivityAttributes>.activities.first
+            isActivityActive = currentActivity != nil
+            currentService = currentActivity?.attributes.serviceName ?? ""
+        }
+        #endif
+    }
 
     public func startBackupActivity(service: String) {
         #if canImport(ActivityKit)
@@ -22,8 +32,15 @@ public class BackupLiveActivityManager: ObservableObject {
             let isEnabled = UserDefaults.standard.object(forKey: "pp_live_activities_enabled") as? Bool ?? true
             guard isEnabled, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-            // End any prior activity first
-            endBackupActivity(success: true, message: "New backup started")
+            if currentActivity == nil {
+                restoreActiveActivityIfNeeded()
+            }
+            if let currentActivity, currentActivity.attributes.serviceName.caseInsensitiveCompare(service) == .orderedSame {
+                return
+            }
+            if currentActivity != nil {
+                endBackupActivity(success: true, message: "New backup started")
+            }
 
             let attributes = BackupActivityAttributes(serviceName: service.uppercased(), startedAt: Date())
             let initialContentState = BackupActivityAttributes.ContentState(
@@ -56,7 +73,7 @@ public class BackupLiveActivityManager: ObservableObject {
     public func updateBackupActivity(progress: Double, status: String, message: String, speedText: String? = nil, etaText: String? = nil) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
+            guard let activity = currentActivity else { return }
 
             let updatedState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,
@@ -78,7 +95,7 @@ public class BackupLiveActivityManager: ObservableObject {
     public func endBackupActivity(success: Bool, message: String) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
+            guard let activity = currentActivity else { return }
 
             let finalState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,

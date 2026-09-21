@@ -33,7 +33,19 @@
 		A10024 /* BackupLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025 /* BackupLiveActivityManager.swift */; };
 		A10025 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10026 /* AVFoundation.framework */; };
 		A10026 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B10027 /* UserNotifications.framework */; };
+		A10027 /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10028 /* ServiceDetailView.swift */; };
+		A20001 /* BackupLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001 /* BackupLiveActivityWidget.swift */; };
+		A20002 /* BackupActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024 /* BackupActivityAttributes.swift */; };
+		A30001 /* PinayPalBackupWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B00002 /* PinayPalBackupWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		M00001 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = I00001 /* Project object */; proxyType = 1; remoteGlobalIDString = E00002; remoteInfo = PinayPalBackupWidgets; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		L00001 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (A30001 /* PinayPalBackupWidgets.appex in Embed App Extensions */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		B00001 /* PinayPalBackup.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PinayPalBackup.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -64,6 +76,10 @@
 		B10025 /* BackupLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupLiveActivityManager.swift; sourceTree = "<group>"; };
 		B10026 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		B10027 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		B10028 /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
+		B00002 /* PinayPalBackupWidgets.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = PinayPalBackupWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20001 /* BackupLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B20002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +95,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C00002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -86,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				D10001 /* PinayPalBackup */,
+				D10007 /* PinayPalBackupWidgets */,
 				D20001 /* Frameworks */,
 				D30001 /* Products */,
 			);
@@ -147,10 +165,12 @@
 				B10010 /* LiquidWebView.swift */,
 				B10018 /* BackupHistoryView.swift */,
 				B10019 /* LiveLogsView.swift */,
+				B10028 /* ServiceDetailView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
+		D10007 /* PinayPalBackupWidgets */ = {isa = PBXGroup; children = (B20001 /* BackupLiveActivityWidget.swift */, B20002 /* Info.plist */, ); path = PinayPalBackupWidgets; sourceTree = "<group>"; };
 		D10006 /* LiveActivity */ = {
 			isa = PBXGroup;
 			children = (
@@ -176,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				B00001 /* PinayPalBackup.app */,
+				B00002 /* PinayPalBackupWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -190,17 +211,24 @@
 				G00001 /* Sources */,
 				C00001 /* Frameworks */,
 				H00001 /* Resources */,
+				L00001 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				N00001 /* PBXTargetDependency */,
 			);
 			name = PinayPalBackup;
 			productName = PinayPalBackup;
 			productReference = B00001 /* PinayPalBackup.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E00002 /* PinayPalBackupWidgets */ = {isa = PBXNativeTarget; buildConfigurationList = F00002 /* Build configuration list for PBXNativeTarget "PinayPalBackupWidgets" */; buildPhases = (G00002 /* Sources */, C00002 /* Frameworks */, H00002 /* Resources */, ); buildRules = (); dependencies = (); name = PinayPalBackupWidgets; productName = PinayPalBackupWidgets; productReference = B00002 /* PinayPalBackupWidgets.appex */; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
+
+/* Begin PBXTargetDependency section */
+		N00001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = E00002 /* PinayPalBackupWidgets */; targetProxy = M00001 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		I00001 /* Project object */ = {
@@ -213,6 +241,7 @@
 					E00001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
+					E00002 = {CreatedOnToolsVersion = 15.0;};
 				};
 			};
 			buildConfigurationList = J00001 /* Build configuration list for PBXProject "PinayPalBackup" */;
@@ -229,6 +258,7 @@
 			projectRoot = "";
 			targets = (
 				E00001 /* PinayPalBackup */,
+				E00002 /* PinayPalBackupWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -242,6 +272,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		H00002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -269,9 +300,11 @@
 				A10022 /* QRScannerView.swift in Sources */,
 				A10023 /* BackupActivityAttributes.swift in Sources */,
 				A10024 /* BackupLiveActivityManager.swift in Sources */,
+				A10027 /* ServiceDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		G00002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A20001 /* BackupLiveActivityWidget.swift in Sources */, A20002 /* BackupActivityAttributes.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -351,7 +384,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -367,7 +400,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.3.1;
+				MARKETING_VERSION = 3.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -382,7 +415,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -398,10 +431,46 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.3.1;
+				MARKETING_VERSION = 3.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		K00005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PinayPalBackupWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = 3.3.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		K00006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PinayPalBackupWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = 3.3.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pinaypal.backupmanager.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -416,6 +485,12 @@
 				K00003 /* Debug */,
 				K00004 /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F00002 /* Build configuration list for PBXNativeTarget "PinayPalBackupWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (K00005 /* Debug */, K00006 /* Release */, );
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};

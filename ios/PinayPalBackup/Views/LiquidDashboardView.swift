@@ -7,6 +7,24 @@ public struct LiquidDashboardView: View {
 
     @State private var triggeringService: String? = nil
     @State private var toastMessage: String? = nil
+    @State private var selectedService: ServiceDestination? = nil
+
+    private enum ServiceDestination: Identifiable {
+        case ftp, sql, mailchimp
+        var id: String { key }
+        var key: String {
+            switch self { case .ftp: return "ftp"; case .sql: return "sql"; case .mailchimp: return "mailchimp" }
+        }
+        var title: String {
+            switch self { case .ftp: return "FTP Website Sync"; case .sql: return "SQL Database"; case .mailchimp: return "Mailchimp Sync" }
+        }
+        var icon: String {
+            switch self { case .ftp: return "globe"; case .sql: return "cylinder.split.1x2"; case .mailchimp: return "envelope.fill" }
+        }
+        var accent: Color {
+            switch self { case .ftp: return LiquidTheme.emerald; case .sql: return LiquidTheme.gold; case .mailchimp: return LiquidTheme.cyan }
+        }
+    }
 
     public var body: some View {
         ZStack {
@@ -87,6 +105,9 @@ public struct LiquidDashboardView: View {
                 .animation(.spring(), value: toastMessage)
             }
         }
+        .sheet(item: $selectedService) { destination in
+            ServiceDetailView(api: api, serviceKey: destination.key, title: destination.title, icon: destination.icon, accent: destination.accent)
+        }
     }
 
     // MARK: - Header Bar
@@ -103,7 +124,7 @@ public struct LiquidDashboardView: View {
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.gold)
 
-                Text(api.status?.version ?? "v3.3.1")
+                Text(api.status?.version ?? "v3.3.2")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -333,7 +354,8 @@ public struct LiquidDashboardView: View {
                 meta: "Host: \(api.status?.services?.ftp?.host ?? "--") (Port \(api.status?.services?.ftp?.port ?? 21))",
                 files: api.status?.services?.ftp?.fileCount ?? 0,
                 bytes: api.status?.services?.ftp?.sizeBytes ?? 0,
-                serviceKey: "ftp"
+                serviceKey: "ftp",
+                destination: .ftp
             )
 
             // SQL Database
@@ -344,7 +366,8 @@ public struct LiquidDashboardView: View {
                 meta: "User: \(api.status?.services?.sql?.user ?? "--") | Remote Sync",
                 files: api.status?.services?.sql?.fileCount ?? 0,
                 bytes: api.status?.services?.sql?.sizeBytes ?? 0,
-                serviceKey: "sql"
+                serviceKey: "sql",
+                destination: .sql
             )
 
             // Mailchimp
@@ -355,14 +378,18 @@ public struct LiquidDashboardView: View {
                 meta: "Audience ID: \(api.status?.services?.mailchimp?.audienceId ?? "Default")",
                 files: api.status?.services?.mailchimp?.fileCount ?? 0,
                 bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0,
-                serviceKey: "mailchimp"
+                serviceKey: "mailchimp",
+                destination: .mailchimp
             )
         }
     }
 
-    private func serviceRow(title: String, icon: String, accent: Color, meta: String, files: Int, bytes: Int64, serviceKey: String) -> some View {
+    private func serviceRow(title: String, icon: String, accent: Color, meta: String, files: Int, bytes: Int64, serviceKey: String, destination: ServiceDestination) -> some View {
         let isTriggering = triggeringService == serviceKey
         return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                selectedService = destination
+            } label: {
             HStack {
                 HStack(spacing: 8) {
                     Image(systemName: icon)
@@ -375,24 +402,12 @@ public struct LiquidDashboardView: View {
                 }
 
                 Spacer()
-
-                Button {
-                    triggerBackup(service: serviceKey)
-                } label: {
-                    HStack(spacing: 6) {
-                        if isTriggering {
-                            ProgressView().tint(.black).scaleEffect(0.8)
-                        }
-                        Text(isTriggering ? "Starting..." : "Backup")
-                            .font(.system(size: 12, weight: .bold))
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(accent)
-                    .foregroundColor(.black)
-                    .cornerRadius(10)
-                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundColor(LiquidTheme.textSecondary)
             }
+            }
+            .buttonStyle(.plain)
 
             Text(meta)
                 .font(.system(size: 12))
@@ -414,6 +429,22 @@ public struct LiquidDashboardView: View {
                     .background(accent.opacity(0.12))
                     .cornerRadius(6)
                     .foregroundColor(accent)
+
+                Spacer()
+
+                Button {
+                    triggerBackup(service: serviceKey)
+                } label: {
+                    HStack(spacing: 5) {
+                        if isTriggering { ProgressView().tint(.black).scaleEffect(0.7) }
+                        Text(isTriggering ? "Starting…" : "Run backup")
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(accent, in: Capsule())
+                    .foregroundColor(.black)
+                }
             }
         }
         .padding(16)
