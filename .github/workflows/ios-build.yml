@@ -5,7 +5,12 @@ on:
     paths:
       - 'ios/**'
       - '.github/workflows/ios-build.yml'
+    tags:
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-ios:
@@ -67,3 +72,22 @@ jobs:
           name: PinayPalBackup-iOS-${{ github.ref_name }}
           path: PinayPalBackup.ipa
           retention-days: 14
+
+      - name: Attach IPA to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Attaching PinayPalBackup.ipa to GitHub Release ${{ github.ref_name }}..."
+          for i in {1..15}; do
+            if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+              echo "GitHub release ${{ github.ref_name }} found. Uploading IPA..."
+              gh release upload "${{ github.ref_name }}" PinayPalBackup.ipa --clobber
+              echo "Successfully attached PinayPalBackup.ipa to ${{ github.ref_name }}"
+              exit 0
+            fi
+            echo "Waiting for GitHub release ${{ github.ref_name }} to be created (attempt $i/15)..."
+            sleep 10
+          done
+          echo "Fallback: creating release with IPA directly..."
+          gh release create "${{ github.ref_name }}" PinayPalBackup.ipa --title "PinayPalBackupManager ${{ github.ref_name }}" --notes "PinayPal iOS IPA build" || true

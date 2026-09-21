@@ -50,7 +50,7 @@ public class NotificationService: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = success ? "🛡️ Backup Completed: \(service)" : "⚠️ Backup Failed: \(service)"
         content.body = details
-        content.sound = success ? .default : .defaultCritical
+        content.sound = .default
 
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
@@ -67,7 +67,7 @@ public class NotificationService: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "💾 Low Disk Space Warning"
         content.body = "Drive \(diskLetter) is at \(Int(percentUsed))% capacity. Only \(String(format: "%.1f", freeGb)) GB remaining!"
-        content.sound = .defaultCritical
+        content.sound = .default
 
         let request = UNNotificationRequest(
             identifier: "low_disk_\(diskLetter)",

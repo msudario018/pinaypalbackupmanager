@@ -260,6 +260,8 @@ public class PinayPalAPIService: ObservableObject {
                 return
             }
 
+            let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
+
             let wasBusy = self.status?.activeBackup?.isBusy == true
             let prevService = self.status?.activeBackup?.service ?? lastRecordedBusyService
 

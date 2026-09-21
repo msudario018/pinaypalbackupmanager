@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.2.9 (2026-09-21)
+
+### Fixed
+- **iOS Native Build Failure**:
+  - Fixed Swift compiler error `cannot find 'decoded' in scope` in `PinayPalAPIService.swift` line 262 by re-inserting the missing JSON decoding invocation (`try JSONDecoder().decode(StatusResponse.self, from: data)`) in `fetchStatus()`.
+  - Fixed compilation issue in `NotificationService.swift` where `UNNotificationSound.defaultCritical` was invoked instead of `.default`.
+
+### Added & Enhanced
+- **Apple Liquid Glass Navigation Dock & Interactive Dragging**:
+  - Implemented Apple's official Liquid Glass design system (`https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass`) on the iOS bottom navigation dock in `MainView.swift`.
+  - **Dynamic Optical Translucency**: High-transmittance `.ultraThinMaterial` foundation, dark Fresnel optical absorption layer, and directional light core.
+  - **Fluid Matched Geometry Tab Indicator**: Integrated `matchedGeometryEffect(id: "active_tab_liquid_pill")` to smoothly slide and morph active tab pill highlights across tabs like viscous liquid.
+  - **Interactive Dragging Ability**: Attached a fluid drag gesture with viscous rubber-band resistance (`dragOffset`), proportional horizontal/vertical squish-stretch physics (`scaleEffect`), and dynamic specular rim angle rotation that tracks drag vector illumination.
+  - **Tactile Physics & Spring Rebound**: Added spring-based snap-back physics (`.spring(response: 0.44, dampingFraction: 0.64)`) and multi-level haptic feedback (`UIImpactFeedbackGenerator`).
+  - **Horizontal Flick Tab Switching**: Swiping across the dock smoothly advances or returns between HUD, Snapshots, Console, and Web views.
+- **Automated iOS IPA Release Workflow**:
+  - Updated `.github/workflows/ios-build.yml` with `permissions: contents: write` and tag trigger (`v*`).
+  - Automatically attaches the compiled `PinayPalBackup.ipa` directly to GitHub Releases alongside Windows Velopack installers.
+
 ## v3.2.8 (2026-09-21)
 
 ### Added
