@@ -2,7 +2,7 @@
 echo Resetting PinayPal database, user sessions, and setup state...
 
 taskkill /f /im PinayPalBackupManager.exe 2>nul
-timeout /t 1 /nobreak >nul
+ping 127.0.0.1 -n 2 >nul
 
 set "dataDir=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data"
 set "appDir=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager"
