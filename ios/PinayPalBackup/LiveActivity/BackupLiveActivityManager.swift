@@ -11,8 +11,7 @@ public class BackupLiveActivityManager: ObservableObject {
     @Published public var currentService: String = ""
 
     #if canImport(ActivityKit)
-    @available(iOS 16.1, *)
-    private var currentActivity: Activity<BackupActivityAttributes>?
+    private var currentActivity: Any?
     #endif
 
     private init() {}
@@ -22,7 +21,7 @@ public class BackupLiveActivityManager: ObservableObject {
         if #available(iOS 16.2, *) {
             currentActivity = Activity<BackupActivityAttributes>.activities.first
             isActivityActive = currentActivity != nil
-            currentService = currentActivity?.attributes.serviceName ?? ""
+            currentService = (currentActivity as? Activity<BackupActivityAttributes>)?.attributes.serviceName ?? ""
         }
         #endif
     }
@@ -36,7 +35,7 @@ public class BackupLiveActivityManager: ObservableObject {
             if currentActivity == nil {
                 restoreActiveActivityIfNeeded()
             }
-            if let currentActivity, currentActivity.attributes.serviceName.caseInsensitiveCompare(service) == .orderedSame {
+            if let currentActivity = currentActivity as? Activity<BackupActivityAttributes>, currentActivity.attributes.serviceName.caseInsensitiveCompare(service) == .orderedSame {
                 return
             }
             if currentActivity != nil {
@@ -74,7 +73,7 @@ public class BackupLiveActivityManager: ObservableObject {
     public func updateBackupActivity(progress: Double, status: String, message: String, speedText: String? = nil, etaText: String? = nil) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard let activity = currentActivity else { return }
+            guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
 
             let updatedState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,
@@ -96,7 +95,7 @@ public class BackupLiveActivityManager: ObservableObject {
     public func endBackupActivity(success: Bool, message: String) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard let activity = currentActivity else { return }
+            guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
 
             let finalState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,
