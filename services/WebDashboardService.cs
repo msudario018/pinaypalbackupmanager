@@ -17,6 +17,9 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
+        /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
+        public static Action? EmergencyStopExecutor { get; set; }
+
         public static async Task HandleWebRequestAsync(HttpListenerContext context)
         {
             var request = context.Request;
@@ -66,7 +69,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.2",
+                        version = "3.3.3",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -407,9 +410,27 @@ namespace PinayPalBackupManager.Services
         private static async Task HandleBackupTriggerAsync(HttpListenerResponse response, string service)
         {
             LogService.WriteSystemLog($"[WebDashboard] Remote backup triggered for service: {service}", "Information", "SYSTEM");
+
+            if (service is not ("ftp" or "sql" or "mailchimp" or "all"))
+            {
+                await SendJsonAsync(response, 400, new { success = false, message = "Unknown backup service." });
+                return;
+            }
             
             if (BackupSchedulingService.BackupExecutor != null)
             {
+                if (!BackupStateTracker.TrySetRunning(service, $"Queueing {service.ToUpperInvariant()} backup..."))
+                {
+                    var active = BackupStateTracker.CurrentState;
+                    await SendJsonAsync(response, 409, new
+                    {
+                        success = false,
+                        message = $"A {active.Service.ToUpperInvariant()} backup is already in progress.",
+                        activeBackup = active
+                    });
+                    return;
+                }
+
                 _ = Task.Run(async () =>
                 {
                     try
@@ -422,7 +443,7 @@ namespace PinayPalBackupManager.Services
                     }
                 });
 
-                await SendJsonAsync(response, 200, new { success = true, message = $"Backup started for {service}" });
+                await SendJsonAsync(response, 202, new { success = true, message = $"Backup queued for {service}" });
             }
             else
             {
@@ -466,6 +487,7 @@ namespace PinayPalBackupManager.Services
             var sqlFreshness = ComputeServiceFreshness("SQL", BackupConfig.SqlLocalFolder, 24);
             var mcFreshness = ComputeServiceFreshness("Mailchimp", BackupConfig.MailchimpFolder, 24);
 
+            var active = BackupStateTracker.CurrentState;
             var status = new
             {
                 appName = "PinayPal Backup Manager",
@@ -569,11 +591,20 @@ namespace PinayPalBackupManager.Services
                 } : null,
                 activeBackup = new
                 {
-                    isBusy = BackupStateTracker.CurrentState.IsBusy,
-                    service = BackupStateTracker.CurrentState.Service,
-                    statusText = BackupStateTracker.CurrentState.StatusText,
-                    progress = BackupStateTracker.CurrentState.Progress,
-                    startedAt = BackupStateTracker.CurrentState.StartedAt?.ToString("o")
+                    isBusy = active.IsBusy,
+                    service = active.Service,
+                    statusText = active.StatusText,
+                    progress = active.Progress,
+                    startedAt = active.StartedAt?.ToString("o"),
+                    lastUpdatedAt = active.LastUpdatedAt?.ToString("o"),
+                    activeServices = active.ActiveServices.Select(item => new
+                    {
+                        service = item.Service,
+                        statusText = item.StatusText,
+                        progress = item.Progress,
+                        startedAt = item.StartedAt.ToString("o"),
+                        lastUpdatedAt = item.LastUpdatedAt.ToString("o")
+                    })
                 }
             };
 
@@ -707,6 +738,7 @@ namespace PinayPalBackupManager.Services
 
             _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                EmergencyStopExecutor?.Invoke();
                 NotificationService.ShowBackupToast("EMERGENCY STOP", "Emergency stop triggered remotely from iOS app!", "Warning");
             });
 
@@ -745,7 +777,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.2"
+                    version = "3.3.3"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -778,7 +810,16 @@ namespace PinayPalBackupManager.Services
                 service = status.Service,
                 statusText = status.StatusText,
                 progress = status.Progress,
-                startedAt = status.StartedAt?.ToString("o")
+                startedAt = status.StartedAt?.ToString("o"),
+                lastUpdatedAt = status.LastUpdatedAt?.ToString("o"),
+                activeServices = status.ActiveServices.Select(item => new
+                {
+                    service = item.Service,
+                    statusText = item.StatusText,
+                    progress = item.Progress,
+                    startedAt = item.StartedAt.ToString("o"),
+                    lastUpdatedAt = item.LastUpdatedAt.ToString("o")
+                })
             });
         }
 
@@ -1044,7 +1085,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.2</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.3</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -1493,14 +1534,21 @@ namespace PinayPalBackupManager.Services
             try {
                 const res = await fetch('/api/backup/' + service, { method: 'POST' });
                 const d = await res.json();
+                if (!res.ok) {
+                    showToast(d.message || 'Backup could not be started');
+                    playChime('error');
+                    return false;
+                }
                 showToast(d.message || 'Backup triggered');
                 playChime('success');
                 sendBrowserNotification('Backup Triggered: ' + service.toUpperCase(), d.message || 'Backup operation initiated.');
                 setTimeout(loadData, 1500);
                 setTimeout(loadLogs, 1500);
+                return true;
             } catch(e) {
                 showToast('Error triggering backup');
                 playChime('error');
+                return false;
             }
         }
 

@@ -11,6 +11,8 @@ public final class NotificationService: NSObject, ObservableObject {
     public static let shared = NotificationService()
 
     @Published public private(set) var isAuthorized = false
+    @Published public private(set) var authorizationDescription = "Checking notification permission…"
+    @Published public private(set) var lastDiagnosticMessage = "Not tested yet"
     @Published public var navigationRequest: NotificationNavigationRequest?
     @Published public var retryService: String?
     @Published public var notifyOnSuccess = UserDefaults.standard.object(forKey: "pp_notify_success") as? Bool ?? true
@@ -30,16 +32,29 @@ public final class NotificationService: NSObject, ObservableObject {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
             isAuthorized = granted
+            authorizationDescription = granted ? "Notifications are enabled" : "Notifications were not granted"
             return granted
         } catch {
             isAuthorized = false
+            authorizationDescription = "Notification request failed: \(error.localizedDescription)"
             return false
         }
     }
 
     public func checkAuthorization() {
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
-            Task { @MainActor in self?.isAuthorized = settings.authorizationStatus == .authorized }
+            Task { @MainActor in
+                guard let self else { return }
+                self.isAuthorized = settings.authorizationStatus == .authorized
+                switch settings.authorizationStatus {
+                case .authorized: self.authorizationDescription = "Notifications are enabled"
+                case .denied: self.authorizationDescription = "Disabled in iOS Settings"
+                case .notDetermined: self.authorizationDescription = "Permission has not been requested"
+                case .provisional: self.authorizationDescription = "Provisional notification permission"
+                case .ephemeral: self.authorizationDescription = "Temporary notification permission"
+                @unknown default: self.authorizationDescription = "Unknown notification permission"
+                }
+            }
         }
     }
 
@@ -86,7 +101,7 @@ public final class NotificationService: NSObject, ObservableObject {
         content.body = "You will receive backup and disk-space alerts on this device."
         content.sound = .default
         content.userInfo = ["destination": "activity"]
-        add(content, identifier: "notification_test")
+        add(content, identifier: "notification_test", diagnostic: "Test notification scheduled. If PinayPal is open, it should still show a banner.")
     }
 
     private func configureCategories() {
@@ -97,8 +112,12 @@ public final class NotificationService: NSObject, ObservableObject {
         UNUserNotificationCenter.current().setNotificationCategories([failure, success])
     }
 
-    private func add(_ content: UNMutableNotificationContent, identifier: String) {
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { _ in }
+    private func add(_ content: UNMutableNotificationContent, identifier: String, diagnostic: String? = nil) {
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { [weak self] error in
+            Task { @MainActor in
+                self?.lastDiagnosticMessage = error == nil ? (diagnostic ?? "Notification scheduled.") : "Notification scheduling failed: \(error!.localizedDescription)"
+            }
+        }
     }
 
     private func shouldSend(key: String, cooldown: TimeInterval) -> Bool {

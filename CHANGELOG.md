@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.3.3 (2026-09-21)
+
+### Fixed
+- Unified the backup lifecycle used by the desktop app, web dashboard, and iOS client. FTP, SQL, and Mailchimp now register their own running state, stream progress through the shared tracker, and reliably clear it when the backup reaches a terminal state.
+- Replaced the single active-backup slot with per-service tracking, preventing one completed backup from clearing another active service during parallel runs.
+- Remote backup requests now reserve the queue atomically, reject overlapping starts with a clear `409 Conflict`, validate the requested service, and return `202 Accepted` only after queuing work.
+- Connected the remote iOS/web emergency-stop endpoint to the actual desktop cancellation handlers; it no longer only displays a toast.
+- Added API timestamps and an active-service collection so the web dashboard and iOS service detail views display the correct in-progress service.
+- Added Live Activity and notification diagnostics, including in-app test controls and clearer permission/error status.
+
 ## v3.3.2 (2026-09-21)
 
 ### Added & Improved

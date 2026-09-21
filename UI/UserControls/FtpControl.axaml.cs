@@ -121,6 +121,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             SetBusy(true);
             _abortRequested = false;
+            BackupStateTracker.SetRunning("FTP", "SYNCING...");
 
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "SYNCING...";
@@ -352,6 +353,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 finally
                 {
+                    // The actual FTP operation has reached a terminal state. Optional
+                    // post-backup work below must not leave mobile/web clients stuck.
+                    BackupStateTracker.SetIdle("FTP");
                     try { ftp.Dispose(); } catch { }
                     _activeFtp = null;
 
@@ -397,6 +401,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             });
 
+            BackupStateTracker.SetIdle("FTP");
             SetBusy(false);
         }
 

@@ -132,6 +132,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             SetBusy(true);
             _abortRequested = false;
+            BackupStateTracker.SetRunning("SQL", "SYNCING SQL...");
 
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "SYNCING SQL...";
@@ -435,6 +436,8 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 finally
                 {
+                    // The SQL operation itself is complete; mirroring is reported separately.
+                    BackupStateTracker.SetIdle("SQL");
                     try { sql.Dispose(); } catch { }
                     _activeSql = null;
 
@@ -480,6 +483,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             });
 
+            BackupStateTracker.SetIdle("SQL");
             SetBusy(false);
         }
 

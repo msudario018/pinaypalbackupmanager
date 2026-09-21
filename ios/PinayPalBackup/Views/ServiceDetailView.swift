@@ -27,6 +27,16 @@ public struct ServiceDetailView: View {
         api.logs.filter { $0.localizedCaseInsensitiveContains(serviceKey) }.suffix(40).map { $0 }
     }
 
+    private var activeService: ActiveBackupServiceSpec? {
+        api.status?.activeBackup?.activeServices?.first {
+            $0.service?.localizedCaseInsensitiveContains(serviceKey) == true
+        }
+    }
+
+    private var isServiceRunning: Bool {
+        activeService != nil || api.status?.activeBackup?.service?.localizedCaseInsensitiveContains(serviceKey) == true
+    }
+
     public var body: some View {
         NavigationStack {
             ScrollView {
@@ -69,15 +79,15 @@ public struct ServiceDetailView: View {
                         .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                 }
                 Spacer()
-                if api.status?.activeBackup?.service?.localizedCaseInsensitiveContains(serviceKey) == true {
+                if isServiceRunning {
                     ProgressView().tint(accent)
                 }
             }
 
-            if let active = api.status?.activeBackup, active.service?.localizedCaseInsensitiveContains(serviceKey) == true {
-                ProgressView(value: Double(active.progress ?? 0), total: 100)
+            if isServiceRunning {
+                ProgressView(value: Double(activeService?.progress ?? api.status?.activeBackup?.progress ?? 0), total: 100)
                     .tint(accent)
-                Text(active.statusText ?? "Backup is running")
+                Text(activeService?.statusText ?? api.status?.activeBackup?.statusText ?? "Backup is running")
                     .font(.caption)
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
             }
@@ -98,7 +108,7 @@ public struct ServiceDetailView: View {
             .buttonStyle(.borderedProminent)
             .tint(accent)
 
-            if api.status?.activeBackup?.service?.localizedCaseInsensitiveContains(serviceKey) == true {
+            if isServiceRunning {
                 Button(role: .destructive) {
                     Task { _ = await api.triggerEmergencyStop() }
                 } label: {

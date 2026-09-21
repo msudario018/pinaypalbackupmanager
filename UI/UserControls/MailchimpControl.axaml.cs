@@ -159,6 +159,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private async Task StartFullBackupAsync(string trigger = "MANUAL")
         {
+            if (_isBusy) return;
+
             // Reload config to ensure we have latest settings
             ConfigService.Load();
             
@@ -166,6 +168,7 @@ namespace PinayPalBackupManager.UI.UserControls
             string historyId = BackupHistoryService.RecordBackupStart("Mailchimp", trigger);
             SetBusy(true);
             _abortRequested = false;
+            BackupStateTracker.SetRunning("Mailchimp", "EXPORTING FULL...");
             bool mcError = false;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "EXPORTING FULL...";
@@ -334,6 +337,9 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 finally
                 {
+                    // Do not keep remote clients in an in-progress state while optional
+                    // health checks or network-drive mirroring finish.
+                    BackupStateTracker.SetIdle("Mailchimp");
                     if (_manager != null)
                     {
                         _ = _manager.RunHealthCheckAsync();
@@ -356,6 +362,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 }
             });
+            BackupStateTracker.SetIdle("Mailchimp");
             SetBusy(false);
         }
 
@@ -364,6 +371,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (_isBusy) return;
             SetBusy(true);
             _abortRequested = false;
+            BackupStateTracker.SetRunning("Mailchimp", $"EXPORTING {type.ToUpperInvariant()}...");
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = $"EXPORTING {type.ToUpper()}...";
             
@@ -409,6 +417,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                 }
             });
+            BackupStateTracker.SetIdle("Mailchimp");
             SetBusy(false);
         }
 

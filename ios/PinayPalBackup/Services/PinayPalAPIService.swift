@@ -273,6 +273,15 @@ public class PinayPalAPIService: ObservableObject {
             let curService = decoded.activeBackup?.service ?? "Backup"
 
             if nowBusy {
+                let serviceChanged = lastRecordedBusyService.map {
+                    $0.caseInsensitiveCompare(curService) != .orderedSame
+                } ?? false
+                if serviceChanged && BackupLiveActivityManager.shared.isActivityActive {
+                    BackupLiveActivityManager.shared.endBackupActivity(
+                        success: true,
+                        message: "Starting \(curService.uppercased()) backup"
+                    )
+                }
                 lastRecordedBusyService = curService
                 if !BackupLiveActivityManager.shared.isActivityActive {
                     BackupLiveActivityManager.shared.startBackupActivity(service: curService)
@@ -338,8 +347,6 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func triggerBackup(service: String) async -> Bool {
-        BackupLiveActivityManager.shared.startBackupActivity(service: service)
-
         guard let url = URL(string: "\(serverUrl)/api/backup/\(service)") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -348,12 +355,22 @@ public class PinayPalAPIService: ObservableObject {
         }
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 202 {
                 await fetchAll()
                 return true
             }
-        } catch { }
+            if let http = response as? HTTPURLResponse {
+                lastErrorMessage = "Could not start backup (HTTP \(http.statusCode))."
+                if http.statusCode == 409,
+                   let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = payload["message"] as? String {
+                    lastErrorMessage = message
+                }
+            }
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
         return false
     }
 

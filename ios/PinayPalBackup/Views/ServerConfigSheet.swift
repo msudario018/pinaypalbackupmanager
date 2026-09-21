@@ -5,6 +5,8 @@ public struct ServerConfigSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var api: PinayPalAPIService
     @ObservedObject var authManager: BiometricAuthManager
+    @ObservedObject private var notificationService = NotificationService.shared
+    @ObservedObject private var liveActivityManager = BackupLiveActivityManager.shared
 
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("pp_theme_mode") private var themeMode: String = "dark"
@@ -368,6 +370,55 @@ public struct ServerConfigSheet: View {
                     }
                 }
                 .tint(LiquidTheme.cyan)
+
+                Divider().background(Color.white.opacity(0.1))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    diagnosticsRow(
+                        title: "Live Activity status",
+                        value: liveActivityManager.availabilityDescription,
+                        isHealthy: liveActivityManager.availabilityDescription == "Ready on this device"
+                    )
+                    diagnosticsRow(
+                        title: "Notification status",
+                        value: notificationService.authorizationDescription,
+                        isHealthy: notificationService.isAuthorized
+                    )
+
+                    Text(liveActivityManager.lastDiagnosticMessage)
+                        .font(.system(size: 10))
+                        .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    Text(notificationService.lastDiagnosticMessage)
+                        .font(.system(size: 10))
+                        .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+
+                    HStack(spacing: 10) {
+                        Button {
+                            liveActivityManager.startTestActivity()
+                        } label: {
+                            Label("Test Live Activity", systemImage: "waveform.path.ecg")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(LiquidTheme.cyan)
+
+                        Button {
+                            Task {
+                                if !notificationService.isAuthorized {
+                                    _ = await notificationService.requestAuthorization()
+                                }
+                                if notificationService.isAuthorized {
+                                    notificationService.sendTestNotification()
+                                }
+                            }
+                        } label: {
+                            Label("Test Alert", systemImage: "bell.badge")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(LiquidTheme.gold)
+                    }
+                }
             }
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
@@ -412,6 +463,21 @@ public struct ServerConfigSheet: View {
             }
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
+        }
+    }
+
+    private func diagnosticsRow(title: String, value: String, isHealthy: Bool) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: isHealthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundColor(isHealthy ? LiquidTheme.emerald : LiquidTheme.gold)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                Text(value)
+                    .font(.system(size: 10))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            }
         }
     }
 

@@ -203,6 +203,12 @@ namespace PinayPalBackupManager.UI
             _ftpControl = new FtpControl(_backupManager);
             _mailchimpControl = new MailchimpControl(_backupManager);
             _sqlControl = new SqlControl(_backupManager);
+            WebDashboardService.EmergencyStopExecutor = () =>
+            {
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+            };
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
             _profileControl = new ProfileControl();

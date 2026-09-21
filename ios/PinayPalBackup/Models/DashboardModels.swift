@@ -18,6 +18,18 @@ public struct ActiveBackupSpec: Codable {
     public let statusText: String?
     public let progress: Int?
     public let startedAt: String?
+    public let lastUpdatedAt: String?
+    public let activeServices: [ActiveBackupServiceSpec]?
+}
+
+public struct ActiveBackupServiceSpec: Codable, Identifiable {
+    public let service: String?
+    public let statusText: String?
+    public let progress: Int?
+    public let startedAt: String?
+    public let lastUpdatedAt: String?
+
+    public var id: String { service ?? UUID().uuidString }
 }
 
 public struct ConnectionQrPayload: Codable {

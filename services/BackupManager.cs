@@ -103,6 +103,7 @@ namespace PinayPalBackupManager.Services
 
         public void ReportBackupProgress(string service, int percent, string status)
         {
+            BackupStateTracker.UpdateProgress(service, percent, status);
             OnBackupProgress?.Invoke(service, percent, status);
         }
 
