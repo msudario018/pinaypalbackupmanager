@@ -345,7 +345,7 @@ namespace PinayPalBackupManager.Services
             OnUserChanged?.Invoke(user);
             
             // Track successful login
-            await LoginHistoryService.AddLoginAsync(user.Username, true);
+            await LoginHistoryService.AddLoginAsync(user.Username, true).ConfigureAwait(false);
             
             // Start session timeout monitoring
             SessionTimeoutService.Start();
@@ -359,7 +359,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                return LoginAsync(username, password).GetAwaiter().GetResult();
+                return Task.Run(() => LoginAsync(username, password)).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -614,7 +614,7 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var conn = DatabaseService.GetConnection();
-                conn.Open();
+                if (conn.State != System.Data.ConnectionState.Open) conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "INSERT INTO Users (Username, PasswordHash, Salt, Role, Status, CreatedAt, Email, BirthDate) VALUES (@u, @h, @s, @r, @st, @ca, @e, @b)";
                 cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
@@ -656,7 +656,7 @@ namespace PinayPalBackupManager.Services
         {
             var users = new List<AppUser>();
             using var conn = DatabaseService.GetConnection();
-            conn.Open();
+            if (conn.State != System.Data.ConnectionState.Open) conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT Id, Username, PasswordHash, Salt, Role, Status, CreatedAt, AvatarPath, Email, BirthDate FROM Users ORDER BY CreatedAt";
             using var reader = cmd.ExecuteReader();
@@ -673,7 +673,7 @@ namespace PinayPalBackupManager.Services
             var user = GetUserById(userId);
             
             using var conn = DatabaseService.GetConnection();
-            conn.Open();
+            if (conn.State != System.Data.ConnectionState.Open) conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE Users SET Status = @s WHERE Id = @id AND Role != 'Admin'";
             cmd.Parameters.AddWithValue("@s", status);

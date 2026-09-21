@@ -65,7 +65,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.2.6",
+                        version = "3.2.7",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -764,7 +764,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.2.6</span>
+                <span class=""version-badge"" id=""app-version"">v3.2.7</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>

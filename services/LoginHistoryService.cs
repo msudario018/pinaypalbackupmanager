@@ -49,7 +49,7 @@ namespace PinayPalBackupManager.Services
             if (entries.Count > 100)
                 entries = entries.OrderByDescending(e => e.Timestamp).Take(100).ToList();
 
-            await SaveHistoryAsync(entries);
+            await SaveHistoryAsync(entries).ConfigureAwait(false);
 
             // Sync to Firebase
             _ = RecordLoginHistoryAsync(username, success, entry.DeviceInfo, entry.IpAddress, failureReason);
@@ -146,7 +146,7 @@ namespace PinayPalBackupManager.Services
                     Directory.CreateDirectory(directory);
 
                 var json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(HistoryFile, json);
+                await File.WriteAllTextAsync(HistoryFile, json).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

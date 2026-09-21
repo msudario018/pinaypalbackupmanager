@@ -19,6 +19,7 @@ namespace PinayPalBackupManager.UI
         private const int TotalSteps = 6;
         private bool _isAdminPC = true;
         private bool _settingsImported = false;
+        private bool _isCompletingSetup = false;
 
         public event Action? OnSetupComplete;
 
@@ -783,14 +784,19 @@ namespace PinayPalBackupManager.UI
 
         private async Task CompleteSetup()
         {
+            if (_isCompletingSetup) return;
+            _isCompletingSetup = true;
+
             var nextButton = this.FindControl<Button>("BtnNext")!;
             nextButton.IsEnabled = false;
             nextButton.Content = "Setting up...";
 
             try
             {
-                var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text!.Trim();
-                var password = this.FindControl<TextBox>("TxtAdminPassword")!.Text!;
+                await Task.Yield();
+
+                var username = this.FindControl<TextBox>("TxtAdminUsername")?.Text?.Trim() ?? "";
+                var password = this.FindControl<TextBox>("TxtAdminPassword")?.Text ?? "";
                 var email = this.FindControl<TextBox>("TxtAdminEmail")?.Text?.Trim();
                 var birthDate = this.FindControl<TextBox>("TxtAdminBirthDate")?.Text?.Trim();
 
@@ -804,14 +810,22 @@ namespace PinayPalBackupManager.UI
                         return;
                     }
 
-                    // Auto-login the new admin
-                    AuthService.Login(username, password);
-                    SessionService.SaveSession(AuthService.CurrentUser!.Id);
+                    // Auto-login the new admin asynchronously (non-blocking)
+                    var (loginSuccess, loginMessage) = await AuthService.LoginAsync(username, password);
+                    if (loginSuccess && AuthService.CurrentUser != null)
+                    {
+                        SessionService.SaveSession(AuthService.CurrentUser.Id);
+                    }
+                    else
+                    {
+                        await ShowErrorDialog($"Admin user created, but auto-login failed: {loginMessage}");
+                        return;
+                    }
                 }
                 else
                 {
                     // Non-admin PC: validate invite code and create a pending standard user
-                    var inviteCode = this.FindControl<TextBox>("TxtInviteCode")!.Text?.Trim();
+                    var inviteCode = this.FindControl<TextBox>("TxtInviteCode")?.Text?.Trim();
                     if (string.IsNullOrWhiteSpace(inviteCode))
                     {
                         await ShowErrorDialog("Invite code is required.");
@@ -842,7 +856,7 @@ namespace PinayPalBackupManager.UI
                 SaveServiceConfigurations();
 
                 // Apply security settings
-                if (this.FindControl<CheckBox>("ChkEncryptConfig")!.IsChecked!.Value)
+                if (this.FindControl<CheckBox>("ChkEncryptConfig")?.IsChecked == true)
                 {
                     SecurityService.EncryptSensitiveConfiguration();
                 }
@@ -852,8 +866,18 @@ namespace PinayPalBackupManager.UI
 
                 LogService.WriteLiveLog("[SETUP] Initial setup completed successfully", "", "Information", "SYSTEM");
 
-                OnSetupComplete?.Invoke();
-                Close();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        OnSetupComplete?.Invoke();
+                        Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[SETUP] Window transition failed: {ex.Message}", "Error", "SYSTEM");
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -862,6 +886,7 @@ namespace PinayPalBackupManager.UI
             }
             finally
             {
+                _isCompletingSetup = false;
                 nextButton.IsEnabled = true;
                 nextButton.Content = "Complete Setup";
             }
@@ -872,27 +897,27 @@ namespace PinayPalBackupManager.UI
             var config = ConfigService.Current;
 
             // FTP settings
-            config.Ftp.Host = this.FindControl<TextBox>("TxtFtpHost")!.Text?.Trim() ?? "";
-            config.Ftp.User = this.FindControl<TextBox>("TxtFtpUser")!.Text?.Trim() ?? "";
-            config.Ftp.Password = this.FindControl<TextBox>("TxtFtpPassword")!.Text ?? "";
-            config.Paths.FtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")!.Text?.Trim() ?? "";
+            config.Ftp.Host = this.FindControl<TextBox>("TxtFtpHost")?.Text?.Trim() ?? "";
+            config.Ftp.User = this.FindControl<TextBox>("TxtFtpUser")?.Text?.Trim() ?? "";
+            config.Ftp.Password = this.FindControl<TextBox>("TxtFtpPassword")?.Text ?? "";
+            config.Paths.FtpLocalFolder = this.FindControl<TextBox>("TxtFtpLocalFolder")?.Text?.Trim() ?? "";
 
             // SQL settings
-            config.Sql.Host = this.FindControl<TextBox>("TxtSqlHost")!.Text?.Trim() ?? "";
-            config.Sql.User = this.FindControl<TextBox>("TxtSqlUser")!.Text?.Trim() ?? "";
-            config.Sql.Password = this.FindControl<TextBox>("TxtSqlPassword")!.Text ?? "";
-            config.Sql.RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")!.Text?.Trim() ?? "";
-            config.Paths.SqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")!.Text?.Trim() ?? "";
+            config.Sql.Host = this.FindControl<TextBox>("TxtSqlHost")?.Text?.Trim() ?? "";
+            config.Sql.User = this.FindControl<TextBox>("TxtSqlUser")?.Text?.Trim() ?? "";
+            config.Sql.Password = this.FindControl<TextBox>("TxtSqlPassword")?.Text ?? "";
+            config.Sql.RemotePath = this.FindControl<TextBox>("TxtSqlRemotePath")?.Text?.Trim() ?? "";
+            config.Paths.SqlLocalFolder = this.FindControl<TextBox>("TxtSqlLocalFolder")?.Text?.Trim() ?? "";
 
             // Mailchimp settings
-            config.Mailchimp.ApiKey = this.FindControl<TextBox>("TxtMcApiKey")!.Text?.Trim() ?? "";
-            config.Mailchimp.AudienceId = this.FindControl<TextBox>("TxtMcAudienceId")!.Text?.Trim() ?? "";
-            config.Paths.MailchimpFolder = this.FindControl<TextBox>("TxtMcFolder")!.Text?.Trim() ?? "";
+            config.Mailchimp.ApiKey = this.FindControl<TextBox>("TxtMcApiKey")?.Text?.Trim() ?? "";
+            config.Mailchimp.AudienceId = this.FindControl<TextBox>("TxtMcAudienceId")?.Text?.Trim() ?? "";
+            config.Paths.MailchimpFolder = this.FindControl<TextBox>("TxtMcFolder")?.Text?.Trim() ?? "";
 
             // Operation settings
-            config.Operation.StartMinimized = this.FindControl<CheckBox>("ChkStartMinimized")!.IsChecked!.Value;
-            config.Operation.AutoStartWindows = this.FindControl<CheckBox>("ChkAutoStart")!.IsChecked!.Value;
-            var intervalIndex = this.FindControl<ComboBox>("CmbAutoInterval")!.SelectedIndex;
+            config.Operation.StartMinimized = this.FindControl<CheckBox>("ChkStartMinimized")?.IsChecked == true;
+            config.Operation.AutoStartWindows = this.FindControl<CheckBox>("ChkAutoStart")?.IsChecked == true;
+            var intervalIndex = this.FindControl<ComboBox>("CmbAutoInterval")?.SelectedIndex ?? 1;
             config.Operation.AutoIntervalMinutes = intervalIndex switch
             {
                 0 => 30,
@@ -909,26 +934,40 @@ namespace PinayPalBackupManager.UI
 
         private void UpdateSummary()
         {
-            var username = this.FindControl<TextBox>("TxtAdminUsername")!.Text?.Trim() ?? "(not set)";
-            this.FindControl<TextBlock>("TxtSummaryAdmin")!.Text = $"Administrator: {username}";
+            var username = this.FindControl<TextBox>("TxtAdminUsername")?.Text?.Trim();
+            if (string.IsNullOrEmpty(username)) username = "(not set)";
+            var txtSummaryAdmin = this.FindControl<TextBlock>("TxtSummaryAdmin");
+            if (txtSummaryAdmin != null) txtSummaryAdmin.Text = $"Administrator: {username}";
 
-            var ftpEnabled = this.FindControl<CheckBox>("ChkEnableFTP")!.IsChecked!.Value;
-            var ftpHost = this.FindControl<TextBox>("TxtFtpHost")!.Text?.Trim();
-            this.FindControl<TextBlock>("TxtSummaryFTP")!.Text = ftpEnabled && !string.IsNullOrEmpty(ftpHost)
-                ? $"FTP: Enabled ({ftpHost})"
-                : "FTP: Disabled";
+            var ftpEnabled = this.FindControl<CheckBox>("ChkEnableFTP")?.IsChecked == true;
+            var ftpHost = this.FindControl<TextBox>("TxtFtpHost")?.Text?.Trim();
+            var txtSummaryFTP = this.FindControl<TextBlock>("TxtSummaryFTP");
+            if (txtSummaryFTP != null)
+            {
+                txtSummaryFTP.Text = ftpEnabled && !string.IsNullOrEmpty(ftpHost)
+                    ? $"FTP: Enabled ({ftpHost})"
+                    : "FTP: Disabled";
+            }
 
-            var sqlEnabled = this.FindControl<CheckBox>("ChkEnableSQL")!.IsChecked!.Value;
-            var sqlHost = this.FindControl<TextBox>("TxtSqlHost")!.Text?.Trim();
-            this.FindControl<TextBlock>("TxtSummarySQL")!.Text = sqlEnabled && !string.IsNullOrEmpty(sqlHost)
-                ? $"SQL: Enabled ({sqlHost})"
-                : "SQL: Disabled";
+            var sqlEnabled = this.FindControl<CheckBox>("ChkEnableSQL")?.IsChecked == true;
+            var sqlHost = this.FindControl<TextBox>("TxtSqlHost")?.Text?.Trim();
+            var txtSummarySQL = this.FindControl<TextBlock>("TxtSummarySQL");
+            if (txtSummarySQL != null)
+            {
+                txtSummarySQL.Text = sqlEnabled && !string.IsNullOrEmpty(sqlHost)
+                    ? $"SQL: Enabled ({sqlHost})"
+                    : "SQL: Disabled";
+            }
 
-            var mcEnabled = this.FindControl<CheckBox>("ChkEnableMailchimp")!.IsChecked!.Value;
-            var mcKey = this.FindControl<TextBox>("TxtMcApiKey")!.Text?.Trim();
-            this.FindControl<TextBlock>("TxtSummaryMailchimp")!.Text = mcEnabled && !string.IsNullOrEmpty(mcKey)
-                ? "Mailchimp: Enabled"
-                : "Mailchimp: Disabled";
+            var mcEnabled = this.FindControl<CheckBox>("ChkEnableMailchimp")?.IsChecked == true;
+            var mcKey = this.FindControl<TextBox>("TxtMcApiKey")?.Text?.Trim();
+            var txtSummaryMailchimp = this.FindControl<TextBlock>("TxtSummaryMailchimp");
+            if (txtSummaryMailchimp != null)
+            {
+                txtSummaryMailchimp.Text = mcEnabled && !string.IsNullOrEmpty(mcKey)
+                    ? "Mailchimp: Enabled"
+                    : "Mailchimp: Disabled";
+            }
         }
 
         private async Task ShowErrorDialog(string message)

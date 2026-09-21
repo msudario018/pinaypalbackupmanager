@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.2.7 (2026-09-21)
+
+### Fixed
+- **Setup Wizard "Complete Setup" UI Freezing**:
+  - Replaced synchronous `AuthService.Login(username, password)` in `SetupWizardWindow.CompleteSetup()` with non-blocking `await AuthService.LoginAsync(username, password)`.
+  - Added `Task.Yield()` prior to user account creation and configuration persistence so the UI thread repaints the button to "Setting up..." immediately.
+  - Wrapped `OnSetupComplete` and `Close()` in `Dispatcher.UIThread.Post(...)` to dispatch window transition to `MainWindow` cleanly without blocking or deadlocking the Avalonia dispatcher queue.
+  - Added re-entrancy prevention guard (`_isCompletingSetup`) in `SetupWizardWindow` to ignore duplicate clicks.
+  - Made `SaveServiceConfigurations()` and `UpdateSummary()` completely null-safe against uninitialized or null checkbox states (`?.IsChecked == true`).
+  - Protected `AuthService.Login(...)` synchronous wrapper with `Task.Run(() => LoginAsync(...)).GetAwaiter().GetResult()` and added `.ConfigureAwait(false)` in `AuthService.cs` and `LoginHistoryService.cs` to eliminate SynchronizationContext deadlock risks.
+
+### Maintenance
+- **Purged Firebase Realtime Database Users Node**:
+  - Deleted all remote user entries under `/users` (`Admin`, `Adminwes`, `User`, `Wesley`, `admin_mobile`, `mobile_admin`, `system`) on `https://pinaypal-backup-manager-default-rtdb.firebaseio.com/` for a completely fresh start.
+
 ## v3.2.6 (2026-09-21)
 
 ### Fixed
