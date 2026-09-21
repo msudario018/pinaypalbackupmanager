@@ -39,19 +39,10 @@ namespace PinayPalBackupManager
             
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // Check if this is the first run or if the database has no users
-                if (ConfigService.IsFirstRun() || !AuthService.HasAnyUsers())
+                // If there are no users in database, or if it is the first run, ALWAYS launch the Setup Wizard
+                if (!AuthService.HasAnyUsers() || ConfigService.IsFirstRun())
                 {
-                    // If users were pulled from Firebase on a fresh install, skip wizard
-                    if (AuthService.HasAnyUsers())
-                    {
-                        ConfigService.MarkSetupComplete();
-                        ShowLogin(desktop);
-                    }
-                    else
-                    {
-                        ShowSetupWizard(desktop);
-                    }
+                    ShowSetupWizard(desktop);
                 }
                 else
                 {

@@ -327,13 +327,8 @@ namespace PinayPalBackupManager.UI
             // Initialize profile section
             InitializeProfileSection();
 
-            SetStartupBusy(true);
-            
-            // Disable notifications during startup
-            NotificationService.DisableNotifications();
-            
-            // Show startup notification (this will be logged but not displayed)
-            NotificationService.ShowBackupToast("Startup", "Running health scan...", "Info");
+            _startupHealthPending = false;
+            SetStartupBusy(false);
 
             if (!ConfigService.IsConfigured())
             {
@@ -697,18 +692,6 @@ namespace PinayPalBackupManager.UI
         {
             var overlay = this.FindControl<Border>("StartupOverlay");
             if (overlay != null) overlay.IsVisible = busy;
-
-            var sidebar = this.FindControl<StackPanel>("Sidebar");
-            if (sidebar != null) sidebar.IsEnabled = !busy;
-
-            var mainContent = this.FindControl<ContentControl>("MainContent");
-            if (mainContent != null) mainContent.IsEnabled = !busy;
-
-            var btnProfile = this.FindControl<Button>("BtnProfile");
-            if (btnProfile != null) btnProfile.IsEnabled = !busy;
-
-            var sidebarToggle = this.FindControl<Button>("SidebarToggle");
-            if (sidebarToggle != null) sidebarToggle.IsEnabled = !busy;
         }
 
         public static async System.Threading.Tasks.Task ShowSystemInfoAsync()

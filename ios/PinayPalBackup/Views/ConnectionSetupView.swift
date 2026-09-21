@@ -337,7 +337,7 @@ public struct ConnectionSetupView: View {
             isTesting = false
             if success {
                 let host = ping?.hostname ?? "Host"
-                let ver = ping?.version ?? "3.2.4"
+                let ver = ping?.version ?? "3.2.5"
                 testResult = (true, "Reachable! Connected to \(host) (v\(ver))")
             } else {
                 testResult = (false, error ?? "Could not connect. Check IP and port.")

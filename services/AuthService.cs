@@ -46,19 +46,8 @@ namespace PinayPalBackupManager.Services
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
 
-            // On a fresh install (no local users), pull existing users from Firebase
-            // so the same accounts work across all PCs
-            if (!HasAnyUsers())
-            {
-                try
-                {
-                    await FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteLiveLog($"[AuthService] Firebase user pull failed: {ex.Message}", "", "Debug", "SYSTEM");
-                }
-            }
+            // Note: Automatic user restore from Firebase on empty database is disabled
+            // so resetting the user database properly triggers the Initial Setup Wizard.
 
             // Initialize password reset service
             await PasswordResetService.InitializeAsync();

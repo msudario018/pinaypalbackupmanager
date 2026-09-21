@@ -1,32 +1,47 @@
 @echo off
-echo Resetting PinayPal database and user sessions...
+echo Resetting PinayPal database, user sessions, and setup state...
 
-set "dataDb=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data\users.db"
-set "oldDb1=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\users.db"
-set "oldDb2=%LOCALAPPDATA%\PinayPalBackupManager\users.db"
+taskkill /f /im PinayPalBackupManager.exe 2>nul
+timeout /t 1 /nobreak >nul
 
-if exist "%dataDb%" (
-    del /f /q "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data\users.db*"
-    echo [OK] Removed %dataDb%
+set "dataDir=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data"
+set "appDir=%LOCALAPPDATA%\PinayPal.PinayPalBackupManager"
+set "legacyDir=%LOCALAPPDATA%\PinayPalBackupManager"
+
+if exist "%dataDir%\users.db*" (
+    del /f /q "%dataDir%\users.db*"
+    echo [OK] Removed %dataDir%\users.db
 )
-if exist "%oldDb1%" (
-    del /f /q "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\users.db*"
-    echo [OK] Removed %oldDb1%
+if exist "%appDir%\users.db*" (
+    del /f /q "%appDir%\users.db*"
+    echo [OK] Removed %appDir%\users.db
 )
-if exist "%oldDb2%" (
-    del /f /q "%LOCALAPPDATA%\PinayPalBackupManager\users.db*"
-    echo [OK] Removed %oldDb2%
+if exist "%legacyDir%\users.db*" (
+    del /f /q "%legacyDir%\users.db*"
+    echo [OK] Removed %legacyDir%\users.db
 )
 
-if exist "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data\session.dat" (
-    del /f /q "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\Data\session.dat"
+if exist "%dataDir%\session.dat" (
+    del /f /q "%dataDir%\session.dat"
     echo [OK] Cleared active sessions
 )
-if exist "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\session.dat" (
-    del /f /q "%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\session.dat"
+if exist "%appDir%\session.dat" (
+    del /f /q "%appDir%\session.dat"
+)
+
+if exist "%dataDir%\appsettings.local.json" (
+    del /f /q "%dataDir%\appsettings.local.json"
+    echo [OK] Reset configuration to trigger Initial Setup Wizard
+)
+if exist "%appDir%\appsettings.local.json" (
+    del /f /q "%appDir%\appsettings.local.json"
+    echo [OK] Reset configuration
+)
+if exist "%legacyDir%\appsettings.local.json" (
+    del /f /q "%legacyDir%\appsettings.local.json"
 )
 
 echo.
-echo Database reset complete! When you launch PinayPal, it will show the Initial Setup Wizard or allow you to register the first Admin account.
+echo Database and setup reset complete! Launching PinayPal will now show the Initial Setup Wizard.
 pause
 

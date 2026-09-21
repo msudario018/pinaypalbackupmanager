@@ -567,92 +567,37 @@ namespace PinayPalBackupManager.Services
             };
         }
 
-        private static async Task<string> GetUptimeAsync()
+        private static Task<string> GetUptimeAsync()
         {
             try
             {
-                using var proc = new Process();
-                proc.StartInfo.FileName = "cmd";
-                proc.StartInfo.Arguments = "/c systeminfo | find \"System Boot Time\"";
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.RedirectStandardOutput = true;
-                proc.StartInfo.CreateNoWindow = true;
-                proc.Start();
-
-                string output = await proc.StandardOutput.ReadToEndAsync();
-                await proc.WaitForExitAsync();
-
-                if (output.Contains("System Boot Time"))
-                {
-                    var bootTimeString = output.Split(':')[1].Trim();
-                    var bootTime = DateTime.Parse(bootTimeString);
-                    var uptime = DateTime.Now - bootTime;
-                    
-                    if (uptime.TotalHours < 1)
-                        return $"{uptime.TotalMinutes:F0} min";
-                    else if (uptime.TotalHours < 24)
-                        return $"{uptime.TotalHours:F0}h {uptime.Minutes}m";
-                    else
-                        return $"{uptime.Days}d {uptime.Hours}h";
-                }
+                var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+                if (uptime.TotalHours < 1)
+                    return Task.FromResult($"{uptime.TotalMinutes:F0} min");
+                else if (uptime.TotalHours < 24)
+                    return Task.FromResult($"{uptime.TotalHours:F0}h {uptime.Minutes}m");
+                else
+                    return Task.FromResult($"{uptime.Days}d {uptime.Hours}h");
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting uptime: {ex.Message}", "Error", "SYSTEM");
+                return Task.FromResult("Unknown");
             }
-
-            return "Unknown";
         }
 
-        private static async Task<string> GetActiveProcessCountAsync()
+        private static Task<string> GetActiveProcessCountAsync()
         {
             try
             {
-                // Get user processes only (more realistic count)
-                using var proc = new Process();
-                proc.StartInfo.FileName = "powershell";
-                proc.StartInfo.Arguments = "-Command \"Get-Process | Where-Object {$_.ProcessName -notlike '*svchost*' -and $_.ProcessName -notlike '*csrss*' -and $_.ProcessName -notlike '*wininit*' -and $_.ProcessName -notlike '*lsass*' -and $_.ProcessName -notlike '*services*' -and $_.ProcessName -notlike '*dwm*'} | Measure-Object | Select-Object -ExpandProperty Count\"";
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.RedirectStandardOutput = true;
-                proc.StartInfo.CreateNoWindow = true;
-                proc.Start();
-
-                string output = await proc.StandardOutput.ReadToEndAsync();
-                await proc.WaitForExitAsync();
-
-                if (int.TryParse(output.Trim(), out int count))
-                    return count.ToString();
+                int count = Process.GetProcesses().Length;
+                return Task.FromResult(count.ToString());
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fallback to simple method if PowerShell fails
-                try
-                {
-                    using var proc = new Process();
-                    proc.StartInfo.FileName = "cmd";
-                    proc.StartInfo.Arguments = "/c tasklist | find /c \".exe\" /v";
-                    proc.StartInfo.UseShellExecute = false;
-                    proc.StartInfo.RedirectStandardOutput = true;
-                    proc.StartInfo.CreateNoWindow = true;
-                    proc.Start();
-
-                    string output = await proc.StandardOutput.ReadToEndAsync();
-                    await proc.WaitForExitAsync();
-
-                    if (int.TryParse(output.Trim(), out int count))
-                    {
-                        // Estimate user processes (roughly 1/3 of total)
-                        int userProcesses = Math.Max(1, count / 3);
-                        return userProcesses.ToString();
-                    }
-                }
-                catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting uptime: {ex.Message}", "Error", "SYSTEM");
+                LogService.WriteSystemLog($"[SYSTEM_STATUS] Error getting process count: {ex.Message}", "Error", "SYSTEM");
+                return Task.FromResult("0");
             }
-            }
-
-            return "3"; // Default fallback
         }
 
         private static async Task<string> GetDiskSpaceAsync()

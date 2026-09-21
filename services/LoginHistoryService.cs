@@ -158,13 +158,26 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
-                var ip = host.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                return ip?.ToString() ?? "Unknown";
+                foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up ||
+                        ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                        continue;
+
+                    var props = ni.GetIPProperties();
+                    foreach (var addr in props.UnicastAddresses)
+                    {
+                        if (addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            return addr.Address.ToString();
+                        }
+                    }
+                }
+                return "127.0.0.1";
             }
             catch
             {
-                return "Unknown";
+                return "127.0.0.1";
             }
         }
 

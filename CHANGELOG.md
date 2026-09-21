@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.2.5 (2026-09-21)
+
+### Fixed
+- **Guaranteed Initial Setup Wizard Launch on Database Reset & Fresh Install**:
+  - Disabled automatic silent Firebase user restore in `AuthService.InitializeAsync()` on empty or reset databases, preventing stale remote accounts from bypassing onboarding.
+  - Updated `App.axaml.cs` startup pipeline to unconditionally launch `SetupWizardWindow` whenever the local database contains zero users or `IsFirstRun` is true.
+  - Added auto-forwarding in `LoginWindow.axaml.cs` so any accidental navigation to Login with an empty database smoothly opens `SetupWizardWindow`.
+  - Overhauled [reset_db.bat](file:///e:/Project/pinaypalbackupmanager/reset_db.bat) to terminate any running process, remove database files across all directories, clear session tokens, and reset local configuration flags.
+- **Resolved Login & Startup UI Freezing**:
+  - Replaced blocking `.GetAwaiter().GetResult()` synchronous login calls in [LoginWindow.axaml.cs](file:///e:/Project/pinaypalbackupmanager/UI/LoginWindow.axaml.cs) with non-blocking `await AuthService.LoginAsync(...)`.
+  - Replaced blocking reverse DNS queries (`Dns.GetHostEntry`) in [LoginHistoryService.cs](file:///e:/Project/pinaypalbackupmanager/services/LoginHistoryService.cs) with instant local network adapter inspection.
+  - Removed UI disabling lock in [MainWindow.axaml.cs](file:///e:/Project/pinaypalbackupmanager/UI/MainWindow.axaml.cs): sidebar navigation and tabs remain completely interactive and responsive immediately upon login while health checks execute asynchronously.
+  - Fixed background system status monitoring in [SystemStatusService.cs](file:///e:/Project/pinaypalbackupmanager/services/SystemStatusService.cs): replaced string-parsed `systeminfo` and child PowerShell processes with instant native .NET APIs (`Environment.TickCount64` and `Process.GetProcesses()`).
+
+---
+
 ## v3.2.4 (2026-09-21)
 
 ### Added

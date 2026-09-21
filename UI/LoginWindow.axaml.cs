@@ -28,7 +28,20 @@ namespace PinayPalBackupManager.UI
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
             this.Icon = AppIconHelper.GetAppWindowIcon();
-            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
+            this.Opened += (s, e) =>
+            {
+                AppIconHelper.SetNativeWindowIcon(this);
+                if (!AuthService.HasAnyUsers())
+                {
+                    var wizard = new SetupWizardWindow();
+                    wizard.OnSetupComplete += () =>
+                    {
+                        OnLoginSuccess?.Invoke();
+                    };
+                    wizard.Show();
+                    this.Close();
+                }
+            };
 
             // Note: First-run setup is now handled by SetupWizardWindow
             // This login window only handles returning users
@@ -254,7 +267,7 @@ namespace PinayPalBackupManager.UI
                     if (RememberedDeviceService.IsDeviceRemembered(user.Id))
                     {
                         // Device is remembered, skip 2FA and complete login
-                        var (deviceLoginSuccess, deviceLoginMessage) = AuthService.Login(username, password);
+                        var (deviceLoginSuccess, deviceLoginMessage) = await AuthService.LoginAsync(username, password);
                         if (!deviceLoginSuccess)
                         {
                             errorTxt.Foreground = GetBrush("AccentError");
@@ -274,7 +287,7 @@ namespace PinayPalBackupManager.UI
                 }
 
                 // No 2FA - complete login via AuthService to set CurrentUser
-                var (loginSuccess, loginMessage) = AuthService.Login(username, password);
+                var (loginSuccess, loginMessage) = await AuthService.LoginAsync(username, password);
                 if (!loginSuccess)
                 {
                     errorTxt.Foreground = GetBrush("AccentError");
@@ -401,7 +414,7 @@ namespace PinayPalBackupManager.UI
                 if (success)
                 {
                     // Auto-login after registration
-                    var (loginOk, _) = AuthService.Login(username, password);
+                    var (loginOk, _) = await AuthService.LoginAsync(username, password);
                     if (loginOk)
                     {
                         OnLoginSuccess?.Invoke();
