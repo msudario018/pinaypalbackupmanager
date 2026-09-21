@@ -238,7 +238,7 @@ public struct LiveLogsView: View {
 
     // MARK: - Log Line View
     private func logLineView(line: String) -> some View {
-        let (color, prefix) = parseLineColor(line)
+        let (color, _) = parseLineColor(line)
 
         return HStack(alignment: .top, spacing: 6) {
             Circle()

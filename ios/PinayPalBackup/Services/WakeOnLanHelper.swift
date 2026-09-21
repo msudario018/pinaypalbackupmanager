@@ -26,10 +26,11 @@ public enum WakeOnLanHelper {
         }
 
         // Construct 102-byte magic packet: 6 bytes 0xFF followed by 16 repetitions of MAC
-        var packetData = Data(repeating: 0xFF, count: 6)
+        var mutablePacket = Data(repeating: 0xFF, count: 6)
         for _ in 0..<16 {
-            packetData.append(contentsOf: macBytes)
+            mutablePacket.append(contentsOf: macBytes)
         }
+        let packetData = mutablePacket
 
         // Send via UDP using NWConnection
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
