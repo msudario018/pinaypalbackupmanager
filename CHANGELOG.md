@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.1 (2026-09-21)
+
+### Added & Fixed
+- Added backup freshness reporting for FTP, SQL, and Mailchimp in the desktop web dashboard and iOS status model, including updated, outdated, and never-backed-up indicators.
+- Added LAN listener diagnostics, local IPv4 adapter discovery, URL ACL and Windows Firewall configuration, and the iOS local-network permission message.
+- Corrected the iOS QR scanner simulator payload to report the current app version.
+
 ## v3.3.0 (2026-09-21)
 
 ### Fixed

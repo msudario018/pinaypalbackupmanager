@@ -66,7 +66,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.0",
+                        version = "3.3.1",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -745,7 +745,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.0"
+                    version = "3.3.1"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -1038,7 +1038,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.0</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.1</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
