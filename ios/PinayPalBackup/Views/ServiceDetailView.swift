@@ -115,11 +115,11 @@ public struct ServiceDetailView: View {
                 .font(.headline)
                 .foregroundColor(accent)
             detailRow("Destination", service?.folder ?? "Not configured")
-            detailRow("Files", "(service?.fileCount ?? 0)")
+            detailRow("Files", "\(service?.fileCount ?? 0)")
             detailRow("Stored", formatBytes(service?.sizeBytes ?? 0))
             detailRow("Last backup", service?.freshness?.lastBackupTime ?? "Never")
             if serviceKey == "ftp" {
-                detailRow("Server", "(service?.host ?? "Not configured"):(service?.port ?? 21)")
+                detailRow("Server", "\(service?.host ?? "Not configured"):\(service?.port ?? 21)")
             } else if serviceKey == "sql" {
                 detailRow("Database user", service?.user ?? "Not configured")
             } else {

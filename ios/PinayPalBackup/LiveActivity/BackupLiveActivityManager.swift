@@ -11,6 +11,7 @@ public class BackupLiveActivityManager: ObservableObject {
     @Published public var currentService: String = ""
 
     #if canImport(ActivityKit)
+    @available(iOS 16.1, *)
     private var currentActivity: Activity<BackupActivityAttributes>?
     #endif
 
