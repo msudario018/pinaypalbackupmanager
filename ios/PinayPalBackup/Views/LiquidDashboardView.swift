@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct LiquidDashboardView: View {
+    @Environment(\.colorScheme) var colorScheme
     @ObservedObject var api: PinayPalAPIService
     @Binding var showSettingsSheet: Bool
 
@@ -10,10 +11,10 @@ public struct LiquidDashboardView: View {
     public var body: some View {
         ZStack {
             // Ambient liquid background
-            LiquidTheme.backgroundDark.ignoresSafeArea()
+            LiquidTheme.background(for: colorScheme).ignoresSafeArea()
 
             RadialGradient(
-                colors: [LiquidTheme.gold.opacity(0.12), Color.clear],
+                colors: [LiquidTheme.gold.opacity(colorScheme == .light ? 0.06 : 0.12), Color.clear],
                 center: .topTrailing,
                 startRadius: 10,
                 endRadius: 400
@@ -102,7 +103,7 @@ public struct LiquidDashboardView: View {
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.gold)
 
-                Text(api.status?.version ?? "v3.2.9")
+                Text(api.status?.version ?? "v3.3.0")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -113,7 +114,7 @@ public struct LiquidDashboardView: View {
 
             Spacer()
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 // Online Pill
                 HStack(spacing: 5) {
                     Circle()
@@ -127,7 +128,7 @@ public struct LiquidDashboardView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.black.opacity(0.3))
+                .background(colorScheme == .light ? Color.black.opacity(0.06) : Color.black.opacity(0.3))
                 .cornerRadius(12)
 
                 // Settings Gear

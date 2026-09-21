@@ -1,6 +1,39 @@
 # Changelog
 
-## v3.2.9 (2026-09-21)
+## v3.3.0 (2026-09-21)
+
+### Fixed
+- **Velopack CI Release Conflict (`vpk pack`)**:
+  - Resolved `[FTL] There is a release in channel win which is equal or greater to the current version 3.2.9` by bumping the application version to `3.3.0` across the solution (`PinayPalBackupManager.csproj`, `WebDashboardService.cs`, `project.pbxproj`, and `Info.plist`).
+  - Added pre-pack cleanup in `.github/workflows/velopack-release.yml` to remove any conflicting version nupkg assets before packaging.
+- **iOS Native App Build Pipeline & Framework Links**:
+  - Explicitly linked `AVFoundation.framework` and `UserNotifications.framework` in `PinayPalBackup.xcodeproj/project.pbxproj` build phases.
+  - Resolved Swift type conversions (`Int64` to `Double` for disk health) and guaranteed zero compiler warnings/errors for iOS 16.0+ targets.
+
+### Added & Enhanced
+- **Light & Dark Mode (Web Dashboard & iOS Native App)**:
+  - **iOS App**: Introduced a 3-way Appearance Mode in Settings (`ServerConfigSheet.swift`): **Auto (System)**, **Dark (Obsidian Glass)**, and **Light (Pearlescent Frost Glass)**.
+  - **Adaptive Liquid Glass Design System**: Updated `LiquidGlassCardModifier` and `LiquidGlassBarModifier` with dual-mode Fresnel optical underlays, dynamic specular rims, and adaptive color tokens (`LiquidTheme.background()`, `LiquidTheme.surface()`, `LiquidTheme.textPrimary()`).
+  - **Dynamic App Hierarchy Scheme**: Bound `.preferredColorScheme(...)` in `MainView.swift` to user's persisted appearance setting with instant preview and tactile feedback.
+  - **Web Dashboard**: Added zero-flash Light/Dark mode with dynamic CSS custom properties (`:root` obsidian dark and `[data-theme="light"]` frosted light glass).
+  - Added header ☀️/🌙 toggle button with smooth 250ms CSS color transitions and `localStorage` persistence.
+- **Actionable Notifications & Sound Alerts**:
+  - **iOS Local Push**: Added actionable categories (`RETRY_BACKUP`, `VIEW_LOGS`) to notifications on backup completion or failure.
+  - Added pre-backup schedule reminders (15 minutes prior) and daily summary digest at 9:00 PM MNL.
+  - Added configurable Low Disk Warning threshold slider (70% to 95%).
+  - **Web Audio Chimes**: Synthesized luxury glass multi-tone chimes using the HTML5 Web Audio API (`AudioContext` sine oscillators) for backup triggers, successes, and errors without external audio dependencies.
+  - Added HTML5 browser push notifications for web dashboard operations.
+- **Live Activities & Dynamic Island Telemetry**:
+  - Enhanced `BackupActivityAttributes.swift` and `BackupLiveActivityManager.swift` with real-time transfer telemetry (`speedText`, `etaText`, and service icons).
+  - Added a toggle in Settings to control Live Activities on Lock Screen and Dynamic Island.
+- **Security & Critical Action Protection**:
+  - Added biometric Face ID / Touch ID protection toggle for critical actions (requiring authentication before Emergency Stop, manual backups, or schedule edits).
+  - Added Haptic Feedback profile selector: Subtle, Crisp, Heavy, and Off.
+- **Dashboard Upgrades**:
+  - Added server latency / ping indicator in iOS HUD and Web Dashboard.
+  - Storage breakdown visualizer with interactive segment bars.
+
+
 
 ### Fixed
 - **iOS Native Build Failure**:

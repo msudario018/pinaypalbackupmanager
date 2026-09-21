@@ -6,7 +6,16 @@ public struct ServerConfigSheet: View {
     @ObservedObject var api: PinayPalAPIService
     @ObservedObject var authManager: BiometricAuthManager
 
-    @State private var selectedSection: Int = 0 // 0 = Security & Face ID, 1 = Remote PC Manager, 2 = Connection
+    @Environment(\.colorScheme) var colorScheme
+    @AppStorage("pp_theme_mode") private var themeMode: String = "dark"
+    @AppStorage("pp_biometrics_critical") private var biometricsCritical: Bool = false
+    @AppStorage("pp_low_disk_threshold") private var lowDiskThreshold: Double = 88.0
+    @AppStorage("pp_haptic_level") private var hapticLevel: String = "crisp"
+    @AppStorage("pp_live_activities_enabled") private var liveActivitiesEnabled: Bool = true
+    @AppStorage("pp_notify_reminder") private var notifyReminder: Bool = true
+    @AppStorage("pp_notify_daily_digest") private var notifyDailyDigest: Bool = true
+
+    @State private var selectedSection: Int = 0 // 0 = Security, 1 = Remote PC, 2 = Appearance, 3 = Alerts & Net
 
     // Connection States
     @State private var inputUrl: String = ""
@@ -50,7 +59,7 @@ public struct ServerConfigSheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                LiquidTheme.backgroundDark.ignoresSafeArea()
+                LiquidTheme.background(for: colorScheme).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Segmented Section Picker
@@ -65,6 +74,8 @@ public struct ServerConfigSheet: View {
                                 securityFaceIdSection
                             } else if selectedSection == 1 {
                                 remotePcManagerSection
+                            } else if selectedSection == 2 {
+                                appearanceSection
                             } else {
                                 connectionSection
                             }
@@ -101,13 +112,14 @@ public struct ServerConfigSheet: View {
 
     // MARK: - Segmented Header
     private var segmentedPicker: some View {
-        HStack(spacing: 6) {
-            segmentButton(title: "Face ID", icon: "faceid", index: 0)
+        HStack(spacing: 4) {
+            segmentButton(title: "Security", icon: "faceid", index: 0)
             segmentButton(title: "Remote PC", icon: "desktopcomputer", index: 1)
-            segmentButton(title: "App & Net", icon: "gearshape.2.fill", index: 2)
+            segmentButton(title: "Theme", icon: "circle.lefthalf.filled", index: 2)
+            segmentButton(title: "Alerts", icon: "bell.badge.fill", index: 3)
         }
         .padding(4)
-        .background(Color.white.opacity(0.06))
+        .background(colorScheme == .light ? Color.black.opacity(0.06) : Color.white.opacity(0.06))
         .clipShape(Capsule(style: .continuous))
     }
 
@@ -258,6 +270,31 @@ public struct ServerConfigSheet: View {
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
 
+            // Critical Action Confirmation Card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .foregroundColor(LiquidTheme.coral)
+                    Text("CRITICAL ACTION PROTECTION")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.coral)
+                }
+
+                Toggle(isOn: $biometricsCritical) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Require Face ID for Critical Actions")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Prompts for biometric verification before Emergency Stop, manual backups, or schedule edits")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.coral)
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18)
+
             // Explanatory note
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
@@ -275,6 +312,106 @@ public struct ServerConfigSheet: View {
             }
             .padding(16)
             .liquidGlassCard(cornerRadius: 14)
+        }
+    }
+
+    // MARK: - Section 2: Theme, Appearance & Live Activities
+    private var appearanceSection: some View {
+        VStack(spacing: 16) {
+            // Theme Mode Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "paintpalette.fill")
+                        .foregroundColor(LiquidTheme.gold)
+                    Text("APPEARANCE & DISPLAY THEME")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.gold)
+                }
+
+                Text("Choose your visual style. Obsidian Dark features deep blacks and radiant specular glows. Pearlescent Light delivers a crisp, frosted optical glass feel.")
+                    .font(.system(size: 12))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    .lineSpacing(3)
+
+                Picker("Theme Mode", selection: $themeMode) {
+                    Text("Auto (System)").tag("system")
+                    Text("Dark (Obsidian)").tag("dark")
+                    Text("Light (Pearlescent)").tag("light")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: themeMode) { _ in
+                    let haptic = UIImpactFeedbackGenerator(style: .medium)
+                    haptic.impactOccurred()
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18)
+
+            // Live Activities & Dynamic Island Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "waveform.circle.fill")
+                        .foregroundColor(LiquidTheme.cyan)
+                    Text("LIVE ACTIVITIES & DYNAMIC ISLAND")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.cyan)
+                }
+
+                Toggle(isOn: $liveActivitiesEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable Live Activities")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Show active backup progress ring and transfer telemetry in Dynamic Island & Lock Screen")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.cyan)
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18)
+
+            // Tactile Haptics Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "hand.tap.fill")
+                        .foregroundColor(LiquidTheme.purple)
+                    Text("TACTILE HAPTIC INTENSITY")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.purple)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Haptic Feedback Profile")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Vibration tactile response level on buttons and dock drag")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                    Spacer()
+                    Picker("Haptics", selection: $hapticLevel) {
+                        Text("Subtle").tag("subtle")
+                        Text("Crisp").tag("crisp")
+                        Text("Heavy").tag("heavy")
+                        Text("Off").tag("off")
+                    }
+                    .pickerStyle(.menu)
+                    .tint(LiquidTheme.gold)
+                    .onChange(of: hapticLevel) { level in
+                        switch level {
+                        case "subtle": UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        case "crisp": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        case "heavy": UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                        default: break
+                        }
+                    }
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18)
         }
     }
 
@@ -657,6 +794,57 @@ public struct ServerConfigSheet: View {
                     }
                 }
                 .tint(LiquidTheme.emerald)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                Toggle(isOn: $notifyReminder) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pre-Backup Schedule Reminders")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Notify 15 minutes before daily automated backups run")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.gold)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                Toggle(isOn: $notifyDailyDigest) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily Summary Digest (9:00 PM)")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Daily evening briefing of completed runs and storage consumed")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.purple)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                // Low Disk Space Threshold Slider
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Low Disk Warning Threshold")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                            Text("Alert when storage capacity reaches \(Int(lowDiskThreshold))%")
+                                .font(.system(size: 10))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                        Spacer()
+                        Text("\(Int(lowDiskThreshold))%")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(lowDiskThreshold > 90 ? LiquidTheme.coral : LiquidTheme.gold)
+                    }
+
+                    Slider(value: $lowDiskThreshold, in: 70...95, step: 1)
+                        .tint(lowDiskThreshold > 90 ? LiquidTheme.coral : LiquidTheme.gold)
+                }
 
                 Divider().background(Color.white.opacity(0.08))
 

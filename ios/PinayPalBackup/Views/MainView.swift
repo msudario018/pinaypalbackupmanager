@@ -7,6 +7,20 @@ public struct MainView: View {
     // 0 = Liquid HUD, 1 = Backup Snapshots, 2 = Live Console, 3 = Web Dashboard
     @State private var selectedTab: Int = 0
     @State private var showSettingsSheet: Bool = false
+    @AppStorage("pp_theme_mode") private var themeMode: String = "dark"
+    @Environment(\.colorScheme) private var systemColorScheme
+
+    private var activeColorScheme: ColorScheme? {
+        switch themeMode {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil // Follow system
+        }
+    }
+
+    private var currentEffectiveScheme: ColorScheme {
+        activeColorScheme ?? systemColorScheme
+    }
 
     // MARK: - Apple Liquid Glass Dragging Physics State
     @State private var dragOffset: CGSize = .zero
@@ -63,7 +77,7 @@ public struct MainView: View {
         .animation(.easeInOut(duration: 0.3), value: api.isConfigured)
         .animation(.easeInOut(duration: 0.3), value: api.isLoggedIn)
         .animation(.easeInOut(duration: 0.3), value: authManager.isUnlocked)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(activeColorScheme)
     }
 
     // MARK: - Liquid Glass Draggable Navigation Dock
@@ -86,11 +100,11 @@ public struct MainView: View {
             ZStack {
                 // 1. Dynamic optical blur base (ultra-thin material)
                 Capsule(style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(currentEffectiveScheme == .light ? .regularMaterial : .ultraThinMaterial)
 
-                // 2. Optical dark Fresnel absorption layer
+                // 2. Optical dark or frosted light Fresnel absorption layer
                 Capsule(style: .continuous)
-                    .fill(Color(red: 0.06, green: 0.08, blue: 0.12).opacity(0.72))
+                    .fill(currentEffectiveScheme == .light ? Color.white.opacity(0.85) : Color(red: 0.06, green: 0.08, blue: 0.12).opacity(0.72))
 
                 // 3. Fluid luminous chromatic underlay
                 Capsule(style: .continuous)

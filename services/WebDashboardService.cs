@@ -66,7 +66,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.2.8",
+                        version = "3.3.0",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -649,7 +649,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.2.8"
+                    version = "3.3.0"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -707,15 +707,31 @@ namespace PinayPalBackupManager.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>PinayPal Backup Manager - Login</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('pinaypal_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
+        :root {
+            --bg: #0B0E14; --surface: #161B22; --card: #1B212C; --border: #30363D;
+            --text: #F0F6FC; --muted: #8B949E; --gold: #FCA311; --green: #3FB950;
+            --inner-bg: #0D1117;
+        }
+        [data-theme=""light""] {
+            --bg: #F4F6F9; --surface: #FFFFFF; --card: #FFFFFF; --border: #E2E8F0;
+            --text: #0F172A; --muted: #64748B; --gold: #D97706; --green: #10B981;
+            --inner-bg: #F8FAFC;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #0B0E14; color: #E6EDF3; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .card { background: #161B22; border: 1px solid #30363D; border-radius: 16px; padding: 36px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-        .logo { font-size: 32px; font-weight: 800; color: #FCA311; margin-bottom: 8px; }
-        .sub { color: #8B949E; font-size: 13px; margin-bottom: 28px; }
-        input { width: 100%; padding: 14px; background: #0D1117; border: 1px solid #30363D; border-radius: 8px; color: #FFF; font-size: 16px; text-align: center; letter-spacing: 4px; margin-bottom: 20px; outline: none; transition: border 0.2s; }
-        input:focus { border-color: #FCA311; }
-        button { width: 100%; padding: 14px; background: #FCA311; color: #000; font-weight: 700; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
+        body { background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; transition: background-color 0.25s, color 0.25s; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .logo { font-size: 32px; font-weight: 800; color: var(--gold); margin-bottom: 8px; }
+        .sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+        input { width: 100%; padding: 14px; background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 16px; text-align: center; letter-spacing: 4px; margin-bottom: 20px; outline: none; transition: border 0.2s; }
+        input:focus { border-color: var(--gold); }
+        button { width: 100%; padding: 14px; background: var(--gold); color: #000; font-weight: 700; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
         button:hover { opacity: 0.9; }
         .err { color: #F85149; font-size: 13px; margin-top: 14px; min-height: 18px; }
     </style>
@@ -758,14 +774,27 @@ namespace PinayPalBackupManager.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>PinayPal Backup Manager</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('pinaypal_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
         :root {
             --bg: #0B0E14; --surface: #161B22; --card: #1B212C; --border: #30363D;
             --text: #F0F6FC; --muted: #8B949E; --gold: #FCA311; --green: #3FB950;
             --blue: #58A6FF; --cyan: #48CAE4; --purple: #A371F7; --red: #F85149;
+            --inner-bg: #0D1117;
+        }
+        [data-theme=""light""] {
+            --bg: #F4F6F9; --surface: #FFFFFF; --card: #FFFFFF; --border: #E2E8F0;
+            --text: #0F172A; --muted: #64748B; --gold: #D97706; --green: #10B981;
+            --blue: #2563EB; --cyan: #0891B2; --purple: #7C3AED; --red: #DC2626;
+            --inner-bg: #F8FAFC;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+        body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; transition: background-color 0.25s, color 0.25s; }
         .container { max-width: 1260px; margin: 0 auto; }
         
         /* Header */
@@ -904,11 +933,12 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.2.8</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.0</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
             <div class=""header-actions"">
+                <button class=""btn-secondary"" id=""theme-btn"" onclick=""toggleTheme()"">☀️ Light</button>
                 <button class=""btn-secondary"" onclick=""openQrModal()"">📱 Pair iOS App</button>
                 <button class=""btn-secondary"" onclick=""runHealthCheck()"">⚡ Diagnostics</button>
                 <button class=""btn-primary"" onclick=""triggerBackup('all')"">🚀 Run All Backups</button>
@@ -1248,16 +1278,79 @@ namespace PinayPalBackupManager.Services
             document.getElementById('btn-pause-logs').textContent = logsPaused ? '▶ Resume' : '⏸ Pause';
         }
 
+        function toggleTheme() {
+            var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = cur === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('pinaypal_theme', next);
+            updateThemeButton(next);
+            playChime('subtle');
+        }
+
+        function updateThemeButton(theme) {
+            var btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+        }
+
+        function playChime(type) {
+            try {
+                var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                var ctx = new AudioCtx();
+                var now = ctx.currentTime;
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+
+                osc.type = 'sine';
+                if (type === 'error') {
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(160, now + 0.35);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                } else if (type === 'success') {
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.1);
+                    osc.frequency.setValueAtTime(1174.66, now + 0.2);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                } else {
+                    osc.frequency.setValueAtTime(880, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                }
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + (type === 'success' ? 0.55 : 0.35));
+            } catch(e) {}
+        }
+
+        function sendBrowserNotification(title, body) {
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    new Notification(title, { body: body });
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(function(p) {
+                        if (p === 'granted') new Notification(title, { body: body });
+                    });
+                }
+            }
+        }
+
         async function triggerBackup(service) {
             showToast('Starting backup: ' + service.toUpperCase() + '...');
+            playChime('subtle');
             try {
                 const res = await fetch('/api/backup/' + service, { method: 'POST' });
                 const d = await res.json();
                 showToast(d.message || 'Backup triggered');
+                playChime('success');
+                sendBrowserNotification('Backup Triggered: ' + service.toUpperCase(), d.message || 'Backup operation initiated.');
                 setTimeout(loadData, 1500);
                 setTimeout(loadLogs, 1500);
             } catch(e) {
                 showToast('Error triggering backup');
+                playChime('error');
             }
         }
 
@@ -1310,6 +1403,7 @@ namespace PinayPalBackupManager.Services
 
         async function loadData() {
             try {
+                updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
                 const [sRes, hRes] = await Promise.all([
                     fetch('/api/status').then(r => r.json()),
                     fetch('/api/history').then(r => r.json())

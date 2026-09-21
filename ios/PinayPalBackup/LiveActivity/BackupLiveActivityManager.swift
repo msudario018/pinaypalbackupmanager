@@ -19,7 +19,8 @@ public class BackupLiveActivityManager: ObservableObject {
     public func startBackupActivity(service: String) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            let isEnabled = UserDefaults.standard.object(forKey: "pp_live_activities_enabled") as? Bool ?? true
+            guard isEnabled, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
             // End any prior activity first
             endBackupActivity(success: true, message: "New backup started")
@@ -30,7 +31,10 @@ public class BackupLiveActivityManager: ObservableObject {
                 status: "In Progress",
                 progress: 0.15,
                 isComplete: false,
-                message: "Backing up \(service.uppercased())..."
+                message: "Backing up \(service.uppercased())...",
+                speedText: "Connecting...",
+                etaText: "Estimating...",
+                serviceIcon: service.lowercased().contains("sql") ? "cylinder.split.1x2" : (service.lowercased().contains("ftp") ? "externaldrive.fill" : "envelope.badge.fill")
             )
 
             do {
@@ -49,7 +53,7 @@ public class BackupLiveActivityManager: ObservableObject {
         #endif
     }
 
-    public func updateBackupActivity(progress: Double, status: String, message: String) {
+    public func updateBackupActivity(progress: Double, status: String, message: String, speedText: String? = nil, etaText: String? = nil) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
@@ -59,7 +63,9 @@ public class BackupLiveActivityManager: ObservableObject {
                 status: status,
                 progress: progress,
                 isComplete: false,
-                message: message
+                message: message,
+                speedText: speedText,
+                etaText: etaText
             )
 
             Task {

@@ -16,24 +16,31 @@ public enum LiquidGlassVariant {
 
 // MARK: - Liquid Glass Card Modifier
 public struct LiquidGlassCardModifier: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
     var cornerRadius: CGFloat = 20
     var glowColor: Color = LiquidTheme.gold
     var variant: LiquidGlassVariant = .regular
     var isInteractive: Bool = false
 
     public func body(content: Content) -> some View {
-        content
+        let isLight = colorScheme == .light
+        return content
             .background {
                 ZStack {
                     // 1. Dynamic optical blur base (high transmittance)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(variant == .prominent ? .thinMaterial : .ultraThinMaterial)
+                        .fill(isLight ? (variant == .prominent ? .regularMaterial : .ultraThinMaterial) : (variant == .prominent ? .thinMaterial : .ultraThinMaterial))
 
                     // 2. Liquid glass refractive underlay (Fresnel optical depth)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(
                             LinearGradient(
-                                stops: [
+                                stops: isLight ? [
+                                    .init(color: Color.white.opacity(variant == .prominent ? 0.90 : 0.75), location: 0.0),
+                                    .init(color: Color.white.opacity(0.40), location: 0.28),
+                                    .init(color: Color(red: 0.94, green: 0.96, blue: 0.98).opacity(0.60), location: 0.70),
+                                    .init(color: Color(red: 0.90, green: 0.93, blue: 0.96).opacity(0.85), location: 1.0)
+                                ] : [
                                     .init(color: Color.white.opacity(variant == .prominent ? 0.16 : 0.09), location: 0.0),
                                     .init(color: Color.white.opacity(0.02), location: 0.28),
                                     .init(color: Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.55), location: 0.70),
@@ -49,8 +56,8 @@ public struct LiquidGlassCardModifier: ViewModifier {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    glowColor.opacity(variant == .prominent ? 0.22 : 0.12),
-                                    glowColor.opacity(0.03),
+                                    glowColor.opacity(isLight ? 0.10 : (variant == .prominent ? 0.22 : 0.12)),
+                                    glowColor.opacity(0.02),
                                     Color.clear
                                 ],
                                 center: UnitPoint(x: 0.20, y: 0.15),
@@ -66,7 +73,13 @@ public struct LiquidGlassCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
-                            stops: [
+                            stops: isLight ? [
+                                .init(color: Color.white.opacity(0.95), location: 0.0),
+                                .init(color: Color.white.opacity(0.50), location: 0.18),
+                                .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.60), location: 0.52),
+                                .init(color: glowColor.opacity(0.35), location: 0.82),
+                                .init(color: Color.white.opacity(0.60), location: 1.0)
+                            ] : [
                                 .init(color: Color.white.opacity(0.70), location: 0.0),
                                 .init(color: Color.white.opacity(0.25), location: 0.18),
                                 .init(color: Color.white.opacity(0.05), location: 0.52),
@@ -76,12 +89,12 @@ public struct LiquidGlassCardModifier: ViewModifier {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 1.0
+                        lineWidth: isLight ? 1.2 : 1.0
                     )
             }
             // Multi-depth soft shadow system
-            .shadow(color: Color.black.opacity(0.40), radius: 16, x: 0, y: 8)
-            .shadow(color: glowColor.opacity(variant == .prominent ? 0.20 : 0.10), radius: 24, x: 0, y: 4)
+            .shadow(color: isLight ? Color(red: 0.1, green: 0.15, blue: 0.25).opacity(0.08) : Color.black.opacity(0.40), radius: isLight ? 10 : 16, x: 0, y: isLight ? 4 : 8)
+            .shadow(color: glowColor.opacity(isLight ? 0.06 : (variant == .prominent ? 0.20 : 0.10)), radius: 24, x: 0, y: 4)
     }
 }
 
@@ -167,20 +180,27 @@ public struct LiquidCapsulePill: ViewModifier {
 
 // MARK: - Floating Liquid Glass Bar Modifier
 public struct LiquidGlassBarModifier: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+
     public func body(content: Content) -> some View {
-        content
+        let isLight = colorScheme == .light
+        return content
             .background {
                 ZStack {
                     Capsule(style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(isLight ? .regularMaterial : .ultraThinMaterial)
 
                     Capsule(style: .continuous)
-                        .fill(Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.65))
+                        .fill(isLight ? Color.white.opacity(0.65) : Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.65))
 
                     Capsule(style: .continuous)
                         .strokeBorder(
                             LinearGradient(
-                                stops: [
+                                stops: isLight ? [
+                                    .init(color: Color.white.opacity(0.95), location: 0.0),
+                                    .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.50), location: 0.5),
+                                    .init(color: Color.white.opacity(0.70), location: 1.0)
+                                ] : [
                                     .init(color: Color.white.opacity(0.55), location: 0.0),
                                     .init(color: Color.white.opacity(0.10), location: 0.5),
                                     .init(color: Color.white.opacity(0.25), location: 1.0)
@@ -192,7 +212,7 @@ public struct LiquidGlassBarModifier: ViewModifier {
                         )
                 }
             }
-            .shadow(color: Color.black.opacity(0.35), radius: 14, x: 0, y: 6)
+            .shadow(color: isLight ? Color.black.opacity(0.08) : Color.black.opacity(0.35), radius: 14, x: 0, y: 6)
     }
 }
 

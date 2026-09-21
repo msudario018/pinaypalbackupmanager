@@ -14,6 +14,39 @@ public struct LiquidTheme {
     public static let textPrimary = Color(red: 0.941, green: 0.965, blue: 0.988)   // #F0F6FC
     public static let textSecondary = Color(red: 0.545, green: 0.580, blue: 0.620) // #8B949E
 
+    // Light Mode tokens
+    public static let backgroundLight = Color(red: 0.957, green: 0.965, blue: 0.976) // #F4F6F9
+    public static let surfaceLight = Color.white                                      // #FFFFFF
+    public static let cardLight = Color(red: 0.973, green: 0.980, blue: 0.988)       // #F8FAFC
+    public static let textPrimaryLight = Color(red: 0.059, green: 0.090, blue: 0.165) // #0F172A
+    public static let textSecondaryLight = Color(red: 0.392, green: 0.455, blue: 0.545) // #64748B
+    public static let borderLight = Color(red: 0.886, green: 0.910, blue: 0.941)     // #E2E8F0
+
+    // Adaptive Colors based on ColorScheme
+    public static func background(for scheme: ColorScheme) -> Color {
+        scheme == .light ? backgroundLight : backgroundDark
+    }
+
+    public static func surface(for scheme: ColorScheme) -> Color {
+        scheme == .light ? surfaceLight : surfaceDark
+    }
+
+    public static func card(for scheme: ColorScheme) -> Color {
+        scheme == .light ? cardLight : surfaceDark
+    }
+
+    public static func textPrimary(for scheme: ColorScheme) -> Color {
+        scheme == .light ? textPrimaryLight : textPrimary
+    }
+
+    public static func textSecondary(for scheme: ColorScheme) -> Color {
+        scheme == .light ? textSecondaryLight : textSecondary
+    }
+
+    public static func border(for scheme: ColorScheme) -> Color {
+        scheme == .light ? borderLight : Color(red: 0.188, green: 0.212, blue: 0.239)
+    }
+
     // Liquid Glass Gradients
     public static let specularRimGradient = LinearGradient(
         stops: [
@@ -55,4 +88,19 @@ public struct LiquidTheme {
         startRadius: 20,
         endRadius: 280
     )
+}
+
+public enum AppThemeMode: String, CaseIterable, Identifiable {
+    case system = "system"
+    case dark = "dark"
+    case light = "light"
+
+    public var id: String { rawValue }
+    public var displayName: String {
+        switch self {
+        case .system: return "Auto (System)"
+        case .dark: return "Dark (Obsidian)"
+        case .light: return "Light (Pearlescent)"
+        }
+    }
 }
