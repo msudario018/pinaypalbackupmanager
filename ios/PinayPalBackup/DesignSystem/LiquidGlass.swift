@@ -22,30 +22,77 @@ public struct LiquidGlassCardModifier: ViewModifier {
     var variant: LiquidGlassVariant = .regular
     var isInteractive: Bool = false
 
+    private var isLight: Bool { colorScheme == .light }
+
+    // MARK: Extracted gradient stops to avoid type-checker timeout
+
+    private var underlayStops: [Gradient.Stop] {
+        if isLight {
+            return [
+                .init(color: Color.white.opacity(variant == .prominent ? 0.90 : 0.75), location: 0.0),
+                .init(color: Color.white.opacity(0.40), location: 0.28),
+                .init(color: Color(red: 0.94, green: 0.96, blue: 0.98).opacity(0.60), location: 0.70),
+                .init(color: Color(red: 0.90, green: 0.93, blue: 0.96).opacity(0.85), location: 1.0)
+            ]
+        } else {
+            return [
+                .init(color: Color.white.opacity(variant == .prominent ? 0.16 : 0.09), location: 0.0),
+                .init(color: Color.white.opacity(0.02), location: 0.28),
+                .init(color: Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.55), location: 0.70),
+                .init(color: Color(red: 0.04, green: 0.06, blue: 0.09).opacity(0.85), location: 1.0)
+            ]
+        }
+    }
+
+    private var specularStops: [Gradient.Stop] {
+        if isLight {
+            return [
+                .init(color: Color.white.opacity(0.95), location: 0.0),
+                .init(color: Color.white.opacity(0.50), location: 0.18),
+                .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.60), location: 0.52),
+                .init(color: glowColor.opacity(0.35), location: 0.82),
+                .init(color: Color.white.opacity(0.60), location: 1.0)
+            ]
+        } else {
+            return [
+                .init(color: Color.white.opacity(0.70), location: 0.0),
+                .init(color: Color.white.opacity(0.25), location: 0.18),
+                .init(color: Color.white.opacity(0.05), location: 0.52),
+                .init(color: glowColor.opacity(0.45), location: 0.82),
+                .init(color: Color.white.opacity(0.20), location: 1.0)
+            ]
+        }
+    }
+
+    private var chromaticGlowOpacity: Double {
+        isLight ? 0.10 : (variant == .prominent ? 0.22 : 0.12)
+    }
+
+    private var primaryShadowColor: Color {
+        isLight ? Color(red: 0.1, green: 0.15, blue: 0.25).opacity(0.08) : Color.black.opacity(0.40)
+    }
+
+    private var primaryShadowRadius: CGFloat { isLight ? 10 : 16 }
+    private var primaryShadowY: CGFloat { isLight ? 4 : 8 }
+    private var strokeWidth: CGFloat { isLight ? 1.2 : 1.0 }
+
+    private var secondaryShadowOpacity: Double {
+        isLight ? 0.06 : (variant == .prominent ? 0.20 : 0.10)
+    }
+
     public func body(content: Content) -> some View {
-        let isLight = colorScheme == .light
-        return content
+        content
             .background {
                 ZStack {
                     // 1. Dynamic optical blur base (high transmittance)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(isLight ? (variant == .prominent ? .regularMaterial : .ultraThinMaterial) : (variant == .prominent ? .thinMaterial : .ultraThinMaterial))
+                        .fill(.ultraThinMaterial)
 
                     // 2. Liquid glass refractive underlay (Fresnel optical depth)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(
                             LinearGradient(
-                                stops: isLight ? [
-                                    .init(color: Color.white.opacity(variant == .prominent ? 0.90 : 0.75), location: 0.0),
-                                    .init(color: Color.white.opacity(0.40), location: 0.28),
-                                    .init(color: Color(red: 0.94, green: 0.96, blue: 0.98).opacity(0.60), location: 0.70),
-                                    .init(color: Color(red: 0.90, green: 0.93, blue: 0.96).opacity(0.85), location: 1.0)
-                                ] : [
-                                    .init(color: Color.white.opacity(variant == .prominent ? 0.16 : 0.09), location: 0.0),
-                                    .init(color: Color.white.opacity(0.02), location: 0.28),
-                                    .init(color: Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.55), location: 0.70),
-                                    .init(color: Color(red: 0.04, green: 0.06, blue: 0.09).opacity(0.85), location: 1.0)
-                                ],
+                                stops: underlayStops,
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -56,7 +103,7 @@ public struct LiquidGlassCardModifier: ViewModifier {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    glowColor.opacity(isLight ? 0.10 : (variant == .prominent ? 0.22 : 0.12)),
+                                    glowColor.opacity(chromaticGlowOpacity),
                                     glowColor.opacity(0.02),
                                     Color.clear
                                 ],
@@ -69,32 +116,20 @@ public struct LiquidGlassCardModifier: ViewModifier {
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
-                // 4. Directional 135° Specular Rim Highlight (Apple Liquid Glass Specular Stroke)
+                // 4. Directional 135° Specular Rim Highlight
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
-                            stops: isLight ? [
-                                .init(color: Color.white.opacity(0.95), location: 0.0),
-                                .init(color: Color.white.opacity(0.50), location: 0.18),
-                                .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.60), location: 0.52),
-                                .init(color: glowColor.opacity(0.35), location: 0.82),
-                                .init(color: Color.white.opacity(0.60), location: 1.0)
-                            ] : [
-                                .init(color: Color.white.opacity(0.70), location: 0.0),
-                                .init(color: Color.white.opacity(0.25), location: 0.18),
-                                .init(color: Color.white.opacity(0.05), location: 0.52),
-                                .init(color: glowColor.opacity(0.45), location: 0.82),
-                                .init(color: Color.white.opacity(0.20), location: 1.0)
-                            ],
+                            stops: specularStops,
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: isLight ? 1.2 : 1.0
+                        lineWidth: strokeWidth
                     )
             }
             // Multi-depth soft shadow system
-            .shadow(color: isLight ? Color(red: 0.1, green: 0.15, blue: 0.25).opacity(0.08) : Color.black.opacity(0.40), radius: isLight ? 10 : 16, x: 0, y: isLight ? 4 : 8)
-            .shadow(color: glowColor.opacity(isLight ? 0.06 : (variant == .prominent ? 0.20 : 0.10)), radius: 24, x: 0, y: 4)
+            .shadow(color: primaryShadowColor, radius: primaryShadowRadius, x: 0, y: primaryShadowY)
+            .shadow(color: glowColor.opacity(secondaryShadowOpacity), radius: 24, x: 0, y: 4)
     }
 }
 
@@ -182,29 +217,46 @@ public struct LiquidCapsulePill: ViewModifier {
 public struct LiquidGlassBarModifier: ViewModifier {
     @Environment(\.colorScheme) var colorScheme
 
+    private var isLight: Bool { colorScheme == .light }
+
+    private var barFillColor: Color {
+        isLight ? Color.white.opacity(0.65) : Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.65)
+    }
+
+    private var barStrokeStops: [Gradient.Stop] {
+        if isLight {
+            return [
+                .init(color: Color.white.opacity(0.95), location: 0.0),
+                .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.50), location: 0.5),
+                .init(color: Color.white.opacity(0.70), location: 1.0)
+            ]
+        } else {
+            return [
+                .init(color: Color.white.opacity(0.55), location: 0.0),
+                .init(color: Color.white.opacity(0.10), location: 0.5),
+                .init(color: Color.white.opacity(0.25), location: 1.0)
+            ]
+        }
+    }
+
+    private var barShadowColor: Color {
+        isLight ? Color.black.opacity(0.08) : Color.black.opacity(0.35)
+    }
+
     public func body(content: Content) -> some View {
-        let isLight = colorScheme == .light
-        return content
+        content
             .background {
                 ZStack {
                     Capsule(style: .continuous)
-                        .fill(isLight ? .regularMaterial : .ultraThinMaterial)
+                        .fill(.ultraThinMaterial)
 
                     Capsule(style: .continuous)
-                        .fill(isLight ? Color.white.opacity(0.65) : Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.65))
+                        .fill(barFillColor)
 
                     Capsule(style: .continuous)
                         .strokeBorder(
                             LinearGradient(
-                                stops: isLight ? [
-                                    .init(color: Color.white.opacity(0.95), location: 0.0),
-                                    .init(color: Color(red: 0.82, green: 0.85, blue: 0.90).opacity(0.50), location: 0.5),
-                                    .init(color: Color.white.opacity(0.70), location: 1.0)
-                                ] : [
-                                    .init(color: Color.white.opacity(0.55), location: 0.0),
-                                    .init(color: Color.white.opacity(0.10), location: 0.5),
-                                    .init(color: Color.white.opacity(0.25), location: 1.0)
-                                ],
+                                stops: barStrokeStops,
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
@@ -212,7 +264,7 @@ public struct LiquidGlassBarModifier: ViewModifier {
                         )
                 }
             }
-            .shadow(color: isLight ? Color.black.opacity(0.08) : Color.black.opacity(0.35), radius: 14, x: 0, y: 6)
+            .shadow(color: barShadowColor, radius: 14, x: 0, y: 6)
     }
 }
 
