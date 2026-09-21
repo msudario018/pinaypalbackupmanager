@@ -299,7 +299,7 @@ public class PinayPalAPIService: ObservableObject {
             if let disk = decoded.health?.disk, let pct = disk.percent, pct > 88 {
                 NotificationService.shared.sendLowDiskAlert(
                     diskLetter: disk.primaryDriveLetter ?? "C:",
-                    freeGb: disk.availableGB ?? 0,
+                    freeGb: Double(disk.availableGB ?? 0),
                     percentUsed: pct
                 )
             }

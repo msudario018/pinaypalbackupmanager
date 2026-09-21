@@ -5,6 +5,7 @@ public struct LiquidTheme {
     public static let backgroundDark = Color(red: 0.043, green: 0.055, blue: 0.078) // #0B0E14
     public static let surfaceDark = Color(red: 0.086, green: 0.106, blue: 0.133)   // #161B22
     public static let gold = Color(red: 0.988, green: 0.639, blue: 0.067)          // #FCA311
+    public static let goldDark = Color(red: 0.850, green: 0.510, blue: 0.035)      // Deeper Gold
     public static let emerald = Color(red: 0.247, green: 0.725, blue: 0.314)       // #3FB950
     public static let cyan = Color(red: 0.282, green: 0.792, blue: 0.894)          // #48CAE4
     public static let purple = Color(red: 0.639, green: 0.443, blue: 0.969)        // #A371F7
