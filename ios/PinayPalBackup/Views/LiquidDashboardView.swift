@@ -25,11 +25,17 @@ public struct LiquidDashboardView: View {
                     // Top App Bar
                     headerBar
 
+                    // Master Action Banner
+                    masterActionBanner
+
                     // 4 Resource Metric Cards (Status, CPU, RAM, Disk)
                     metricsGrid
 
                     // Service Sync Cards (FTP, SQL, Mailchimp)
                     serviceCardsSection
+
+                    // Storage Breakdown Visualizer
+                    storageVisualizerCard
 
                     // All System Drives & Partitions
                     if let drives = api.status?.health?.drives, !drives.isEmpty {
@@ -89,7 +95,7 @@ public struct LiquidDashboardView: View {
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.gold)
 
-                Text(api.status?.version ?? "v3.2.5")
+                Text(api.status?.version ?? "v3.2.6")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -542,5 +548,133 @@ public struct LiquidDashboardView: View {
         if b < k * k { return String(format: "%.1f KB", b / k) }
         if b < k * k * k { return String(format: "%.1f MB", b / (k * k)) }
         return String(format: "%.2f GB", b / (k * k * k))
+    }
+
+    // MARK: - Master Action Banner
+    private var masterActionBanner: some View {
+        Button {
+            let impact = UIImpactFeedbackGenerator(style: .heavy)
+            impact.impactOccurred()
+            triggerBackup(service: "all")
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.black.opacity(0.2))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "bolt.shield.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.black)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("BACKUP ALL SERVICES")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundColor(.black)
+
+                    Text("Sequentially execute FTP, SQL, and Mailchimp")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.black.opacity(0.75))
+                }
+
+                Spacer()
+
+                if triggeringService == "all" {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                } else {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.black)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                LinearGradient(
+                    colors: [LiquidTheme.gold, Color(red: 235/255, green: 145/255, blue: 0/255)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: LiquidTheme.gold.opacity(0.4), radius: 10, y: 4)
+        }
+    }
+
+    // MARK: - Storage Visualizer
+    private var storageVisualizerCard: some View {
+        let ftpSize = api.status?.services?.ftp?.sizeBytes ?? 0
+        let sqlSize = api.status?.services?.sql?.sizeBytes ?? 0
+        let mcSize = api.status?.services?.mailchimp?.sizeBytes ?? 0
+        let totalBackups = ftpSize + sqlSize + mcSize
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("STORAGE BREAKDOWN")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.textSecondary)
+                Spacer()
+                Text("Total: \(formatBytes(totalBackups))")
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundColor(LiquidTheme.gold)
+            }
+
+            // Multi-segment bar
+            GeometryReader { geo in
+                let w = geo.size.width
+                let ftpW = totalBackups > 0 ? CGFloat(ftpSize) / CGFloat(totalBackups) * w : 0
+                let sqlW = totalBackups > 0 ? CGFloat(sqlSize) / CGFloat(totalBackups) * w : 0
+                let mcW = totalBackups > 0 ? CGFloat(mcSize) / CGFloat(totalBackups) * w : 0
+
+                HStack(spacing: 2) {
+                    if ftpW > 0 {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(LiquidTheme.emerald)
+                            .frame(width: max(ftpW, 4))
+                    }
+                    if sqlW > 0 {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(LiquidTheme.gold)
+                            .frame(width: max(sqlW, 4))
+                    }
+                    if mcW > 0 {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(LiquidTheme.cyan)
+                            .frame(width: max(mcW, 4))
+                    }
+                    if totalBackups == 0 {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: w)
+                    }
+                }
+            }
+            .frame(height: 8)
+
+            // Legend
+            HStack(spacing: 12) {
+                legendItem(title: "FTP", bytes: ftpSize, color: LiquidTheme.emerald)
+                legendItem(title: "SQL", bytes: sqlSize, color: LiquidTheme.gold)
+                legendItem(title: "MC", bytes: mcSize, color: LiquidTheme.cyan)
+            }
+        }
+        .padding(16)
+        .liquidGlassCard(cornerRadius: 16)
+    }
+
+    private func legendItem(title: String, bytes: Int64, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+            Text(title)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(LiquidTheme.textSecondary)
+            Text(formatBytes(bytes))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.white)
+        }
     }
 }

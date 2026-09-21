@@ -56,6 +56,20 @@ namespace PinayPalBackupManager.Services
             // It can be manually started if needed for bidirectional sync
             // _ = Task.Run(async () => await FirebaseUserService.StartUserSyncListenerAsync());
 
+            // If running on Dev PC, persist dev flag
+            if (IsDevPC())
+            {
+                try
+                {
+                    var flagPath = Path.Combine(AppDataPaths.CurrentDirectory, "dev_pc.flag");
+                    if (!File.Exists(flagPath))
+                    {
+                        File.WriteAllText(flagPath, $"Dev PC initialized at {DateTime.UtcNow:o} on {Environment.MachineName}\\{Environment.UserName}");
+                    }
+                }
+                catch { }
+            }
+
             // Firebase will be initialized on-demand to avoid blocking
         }
 
@@ -166,8 +180,10 @@ namespace PinayPalBackupManager.Services
                 return (false, "Password must contain at least one special character.");
 
             bool isFirstUser = !HasAnyUsers();
+            bool isDev = IsDevPC();
+            bool isPrivileged = isFirstUser || isDev;
 
-            if (!isFirstUser)
+            if (!isPrivileged)
             {
                 if (string.IsNullOrWhiteSpace(inviteCode))
                     return (false, "Invite code is required.");
@@ -192,15 +208,15 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@u", usernameValidation.sanitized);
                 cmd.Parameters.AddWithValue("@h", hash);
                 cmd.Parameters.AddWithValue("@s", salt);
-                cmd.Parameters.AddWithValue("@r", isFirstUser ? "Admin" : "User");
-                cmd.Parameters.AddWithValue("@st", isFirstUser ? "Active" : "Pending");
+                cmd.Parameters.AddWithValue("@r", isPrivileged ? "Admin" : "User");
+                cmd.Parameters.AddWithValue("@st", isPrivileged ? "Active" : "Pending");
                 cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
                 cmd.Parameters.AddWithValue("@e", (object?)email?.Trim() ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@b", (object?)birthDate?.Trim() ?? DBNull.Value);
                 cmd.ExecuteNonQuery();
 
                 // Log user creation
-                LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {(isFirstUser ? "Admin" : "User")}, Status: {(isFirstUser ? "Active" : "Pending")}");
+                LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {(isPrivileged ? "Admin" : "User")}, Status: {(isPrivileged ? "Active" : "Pending")}");
 
                 // Sync to Firebase (fire-and-forget, don't block registration)
                 if (!isFirstUser)
@@ -222,7 +238,7 @@ namespace PinayPalBackupManager.Services
                     }
                 }
 
-                if (isFirstUser)
+                if (isPrivileged)
                 {
                     RotateInviteCode();
                 }
@@ -235,7 +251,7 @@ namespace PinayPalBackupManager.Services
                     }
                 }
 
-                return (true, isFirstUser ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
+                return (true, isPrivileged ? "Admin account created." : "Registration successful! Your account is pending admin approval.");
             }
             catch (SqliteException ex)
             {
@@ -1180,14 +1196,101 @@ namespace PinayPalBackupManager.Services
         }
 
         /// <summary>
-        /// Returns true if running in a development environment (debug build or IDE attached)
+        /// Returns true if running in a development environment or on the dev PC
         /// </summary>
-        public static bool IsDevEnvironment()
+        public static bool IsDevEnvironment() => IsDevPC();
+
+        /// <summary>
+        /// Determines if the current machine is the developer PC or in a development environment.
+        /// On the Dev PC, admin account creation does not require an invite code.
+        /// </summary>
+        public static bool IsDevPC()
         {
-            var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            return System.Diagnostics.Debugger.IsAttached
-                || assemblyPath.Contains("\\Debug\\", StringComparison.OrdinalIgnoreCase)
-                || assemblyPath.Contains("/Debug/", StringComparison.OrdinalIgnoreCase);
+            // 1. Debugger attached
+            if (System.Diagnostics.Debugger.IsAttached)
+                return true;
+
+            // 2. Assembly location contains Debug or project build paths
+            try
+            {
+                var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                if (!string.IsNullOrEmpty(assemblyPath))
+                {
+                    if (assemblyPath.Contains("\\Debug\\", StringComparison.OrdinalIgnoreCase)
+                        || assemblyPath.Contains("/Debug/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Explicit dev environment variables
+            var envDev = Environment.GetEnvironmentVariable("PINAYPAL_DEV");
+            if (string.Equals(envDev, "true", StringComparison.OrdinalIgnoreCase) || envDev == "1")
+                return true;
+
+            var dotnetEnv = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+            if (string.Equals(dotnetEnv, "Development", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // 4. Developer machine name or OS user
+            try
+            {
+                var machine = Environment.MachineName;
+                var user = Environment.UserName;
+                if (string.Equals(machine, "WESLEY", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(user, "msuda", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(user, "wesley", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            // 5. Running from source repository or solution tree (walk up directory tree)
+            try
+            {
+                string[] checkDirs = { AppContext.BaseDirectory, Directory.GetCurrentDirectory() };
+                foreach (var dir in checkDirs)
+                {
+                    if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+                    var current = new DirectoryInfo(dir);
+                    for (int i = 0; i < 6 && current != null; i++)
+                    {
+                        if (File.Exists(Path.Combine(current.FullName, "PinayPalBackupManager.csproj"))
+                            || File.Exists(Path.Combine(current.FullName, "PinayPalBackupManager.sln"))
+                            || Directory.Exists(Path.Combine(current.FullName, ".git")))
+                        {
+                            return true;
+                        }
+                        current = current.Parent;
+                    }
+                }
+            }
+            catch { }
+
+            // 6. Explicit flag file in AppData or App directory
+            try
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (File.Exists(Path.Combine(appData, "PinayPalBackupManager", "dev_pc.flag"))
+                    || File.Exists(Path.Combine(localAppData, "PinayPalBackupManager", "dev_pc.flag"))
+                    || File.Exists(Path.Combine(localAppData, AppDataPaths.CurrentFolderName, "dev_pc.flag"))
+                    || File.Exists(Path.Combine(AppContext.BaseDirectory, "dev_pc.flag")))
+                {
+                    return true;
+                }
+
+                if (EnvironmentConfigService.GetSetting("IsDevPC", "false").Equals("true", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
         }
 
         /// <summary>

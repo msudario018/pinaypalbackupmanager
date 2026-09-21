@@ -29,23 +29,32 @@ namespace PinayPalBackupManager.UI
             SetupEventHandlers();
             UpdateUIForCurrentStep();
             SetDefaultPaths();
-            UpdateAdminUserText();
-
-            // Check Firebase asynchronously to confirm this is actually the admin PC
-            _ = Task.Run(async () =>
+            if (AuthService.IsDevPC())
             {
-                try
+                _isAdminPC = true;
+                UpdateAdminUserText();
+            }
+            else
+            {
+                _isAdminPC = true; // Default: assume admin PC until confirmed otherwise
+                UpdateAdminUserText();
+
+                // Only for non-dev PCs: Check Firebase asynchronously to confirm if an admin already exists on another PC
+                _ = Task.Run(async () =>
                 {
-                    var users = await FirebaseUserService.GetAllUsersAsync();
-                    bool hasAdmin = users.Any(u => u.Role == "Admin");
-                    if (hasAdmin)
+                    try
                     {
-                        _isAdminPC = false;
-                        Dispatcher.UIThread.Post(() => UpdateAdminUserText());
+                        var users = await FirebaseUserService.GetAllUsersAsync();
+                        bool hasAdmin = users.Any(u => u.Role == "Admin");
+                        if (hasAdmin)
+                        {
+                            _isAdminPC = false;
+                            Dispatcher.UIThread.Post(() => UpdateAdminUserText());
+                        }
                     }
-                }
-                catch { /* Firebase unreachable — keep admin PC assumption */ }
-            });
+                    catch { /* Firebase unreachable — keep admin PC assumption */ }
+                });
+            }
         }
 
         private void SetupEventHandlers()
@@ -119,7 +128,8 @@ namespace PinayPalBackupManager.UI
 
             if (titleTextBlock != null && descTextBlock != null && inviteCodePanel != null)
             {
-                if (_isAdminPC)
+                bool isAdmin = _isAdminPC || AuthService.IsDevPC();
+                if (isAdmin)
                 {
                     titleTextBlock.Text = "Create Administrator Account";
                     descTextBlock.Text = "Set up your admin credentials to manage backup system.";
@@ -342,8 +352,8 @@ namespace PinayPalBackupManager.UI
                 }
             }
 
-            // Validate invite code if not admin PC
-            if (!_isAdminPC && string.IsNullOrWhiteSpace(inviteCode))
+            // Validate invite code if not admin PC and not Dev PC
+            if (!_isAdminPC && !AuthService.IsDevPC() && string.IsNullOrWhiteSpace(inviteCode))
             {
                 ShowError("ErrorInviteCode", "Invite code is required");
                 valid = false;
@@ -784,9 +794,9 @@ namespace PinayPalBackupManager.UI
                 var email = this.FindControl<TextBox>("TxtAdminEmail")?.Text?.Trim();
                 var birthDate = this.FindControl<TextBox>("TxtAdminBirthDate")?.Text?.Trim();
 
-                if (_isAdminPC)
+                if (_isAdminPC || AuthService.IsDevPC())
                 {
-                    // Admin PC: create admin directly (no invite code needed)
+                    // Admin PC / Dev PC: create admin directly (no invite code needed)
                     var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active", email, birthDate);
                     if (!success)
                     {

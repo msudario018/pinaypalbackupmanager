@@ -4,7 +4,8 @@ public struct MainView: View {
     @StateObject private var api = PinayPalAPIService()
     @StateObject private var authManager = BiometricAuthManager()
 
-    @State private var selectedTab: Int = 0 // 0 = Native Liquid HUD, 1 = Live Web View
+    // 0 = Liquid HUD, 1 = Backup Snapshots, 2 = Live Console, 3 = Web Dashboard
+    @State private var selectedTab: Int = 0
     @State private var showSettingsSheet: Bool = false
 
     public var body: some View {
@@ -25,20 +26,28 @@ public struct MainView: View {
                 .transition(.opacity)
             } else {
                 ZStack {
-                    // Content
-                    if selectedTab == 0 {
-                        LiquidDashboardView(api: api, showSettingsSheet: $showSettingsSheet)
-                            .transition(.opacity)
-                    } else {
-                        LiquidWebView(api: api, showSettingsSheet: $showSettingsSheet)
-                            .transition(.opacity)
+                    // Tab Content
+                    Group {
+                        switch selectedTab {
+                        case 0:
+                            LiquidDashboardView(api: api, showSettingsSheet: $showSettingsSheet)
+                        case 1:
+                            BackupHistoryView(api: api, showSettingsSheet: $showSettingsSheet)
+                        case 2:
+                            LiveLogsView(api: api, showSettingsSheet: $showSettingsSheet)
+                        case 3:
+                            LiquidWebView(api: api, showSettingsSheet: $showSettingsSheet)
+                        default:
+                            LiquidDashboardView(api: api, showSettingsSheet: $showSettingsSheet)
+                        }
                     }
+                    .transition(.opacity)
 
-                    // Floating Liquid Glass Capsule Switcher at bottom
+                    // 4-Tab Liquid Glass Dock at bottom
                     VStack {
                         Spacer()
                         floatingCapsuleBar
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 16)
                     }
                 }
                 .sheet(isPresented: $showSettingsSheet) {
@@ -53,66 +62,55 @@ public struct MainView: View {
     }
 
     private var floatingCapsuleBar: some View {
-        HStack(spacing: 8) {
-            Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                    selectedTab = 0
-                }
-                let haptic = UIImpactFeedbackGenerator(style: .light)
-                haptic.impactOccurred()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                    Text("Liquid HUD")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                }
-                .foregroundColor(selectedTab == 0 ? .black : LiquidTheme.textSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background {
-                    if selectedTab == 0 {
-                        Capsule(style: .continuous)
-                            .fill(LiquidTheme.gold)
-                            .shadow(color: LiquidTheme.gold.opacity(0.4), radius: 8, y: 3)
-                    }
-                }
-            }
-
-            Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                    selectedTab = 1
-                }
-                let haptic = UIImpactFeedbackGenerator(style: .light)
-                haptic.impactOccurred()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "globe")
-                    Text("Web Dashboard")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                }
-                .foregroundColor(selectedTab == 1 ? .black : LiquidTheme.textSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background {
-                    if selectedTab == 1 {
-                        Capsule(style: .continuous)
-                            .fill(LiquidTheme.gold)
-                            .shadow(color: LiquidTheme.gold.opacity(0.4), radius: 8, y: 3)
-                    }
-                }
-            }
+        HStack(spacing: 4) {
+            tabButton(title: "HUD", icon: "sparkles", index: 0)
+            tabButton(title: "Snapshots", icon: "clock.arrow.circlepath", index: 1)
+            tabButton(title: "Console", icon: "terminal.fill", index: 2)
+            tabButton(title: "Web", icon: "globe", index: 3)
         }
-        .padding(6)
+        .padding(5)
         .background(.ultraThinMaterial)
         .clipShape(Capsule(style: .continuous))
         .overlay {
             Capsule(style: .continuous)
                 .strokeBorder(LinearGradient(
-                    colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)],
+                    colors: [Color.white.opacity(0.35), Color.white.opacity(0.1)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.5), radius: 20, y: 10)
+        .shadow(color: Color.black.opacity(0.6), radius: 20, y: 10)
+    }
+
+    private func tabButton(title: String, icon: String, index: Int) -> some View {
+        let isSelected = selectedTab == index
+
+        return Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                selectedTab = index
+            }
+            let haptic = UIImpactFeedbackGenerator(style: .light)
+            haptic.impactOccurred()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .bold))
+                if isSelected {
+                    Text(title)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .transition(.opacity.combined(with: .scale))
+                }
+            }
+            .foregroundColor(isSelected ? .black : LiquidTheme.textSecondary)
+            .padding(.horizontal, isSelected ? 14 : 10)
+            .padding(.vertical, 9)
+            .background {
+                if isSelected {
+                    Capsule(style: .continuous)
+                        .fill(LiquidTheme.gold)
+                        .shadow(color: LiquidTheme.gold.opacity(0.4), radius: 8, y: 3)
+                }
+            }
+        }
     }
 }

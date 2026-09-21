@@ -1,5 +1,31 @@
 # Changelog
 
+## v3.2.6 (2026-09-21)
+
+### Fixed
+- **Dev PC Initial Setup Invite Code Bypass**:
+  - Fixed an issue where the Initial Setup Wizard queried Firebase, detected existing remote admin accounts, and incorrectly converted Step 1 into a restricted "Create User Account" requiring an invite code.
+  - Added comprehensive `AuthService.IsDevPC()` detection: checks debugger state, debug paths, developer machine name (`WESLEY`), OS user (`msuda` / `wesley`), source repo structure (`PinayPalBackupManager.csproj`, `.git`), dev environment variables, and persisted `dev_pc.flag`.
+  - Updated `SetupWizardWindow.axaml.cs` so on the Dev PC it always presents "Create Administrator Account", hides the invite code field, and creates an active Admin account directly with auto-login.
+  - Updated `LoginWindow.axaml.cs` to hide the invite code requirement for Dev PC registrations.
+
+### Added
+- **iOS 4-Tab Luxury Liquid Glass Dock**:
+  - Expanded iOS bottom navigation from a 2-view switcher into a 4-tab liquid glass dock:
+    1. **Liquid HUD**: Real-time system monitoring, one-tap backup triggers, and live hardware dials.
+    2. **Snapshots**: Dedicated backup history explorer with search, service filtering (FTP, SQL, Mailchimp, Failed), and detailed snapshot inspector sheets.
+    3. **Console**: Real-time streaming terminal log feed with syntax highlighting, search/filter, auto-scroll, and iOS ShareSheet export.
+    4. **Web Dashboard**: Embedded high-performance responsive web dashboard view.
+- **Master "Backup All Services" Action**:
+  - Added a golden action banner on the iOS Dashboard and Web Dashboard to trigger FTP, SQL, and Mailchimp backups sequentially with live haptics and progress feedback.
+- **Storage Breakdown Visualizer**:
+  - Added multi-segmented liquid storage bar visualizing FTP, SQL, Mailchimp, and drive free space.
+- **Wake-on-LAN (WOL) Remote PC Boot**:
+  - Added `WakeOnLanHelper` utilizing native `Network.framework` to send UDP magic packets (port 9) to wake up remote Windows backup host PCs from Sleep or Hibernation.
+  - Added Wake-on-LAN card with MAC address configuration in iOS Dashboard Settings (`ServerConfigSheet`).
+
+---
+
 ## v3.2.5 (2026-09-21)
 
 ### Fixed

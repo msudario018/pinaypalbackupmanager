@@ -218,10 +218,11 @@ namespace PinayPalBackupManager.UI
             var regTitle = this.FindControl<TextBlock>("TxtRegTitle")!;
             var subtitle = this.FindControl<TextBlock>("TxtSubtitle")!;
 
-            if (isFirstUser)
+            bool isPrivileged = isFirstUser || AuthService.IsDevPC();
+            if (isPrivileged)
             {
                 regTitle.Text = "CREATE ADMIN ACCOUNT";
-                subtitle.Text = "First time setup — create your admin account";
+                subtitle.Text = isFirstUser ? "First time setup — create your admin account" : "Dev PC — create admin account";
                 invitePanel.IsVisible = false;
             }
             else

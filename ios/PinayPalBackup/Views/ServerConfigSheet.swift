@@ -19,6 +19,11 @@ public struct ServerConfigSheet: View {
     @State private var isTesting = false
     @State private var testResult: String? = nil
 
+    // Wake-on-LAN States
+    @State private var wolMacAddress: String = UserDefaults.standard.string(forKey: "pp_wol_mac") ?? ""
+    @State private var wolResult: String? = nil
+    @State private var isSendingWol: Bool = false
+
     // Biometrics States
     @State private var enableBiometrics: Bool = UserDefaults.standard.bool(forKey: "pp_biometrics_enabled")
     @State private var isTestingBio: Bool = false
@@ -701,6 +706,72 @@ public struct ServerConfigSheet: View {
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
 
+            // Wake-on-LAN (WOL) Card
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "power.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(LiquidTheme.emerald)
+                    Text("WAKE-ON-LAN (WOL)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                }
+
+                Text("Send a magic packet across your local network to wake up your Windows PC from Sleep or Hibernation.")
+                    .font(.system(size: 11))
+                    .foregroundColor(LiquidTheme.textSecondary)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PC ETHERNET MAC ADDRESS")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+
+                    TextField("e.g. 00:1A:2B:3C:4D:5E", text: $wolMacAddress)
+                        .autocapitalization(.allCharacters)
+                        .disableAutocorrection(true)
+                        .padding(12)
+                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .cornerRadius(10)
+                        .foregroundColor(.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                }
+
+                Button {
+                    sendWakeOnLan()
+                } label: {
+                    HStack(spacing: 8) {
+                        if isSendingWol {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "bolt.fill")
+                        }
+                        Text(isSendingWol ? "Broadcasting Packet..." : "Wake Up PC Now")
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(LiquidTheme.emerald.opacity(0.4), lineWidth: 1)
+                    )
+                }
+                .disabled(isSendingWol || wolMacAddress.isEmpty)
+
+                if let res = wolResult {
+                    Text(res)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(res.contains("sent") ? LiquidTheme.emerald : LiquidTheme.coral)
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.emerald.opacity(0.12))
+
             // Test Connection & Save
             VStack(spacing: 12) {
                 Button {
@@ -758,6 +829,26 @@ public struct ServerConfigSheet: View {
             bioTestResult = res.message
             let feedback = UINotificationFeedbackGenerator()
             feedback.notificationOccurred(res.success ? .success : .error)
+        }
+    }
+
+    private func sendWakeOnLan() {
+        guard !wolMacAddress.isEmpty else { return }
+        UserDefaults.standard.set(wolMacAddress, forKey: "pp_wol_mac")
+        isSendingWol = true
+        wolResult = nil
+        Task {
+            let res = await WakeOnLanHelper.sendMagicPacket(macAddress: wolMacAddress)
+            isSendingWol = false
+            if res.success {
+                wolResult = "Magic packet sent to \(wolMacAddress)!"
+                let haptic = UINotificationFeedbackGenerator()
+                haptic.notificationOccurred(.success)
+            } else {
+                wolResult = res.error ?? "Failed to send packet"
+                let haptic = UINotificationFeedbackGenerator()
+                haptic.notificationOccurred(.error)
+            }
         }
     }
 
