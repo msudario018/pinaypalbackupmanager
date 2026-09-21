@@ -141,6 +141,20 @@ namespace PinayPalBackupManager.Services
                 {
                     await ServeActiveBackupStatusAsync(response);
                 }
+                else if (path == "/api/network/enable-lan" && request.HttpMethod == "POST")
+                {
+                    var port = ConfigService.Current.HttpServer.Port > 0 ? ConfigService.Current.HttpServer.Port : 8080;
+                    var (success, msg) = await NetworkAccessHelper.ConfigureLanAccessAsync(port);
+                    if (success)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1000);
+                            await FileDownloadService.RestartAsync();
+                        });
+                    }
+                    await SendJsonAsync(response, 200, new { success, message = msg });
+                }
                 else
                 {
                     await SendJsonAsync(response, 404, new { error = "Not found" });
@@ -272,19 +286,93 @@ namespace PinayPalBackupManager.Services
 
         private static string GetLocalIpAddress()
         {
+            return FileDownloadService.GetLocalIpAddress();
+        }
+
+        private static object ComputeServiceFreshness(string serviceName, string folderPath, int thresholdHours = 24)
+        {
             try
             {
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-                foreach (var ip in host.AddressList)
+                var history = BackupHistoryService.GetHistory();
+                var lastSuccess = history?
+                    .Where(h => h.Service.Equals(serviceName, StringComparison.OrdinalIgnoreCase) &&
+                                (h.Status.Equals("Success", StringComparison.OrdinalIgnoreCase) || h.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(h => h.Timestamp)
+                    .FirstOrDefault();
+
+                DateTime? lastBackupTimeUtc = lastSuccess?.Timestamp;
+
+                // Fallback: check newest modified file in backup folder
+                if (lastBackupTimeUtc == null && !string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
                 {
-                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                    try
                     {
-                        return ip.ToString();
+                        var dir = new DirectoryInfo(folderPath);
+                        var newestFile = dir.GetFiles("*", SearchOption.AllDirectories)
+                            .Where(f => !f.Name.Equals("backuplog.txt", StringComparison.OrdinalIgnoreCase))
+                            .OrderByDescending(f => f.LastWriteTimeUtc)
+                            .FirstOrDefault();
+
+                        if (newestFile != null)
+                        {
+                            lastBackupTimeUtc = newestFile.LastWriteTimeUtc;
+                        }
                     }
+                    catch { }
                 }
+
+                if (lastBackupTimeUtc.HasValue)
+                {
+                    var age = DateTime.UtcNow - lastBackupTimeUtc.Value;
+                    var ageHours = Math.Max(0, age.TotalHours);
+                    var isOutdated = ageHours > thresholdHours;
+
+                    string relStr;
+                    if (age.TotalMinutes < 2) relStr = "Just now";
+                    else if (age.TotalMinutes < 60) relStr = $"{(int)age.TotalMinutes}m ago";
+                    else if (age.TotalHours < 24) relStr = $"{(int)age.TotalHours}h ago";
+                    else if (age.TotalDays < 30) relStr = $"{(int)age.TotalDays}d ago";
+                    else relStr = $"{(int)(age.TotalDays / 30)}mo ago";
+
+                    return new
+                    {
+                        status = isOutdated ? "outdated" : "updated",
+                        isOutdated = isOutdated,
+                        isUpdated = !isOutdated,
+                        badgeText = isOutdated ? $"Outdated ({relStr})" : $"Updated ({relStr})",
+                        lastBackupTime = lastBackupTimeUtc.Value.ToString("o"),
+                        relativeTime = relStr,
+                        ageHours = Math.Round(ageHours, 1),
+                        thresholdHours = thresholdHours
+                    };
+                }
+
+                return new
+                {
+                    status = "never",
+                    isOutdated = true,
+                    isUpdated = false,
+                    badgeText = "Never Backed Up",
+                    lastBackupTime = (string?)null,
+                    relativeTime = "Never",
+                    ageHours = -1.0,
+                    thresholdHours = thresholdHours
+                };
             }
-            catch { }
-            return "127.0.0.1";
+            catch
+            {
+                return new
+                {
+                    status = "never",
+                    isOutdated = true,
+                    isUpdated = false,
+                    badgeText = "Unknown",
+                    lastBackupTime = (string?)null,
+                    relativeTime = "Unknown",
+                    ageHours = -1.0,
+                    thresholdHours = thresholdHours
+                };
+            }
         }
 
         private static async Task HandleLoginPostAsync(HttpListenerContext context)
@@ -353,14 +441,7 @@ namespace PinayPalBackupManager.Services
             var history = BackupHistoryService.GetHistory();
             var lastSuccess = history?.Where(h => h.Status == "Success").OrderByDescending(h => h.Timestamp).FirstOrDefault();
 
-            string localIp = "127.0.0.1";
-            try
-            {
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-                var ip = host.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                if (ip != null) localIp = ip.ToString();
-            }
-            catch { }
+            string localIp = FileDownloadService.GetLocalIpAddress();
 
             var sysUptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
             string sysUptimeStr = sysUptime.Days > 0 ? $"{sysUptime.Days}d {sysUptime.Hours}h {sysUptime.Minutes}m" : $"{sysUptime.Hours}h {sysUptime.Minutes}m";
@@ -380,6 +461,11 @@ namespace PinayPalBackupManager.Services
             var sqlFolderInfo = health.Resources.BackupFolders.FirstOrDefault(f => f.Service.Contains("SQL", StringComparison.OrdinalIgnoreCase));
             var mcFolderInfo = health.Resources.BackupFolders.FirstOrDefault(f => f.Service.Contains("Mailchimp", StringComparison.OrdinalIgnoreCase));
 
+            // Freshness computation (threshold: 24h)
+            var ftpFreshness = ComputeServiceFreshness("FTP", BackupConfig.FtpLocalFolder, 24);
+            var sqlFreshness = ComputeServiceFreshness("SQL", BackupConfig.SqlLocalFolder, 24);
+            var mcFreshness = ComputeServiceFreshness("Mailchimp", BackupConfig.MailchimpFolder, 24);
+
             var status = new
             {
                 appName = "PinayPal Backup Manager",
@@ -394,7 +480,10 @@ namespace PinayPalBackupManager.Services
                     cores = Environment.ProcessorCount,
                     systemUptime = sysUptimeStr,
                     appUptime = appUptimeStr,
-                    localIp = localIp
+                    localIp = localIp,
+                    allLocalIps = FileDownloadService.GetAllLocalIPv4Addresses(),
+                    isBoundToAll = FileDownloadService.IsBoundToAllInterfaces,
+                    boundPrefixes = FileDownloadService.BoundPrefixes
                 },
                 schedules = new
                 {
@@ -417,7 +506,8 @@ namespace PinayPalBackupManager.Services
                         folder = BackupConfig.FtpLocalFolder,
                         configured = !string.IsNullOrEmpty(BackupConfig.FtpHost),
                         fileCount = ftpFolderInfo?.FileCount ?? 0,
-                        sizeBytes = ftpFolderInfo?.TotalSizeBytes ?? 0
+                        sizeBytes = ftpFolderInfo?.TotalSizeBytes ?? 0,
+                        freshness = ftpFreshness
                     },
                     sql = new
                     {
@@ -428,7 +518,8 @@ namespace PinayPalBackupManager.Services
                         folder = BackupConfig.SqlLocalFolder,
                         configured = !string.IsNullOrEmpty(BackupConfig.SqlUser),
                         fileCount = sqlFolderInfo?.FileCount ?? 0,
-                        sizeBytes = sqlFolderInfo?.TotalSizeBytes ?? 0
+                        sizeBytes = sqlFolderInfo?.TotalSizeBytes ?? 0,
+                        freshness = sqlFreshness
                     },
                     mailchimp = new
                     {
@@ -437,7 +528,8 @@ namespace PinayPalBackupManager.Services
                         folder = BackupConfig.MailchimpFolder,
                         configured = !string.IsNullOrEmpty(BackupConfig.McApiKey),
                         fileCount = mcFolderInfo?.FileCount ?? 0,
-                        sizeBytes = mcFolderInfo?.TotalSizeBytes ?? 0
+                        sizeBytes = mcFolderInfo?.TotalSizeBytes ?? 0,
+                        freshness = mcFreshness
                     }
                 },
                 health = new
@@ -643,9 +735,13 @@ namespace PinayPalBackupManager.Services
                 var cloudflare = ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
                 var hostname = Environment.MachineName;
 
+                var allIps = FileDownloadService.GetAllLocalIPv4Addresses();
+                var allUrls = allIps.Select(ip => $"http://{ip}:{port}").ToList();
+
                 var payload = JsonSerializer.Serialize(new
                 {
                     localUrl = $"http://{localIp}:{port}",
+                    allLocalUrls = allUrls,
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
@@ -847,11 +943,20 @@ namespace PinayPalBackupManager.Services
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         th { text-align: left; padding: 10px 12px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; font-weight: 700; }
         td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(48, 54, 61, 0.4); }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-        .tag-success { background: rgba(63,185,80,0.15); color: var(--green); }
-        .tag-failed { background: rgba(248,81,73,0.15); color: var(--red); }
-        .tag-sys { background: rgba(88,166,255,0.15); color: var(--blue); }
-        .tag-backup { background: rgba(252,163,17,0.15); color: var(--gold); }
+        .tag { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; transition: all 0.25s ease; }
+        .tag-success { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.35); }
+        .tag-failed { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.35); }
+        .tag-warning { background: rgba(245,158,11,0.18); color: var(--gold); border: 1px solid rgba(245,158,11,0.45); }
+        .tag-neutral { background: rgba(148,163,184,0.12); color: var(--muted); border: 1px solid rgba(148,163,184,0.3); }
+        .tag-sys { background: rgba(88,166,255,0.15); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
+        .tag-backup { background: rgba(252,163,17,0.15); color: var(--gold); border: 1px solid rgba(252,163,17,0.3); }
+        .pulse-badge { animation: pulseWarning 2.2s infinite; }
+        @keyframes pulseWarning {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            70% { box-shadow: 0 0 0 7px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+        .card-outdated-alert { border-color: rgba(245, 158, 11, 0.45) !important; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.08) !important; }
         a.dl { color: var(--blue); text-decoration: none; font-weight: 600; }
         a.dl:hover { text-decoration: underline; }
 
@@ -960,6 +1065,20 @@ namespace PinayPalBackupManager.Services
             </div>
             <div style=""display: flex; gap: 8px;"">
                 <button class=""btn-secondary"" style=""border-color: var(--red); color: var(--red); font-size: 11px;"" onclick=""fetch('/api/emergency-stop', {method:'POST'}).then(loadData)"">🛑 Emergency Stop</button>
+            </div>
+        </div>
+
+        <!-- Global Freshness & LAN Diagnostics Strip -->
+        <div style=""display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;"">
+            <div style=""display: flex; align-items: center; gap: 10px;"">
+                <span id=""global-freshness-icon"" style=""font-size: 18px;"">🛡️</span>
+                <span id=""global-freshness-text"" style=""font-size: 13px; font-weight: 600; color: var(--text);"">Checking service backup freshness...</span>
+            </div>
+            <div style=""display: flex; align-items: center; gap: 10px;"">
+                <div id=""lan-access-container"" style=""display: flex; align-items: center; gap: 6px;"">
+                    <span id=""lan-access-status"" class=""tag tag-sys"">IP: Loading...</span>
+                </div>
+                <button class=""btn-primary"" style=""padding: 7px 14px; font-size: 12px; font-weight: 700;"" onclick=""backupAll()"">⚡ Backup All</button>
             </div>
         </div>
 
@@ -1354,6 +1473,39 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        async function backupAll() {
+            showToast('Starting sequential backup for all services (FTP, SQL, Mailchimp)...');
+            playChime('subtle');
+            try {
+                await triggerBackup('ftp');
+                setTimeout(() => triggerBackup('sql'), 3500);
+                setTimeout(() => triggerBackup('mailchimp'), 7000);
+            } catch (e) {
+                showToast('Failed to trigger backup all: ' + e.message);
+                playChime('error');
+            }
+        }
+
+        async function enableLanAccess() {
+            showToast('Requesting elevated Windows Firewall & URL ACL configuration...');
+            playChime('subtle');
+            try {
+                const res = await fetch('/api/network/enable-lan', { method: 'POST' });
+                const d = await res.json();
+                if (d.success) {
+                    showToast(d.message || 'LAN Access configured! Restarting web server...');
+                    playChime('success');
+                } else {
+                    showToast(d.message || 'Failed to configure LAN access');
+                    playChime('error');
+                }
+                setTimeout(loadData, 3000);
+            } catch (e) {
+                showToast('Error enabling LAN access: ' + e.message);
+                playChime('error');
+            }
+        }
+
         async function runHealthCheck() {
             showToast('Running system diagnostics...');
             try {
@@ -1421,22 +1573,94 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('cpu-cores').textContent = `${sRes.system.cores} Cores`;
                 }
 
-                // Services
+                // Services & Freshness
                 if (sRes.services) {
+                    let updatedCount = 0;
+                    let outdatedList = [];
+
+                    function applyFreshnessBadge(badgeId, cardClass, serviceObj, serviceLabel) {
+                        const badge = document.getElementById(badgeId);
+                        const card = document.querySelector('.' + cardClass);
+                        const f = serviceObj?.freshness;
+                        if (!badge) return;
+
+                        if (!f || f.status === 'never') {
+                            badge.className = 'tag tag-neutral';
+                            badge.innerHTML = '• NOT BACKED UP';
+                            badge.title = 'No completed backup recorded yet';
+                            outdatedList.push(serviceLabel + ' (Never)');
+                            if (card) card.classList.remove('card-outdated-alert');
+                        } else if (f.isOutdated) {
+                            badge.className = 'tag tag-warning pulse-badge';
+                            badge.innerHTML = `⚠ OUTDATED <span style=""font-size:10px;opacity:0.85"">(${f.relativeTime})</span>`;
+                            badge.title = `Overdue! Last backup was ${f.relativeTime} (threshold: ${f.thresholdHours}h)`;
+                            outdatedList.push(serviceLabel + ` (${f.relativeTime})`);
+                            if (card) card.classList.add('card-outdated-alert');
+                        } else {
+                            badge.className = 'tag tag-success';
+                            badge.innerHTML = `✓ UPDATED <span style=""font-size:10px;opacity:0.85"">(${f.relativeTime})</span>`;
+                            badge.title = `Fresh! Last backup completed ${f.relativeTime}`;
+                            updatedCount++;
+                            if (card) card.classList.remove('card-outdated-alert');
+                        }
+                    }
+
                     // FTP
                     const ftp = sRes.services.ftp;
                     document.getElementById('ftp-meta').textContent = `Host: ${ftp.host || 'Not configured'} (Port ${ftp.port}) | User: ${ftp.user || 'None'}\nPath: ${ftp.folder || 'Not configured'}`;
                     document.getElementById('ftp-storage').textContent = `Files: ${ftp.fileCount} | Size: ${formatBytes(ftp.sizeBytes)}`;
+                    applyFreshnessBadge('ftp-badge', 'card-ftp', ftp, 'FTP Website');
 
                     // SQL
                     const sql = sRes.services.sql;
                     document.getElementById('sql-meta').textContent = `User: ${sql.user || 'Not configured'} | Remote: ${sql.remotePath || 'Default'}\nPath: ${sql.folder || 'Not configured'}`;
                     document.getElementById('sql-storage').textContent = `Files: ${sql.fileCount} | Size: ${formatBytes(sql.sizeBytes)}`;
+                    applyFreshnessBadge('sql-badge', 'card-sql', sql, 'SQL Database');
 
                     // Mailchimp
                     const mc = sRes.services.mailchimp;
                     document.getElementById('mc-meta').textContent = `Audience ID: ${mc.audienceId || 'Default'}\nPath: ${mc.folder || 'Not configured'}`;
                     document.getElementById('mc-storage').textContent = `Files: ${mc.fileCount} | Size: ${formatBytes(mc.sizeBytes)}`;
+                    applyFreshnessBadge('mc-badge', 'card-mc', mc, 'Mailchimp');
+
+                    // Global Freshness Strip
+                    const gIcon = document.getElementById('global-freshness-icon');
+                    const gText = document.getElementById('global-freshness-text');
+                    if (gIcon && gText) {
+                        if (outdatedList.length === 0 && updatedCount > 0) {
+                            gIcon.textContent = '✨';
+                            gText.innerHTML = `<span style=""color:var(--green)"">All Backups Up to Date:</span> All ${updatedCount} backup services are freshly synchronized.`;
+                        } else if (outdatedList.length > 0) {
+                            gIcon.textContent = '⚠️';
+                            gText.innerHTML = `<span style=""color:var(--gold)"">Attention Required:</span> Outdated backups: <strong>${outdatedList.join(', ')}</strong>.`;
+                        } else {
+                            gIcon.textContent = '🛡️';
+                            gText.textContent = 'No active backup history recorded yet.';
+                        }
+                    }
+
+                    // LAN Diagnostics Badge
+                    const lanStatus = document.getElementById('lan-access-status');
+                    const lanContainer = document.getElementById('lan-access-container');
+                    if (lanStatus && sRes.system) {
+                        const port = window.location.port || 8080;
+                        if (sRes.system.isBoundToAll) {
+                            lanStatus.className = 'tag tag-success';
+                            lanStatus.innerHTML = `🟢 LAN Ready: http://${sRes.system.localIp}:${port}`;
+                        } else {
+                            lanStatus.className = 'tag tag-sys';
+                            lanStatus.innerHTML = `🌐 Local IP: http://${sRes.system.localIp}:${port}`;
+                            if (lanContainer && !document.getElementById('btn-fix-lan')) {
+                                const btn = document.createElement('button');
+                                btn.id = 'btn-fix-lan';
+                                btn.className = 'btn-secondary';
+                                btn.style.cssText = 'padding:3px 8px;font-size:10px;font-weight:700;border-color:var(--gold);color:var(--gold);margin-left:6px;';
+                                btn.textContent = 'Configure Firewall';
+                                btn.onclick = enableLanAccess;
+                                lanContainer.appendChild(btn);
+                            }
+                        }
+                    }
                 }
 
                 // Schedules

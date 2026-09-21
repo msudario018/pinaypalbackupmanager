@@ -64,6 +64,17 @@ public struct ServiceItem: Codable {
     public let fileCount: Int?
     public let sizeBytes: Int64?
     public let audienceId: String?
+    public let freshness: ServiceFreshnessSpec?
+}
+
+public struct ServiceFreshnessSpec: Codable {
+    public let status: String?
+    public let isOutdated: Bool?
+    public let badgeText: String?
+    public let lastBackupTime: String?
+    public let relativeTime: String?
+    public let ageHours: Double?
+    public let thresholdHours: Double?
 }
 
 public struct HealthSpecs: Codable {

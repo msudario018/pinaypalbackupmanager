@@ -26,6 +26,8 @@
     <string>Protect access to your PinayPal Backup Manager Dashboard with Face ID.</string>
     <key>NSCameraUsageDescription</key>
     <string>PinayPal Backup uses your camera to scan server pairing QR codes.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>PinayPal Backup connects to your PC on your local home network to monitor and manage backup syncs in real time.</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
     <key>NSAppTransportSecurity</key>

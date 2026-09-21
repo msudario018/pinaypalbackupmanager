@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -15,12 +19,15 @@ namespace PinayPalBackupManager.Services
         private static CancellationTokenSource? _cancellationTokenSource;
         private static Task? _serverTask;
         private static readonly HttpClient _httpClient = new HttpClient();
-        
+
         private static string _username = string.Empty;
         private static string _backupDirectory = string.Empty;
         private static int _port = 8080;
         private static bool _isRunning = false;
         private static bool _hasNotifiedOnline = false;
+
+        public static bool IsBoundToAllInterfaces { get; private set; } = false;
+        public static List<string> BoundPrefixes { get; } = new();
         
         private const string FirebaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
 
@@ -72,28 +79,67 @@ namespace PinayPalBackupManager.Services
             try
             {
                 _listener = new HttpListener();
+                BoundPrefixes.Clear();
                 
                 // Try to bind to all interfaces first (requires admin or URL reservation)
                 try
                 {
-                    _listener.Prefixes.Add($"http://+:{_port}/");
+                    var wildcardPrefix = $"http://+:{_port}/";
+                    _listener.Prefixes.Add(wildcardPrefix);
                     _listener.Start();
-                    LogService.WriteSystemLog($"[FileDownloadService] HTTP server started on all interfaces, port {_port}", "Information", "SYSTEM");
+                    IsBoundToAllInterfaces = true;
+                    BoundPrefixes.Add(wildcardPrefix);
+                    LogService.WriteSystemLog($"[FileDownloadService] HTTP server started on all interfaces (+), port {_port}", "Information", "SYSTEM");
                 }
                 catch (HttpListenerException ex) when (ex.ErrorCode == 5) // Access denied
                 {
-                    // Fallback to localhost only
-                    LogService.WriteSystemLog("[FileDownloadService] Cannot bind to all interfaces (requires admin or URL reservation), falling back to localhost", "Warning", "SYSTEM");
+                    LogService.WriteSystemLog("[FileDownloadService] Wildcard (+) requires URL reservation. Binding to local network adapters...", "Information", "SYSTEM");
                     _listener = new HttpListener();
-                    _listener.Prefixes.Add($"http://localhost:{_port}/");
-                    _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
-                    _listener.Start();
-                    LogService.WriteSystemLog($"[FileDownloadService] HTTP server started on localhost only, port {_port}", "Information", "SYSTEM");
-                    NotificationService.ShowBackupToast(
-                        "HTTP Server Warning",
-                        "Server running on localhost only. Mobile devices on same network cannot connect. Run as administrator or add URL reservation.",
-                        "Warning"
-                    );
+                    IsBoundToAllInterfaces = false;
+
+                    var prefixesToAdd = new List<string>
+                    {
+                        $"http://localhost:{_port}/",
+                        $"http://127.0.0.1:{_port}/"
+                    };
+
+                    // Discover all active physical local IPv4 addresses (Wi-Fi, Ethernet, etc.)
+                    var localIps = GetAllLocalIPv4Addresses();
+                    foreach (var ip in localIps)
+                    {
+                        var p = $"http://{ip}:{_port}/";
+                        if (!prefixesToAdd.Contains(p)) prefixesToAdd.Add(p);
+                    }
+
+                    foreach (var prefix in prefixesToAdd)
+                    {
+                        try
+                        {
+                            _listener.Prefixes.Add(prefix);
+                            BoundPrefixes.Add(prefix);
+                        }
+                        catch (Exception pEx)
+                        {
+                            LogService.WriteSystemLog($"[FileDownloadService] Prefix {prefix} failed to register: {pEx.Message}", "Warning", "SYSTEM");
+                        }
+                    }
+
+                    try
+                    {
+                        _listener.Start();
+                        LogService.WriteSystemLog($"[FileDownloadService] HTTP server successfully started on {BoundPrefixes.Count} prefixes on port {_port}", "Information", "SYSTEM");
+                    }
+                    catch (Exception startEx)
+                    {
+                        LogService.WriteSystemLog($"[FileDownloadService] Multi-IP listener start failed ({startEx.Message}), falling back to localhost only", "Warning", "SYSTEM");
+                        _listener = new HttpListener();
+                        BoundPrefixes.Clear();
+                        _listener.Prefixes.Add($"http://localhost:{_port}/");
+                        _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
+                        BoundPrefixes.Add($"http://localhost:{_port}/");
+                        BoundPrefixes.Add($"http://127.0.0.1:{_port}/");
+                        _listener.Start();
+                    }
                 }
                 
                 _cancellationTokenSource = new CancellationTokenSource();
@@ -407,27 +453,74 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static string GetLocalIpAddress()
+        public static async Task RestartAsync()
         {
+            Stop();
+            await Task.Delay(500);
+            await StartAsync();
+        }
+
+        public static List<string> GetAllLocalIPv4Addresses()
+        {
+            var results = new List<string>();
             try
             {
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-                foreach (var ip in host.AddressList)
+                var interfaces = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(ni => ni.OperationalStatus == OperationalStatus.Up &&
+                                 ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                    .OrderByDescending(ni => ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ||
+                                             ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet);
+
+                foreach (var ni in interfaces)
                 {
-                    // Return first IPv4 address that's not loopback
-                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && 
-                        !IPAddress.IsLoopback(ip))
+                    var desc = (ni.Description + " " + ni.Name).ToLowerInvariant();
+                    if (desc.Contains("virtual") || desc.Contains("hyper-v") || desc.Contains("vethernet") ||
+                        desc.Contains("wsl") || desc.Contains("vmware") || desc.Contains("virtualbox") ||
+                        desc.Contains("pseudo"))
                     {
-                        return ip.ToString();
+                        continue;
+                    }
+
+                    var ipProps = ni.GetIPProperties();
+                    foreach (var addr in ipProps.UnicastAddresses)
+                    {
+                        if (addr.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(addr.Address))
+                        {
+                            var ipStr = addr.Address.ToString();
+                            if (!results.Contains(ipStr)) results.Add(ipStr);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[FileDownloadService] Error getting local IP: {ex.Message}", "Warning", "SYSTEM");
+                LogService.WriteSystemLog($"[FileDownloadService] Error enumerating network interfaces: {ex.Message}", "Warning", "SYSTEM");
             }
-            
-            return "127.0.0.1"; // Fallback
+
+            if (results.Count == 0)
+            {
+                try
+                {
+                    var host = Dns.GetHostEntry(Dns.GetHostName());
+                    foreach (var ip in host.AddressList)
+                    {
+                        if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                        {
+                            var ipStr = ip.ToString();
+                            if (!results.Contains(ipStr)) results.Add(ipStr);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            return results;
+        }
+
+        public static string GetLocalIpAddress()
+        {
+            var ips = GetAllLocalIPv4Addresses();
+            return ips.Count > 0 ? ips[0] : "127.0.0.1";
         }
 
         /// <summary>
@@ -435,7 +528,7 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static string GetUrlReservationCommand(int port)
         {
-            return $"netsh http add urlacl url=http://+:{port}/ user={Environment.UserDomainName}\\{Environment.UserName}";
+            return $"netsh http add urlacl url=http://+:{port}/ user=Everyone";
         }
 
         /// <summary>
