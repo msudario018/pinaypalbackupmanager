@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct MainView: View {
     private enum AppTab: Hashable {
-        case home, backups, history, logs
+        case home, activity, history, logs
     }
 
     @StateObject private var api = PinayPalAPIService()
@@ -44,12 +44,12 @@ public struct MainView: View {
         }
         .onReceive(NotificationService.shared.$navigationRequest) { request in
             guard let request else { return }
-            selectedTab = request == .logs ? .logs : .backups
+            selectedTab = request == .logs ? .logs : .activity
             NotificationService.shared.clearNavigationRequest()
         }
         .onReceive(NotificationService.shared.$retryService) { service in
             guard let service else { return }
-            selectedTab = .backups
+            selectedTab = .activity
             Task {
                 _ = await api.triggerBackup(service: service)
                 NotificationService.shared.clearRetryRequest()
@@ -65,9 +65,9 @@ public struct MainView: View {
             .tag(AppTab.home)
 
             NavigationStack {
-                BackupsHubView(api: api)
+                ActivityOverviewView(api: api)
             }
-            .tag(AppTab.backups)
+            .tag(AppTab.activity)
 
             NavigationStack {
                 BackupHistoryView(api: api, showSettingsSheet: $showSettingsSheet)
@@ -94,6 +94,8 @@ public struct MainView: View {
                 Text(selectedTab == .home ? "PinayPal" : tabTitle)
                     .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                 Text(api.isOnline ? "Desktop connected" : "Desktop unavailable")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
@@ -109,33 +111,34 @@ public struct MainView: View {
             }
             .background(Color.white.opacity(0.10), in: Circle())
         }
-        .padding(.horizontal, 18).padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 14).padding(.vertical, 9)
         .liquidGlassBar()
-        .padding(.horizontal, 12).padding(.top, 6)
+        .padding(.horizontal, 10).padding(.top, 4)
     }
 
     private var liquidTabBar: some View {
         HStack(spacing: 4) {
             tabButton(.home, "Home", "house.fill")
-            tabButton(.backups, "Backups", "externaldrive.fill")
+            tabButton(.activity, "Activity", "waveform.path.ecg")
             tabButton(.history, "History", "clock.arrow.circlepath")
             tabButton(.logs, "Logs", "terminal.fill")
         }
-        .padding(6)
+        .padding(5)
         .liquidGlassBar()
-        .padding(.horizontal, 12).padding(.bottom, 6)
+        .padding(.horizontal, 10).padding(.bottom, 4)
     }
 
     private func tabButton(_ tab: AppTab, _ title: String, _ icon: String) -> some View {
         Button {
             withAnimation(.spring(response: 0.30, dampingFraction: 0.78)) { selectedTab = tab }
         } label: {
-            VStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 15, weight: .bold))
-                Text(title).font(.system(size: 10, weight: .bold))
+            VStack(spacing: 2) {
+                Image(systemName: icon).font(.system(size: 14, weight: .bold))
+                Text(title).font(.system(size: 9, weight: .bold)).lineLimit(1).minimumScaleFactor(0.75)
             }
             .foregroundColor(selectedTab == tab ? LiquidTheme.textPrimary : LiquidTheme.textSecondary)
-            .frame(maxWidth: .infinity).padding(.vertical, 7)
+            .frame(maxWidth: .infinity, minHeight: 45).padding(.vertical, 4)
             .background(selectedTab == tab ? LiquidTheme.gold.opacity(0.34) : .clear, in: Capsule())
         }
     }
@@ -143,81 +146,88 @@ public struct MainView: View {
     private var tabTitle: String {
         switch selectedTab {
         case .home: return "PinayPal"
-        case .backups: return "Backups"
+        case .activity: return "Activity"
         case .history: return "History"
         case .logs: return "Live Logs"
         }
     }
 }
 
-private struct BackupsHubView: View {
+private struct ActivityOverviewView: View {
     @ObservedObject var api: PinayPalAPIService
     @Environment(\.colorScheme) private var colorScheme
-    @State private var selectedService: BackupService?
-    @State private var expandedService: BackupService?
-
-    private enum BackupService: String, Identifiable, CaseIterable {
-        case ftp, sql, mailchimp
-        var id: String { rawValue }
-        var title: String { self == .ftp ? "Website / FTP" : self == .sql ? "SQL Database" : "Mailchimp" }
-        var icon: String { self == .ftp ? "globe" : self == .sql ? "cylinder.split.1x2" : "envelope.fill" }
-        var color: Color { self == .ftp ? LiquidTheme.emerald : self == .sql ? LiquidTheme.purple : LiquidTheme.cyan }
-    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Run, monitor, and inspect each protected service.")
+                Text("A clear timeline of protection activity, health, and recent results.")
                     .font(.subheadline).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
-                ForEach(BackupService.allCases) { service in
-                    Button {
-                        withAnimation(.spring(response: 0.30, dampingFraction: 0.82)) {
-                            expandedService = expandedService == service ? nil : service
-                        }
-                    } label: { serviceCard(service) }
-                    .buttonStyle(.plain)
-                    if expandedService == service { expandedDetails(service) }
-                }
-                Text("Recent history").font(.headline)
-                ForEach(api.history.prefix(8)) { item in
-                    HStack { Text(item.service).fontWeight(.semibold); Spacer(); Text(item.status).foregroundColor(item.status.localizedCaseInsensitiveContains("success") ? LiquidTheme.emerald : LiquidTheme.coral) }
-                        .font(.caption).padding(12).liquidGlassCard(cornerRadius: 14, glow: LiquidTheme.blue.opacity(0.12))
+
+                activitySummary
+
+                Text("Recent runs").font(.headline).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                if api.history.isEmpty {
+                    Label("No backup runs have been recorded yet.", systemImage: "clock.badge.questionmark")
+                        .font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                        .liquidGlassCard(cornerRadius: 16)
+                } else {
+                    ForEach(api.history.prefix(12)) { item in activityRow(item) }
                 }
             }
             .padding(16).padding(.bottom, 90)
         }
         .background(LiquidTheme.background(for: colorScheme).ignoresSafeArea())
-        .sheet(item: $selectedService) { service in
-            ServiceDetailView(api: api, serviceKey: service.rawValue, title: service.title, icon: service.icon, accent: service.color)
-        }
         .refreshable { await api.fetchAll() }
     }
 
-    private func serviceCard(_ service: BackupService) -> some View {
-        HStack(spacing: 13) {
-            Image(systemName: service.icon).font(.title3).foregroundColor(service.color).frame(width: 34)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(service.title).font(.headline).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
-                Text("Tap to expand status, history, and controls").font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
-            }
-            Spacer(); Image(systemName: expandedService == service ? "chevron.up" : "chevron.down").font(.caption.weight(.bold)).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+    private var activitySummary: some View {
+        HStack(spacing: 10) {
+            activityMetric("Runs", value: "\(api.history.count)", icon: "checklist.checked", color: LiquidTheme.blue)
+            activityMetric("Healthy", value: api.status?.health?.isHealthy == true ? "Yes" : "Check", icon: "heart.text.square.fill", color: api.status?.health?.isHealthy == true ? LiquidTheme.emerald : LiquidTheme.gold)
+            activityMetric("Website", value: api.status?.website?.isOnline == true ? "Online" : "Check", icon: "network", color: api.status?.website?.isOnline == true ? LiquidTheme.emerald : LiquidTheme.coral)
         }
-        .padding(16).liquidGlassCard(cornerRadius: 18, glow: service.color.opacity(0.22))
     }
 
-    private func expandedDetails(_ service: BackupService) -> some View {
-        let item = service == .ftp ? api.status?.services?.ftp : service == .sql ? api.status?.services?.sql : api.status?.services?.mailchimp
-        let recent = api.history.filter { $0.service.localizedCaseInsensitiveContains(service.rawValue) }.prefix(3)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack { Label(item?.freshness?.badgeText ?? "No backup recorded", systemImage: "checkmark.seal"); Spacer(); Text(item?.freshness?.relativeTime ?? "--").foregroundColor(LiquidTheme.textSecondary(for: colorScheme)) }
-                .font(.caption.weight(.semibold))
-            if recent.isEmpty { Text("No recent execution records.").font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)) }
-            ForEach(Array(recent)) { record in
-                HStack { Text(record.time).lineLimit(1); Spacer(); Text(record.status) }.font(.caption2)
-            }
-            Button { selectedService = service } label: { Label("Open service details", systemImage: "arrow.up.right.square") .frame(maxWidth: .infinity) }
-                .buttonStyle(.borderedProminent).tint(service.color)
+    private func activityMetric(_ title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon).foregroundColor(color)
+            Text(value).font(.headline).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+            Text(title).font(.caption2).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
         }
-        .padding(14).liquidGlassCard(cornerRadius: 16, glow: service.color.opacity(0.12))
+        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+        .liquidGlassCard(cornerRadius: 16, glow: color.opacity(0.14))
+    }
+
+    private func activityRow(_ item: BackupHistoryItem) -> some View {
+        let success = item.status.localizedCaseInsensitiveContains("success")
+        return HStack(spacing: 12) {
+            Image(systemName: success ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                .foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.service).font(.subheadline.weight(.bold)).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                Text(activitySubtitle(item)).font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)).lineLimit(1)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(success ? "Completed" : item.status).font(.caption.weight(.semibold)).foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
+                if let seconds = item.durationSeconds { Text(String(format: "%.1fs", seconds)).font(.caption2).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)) }
+            }
+        }
+        .padding(14).liquidGlassCard(cornerRadius: 16, glow: (success ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.10))
+    }
+
+    private func activitySubtitle(_ item: BackupHistoryItem) -> String {
+        var details = [item.time]
+        if let type = item.type, !type.isEmpty { details.append(type) }
+        if let bytes = item.sizeBytes, bytes > 0 { details.append(byteString(bytes)) }
+        return details.joined(separator: " - ")
+    }
+
+    private func byteString(_ bytes: Int64) -> String {
+        let value = Double(bytes)
+        if value < 1_048_576 { return String(format: "%.1f KB", value / 1_024) }
+        if value < 1_073_741_824 { return String(format: "%.1f MB", value / 1_048_576) }
+        return String(format: "%.2f GB", value / 1_073_741_824)
     }
 }

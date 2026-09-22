@@ -10,6 +10,7 @@ public struct ServiceDetailView: View {
     let accent: Color
 
     @State private var isStarting = false
+    @State private var startingExport: String?
 
     private var service: ServiceItem? {
         switch serviceKey {
@@ -43,6 +44,7 @@ public struct ServiceDetailView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     statusCard
                     actionsCard
+                    if serviceKey == "mailchimp" { mailchimpExportsCard }
                     detailsCard
                     logsCard
                     historyCard
@@ -101,8 +103,8 @@ public struct ServiceDetailView: View {
             Button {
                 startBackup()
             } label: {
-                Label(isStarting ? "Starting…" : "Run (title)", systemImage: "play.fill")
-                    .frame(maxWidth: .infinity)
+                Label(isStarting ? "Starting..." : "Run full backup", systemImage: "play.circle.fill")
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
             .disabled(isStarting || api.status?.activeBackup?.isBusy == true)
             .buttonStyle(.borderedProminent)
@@ -112,11 +114,49 @@ public struct ServiceDetailView: View {
                 Button(role: .destructive) {
                     Task { _ = await api.triggerEmergencyStop() }
                 } label: {
-                    Label("Stop", systemImage: "stop.fill")
+                    Label("Stop", systemImage: "stop.circle.fill")
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
             }
         }
+    }
+
+    private var mailchimpExportsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Individual exports", systemImage: "square.stack.3d.up.fill")
+                .font(.headline)
+                .foregroundColor(accent)
+            Text("Export one Mailchimp dataset without running the complete backup.")
+                .font(.caption)
+                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                exportButton("Members", icon: "person.2.fill")
+                exportButton("Campaigns", icon: "megaphone.fill")
+                exportButton("Reports", icon: "chart.bar.doc.horizontal.fill")
+                exportButton("Merge_Fields", label: "Merge fields", icon: "slider.horizontal.3")
+                exportButton("Tags", icon: "tag.fill")
+            }
+        }
+        .padding(16)
+        .liquidGlassCard(cornerRadius: 18, glow: accent.opacity(0.16))
+    }
+
+    private func exportButton(_ task: String, label: String? = nil, icon: String) -> some View {
+        Button {
+            startingExport = task
+            Task {
+                _ = await api.triggerMailchimpExport(task: task)
+                startingExport = nil
+            }
+        } label: {
+            Label(startingExport == task ? "Starting..." : (label ?? task), systemImage: icon)
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 42)
+        }
+        .buttonStyle(.bordered)
+        .tint(accent)
+        .disabled(startingExport != nil || isServiceRunning)
     }
 
     private var detailsCard: some View {
@@ -153,7 +193,7 @@ public struct ServiceDetailView: View {
             }
             Group {
                 if relatedLogs.isEmpty {
-                    Text("No (title) log entries are available yet.")
+                    Text("No \(title) log entries are available yet.")
                         .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                 } else {
                     ForEach(relatedLogs, id: \.self) { entry in
@@ -177,7 +217,7 @@ public struct ServiceDetailView: View {
                 .font(.headline)
                 .foregroundColor(accent)
             if relatedHistory.isEmpty {
-                Text("No completed (title) runs yet.")
+                Text("No completed \(title) runs yet.")
                     .font(.caption)
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
             } else {
@@ -187,7 +227,7 @@ public struct ServiceDetailView: View {
                             .foregroundColor(item.status.localizedCaseInsensitiveContains("success") ? LiquidTheme.emerald : LiquidTheme.coral)
                         VStack(alignment: .leading) {
                             Text(item.status).font(.subheadline.weight(.semibold))
-                            Text(item.time).font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            Text(historySubtitle(item)).font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                         }
                         Spacer()
                         Text(formatBytes(item.sizeBytes ?? 0)).font(.caption)
@@ -218,6 +258,13 @@ public struct ServiceDetailView: View {
             Text(value).multilineTextAlignment(.trailing)
         }
         .font(.caption)
+    }
+
+    private func historySubtitle(_ item: BackupHistoryItem) -> String {
+        var parts = [item.time]
+        if let duration = item.durationSeconds, duration > 0 { parts.append(String(format: "%.1fs", duration)) }
+        if let filename = item.filename, !filename.isEmpty { parts.append(filename) }
+        return parts.joined(separator: " - ")
     }
 
     private func formatBytes(_ bytes: Int64) -> String {

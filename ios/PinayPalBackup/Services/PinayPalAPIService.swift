@@ -385,6 +385,30 @@ public class PinayPalAPIService: ObservableObject {
         return false
     }
 
+    public func triggerMailchimpExport(task: String) async -> Bool {
+        guard let encodedTask = task.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(serverUrl)/api/backup/mailchimp-task?task=\(encodedTask)") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 202 {
+                await fetchAll()
+                return true
+            }
+            if let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let message = payload["message"] as? String {
+                lastErrorMessage = message
+            }
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+        return false
+    }
+
     public func runDiagnostics() async -> Bool {
         guard let url = URL(string: "\(serverUrl)/api/health/run") else { return false }
         var request = URLRequest(url: url)

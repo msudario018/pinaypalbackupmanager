@@ -84,6 +84,10 @@ namespace PinayPalBackupManager.Services
 
         public static Func<string, string, Task<bool>>? BackupExecutor { get; set; }
 
+        // A narrow, explicit path for the Mailchimp exports exposed in the desktop UI.
+        // Keeping this separate prevents arbitrary task names being treated as services.
+        public static Func<string, Task<bool>>? MailchimpTaskExecutor { get; set; }
+
         private static void GenerateSampleData()
         {
             try

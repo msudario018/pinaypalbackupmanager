@@ -49,6 +49,9 @@ public struct LiquidDashboardView: View {
                     // Master Action Banner
                     masterActionBanner
 
+                    // Fast service selection belongs on Home, directly below the main action.
+                    backupCarouselSection
+
                     if let website = api.status?.website {
                         websiteStatusCard(website)
                     }
@@ -117,7 +120,7 @@ public struct LiquidDashboardView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("PINAYPAL.NET")
                     .font(.system(size: 11, weight: .black))
-                Text(online ? "Online - HTTP \(website.statusCode ?? 0) - \(website.responseTimeMs ?? 0) ms" : (website.error ?? "Website is unavailable"))
+                Text(websiteDetail(website, online: online))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                     .lineLimit(2)
@@ -129,6 +132,14 @@ public struct LiquidDashboardView: View {
         }
         .padding(15)
         .liquidGlassCard(cornerRadius: 18, glow: (online ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.25))
+    }
+
+    private func websiteDetail(_ website: WebsiteStatusSpec, online: Bool) -> String {
+        if online {
+            return "Online - HTTP \(website.statusCode ?? 0) - \(website.responseTimeMs ?? 0) ms"
+        }
+        let failures = website.consecutiveFailures.map { " - \($0) failed checks" } ?? ""
+        return "\(website.error ?? "Website is unavailable")\(failures)"
     }
 
     // MARK: - Active Backup Banner
@@ -306,7 +317,60 @@ public struct LiquidDashboardView: View {
         }
     }
 
-    // MARK: - Service Cards Section
+    // MARK: - Backup Service Carousel
+    private var backupCarouselSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Backup services", systemImage: "square.stack.3d.up.fill")
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                Spacer()
+                Text("Swipe to choose")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    carouselServiceCard(title: "Website / FTP", icon: "globe.americas.fill", accent: LiquidTheme.emerald, meta: "\(api.status?.services?.ftp?.host ?? "Not configured") : \(api.status?.services?.ftp?.port ?? 21)", files: api.status?.services?.ftp?.fileCount ?? 0, bytes: api.status?.services?.ftp?.sizeBytes ?? 0, serviceKey: "ftp", destination: .ftp)
+                    carouselServiceCard(title: "SQL database", icon: "cylinder.split.1x2.fill", accent: LiquidTheme.purple, meta: api.status?.services?.sql?.user ?? "Not configured", files: api.status?.services?.sql?.fileCount ?? 0, bytes: api.status?.services?.sql?.sizeBytes ?? 0, serviceKey: "sql", destination: .sql)
+                    carouselServiceCard(title: "Mailchimp", icon: "envelope.badge.fill", accent: LiquidTheme.cyan, meta: "Audience: \(api.status?.services?.mailchimp?.audienceId ?? "Not configured")", files: api.status?.services?.mailchimp?.fileCount ?? 0, bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0, serviceKey: "mailchimp", destination: .mailchimp)
+                }
+                .padding(.horizontal, 1).padding(.vertical, 3)
+            }
+        }
+    }
+
+    private func carouselServiceCard(title: String, icon: String, accent: Color, meta: String, files: Int, bytes: Int64, serviceKey: String, destination: ServiceDestination) -> some View {
+        let isTriggering = triggeringService == serviceKey
+        return VStack(alignment: .leading, spacing: 12) {
+            Button { selectedService = destination } label: {
+                HStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: icon).foregroundColor(accent).font(.system(size: 18, weight: .bold))
+                        Text(title).font(.system(size: 15, weight: .black, design: .rounded)).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right.circle.fill").foregroundColor(accent)
+                }
+            }
+            .buttonStyle(.plain)
+            Text(meta).font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)).lineLimit(1)
+            HStack(spacing: 8) {
+                Text("\(files) files").liquidPill(tint: LiquidTheme.textSecondary(for: colorScheme))
+                Text(formatBytes(bytes)).liquidPill(tint: accent)
+            }
+            Button { triggerBackup(service: serviceKey) } label: {
+                Label(isTriggering ? "Starting..." : "Quick run", systemImage: isTriggering ? "arrow.triangle.2.circlepath" : "play.fill")
+                    .font(.caption.weight(.bold)).frame(maxWidth: .infinity, minHeight: 38)
+            }
+            .buttonStyle(.borderedProminent).tint(accent)
+            .disabled(isTriggering || api.status?.activeBackup?.isBusy == true)
+        }
+        .frame(width: 278, alignment: .leading).padding(16)
+        .liquidGlassCard(cornerRadius: 20, glow: accent.opacity(0.20), variant: .prominent)
+    }
+
+    // MARK: - Legacy vertical service cards
     private var serviceCardsSection: some View {
         VStack(spacing: 14) {
             // FTP Website

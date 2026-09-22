@@ -277,6 +277,13 @@ namespace PinayPalBackupManager.UI
                 }
             };
 
+            BackupSchedulingService.MailchimpTaskExecutor = async task =>
+            {
+                if (_mailchimpControl == null) return false;
+                return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                    async () => await _mailchimpControl.RunSpecificTaskAsync(task));
+            };
+
             _profileControl.OnAvatarChanged += LoadSidebarAvatar;
             _profileControl.OnLogoutRequested += () => {
                 _allowClose = true;

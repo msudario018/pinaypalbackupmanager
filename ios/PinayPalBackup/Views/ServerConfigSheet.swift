@@ -396,8 +396,8 @@ public struct ServerConfigSheet: View {
                         Button {
                             liveActivityManager.startTestActivity()
                         } label: {
-                            Label("Test Live Activity", systemImage: "waveform.path.ecg")
-                                .frame(maxWidth: .infinity)
+                            Label("Test Live Activity", systemImage: "rectangle.inset.filled.and.person.filled")
+                                .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.bordered)
                         .tint(LiquidTheme.cyan)
@@ -412,8 +412,8 @@ public struct ServerConfigSheet: View {
                                 }
                             }
                         } label: {
-                            Label("Test Alert", systemImage: "bell.badge")
-                                .frame(maxWidth: .infinity)
+                            Label("Test Alert", systemImage: "bell.and.waves.left.and.right.fill")
+                                .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.bordered)
                         .tint(LiquidTheme.gold)

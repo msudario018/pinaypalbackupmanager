@@ -235,6 +235,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         _manager?.ReportBackupProgress("Mailchimp", pct, $"Exporting {task}...");
                         
                         string result = await mc.RunSpecificTaskAsync(task, BackupConfig.MailchimpFolder);
+                        if (result.StartsWith("ERROR:", StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidOperationException(result);
                         LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", trigger);
                     }
 
@@ -369,6 +371,8 @@ namespace PinayPalBackupManager.UI.UserControls
         private async Task StartSpecificTaskAsync(string type)
         {
             if (_isBusy) return;
+            var backupStartTime = DateTime.UtcNow;
+            var historyId = BackupHistoryService.RecordBackupStart("Mailchimp", $"MANUAL_{type}");
             SetBusy(true);
             _abortRequested = false;
             BackupStateTracker.SetRunning("Mailchimp", $"EXPORTING {type.ToUpperInvariant()}...");
@@ -390,7 +394,20 @@ namespace PinayPalBackupManager.UI.UserControls
                     });
                     
                     string result = await mc.RunSpecificTaskAsync(type, BackupConfig.MailchimpFolder);
+                    if (result.StartsWith("ERROR:", StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException(result);
                     LogService.WriteLiveLog(result, BackupConfig.McLogFile, "Information", "MANUAL");
+
+                    var exportedFile = new DirectoryInfo(BackupConfig.MailchimpFolder)
+                        .EnumerateFiles($"{type}_*.json", SearchOption.TopDirectoryOnly)
+                        .OrderByDescending(file => file.LastWriteTimeUtc)
+                        .FirstOrDefault();
+                    BackupHistoryService.RecordBackupSuccess(
+                        historyId,
+                        DateTime.UtcNow - backupStartTime,
+                        exportedFile?.Length ?? 0,
+                        exportedFile?.FullName ?? BackupConfig.MailchimpFolder,
+                        exportedFile == null ? 0 : 1);
                     
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = _abortRequested ? "CANCELLED" : "COMPLETE";
@@ -401,6 +418,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 catch (OperationCanceledException)
                 {
                     LogService.WriteLiveLog($"CANCELLED: {type} export cancelled by user.", BackupConfig.McLogFile, "Warning", "MANUAL");
+                    BackupHistoryService.RecordBackupCancellation(historyId, DateTime.UtcNow - backupStartTime);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "CANCELLED";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
@@ -410,6 +428,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 catch (Exception ex)
                 {
                     LogService.WriteLiveLog($"ERROR: {type} export failed - {ex.Message}", BackupConfig.McLogFile, "Error", "MANUAL");
+                    BackupHistoryService.RecordBackupFailure(historyId, DateTime.UtcNow - backupStartTime, ex.Message);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "EXPORT ERROR";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
@@ -616,6 +635,14 @@ namespace PinayPalBackupManager.UI.UserControls
         public Task RunBackupTaskAsync(string trigger = "AUTO")
         {
             return StartFullBackupAsync(trigger);
+        }
+
+        /// <summary>Runs one of the supported Mailchimp exports from a remote client.</summary>
+        public async Task<bool> RunSpecificTaskAsync(string task)
+        {
+            if (_isBusy) return false;
+            await StartSpecificTaskAsync(task);
+            return true;
         }
     }
 }

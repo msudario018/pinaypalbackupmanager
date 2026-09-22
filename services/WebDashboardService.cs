@@ -69,7 +69,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.5",
+                        version = "3.3.6",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -110,6 +110,10 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/logs")
                 {
                     await ServeLogsApiAsync(response);
+                }
+                else if (path == "/api/backup/mailchimp-task" && request.HttpMethod == "POST")
+                {
+                    await HandleMailchimpTaskTriggerAsync(response, request.QueryString["task"]);
                 }
                 else if (path.StartsWith("/api/backup/") && request.HttpMethod == "POST")
                 {
@@ -455,6 +459,51 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        private static async Task HandleMailchimpTaskTriggerAsync(HttpListenerResponse response, string? task)
+        {
+            var allowedTasks = new[] { "Members", "Campaigns", "Reports", "Merge_Fields", "Tags" };
+            var resolvedTask = allowedTasks.FirstOrDefault(candidate =>
+                candidate.Equals(task, StringComparison.OrdinalIgnoreCase));
+            if (resolvedTask == null)
+            {
+                await SendJsonAsync(response, 400, new { success = false, message = "Choose a supported Mailchimp export." });
+                return;
+            }
+
+            if (BackupSchedulingService.MailchimpTaskExecutor == null)
+            {
+                await SendJsonAsync(response, 503, new { success = false, message = "Mailchimp export engine is currently offline." });
+                return;
+            }
+
+            if (!BackupStateTracker.TrySetRunning("mailchimp", $"Queueing Mailchimp {resolvedTask} export..."))
+            {
+                var active = BackupStateTracker.CurrentState;
+                await SendJsonAsync(response, 409, new
+                {
+                    success = false,
+                    message = $"A {active.Service.ToUpperInvariant()} backup is already in progress.",
+                    activeBackup = active
+                });
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await BackupSchedulingService.MailchimpTaskExecutor(resolvedTask);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[WebDashboard] Mailchimp {resolvedTask} export error: {ex.Message}", "Error", "SYSTEM");
+                    BackupStateTracker.SetIdle("mailchimp", "Export failed");
+                }
+            });
+
+            await SendJsonAsync(response, 202, new { success = true, message = $"Mailchimp {resolvedTask} export queued." });
+        }
+
         private static async Task ServeStatusApiAsync(HttpListenerResponse response)
         {
             var health = HealthCheckService.GetLastResult();
@@ -783,7 +832,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.5"
+                    version = "3.3.6"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -1132,7 +1181,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.5</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.6</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -1227,7 +1276,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('mailchimp')"">Backup Mailchimp</button>
                 </div>
-                <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-summary"" id=""mailchimp-summary""></div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
+                <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-summary"" id=""mailchimp-summary""></div><div class=""service-detail-title"">Individual exports</div><div class=""card-actions"" style=""display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:10px;""><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Members')"">Members</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Campaigns')"">Campaigns</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Reports')"">Reports</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Merge_Fields')"">Merge fields</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Tags')"">Tags</button></div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
             </div>
         </div>
 
@@ -1612,6 +1661,25 @@ namespace PinayPalBackupManager.Services
                 showToast('Error triggering backup');
                 playChime('error');
                 return false;
+            }
+        }
+
+        async function triggerMailchimpTask(task) {
+            showToast('Starting Mailchimp ' + task.replace('_', ' ') + ' export...');
+            try {
+                const res = await fetch('/api/backup/mailchimp-task?task=' + encodeURIComponent(task), { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.message || 'Mailchimp export could not be started');
+                    playChime('error');
+                    return;
+                }
+                showToast(data.message || 'Mailchimp export queued');
+                playChime('success');
+                loadData();
+            } catch (e) {
+                showToast('Unable to start Mailchimp export');
+                playChime('error');
             }
         }
 

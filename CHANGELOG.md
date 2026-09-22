@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.3.6 (2026-09-22)
+
+### Added & Improved
+- Moved the service launcher to the top of iOS Home as a swipeable Liquid Glass carousel; replaced the duplicate Backups tab with an at-a-glance Activity timeline.
+- Fixed cramped header/tab sizing, tightened safe-area spacing, made paired action buttons equal-height, and clarified backup action labels.
+- Added real individual Mailchimp export actions for Members, Campaigns, Reports, Merge Fields, and Tags across iOS, the web dashboard, and the desktop-hosted API.
+- Expanded activity/recent-run detail, website failure context, and refreshed the Live Activity and alert-test visual language.
+
 ## v3.3.5 (2026-09-22)
 
 ### Added & Improved
