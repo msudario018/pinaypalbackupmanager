@@ -74,7 +74,7 @@ public struct BackupHistoryView: View {
                     Spacer().frame(height: 100)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 10)
+                .padding(.top, 68)
             }
             .refreshable {
                 await refreshData()

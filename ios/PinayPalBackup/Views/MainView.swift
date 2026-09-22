@@ -175,7 +175,7 @@ private struct ActivityOverviewView: View {
                     ForEach(api.history.prefix(12)) { item in activityRow(item) }
                 }
             }
-            .padding(16).padding(.bottom, 90)
+            .padding(.horizontal, 16).padding(.top, 68).padding(.bottom, 90)
         }
         .background(LiquidTheme.background(for: colorScheme).ignoresSafeArea())
         .refreshable { await api.fetchAll() }

@@ -78,7 +78,9 @@ public struct LiquidDashboardView: View {
                     Spacer().frame(height: 80)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 10)
+                // The header is an overlay shared by every tab; reserve its full
+                // footprint so the first card is never obscured beneath it.
+                .padding(.top, 68)
             }
             .refreshable {
                 let haptic = UIImpactFeedbackGenerator(style: .medium)
@@ -329,14 +331,13 @@ public struct LiquidDashboardView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    carouselServiceCard(title: "Website / FTP", icon: "globe.americas.fill", accent: LiquidTheme.emerald, meta: "\(api.status?.services?.ftp?.host ?? "Not configured") : \(api.status?.services?.ftp?.port ?? 21)", files: api.status?.services?.ftp?.fileCount ?? 0, bytes: api.status?.services?.ftp?.sizeBytes ?? 0, serviceKey: "ftp", destination: .ftp)
-                    carouselServiceCard(title: "SQL database", icon: "cylinder.split.1x2.fill", accent: LiquidTheme.purple, meta: api.status?.services?.sql?.user ?? "Not configured", files: api.status?.services?.sql?.fileCount ?? 0, bytes: api.status?.services?.sql?.sizeBytes ?? 0, serviceKey: "sql", destination: .sql)
-                    carouselServiceCard(title: "Mailchimp", icon: "envelope.badge.fill", accent: LiquidTheme.cyan, meta: "Audience: \(api.status?.services?.mailchimp?.audienceId ?? "Not configured")", files: api.status?.services?.mailchimp?.fileCount ?? 0, bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0, serviceKey: "mailchimp", destination: .mailchimp)
-                }
-                .padding(.horizontal, 1).padding(.vertical, 3)
+            TabView {
+                carouselServiceCard(title: "Website / FTP", icon: "globe.americas.fill", accent: LiquidTheme.emerald, meta: "\(api.status?.services?.ftp?.host ?? "Not configured") : \(api.status?.services?.ftp?.port ?? 21)", files: api.status?.services?.ftp?.fileCount ?? 0, bytes: api.status?.services?.ftp?.sizeBytes ?? 0, serviceKey: "ftp", destination: .ftp)
+                carouselServiceCard(title: "SQL database", icon: "cylinder.split.1x2.fill", accent: LiquidTheme.purple, meta: api.status?.services?.sql?.user ?? "Not configured", files: api.status?.services?.sql?.fileCount ?? 0, bytes: api.status?.services?.sql?.sizeBytes ?? 0, serviceKey: "sql", destination: .sql)
+                carouselServiceCard(title: "Mailchimp", icon: "envelope.badge.fill", accent: LiquidTheme.cyan, meta: "Audience: \(api.status?.services?.mailchimp?.audienceId ?? "Not configured")", files: api.status?.services?.mailchimp?.fileCount ?? 0, bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0, serviceKey: "mailchimp", destination: .mailchimp)
             }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .frame(height: 202)
         }
     }
 
@@ -368,6 +369,7 @@ public struct LiquidDashboardView: View {
         }
         .frame(width: 278, alignment: .leading).padding(16)
         .liquidGlassCard(cornerRadius: 20, glow: accent.opacity(0.20), variant: .prominent)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Legacy vertical service cards

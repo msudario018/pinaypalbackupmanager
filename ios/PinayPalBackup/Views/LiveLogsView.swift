@@ -57,6 +57,7 @@ public struct LiveLogsView: View {
 
                 Spacer().frame(height: 70)
             }
+            .padding(.top, 68)
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = logFileUrl {

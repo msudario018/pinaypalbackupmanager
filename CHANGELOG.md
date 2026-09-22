@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.3.7 (2026-09-22)
+
+### Fixed
+- Centered the iOS Home backup-service pager with one-card snap navigation and page indicators.
+- Reserved consistent header clearance across Home, Activity, History, and Logs so the first content never sits beneath the fixed Liquid Glass header.
+
 ## v3.3.6 (2026-09-22)
 
 ### Added & Improved
