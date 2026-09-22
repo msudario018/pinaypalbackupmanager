@@ -69,7 +69,7 @@ namespace PinayPalBackupManager.Services
                     await SendJsonAsync(response, 200, new
                     {
                         appName = "PinayPal Backup Manager",
-                        version = "3.3.4",
+                        version = "3.3.5",
                         status = "online",
                         hostname = Environment.MachineName,
                         localIp = localIp,
@@ -98,6 +98,10 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/health")
                 {
                     await ServeHealthApiAsync(response);
+                }
+                else if (path == "/api/website/status")
+                {
+                    await SendJsonAsync(response, 200, await WebsiteMonitoringService.GetStatusAsync());
                 }
                 else if (path == "/api/history")
                 {
@@ -488,12 +492,14 @@ namespace PinayPalBackupManager.Services
             var mcFreshness = ComputeServiceFreshness("Mailchimp", BackupConfig.MailchimpFolder, 24);
 
             var active = BackupStateTracker.CurrentState;
+            var website = await WebsiteMonitoringService.GetStatusAsync();
             var status = new
             {
                 appName = "PinayPal Backup Manager",
                 version = BackupConfig.AppVersion,
                 timestamp = DateTime.UtcNow,
                 isOnline = true,
+                website = website,
                 system = new
                 {
                     hostname = Environment.MachineName,
@@ -777,7 +783,7 @@ namespace PinayPalBackupManager.Services
                     fallbackUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = "3.3.4"
+                    version = "3.3.5"
                 });
 
                 var generator = new QRCodeGenerator();
@@ -920,8 +926,8 @@ namespace PinayPalBackupManager.Services
     <style>
         :root {
             --bg: #0B0E14; --surface: #161B22; --card: #1B212C; --border: #30363D;
-            --text: #F0F6FC; --muted: #8B949E; --gold: #FCA311; --green: #3FB950;
-            --blue: #58A6FF; --cyan: #48CAE4; --purple: #A371F7; --red: #F85149;
+            --text: #F1F5FF; --muted: #94A3B8; --gold: #7C9CFF; --green: #3DDC97;
+            --blue: #60A5FA; --cyan: #5EE7F7; --purple: #A78BFA; --red: #FB7185;
             --inner-bg: #0D1117;
         }
         [data-theme=""light""] {
@@ -958,6 +964,10 @@ namespace PinayPalBackupManager.Services
         .service-detail { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); cursor: default; }
         .service-card.expanded .service-detail { display: block; }
         .service-console { max-height: 180px; overflow: auto; background: #080b10; border-radius: 8px; padding: 10px; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .service-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+        .service-summary-item { background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 0; }
+        .service-summary-label { color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+        .service-summary-value { color: var(--text); font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
         .service-detail-title { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
         .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
         .card-ftp::before { background: var(--green); }
@@ -1077,6 +1087,9 @@ namespace PinayPalBackupManager.Services
             display: block;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
+        .website-status { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .website-status.online { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+        .website-status.offline { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
 
         /* Mobile / iOS WebView layout. Keep actions large enough for touch and
            prevent desktop tables/cards from forcing horizontal page overflow. */
@@ -1098,6 +1111,7 @@ namespace PinayPalBackupManager.Services
             .card-meta { min-height: 0; margin-bottom: 12px; }
             .card-actions .btn-secondary { width: 100%; }
             .service-console { max-height: 220px; font-size: 10px; }
+            .service-summary { grid-template-columns: minmax(0, 1fr); }
             .active-backup-banner { padding: 12px; margin-bottom: 14px; gap: 10px; align-items: stretch; flex-direction: column; }
             .active-backup-banner > div:last-child .btn-secondary { width: 100%; }
             .resources { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 12px; }
@@ -1118,7 +1132,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.4</span>
+                <span class=""version-badge"" id=""app-version"">v3.3.5</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -1155,6 +1169,7 @@ namespace PinayPalBackupManager.Services
                 <span id=""global-freshness-text"" style=""font-size: 13px; font-weight: 600; color: var(--text);"">Checking service backup freshness...</span>
             </div>
             <div style=""display: flex; align-items: center; gap: 10px;"">
+                <span id=""website-status"" class=""website-status"">Checking pinaypal.net...</span>
                 <div id=""lan-access-container"" style=""display: flex; align-items: center; gap: 6px;"">
                     <span id=""lan-access-status"" class=""tag tag-sys"">IP: Loading...</span>
                 </div>
@@ -1178,7 +1193,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('ftp')"">Backup Website</button>
                 </div>
-                <div class=""service-detail"" id=""ftp-detail""><div class=""service-detail-title"">FTP service console</div><div class=""service-console"" id=""ftp-console"">Loading FTP logs…</div></div>
+                <div class=""service-detail"" id=""ftp-detail""><div class=""service-detail-title"">FTP service console</div><div class=""service-summary"" id=""ftp-summary""></div><div class=""service-console"" id=""ftp-console"">Loading FTP logs…</div></div>
             </div>
 
             <!-- SQL Database -->
@@ -1195,7 +1210,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('sql')"">Backup Database</button>
                 </div>
-                <div class=""service-detail"" id=""sql-detail""><div class=""service-detail-title"">SQL service console</div><div class=""service-console"" id=""sql-console"">Loading SQL logs…</div></div>
+                <div class=""service-detail"" id=""sql-detail""><div class=""service-detail-title"">SQL service console</div><div class=""service-summary"" id=""sql-summary""></div><div class=""service-console"" id=""sql-console"">Loading SQL logs…</div></div>
             </div>
 
             <!-- Mailchimp -->
@@ -1212,7 +1227,7 @@ namespace PinayPalBackupManager.Services
                 <div class=""card-actions"">
                     <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('mailchimp')"">Backup Mailchimp</button>
                 </div>
-                <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
+                <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-summary"" id=""mailchimp-summary""></div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
             </div>
         </div>
 
@@ -1460,6 +1475,7 @@ namespace PinayPalBackupManager.Services
         let logsPaused = false;
         let latestLogs = [];
         let expandedService = null;
+        var lastWebsiteOnline = null;
 
         function toggleServiceCard(service) {
             expandedService = expandedService === service ? null : service;
@@ -1479,6 +1495,20 @@ namespace PinayPalBackupManager.Services
                     ? lines.slice(-40).map(line => `<div>${escapeHtml(line)}</div>`).join('')
                     : `<div style=""color:var(--muted)"">No ${service} log entries recorded yet.</div>`;
             });
+        }
+
+        function renderServiceSummary(service, item, history, activeBackup) {
+            const target = document.getElementById(service + '-summary');
+            if (!target) return;
+            const serviceHistory = (history || []).find(entry => entry.service && entry.service.toLowerCase().includes(service === 'mailchimp' ? 'mailchimp' : service));
+            const activeService = (activeBackup?.activeServices || []).find(entry => entry.service && entry.service.toLowerCase() === service);
+            const active = activeService || ((activeBackup?.service || '').toLowerCase() === service ? activeBackup : null);
+            const state = active?.isBusy === false ? null : active;
+            const freshness = item?.freshness?.relativeTime || 'No completed backup';
+            target.innerHTML = `
+                <div class=""service-summary-item""><div class=""service-summary-label"">State</div><div class=""service-summary-value"">${state ? `${state.statusText || 'Running'} ${state.progress ?? 0}%` : 'Ready'}</div></div>
+                <div class=""service-summary-item""><div class=""service-summary-label"">Last backup</div><div class=""service-summary-value"">${escapeHtml(freshness)}</div></div>
+                <div class=""service-summary-item""><div class=""service-summary-label"">Latest result</div><div class=""service-summary-value"">${serviceHistory ? escapeHtml(serviceHistory.status || '--') : '--'}</div></div>`;
         }
 
         function openQrModal() {
@@ -1688,6 +1718,24 @@ namespace PinayPalBackupManager.Services
                 }
 
                 // Services & Freshness
+                const websiteStatus = document.getElementById('website-status');
+                if (websiteStatus && sRes.website) {
+                    const site = sRes.website;
+                    const online = site.isOnline === true;
+                    websiteStatus.className = `website-status ${online ? 'online' : 'offline'}`;
+                    websiteStatus.textContent = online
+                        ? `[online] pinaypal.net - HTTP ${site.statusCode || '--'} - ${site.responseTimeMs || 0} ms`
+                        : `[offline] pinaypal.net - ${site.error || 'Offline'}`;
+                    websiteStatus.title = site.checkedAt ? `Last checked: ${new Date(site.checkedAt).toLocaleString()}` : '';
+                    if (lastWebsiteOnline !== null && lastWebsiteOnline !== online) {
+                        const detail = online
+                            ? 'The public HTTPS check is responding again.'
+                            : (site.error || 'The public HTTPS check failed.');
+                        showToast(online ? 'pinaypal.net is back online' : 'pinaypal.net is unavailable');
+                        sendBrowserNotification(online ? 'Website recovered' : 'Website alert', detail);
+                    }
+                    lastWebsiteOnline = online;
+                }
                 if (sRes.services) {
                     let updatedCount = 0;
                     let outdatedList = [];
@@ -1736,6 +1784,9 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('mc-meta').textContent = `Audience ID: ${mc.audienceId || 'Default'}\nPath: ${mc.folder || 'Not configured'}`;
                     document.getElementById('mc-storage').textContent = `Files: ${mc.fileCount} | Size: ${formatBytes(mc.sizeBytes)}`;
                     applyFreshnessBadge('mc-badge', 'card-mc', mc, 'Mailchimp');
+                    renderServiceSummary('ftp', ftp, hRes, sRes.activeBackup);
+                    renderServiceSummary('sql', sql, hRes, sRes.activeBackup);
+                    renderServiceSummary('mailchimp', mc, hRes, sRes.activeBackup);
 
                     // Global Freshness Strip
                     const gIcon = document.getElementById('global-freshness-icon');

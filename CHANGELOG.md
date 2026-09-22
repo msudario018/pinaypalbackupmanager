@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3.5 (2026-09-22)
+
+### Added & Improved
+- Added real HTTPS monitoring for `https://pinaypal.net`, including HTTP status, response latency, consecutive failures, recovery detection, desktop alerts, API exposure, and web/iOS status cards.
+- Added web-browser and iOS local notifications for observed website outage and recovery transitions, respecting the existing failure/success alert preferences.
+- Expanded web FTP, SQL, and Mailchimp cards now include running state, progress, last backup freshness, recent result, and scoped service logs.
+- Rebuilt iOS navigation with a fixed Liquid Glass header and custom Home, Backups, History, and Logs tab bar. The Backups tab has expandable service cards with recent results and full service controls.
+- Modernized the iOS and web visual palette with midnight navy glass, periwinkle, cyan, lavender, mint, and rose accents.
+
 ## v3.3.4 (2026-09-22)
 
 ### Fixed

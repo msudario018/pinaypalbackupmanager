@@ -43,11 +43,6 @@ public struct LiveLogsView: View {
             LiquidTheme.backgroundDark.ignoresSafeArea()
 
             VStack(spacing: 12) {
-                // Top Header Bar
-                logsHeader
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-
                 // Search Bar
                 searchBar
                     .padding(.horizontal, 16)

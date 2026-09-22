@@ -144,6 +144,18 @@ namespace PinayPalBackupManager.Services
                 // Check Services
                 result.Components["Services"] = await CheckServicesHealthAsync();
 
+                // Check the public website itself, independently from its backups.
+                var website = await WebsiteMonitoringService.GetStatusAsync(force: true);
+                result.Components["Website"] = new ComponentHealth
+                {
+                    Name = "Website",
+                    IsHealthy = website.IsOnline,
+                    Status = website.IsOnline ? "Online" : "Offline",
+                    Details = website.Summary,
+                    ResponseTime = TimeSpan.FromMilliseconds(website.ResponseTimeMs),
+                    LastChecked = website.CheckedAt
+                };
+
                 // Get System Resources
                 result.Resources = await GetSystemResourceInfoAsync();
 

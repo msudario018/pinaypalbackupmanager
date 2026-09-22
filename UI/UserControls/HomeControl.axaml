@@ -116,7 +116,7 @@
             <!-- System Status Overview -->
             <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="16"
                     BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
-                <Grid Name="SystemStatusGrid" ColumnDefinitions="*, *, *, Auto">
+                <Grid Name="SystemStatusGrid" ColumnDefinitions="*, *, *, *, Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                         <TextBlock Text="Uptime" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                         <TextBlock x:Name="SystemUptime" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
@@ -130,6 +130,14 @@
                         <TextBlock x:Name="ActiveProcesses" Text="0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentFtp}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="3" Spacing="2" Margin="16,0,0,0">
+                        <TextBlock Text="Website" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Ellipse Name="WebsiteStatusDot" Width="7" Height="7" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="WebsiteStatus" Text="Checking..." FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="WebsiteStatusDetail" Text="pinaypal.net" FontSize="9" Foreground="{DynamicResource AppMuted}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Spacing="2" Margin="16,0,0,0">
                         <TextBlock Text="Disk Space Available" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                         <TextBlock x:Name="StorageUsage" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentWebsite}"/>
                     </StackPanel>

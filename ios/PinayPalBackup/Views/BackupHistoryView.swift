@@ -49,9 +49,6 @@ public struct BackupHistoryView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    // Header Bar
-                    historyHeader
-
                     // Summary Stats Strip
                     statsStrip
 

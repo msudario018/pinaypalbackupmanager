@@ -8,8 +8,20 @@ public struct StatusResponse: Codable {
     public let schedules: ScheduleSpecs?
     public let services: ServicesContainer?
     public let health: HealthSpecs?
+    public let website: WebsiteStatusSpec?
     public let lastBackup: LastBackupSpec?
     public let activeBackup: ActiveBackupSpec?
+}
+
+public struct WebsiteStatusSpec: Codable {
+    public let url: String?
+    public let isOnline: Bool?
+    public let statusCode: Int?
+    public let responseTimeMs: Int?
+    public let error: String?
+    public let checkedAt: String?
+    public let changedAt: String?
+    public let consecutiveFailures: Int?
 }
 
 public struct ActiveBackupSpec: Codable {

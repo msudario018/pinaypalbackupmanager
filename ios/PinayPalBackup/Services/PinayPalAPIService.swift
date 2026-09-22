@@ -264,10 +264,21 @@ public class PinayPalAPIService: ObservableObject {
 
             let wasBusy = self.status?.activeBackup?.isBusy == true
             let prevService = self.status?.activeBackup?.service ?? lastRecordedBusyService
+            let previousWebsiteOnline = self.status?.website?.isOnline
 
             self.status = decoded
             self.isOnline = true
             self.lastErrorMessage = nil
+
+            if let previousWebsiteOnline, let websiteOnline = decoded.website?.isOnline,
+               previousWebsiteOnline != websiteOnline {
+                NotificationService.shared.sendWebsiteStatusNotification(
+                    isOnline: websiteOnline,
+                    details: websiteOnline
+                        ? "The public HTTPS check is responding again."
+                        : (decoded.website?.error ?? "The public HTTPS check failed.")
+                )
+            }
 
             let nowBusy = decoded.activeBackup?.isBusy == true
             let curService = decoded.activeBackup?.service ?? "Backup"

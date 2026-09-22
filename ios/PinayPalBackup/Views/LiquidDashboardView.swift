@@ -41,9 +41,6 @@ public struct LiquidDashboardView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
-                    // Top App Bar
-                    headerBar
-
                     // Real-time Active Backup Banner
                     if let active = api.status?.activeBackup, active.isBusy == true {
                         activeBackupBanner(active: active)
@@ -52,11 +49,12 @@ public struct LiquidDashboardView: View {
                     // Master Action Banner
                     masterActionBanner
 
+                    if let website = api.status?.website {
+                        websiteStatusCard(website)
+                    }
+
                     // 4 Resource Metric Cards (Status, CPU, RAM, Disk)
                     metricsGrid
-
-                    // Service Sync Cards (FTP, SQL, Mailchimp)
-                    serviceCardsSection
 
                     // Storage Breakdown Visualizer
                     storageVisualizerCard
@@ -110,62 +108,27 @@ public struct LiquidDashboardView: View {
         }
     }
 
-    // MARK: - Header Bar
-    private var headerBar: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Image("AppLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 24, height: 24)
-                    .cornerRadius(6)
-
-                Text("PinayPal")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(LiquidTheme.gold)
-
-                Text(api.status?.version ?? "v3.3.4")
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(4)
-                    .foregroundColor(LiquidTheme.textSecondary)
+    private func websiteStatusCard(_ website: WebsiteStatusSpec) -> some View {
+        let online = website.isOnline == true
+        return HStack(spacing: 12) {
+            Image(systemName: online ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundColor(online ? LiquidTheme.emerald : LiquidTheme.coral)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("PINAYPAL.NET")
+                    .font(.system(size: 11, weight: .black))
+                Text(online ? "Online - HTTP \(website.statusCode ?? 0) - \(website.responseTimeMs ?? 0) ms" : (website.error ?? "Website is unavailable"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    .lineLimit(2)
             }
-
             Spacer()
-
-            HStack(spacing: 8) {
-                // Online Pill
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
-                        .frame(width: 7, height: 7)
-                        .shadow(color: api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral, radius: 4)
-
-                    Text(api.isOnline ? "ONLINE" : "OFFLINE")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(colorScheme == .light ? Color.black.opacity(0.06) : Color.black.opacity(0.3))
-                .cornerRadius(12)
-
-                // Settings Gear
-                Button {
-                    showSettingsSheet = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(LiquidTheme.textSecondary)
-                        .padding(8)
-                        .background(Color.white.opacity(0.06))
-                        .clipShape(Circle())
-                }
-            }
+            Text(online ? "ONLINE" : "OFFLINE")
+                .font(.system(size: 10, weight: .black))
+                .foregroundColor(online ? LiquidTheme.emerald : LiquidTheme.coral)
         }
-        .padding(.vertical, 4)
+        .padding(15)
+        .liquidGlassCard(cornerRadius: 18, glow: (online ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.25))
     }
 
     // MARK: - Active Backup Banner
@@ -187,7 +150,7 @@ public struct LiquidDashboardView: View {
                         .font(.system(size: 11, weight: .black))
                         .foregroundColor(LiquidTheme.gold)
 
-                    Text("• \((active.service ?? "Backup").uppercased())")
+                    Text("- \((active.service ?? "Backup").uppercased())")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
                 }

@@ -39,7 +39,7 @@ public struct QRScannerView: View {
                         fallbackUrl: "https://backup.pinaypal.com",
                         pin: "1234",
                         hostname: "SIMULATOR-PC",
-                        version: "3.3.4"
+                        version: "3.3.5"
                     )
                     let haptic = UINotificationFeedbackGenerator()
                     haptic.notificationOccurred(.success)

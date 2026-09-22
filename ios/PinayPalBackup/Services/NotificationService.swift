@@ -95,6 +95,22 @@ public final class NotificationService: NSObject, ObservableObject {
         add(content, identifier: "low_disk_\(diskLetter)")
     }
 
+    /// Delivers a local alert after the app observes the protected public site
+    /// change state. Remote/background delivery remains the server/APNs path.
+    public func sendWebsiteStatusNotification(isOnline: Bool, details: String) {
+        guard isOnline ? notifyOnSuccess : notifyOnFailure else { return }
+        let stateKey = isOnline ? "website_recovered" : "website_offline"
+        guard shouldSend(key: stateKey, cooldown: 300) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = isOnline ? "pinaypal.net is back online" : "pinaypal.net is unavailable"
+        content.body = details
+        content.sound = .default
+        content.categoryIdentifier = isOnline ? "BACKUP_SUCCESS" : "BACKUP_FAILURE"
+        content.userInfo = ["destination": "activity"]
+        add(content, identifier: "website_\(stateKey)_\(UUID().uuidString)")
+    }
+
     public func sendTestNotification() {
         let content = UNMutableNotificationContent()
         content.title = "PinayPal notifications are ready"

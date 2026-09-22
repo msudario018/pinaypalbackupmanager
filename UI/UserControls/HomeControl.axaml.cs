@@ -70,6 +70,9 @@ namespace PinayPalBackupManager.UI.UserControls
         private TextBlock? _cachedMirrorProgressPercent;
         private TextBlock? _cachedMirrorServiceName;
         private TextBlock? _cachedMirrorStatusDetail;
+        private TextBlock? _cachedWebsiteStatus;
+        private TextBlock? _cachedWebsiteStatusDetail;
+        private Ellipse? _cachedWebsiteStatusDot;
 
         public event Action? OnNavigateFtp;
         public event Action? OnNavigateMailchimp;
@@ -246,6 +249,9 @@ namespace PinayPalBackupManager.UI.UserControls
             _cachedMirrorProgressPercent = this.FindControl<TextBlock>("MirrorProgressPercent");
             _cachedMirrorServiceName = this.FindControl<TextBlock>("MirrorServiceName");
             _cachedMirrorStatusDetail = this.FindControl<TextBlock>("MirrorStatusDetail");
+            _cachedWebsiteStatus = this.FindControl<TextBlock>("WebsiteStatus");
+            _cachedWebsiteStatusDetail = this.FindControl<TextBlock>("WebsiteStatusDetail");
+            _cachedWebsiteStatusDot = this.FindControl<Ellipse>("WebsiteStatusDot");
         }
 
         private static void FireAndForget(Task task, string context)
@@ -2122,6 +2128,28 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
                 catch (Exception ex) { LogService.WriteLiveLog($"[HomeControl] Storage update error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 Dispatcher.UIThread.Post(() => { if (StorageUsage != null) StorageUsage.Text = storageText; });
+            });
+
+            var website = await WebsiteMonitoringService.GetStatusAsync();
+            Dispatcher.UIThread.Post(() =>
+            {
+                var onlineBrush = Brush.Parse("#34D399");
+                var offlineBrush = Brush.Parse("#FB7185");
+                if (_cachedWebsiteStatus != null)
+                {
+                    _cachedWebsiteStatus.Text = website.IsOnline ? "Online" : "Offline";
+                    _cachedWebsiteStatus.Foreground = website.IsOnline ? onlineBrush : offlineBrush;
+                }
+                if (_cachedWebsiteStatusDetail != null)
+                {
+                    _cachedWebsiteStatusDetail.Text = website.IsOnline
+                        ? $"HTTP {website.StatusCode} · {website.ResponseTimeMs} ms"
+                        : website.Error ?? "Unable to reach pinaypal.net";
+                }
+                if (_cachedWebsiteStatusDot != null)
+                {
+                    _cachedWebsiteStatusDot.Fill = website.IsOnline ? onlineBrush : offlineBrush;
+                }
             });
         }
 
