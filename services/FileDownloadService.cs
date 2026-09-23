@@ -208,6 +208,12 @@ namespace PinayPalBackupManager.Services
 
                 if (request.HttpMethod == "GET" && request.Url?.AbsolutePath.StartsWith("/download/") == true)
                 {
+                    if (!WebDashboardService.IsRequestAuthorized(request))
+                    {
+                        await SendErrorResponseAsync(response, 401, "Unauthorized");
+                        return;
+                    }
+
                     var filename = request.Url.AbsolutePath.Substring("/download/".Length);
                     await HandleFileDownload(context, filename);
                 }
@@ -230,7 +236,7 @@ namespace PinayPalBackupManager.Services
             try
             {
                 // Security: Sanitize and validate filename to prevent path traversal
-                filename = Path.GetFileName(filename);
+                filename = Path.GetFileName(Uri.UnescapeDataString(filename));
                 if (string.IsNullOrWhiteSpace(filename) || filename.Contains("..") || filename.Contains('/') || filename.Contains('\\'))
                 {
                     LogService.WriteSystemLog($"[FileDownloadService] Invalid filename requested: {filename}", "Warning", "SYSTEM");
@@ -252,6 +258,7 @@ namespace PinayPalBackupManager.Services
                 var contentType = GetContentType(filename);
                 response.ContentType = contentType;
                 response.ContentLength64 = new FileInfo(filePath).Length;
+                response.AddHeader("Cache-Control", "no-store");
                 
                 // Add headers for download
                 response.AddHeader("Content-Disposition", $"attachment; filename=\"{filename}\"");

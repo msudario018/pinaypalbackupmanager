@@ -38,6 +38,8 @@ namespace PinayPalBackupManager.Services
         private static readonly object _lock = new();
         private static readonly Dictionary<string, ActiveBackupServiceInfo> _active = new(StringComparer.OrdinalIgnoreCase);
 
+        public static event Action<ActiveBackupInfo>? OnStateChanged;
+
         public static ActiveBackupInfo CurrentState
         {
             get
@@ -77,8 +79,9 @@ namespace PinayPalBackupManager.Services
                 }
 
                 SetRunningUnsafe(service, status, progress);
-                return true;
             }
+            OnStateChanged?.Invoke(CurrentState);
+            return true;
         }
 
         public static void SetRunning(string service, string status = "Running", int progress = 0)
@@ -87,6 +90,7 @@ namespace PinayPalBackupManager.Services
             {
                 SetRunningUnsafe(service, status, progress);
             }
+            OnStateChanged?.Invoke(CurrentState);
         }
 
         public static void UpdateProgress(string service, int progress, string? status = null)
@@ -105,6 +109,7 @@ namespace PinayPalBackupManager.Services
                 }
                 operation.LastUpdatedAt = DateTime.UtcNow;
             }
+            OnStateChanged?.Invoke(CurrentState);
         }
 
         // Retained for callers that only have one active backup.
@@ -125,6 +130,7 @@ namespace PinayPalBackupManager.Services
                 }
                 operation.LastUpdatedAt = DateTime.UtcNow;
             }
+            OnStateChanged?.Invoke(CurrentState);
         }
 
         public static void SetIdle(string service = "none", string status = "Idle")
@@ -134,11 +140,13 @@ namespace PinayPalBackupManager.Services
                 if (string.Equals(service, "none", StringComparison.OrdinalIgnoreCase))
                 {
                     _active.Clear();
-                    return;
                 }
-
-                _active.Remove(service);
+                else
+                {
+                    _active.Remove(service);
+                }
             }
+            OnStateChanged?.Invoke(CurrentState);
         }
 
         private static void SetRunningUnsafe(string service, string status, int progress)

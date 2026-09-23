@@ -96,9 +96,19 @@ public struct MainView: View {
                     .foregroundColor(LiquidTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
-                Text(api.isOnline ? "Desktop connected" : "Desktop unavailable")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
+                HStack(spacing: 4) {
+                    Text(api.isOnline ? "Connected" : "Unavailable")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
+                    if api.isOnline, let ms = api.latencyMs {
+                        Text("·")
+                            .font(.caption2)
+                            .foregroundColor(LiquidTheme.textSecondary)
+                        Text("\(ms)ms")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundColor(ms < 100 ? LiquidTheme.emerald : (ms < 500 ? LiquidTheme.gold : LiquidTheme.coral))
+                    }
+                }
             }
             Spacer()
             Button {
@@ -160,19 +170,30 @@ private struct ActivityOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("A clear timeline of protection activity, health, and recent results.")
+                Text("Protection activity, health, and recent results.")
                     .font(.subheadline).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+
+                // Active Queue (shown when a backup is running)
+                if let active = api.status?.activeBackup, active.isBusy == true {
+                    activeQueueCard(active)
+                }
 
                 activitySummary
 
-                Text("Recent runs").font(.headline).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                // Date-grouped history
                 if api.history.isEmpty {
                     Label("No backup runs have been recorded yet.", systemImage: "clock.badge.questionmark")
                         .font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                         .liquidGlassCard(cornerRadius: 16)
                 } else {
-                    ForEach(api.history.prefix(12)) { item in activityRow(item) }
+                    ForEach(groupedHistory, id: \.key) { group in
+                        Text(group.key)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            .padding(.top, 4)
+                        ForEach(group.items) { item in activityRow(item) }
+                    }
                 }
             }
             .padding(.horizontal, 16).padding(.top, 68).padding(.bottom, 90)
@@ -181,12 +202,48 @@ private struct ActivityOverviewView: View {
         .refreshable { await api.fetchAll() }
     }
 
+    // MARK: - Active Queue Card
+    private func activeQueueCard(_ active: ActiveBackupSpec) -> some View {
+        HStack(spacing: 12) {
+            ProgressView(value: Double(active.progress ?? 0), total: 100)
+                .progressViewStyle(CircularProgressViewStyle(tint: LiquidTheme.gold))
+                .frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(active.service?.uppercased() ?? "BACKUP") IN PROGRESS")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundColor(LiquidTheme.gold)
+                Text(active.statusText ?? "Running...")
+                    .font(.caption)
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    .lineLimit(1)
+            }
+            Spacer()
+            if let pct = active.progress {
+                Text("\(pct)%")
+                    .font(.system(size: 16, weight: .heavy, design: .monospaced))
+                    .foregroundColor(LiquidTheme.gold)
+            }
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.gold.opacity(0.25))
+    }
+
+    // MARK: - Summary Metrics
     private var activitySummary: some View {
         HStack(spacing: 10) {
             activityMetric("Runs", value: "\(api.history.count)", icon: "checklist.checked", color: LiquidTheme.blue)
+            let successRate = computeSuccessRate()
+            activityMetric("7d Rate", value: successRate, icon: "chart.line.uptrend.xyaxis", color: successRate == "100%" ? LiquidTheme.emerald : LiquidTheme.gold)
             activityMetric("Healthy", value: api.status?.health?.isHealthy == true ? "Yes" : "Check", icon: "heart.text.square.fill", color: api.status?.health?.isHealthy == true ? LiquidTheme.emerald : LiquidTheme.gold)
-            activityMetric("Website", value: api.status?.website?.isOnline == true ? "Online" : "Check", icon: "network", color: api.status?.website?.isOnline == true ? LiquidTheme.emerald : LiquidTheme.coral)
         }
+    }
+
+    private func computeSuccessRate() -> String {
+        let recent = api.history.prefix(20) // approximate last 7 days
+        guard !recent.isEmpty else { return "--" }
+        let successes = recent.filter { $0.status.localizedCaseInsensitiveContains("success") }.count
+        let pct = Int(Double(successes) / Double(recent.count) * 100)
+        return "\(pct)%"
     }
 
     private func activityMetric(_ title: String, value: String, icon: String, color: Color) -> some View {
@@ -199,6 +256,48 @@ private struct ActivityOverviewView: View {
         .liquidGlassCard(cornerRadius: 16, glow: color.opacity(0.14))
     }
 
+    // MARK: - Date Grouping
+    private struct DateGroup: Identifiable {
+        let key: String
+        let items: [BackupHistoryItem]
+        var id: String { key }
+    }
+
+    private var groupedHistory: [DateGroup] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+
+        var groups: [String: [BackupHistoryItem]] = [:]
+        var groupOrder: [String] = []
+
+        for item in api.history.prefix(30) {
+            let label: String
+            if let date = formatter.date(from: String(item.time.prefix(19))) {
+                let day = calendar.startOfDay(for: date)
+                if day == today {
+                    label = "Today"
+                } else if day == yesterday {
+                    label = "Yesterday"
+                } else {
+                    let display = DateFormatter()
+                    display.dateFormat = "MMM d, yyyy"
+                    label = display.string(from: date)
+                }
+            } else {
+                label = "Earlier"
+            }
+            if groups[label] == nil { groupOrder.append(label) }
+            groups[label, default: []].append(item)
+        }
+
+        return groupOrder.map { DateGroup(key: $0, items: groups[$0]!) }
+    }
+
+    // MARK: - Activity Row (with inline retry)
     private func activityRow(_ item: BackupHistoryItem) -> some View {
         let success = item.status.localizedCaseInsensitiveContains("success")
         return HStack(spacing: 12) {
@@ -209,9 +308,22 @@ private struct ActivityOverviewView: View {
                 Text(activitySubtitle(item)).font(.caption).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)).lineLimit(1)
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(success ? "Completed" : item.status).font(.caption.weight(.semibold)).foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
-                if let seconds = item.durationSeconds { Text(String(format: "%.1fs", seconds)).font(.caption2).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)) }
+            if !success {
+                Button {
+                    Task { _ = await api.triggerBackup(service: item.service.lowercased()) }
+                } label: {
+                    Text("Retry")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(LiquidTheme.gold, in: Capsule())
+                }
+            } else {
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("Completed").font(.caption.weight(.semibold)).foregroundColor(LiquidTheme.emerald)
+                    if let seconds = item.durationSeconds { Text(String(format: "%.1fs", seconds)).font(.caption2).foregroundColor(LiquidTheme.textSecondary(for: colorScheme)) }
+                }
             }
         }
         .padding(14).liquidGlassCard(cornerRadius: 16, glow: (success ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.10))

@@ -60,6 +60,7 @@ namespace PinayPalBackupManager.Services
             public double SuccessRate { get; set; }
         }
 
+        public static event Action<BackupHistoryEntry>? OnBackupCompleted;
         private static List<BackupHistoryEntry> _history = new();
 
         public static void Initialize()
@@ -202,6 +203,8 @@ namespace PinayPalBackupManager.Services
                         // Record performance metrics
                         PerformanceMetricsService.RecordBackupTime(entry.Service, duration);
                         PerformanceMetricsService.RecordBackupSuccess(entry.Service, true);
+
+                        OnBackupCompleted?.Invoke(entry);
                     }
                 }
                 catch (Exception ex)
@@ -230,6 +233,8 @@ namespace PinayPalBackupManager.Services
                         // Record performance metrics
                         PerformanceMetricsService.RecordBackupTime(entry.Service, duration);
                         PerformanceMetricsService.RecordBackupSuccess(entry.Service, false);
+
+                        OnBackupCompleted?.Invoke(entry);
                     }
                 }
                 catch (Exception ex)

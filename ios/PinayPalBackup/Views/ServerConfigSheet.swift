@@ -1,6 +1,14 @@
 import SwiftUI
 import LocalAuthentication
 
+private struct SavedConnectionProfile: Codable, Identifiable {
+    let id: UUID
+    var name: String
+    var serverUrl: String
+    var accessPin: String
+    var failoverUrl: String
+}
+
 public struct ServerConfigSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var api: PinayPalAPIService
@@ -17,7 +25,7 @@ public struct ServerConfigSheet: View {
     @AppStorage("pp_notify_reminder") private var notifyReminder: Bool = true
     @AppStorage("pp_notify_daily_digest") private var notifyDailyDigest: Bool = true
 
-    @State private var selectedSection: Int = 0 // 0 = Security, 1 = Remote PC, 2 = Appearance, 3 = Alerts & Net
+    @State private var selectedSection: Int = 0
 
     // Connection States
     @State private var inputUrl: String = ""
@@ -57,6 +65,10 @@ public struct ServerConfigSheet: View {
     @State private var remoteSaveResult: String? = nil
     @State private var showEmergencyAlert: Bool = false
     @State private var emergencyResult: String? = nil
+    @State private var savedProfiles: [SavedConnectionProfile] = []
+    @State private var profileName = ""
+    @State private var showDiagnosticsShare = false
+    @State private var diagnosticsURL: URL?
 
     public var body: some View {
         NavigationStack {
@@ -78,8 +90,10 @@ public struct ServerConfigSheet: View {
                                 remotePcManagerSection
                             } else if selectedSection == 2 {
                                 appearanceSection
-                            } else {
+                            } else if selectedSection == 3 {
                                 connectionSection
+                            } else {
+                                aboutSection
                             }
 
                             Spacer().frame(height: 40)
@@ -101,6 +115,7 @@ public struct ServerConfigSheet: View {
             inputUrl = api.serverUrl
             inputPin = api.accessPin
             loadRemoteSettingsIntoState()
+            loadSavedProfiles()
         }
         .alert("Emergency Stop PC Backups?", isPresented: $showEmergencyAlert) {
             Button("Stop All Backups", role: .destructive) {
@@ -110,17 +125,25 @@ public struct ServerConfigSheet: View {
         } message: {
             Text("This will immediately send a halt signal to all running and queued backup tasks on your desktop PC.")
         }
+        .sheet(isPresented: $showDiagnosticsShare) {
+            if let diagnosticsURL {
+                ShareSheet(items: [diagnosticsURL])
+            }
+        }
     }
 
     // MARK: - Segmented Header
     private var segmentedPicker: some View {
-        HStack(spacing: 4) {
-            segmentButton(title: "Security", icon: "faceid", index: 0)
-            segmentButton(title: "Remote PC", icon: "desktopcomputer", index: 1)
-            segmentButton(title: "Theme", icon: "circle.lefthalf.filled", index: 2)
-            segmentButton(title: "Alerts", icon: "bell.badge.fill", index: 3)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                segmentButton(title: "Security", icon: "faceid", index: 0)
+                segmentButton(title: "Remote PC", icon: "desktopcomputer", index: 1)
+                segmentButton(title: "Theme", icon: "circle.lefthalf.filled", index: 2)
+                segmentButton(title: "Network", icon: "network", index: 3)
+                segmentButton(title: "About", icon: "info.circle", index: 4)
+            }
+            .padding(4)
         }
-        .padding(4)
         .background(colorScheme == .light ? Color.black.opacity(0.06) : Color.white.opacity(0.06))
         .clipShape(Capsule(style: .continuous))
     }
@@ -140,7 +163,8 @@ public struct ServerConfigSheet: View {
                     .font(.system(size: 12, weight: .bold, design: .rounded))
             }
             .foregroundColor(selectedSection == index ? .black : LiquidTheme.textSecondary)
-            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background {
                 if selectedSection == index {
@@ -996,6 +1020,72 @@ public struct ServerConfigSheet: View {
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
 
+            // Saved connection profiles make switching between home, office, and tunnel endpoints deliberate.
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.stack.badge.person.crop")
+                        .foregroundColor(LiquidTheme.purple)
+                    Text("CONNECTION PROFILES")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                }
+
+                Text("Save a named endpoint for quick switching. The PIN stays only on this device.")
+                    .font(.system(size: 11))
+                    .foregroundColor(LiquidTheme.textSecondary)
+
+                HStack(spacing: 10) {
+                    TextField("Profile name", text: $profileName)
+                        .textInputAutocapitalization(.words)
+                        .padding(10)
+                        .background(Color.white.opacity(0.07))
+                        .cornerRadius(9)
+                        .foregroundColor(LiquidTheme.textPrimary)
+
+                    Button("Save") { saveCurrentProfile() }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(LiquidTheme.gold)
+                        .cornerRadius(9)
+                        .disabled(profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || inputUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                if savedProfiles.isEmpty {
+                    Text("No saved endpoints yet.")
+                        .font(.system(size: 11))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                } else {
+                    ForEach(savedProfiles) { profile in
+                        HStack(spacing: 10) {
+                            Button { apply(profile) } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(profile.name)
+                                        .font(.system(size: 13, weight: .bold))
+                                    Text(profile.serverUrl)
+                                        .font(.system(size: 10))
+                                        .foregroundColor(LiquidTheme.textSecondary)
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(LiquidTheme.textPrimary)
+                            }
+                            Spacer()
+                            Button(role: .destructive) { remove(profile) } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .tint(LiquidTheme.coral)
+                        }
+                        .padding(10)
+                        .background(Color.white.opacity(0.045))
+                        .cornerRadius(10)
+                    }
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.purple.opacity(0.1))
+
             // Wake-on-LAN (WOL) Card
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
@@ -1104,6 +1194,200 @@ public struct ServerConfigSheet: View {
                         .cornerRadius(12)
                 }
                 .shadow(color: LiquidTheme.gold.opacity(0.35), radius: 10, y: 4)
+            }
+        }
+    }
+
+    // MARK: - Section 4: About, diagnostics and support
+    private var aboutSection: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    Image(systemName: "externaldrive.connected.to.line.below")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundColor(LiquidTheme.gold)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("PinayPal Backup")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("iOS companion \(appVersion) (build \(appBuild))")
+                            .font(.system(size: 11))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                    Spacer()
+                }
+
+                Divider().background(Color.white.opacity(0.08))
+
+                infoRow(label: "Desktop API", value: api.status?.version ?? "Checking…")
+                infoRow(label: "Server", value: api.serverUrl)
+                infoRow(label: "Round trip", value: api.latencyMs.map { "\($0) ms" } ?? "Not measured")
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.gold.opacity(0.12))
+
+            VStack(alignment: .leading, spacing: 12) {
+                Label("SUPPORT & DIAGNOSTICS", systemImage: "stethoscope")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.cyan)
+
+                Text("Export a privacy-conscious diagnostic bundle with app version, endpoint, latency, last error, and recent on-screen logs. It does not include your PIN.")
+                    .font(.system(size: 11))
+                    .foregroundColor(LiquidTheme.textSecondary)
+
+                Button {
+                    diagnosticsURL = api.makeDiagnosticsBundle()
+                    showDiagnosticsShare = diagnosticsURL != nil
+                } label: {
+                    Label("Export Diagnostics", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(10)
+                }
+
+                Link(destination: URL(string: "https://github.com/msudario018/pinaypalbackupmanager/releases")!) {
+                    Label("View Release Notes", systemImage: "arrow.up.right.square")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(LiquidTheme.gold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(LiquidTheme.gold.opacity(0.1))
+                        .cornerRadius(10)
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.cyan.opacity(0.1))
+
+            // Notification Test Panel
+            VStack(alignment: .leading, spacing: 12) {
+                Label("NOTIFICATION TEST", systemImage: "bell.badge")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+
+                Text("Send a test notification to verify alerts are working correctly on this device.")
+                    .font(.system(size: 11))
+                    .foregroundColor(LiquidTheme.textSecondary)
+
+                Button {
+                    NotificationService.shared.sendTestNotification()
+                    let haptic = UINotificationFeedbackGenerator()
+                    haptic.notificationOccurred(.success)
+                } label: {
+                    Label("Send Test Notification", systemImage: "bell.and.waves.left.and.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(LiquidTheme.gold)
+                        .cornerRadius(10)
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.gold.opacity(0.1))
+
+            // Data & Storage
+            VStack(alignment: .leading, spacing: 12) {
+                Label("DATA & STORAGE", systemImage: "internaldrive")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.emerald)
+
+                HStack {
+                    Text("App Storage")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                    Spacer()
+                    Text(appStorageSize)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(LiquidTheme.textPrimary)
+                }
+
+                HStack {
+                    Text("Cached Data")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                    Spacer()
+                    Text(cacheSize)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(LiquidTheme.textPrimary)
+                }
+
+                Button {
+                    clearAppCache()
+                    let haptic = UINotificationFeedbackGenerator()
+                    haptic.notificationOccurred(.success)
+                } label: {
+                    Label("Clear Cache", systemImage: "trash")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(LiquidTheme.coral)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(LiquidTheme.coral.opacity(0.12))
+                        .cornerRadius(10)
+                }
+            }
+            .padding(18)
+            .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.emerald.opacity(0.1))
+        }
+    }
+
+    private func infoRow(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(LiquidTheme.textSecondary)
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(LiquidTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+    }
+
+    private var appBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+    }
+
+    private var appStorageSize: String {
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return "—" }
+        return formattedDirectorySize(documentsURL)
+    }
+
+    private var cacheSize: String {
+        guard let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return "—" }
+        return formattedDirectorySize(cachesURL)
+    }
+
+    private func formattedDirectorySize(_ url: URL) -> String {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.totalFileAllocatedSizeKey], options: [.skipsHiddenFiles]) else { return "—" }
+        var totalBytes: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            if let values = try? fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey]),
+               let size = values.totalFileAllocatedSize {
+                totalBytes += Int64(size)
+            }
+        }
+        let b = Double(totalBytes)
+        if b >= 1_073_741_824 { return String(format: "%.2f GB", b / 1_073_741_824) }
+        if b >= 1_048_576 { return String(format: "%.1f MB", b / 1_048_576) }
+        if b >= 1_024 { return String(format: "%.0f KB", b / 1_024) }
+        return "\(totalBytes) B"
+    }
+
+    private func clearAppCache() {
+        guard let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let fm = FileManager.default
+        if let contents = try? fm.contentsOfDirectory(at: cachesURL, includingPropertiesForKeys: nil) {
+            for item in contents {
+                try? fm.removeItem(at: item)
             }
         }
     }
@@ -1269,5 +1553,51 @@ public struct ServerConfigSheet: View {
         UserDefaults.standard.set(pollIntervalSec, forKey: "pp_poll_interval")
         api.saveSettings(url: inputUrl, pin: inputPin)
         dismiss()
+    }
+
+    private func loadSavedProfiles() {
+        guard let data = UserDefaults.standard.data(forKey: "pp_saved_connection_profiles"),
+              let decoded = try? JSONDecoder().decode([SavedConnectionProfile].self, from: data) else {
+            savedProfiles = []
+            return
+        }
+        savedProfiles = decoded.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func saveCurrentProfile() {
+        let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUrl = inputUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedUrl.isEmpty else { return }
+
+        let profile = SavedConnectionProfile(
+            id: UUID(),
+            name: trimmedName,
+            serverUrl: trimmedUrl,
+            accessPin: inputPin,
+            failoverUrl: failoverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        savedProfiles.removeAll { $0.name.localizedCaseInsensitiveCompare(trimmedName) == .orderedSame }
+        savedProfiles.append(profile)
+        savedProfiles.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        persistProfiles()
+        profileName = ""
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func apply(_ profile: SavedConnectionProfile) {
+        inputUrl = profile.serverUrl
+        inputPin = profile.accessPin
+        failoverUrl = profile.failoverUrl
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func remove(_ profile: SavedConnectionProfile) {
+        savedProfiles.removeAll { $0.id == profile.id }
+        persistProfiles()
+    }
+
+    private func persistProfiles() {
+        guard let data = try? JSONEncoder().encode(savedProfiles) else { return }
+        UserDefaults.standard.set(data, forKey: "pp_saved_connection_profiles")
     }
 }

@@ -7,6 +7,11 @@ public struct BackupHistoryView: View {
     @State private var selectedFilter: HistoryFilter = .all
     @State private var selectedItem: BackupHistoryItem? = nil
     @State private var isRefreshing: Bool = false
+    @State private var searchText = ""
+    @State private var selectedSort: HistorySort = .recent
+    @State private var showClearConfirmation = false
+    @State private var isDownloading = false
+    @State private var shareFile: ShareableFile?
 
     public enum HistoryFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -18,8 +23,16 @@ public struct BackupHistoryView: View {
         public var id: String { rawValue }
     }
 
+    public enum HistorySort: String, CaseIterable, Identifiable {
+        case recent = "Most Recent"
+        case size = "Largest Size"
+        case duration = "Longest Duration"
+        case failures = "Failures First"
+        public var id: String { rawValue }
+    }
+
     public var filteredHistory: [BackupHistoryItem] {
-        api.history.filter { item in
+        let matching = api.history.filter { item in
             switch selectedFilter {
             case .all:
                 return true
@@ -31,6 +44,26 @@ public struct BackupHistoryView: View {
                 return item.service.localizedCaseInsensitiveContains("mailchimp")
             case .failed:
                 return item.status.localizedCaseInsensitiveContains("fail") || item.status.localizedCaseInsensitiveContains("error")
+            }
+        }
+        .filter { item in
+            guard !searchText.isEmpty else { return true }
+            let haystack = [item.service, item.status, item.type ?? "", item.filename ?? "", item.time].joined(separator: " ")
+            return haystack.localizedCaseInsensitiveContains(searchText)
+        }
+
+        switch selectedSort {
+        case .recent:
+            return matching
+        case .size:
+            return matching.sorted { ($0.sizeBytes ?? 0) > ($1.sizeBytes ?? 0) }
+        case .duration:
+            return matching.sorted { ($0.durationSeconds ?? 0) > ($1.durationSeconds ?? 0) }
+        case .failures:
+            return matching.sorted { left, right in
+                let leftFailed = !left.status.localizedCaseInsensitiveContains("success")
+                let rightFailed = !right.status.localizedCaseInsensitiveContains("success")
+                return leftFailed && !rightFailed
             }
         }
     }
@@ -51,6 +84,8 @@ public struct BackupHistoryView: View {
                 VStack(spacing: 16) {
                     // Summary Stats Strip
                     statsStrip
+
+                    historyControls
 
                     // Filter Chips Bar
                     filterBar
@@ -82,6 +117,16 @@ public struct BackupHistoryView: View {
         }
         .sheet(item: $selectedItem) { item in
             snapshotDetailSheet(item: item)
+        }
+        .sheet(item: $shareFile) { file in
+            ShareSheet(items: [file.url])
+        }
+        .confirmationDialog("Clear all local backup history?", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) {
+                Task { _ = await api.clearHistory() }
+            }
+        } message: {
+            Text("This removes the recorded history from the PC dashboard. Backup files are not deleted.")
         }
     }
 
@@ -186,6 +231,51 @@ public struct BackupHistoryView: View {
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    private var historyControls: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundColor(LiquidTheme.textSecondary)
+                TextField("Search service, file, or result", text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 13))
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(LiquidTheme.textSecondary) }
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            HStack(spacing: 10) {
+                Menu {
+                    Picker("Sort", selection: $selectedSort) {
+                        ForEach(HistorySort.allCases) { option in Text(option.rawValue).tag(option) }
+                    }
+                } label: {
+                    Label(selectedSort.rawValue, systemImage: "arrow.up.arrow.down.circle.fill")
+                        .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 38)
+                }
+                .buttonStyle(.bordered).tint(LiquidTheme.blue)
+
+                Button {
+                    let rows = filteredHistory.map { "\($0.time),\($0.service),\($0.status),\($0.sizeBytes ?? 0),\($0.durationSeconds ?? 0)" }
+                    let url = FileManager.default.temporaryDirectory.appendingPathComponent("PinayPal-History.csv")
+                    try? (["Time,Service,Status,SizeBytes,DurationSeconds"] + rows).joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+                    shareFile = ShareableFile(url: url)
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                        .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 38)
+                }
+                .buttonStyle(.bordered).tint(LiquidTheme.emerald)
+
+                Button(role: .destructive) { showClearConfirmation = true } label: {
+                    Image(systemName: "trash").frame(minWidth: 38, minHeight: 38)
+                }
+                .buttonStyle(.bordered)
+            }
         }
     }
 
@@ -361,6 +451,23 @@ public struct BackupHistoryView: View {
                             .foregroundColor(.black)
                             .cornerRadius(12)
                         }
+                        if item.hasFile == true, let filename = item.filename, !filename.isEmpty {
+                            Button {
+                                isDownloading = true
+                                Task {
+                                    if let url = await api.downloadBackupFile(filename: filename) {
+                                        shareFile = ShareableFile(url: url)
+                                    }
+                                    isDownloading = false
+                                }
+                            } label: {
+                                Label(isDownloading ? "Preparing..." : "Download backup", systemImage: "arrow.down.circle.fill")
+                                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(LiquidTheme.cyan)
+                            .disabled(isDownloading)
+                        }
                     }
                     .padding(16)
                 }
@@ -433,4 +540,9 @@ public struct BackupHistoryView: View {
         }
         return "\(bytes) B"
     }
+}
+
+private struct ShareableFile: Identifiable {
+    let url: URL
+    var id: URL { url }
 }

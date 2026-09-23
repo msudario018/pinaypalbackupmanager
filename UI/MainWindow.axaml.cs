@@ -1,2610 +1,2698 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Controls.Documents;
-using Avalonia.Controls.Shapes;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using Firebase.Database;
-using Firebase.Database.Query;
-using PinayPalBackupManager.Services;
-using PinayPalBackupManager.Models;
-using PinayPalBackupManager.UI.UserControls;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PinayPalBackupManager.UI
-{
-    public partial class MainWindow : Window
-    {
-        private readonly BackupManager _backupManager;
-        private readonly HomeControl _homeControl;
-        private readonly FtpControl _ftpControl;
-        private readonly MailchimpControl _mailchimpControl;
-        private readonly SqlControl _sqlControl;
-        private readonly SettingsControl _settingsControl;
-        private readonly ProfileControl _profileControl;
-        private readonly VerificationControl _verificationControl;
-        private readonly StatisticsControl _statisticsControl;
-        private readonly UserManagementControl _userManagementControl;
-        private readonly HealthCheckControl _healthCheckControl;
-        private readonly ErrorReportViewerControl _errorReportControl;
-        private readonly PerformanceMetricsControl _performanceControl;
-        private readonly BackupHistoryControl _backupHistoryControl;
-        private readonly BackupScheduleControl _backupScheduleControl;
-        private DispatcherTimer? _activeProcessMonitorTimer;
-        private DispatcherTimer? _firebasePollTimer;
-        private bool _allowClose;
-        private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
-        private bool _startupHealthPending = true;
-        private bool _configRequired;
-        private string _currentTag = "Home";
-        private bool _sidebarCompact = false;
-        public event Action? OnLogoutRequested;
-
-        // Stored delegates to unsubscribe from static ThemeService event on window close
-        private Action<bool>? _themeChangedIconHandler;
-        private Action<bool>? _themeChangedBgHandler;
-
-        // Stored delegates to unsubscribe from FirebaseRemoteService events on window close
-        private Action<Dictionary<string, object>?>? _firebaseScheduleHandler;
-        private Action<Dictionary<string, object>?>? _firebaseHealthHandler;
-        private Action<string, string?>? _firebaseCommandHandler;
-        private Action<Dictionary<string, object>?>? _firebaseAutoScanHandler;
-
-        public MainWindow()
-        {
-            Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
-            this.Icon = AppIconHelper.GetAppWindowIcon();
-            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
-            AppIconHelper.StartSingleInstanceListener(() => RestoreFromTray());
-
-            _backupManager = new BackupManager();
-            _backupManager.OnTimeUpdate += UpdateTime;
-            _backupManager.OnHealthUpdate += UpdateHealthStatus;
-
-            WindowStateService.Restore(this);
-
-
-            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
-            if (btnCustomize != null) 
-            {
-                btnCustomize.Click += async (_, _) => await OpenTabOrderDialogAsync();
-                // Hide during startup health check
-                btnCustomize.IsVisible = !_startupHealthPending;
-            }
-
-            var btnBell = this.FindControl<Button>("BtnNotificationCenter");
-            if (btnBell != null) btnBell.Click += (_, _) => ToggleNotificationCenter();
-            var btnClearNotif = this.FindControl<Button>("BtnClearNotifications");
-            if (btnClearNotif != null) btnClearNotif.Click += (_, _) => { NotificationHistoryService.ClearAll(); PopulateNotificationCenter(); UpdateBellBadge(); };
-
-            // Sidebar theme toggle
-            var btnTheme = this.FindControl<Button>("BtnThemeToggle");
-            var themeIcon = this.FindControl<PathIcon>("ThemeIcon");
-            if (btnTheme != null) btnTheme.Click += (_, _) => ThemeService.Toggle();
-            if (themeIcon != null)
-            {
-                const string MoonPath = "M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z";
-                const string SunPath = "M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,2L14.39,5.42C13.65,5.14 12.84,5 12,5C11.16,5 10.35,5.14 9.61,5.42L12,2M3.34,5L7.71,7.05C6.87,7.54 6.13,8.2 5.53,9L2.41,6.88L3.34,5M2,12L5.42,9.61C5.14,10.35 5,11.16 5,12C5,12.84 5.14,13.65 5.42,14.39L2,12M3.34,19L5.53,15C6.13,15.8 6.87,16.46 7.71,16.95L3.34,19M12,22L9.61,18.58C10.35,18.86 11.16,19 12,19C12.84,19 13.65,18.86 14.39,18.58L12,22M20.66,19L16.29,16.95C17.13,16.46 17.87,15.8 18.47,15L20.66,19M22,12L18.58,14.39C18.86,13.65 19,12.84 19,12C19,11.16 18.86,10.35 18.58,9.61L22,12M20.66,5L18.47,9C17.87,8.2 17.13,7.54 16.29,7.05L20.66,5Z";
-                themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(ThemeService.IsDark ? MoonPath : SunPath);
-                _themeChangedIconHandler = (isDark) =>
-                {
-                    try
-                    {
-                        if (themeIcon is not null)
-                            themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(isDark ? MoonPath : SunPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogService.WriteSystemLog($"[MAINWINDOW] Theme icon update failed: {ex}", "Error", "SYSTEM");
-                    }
-                };
-                ThemeService.OnThemeChanged += _themeChangedIconHandler;
-            }
-
-            // Force refresh main window backgrounds that don't update via DynamicResource on theme change
-            _themeChangedBgHandler = (isDark) =>
-            {
-                try
-                {
-                    if (Application.Current?.FindResource("AppBg") is IBrush appBg)
-                        this.Background = appBg;
-
-                    var sidebar = this.FindControl<Border>("SidebarBorder");
-                    if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
-                        sidebar.Background = sidebarBg;
-
-                    var topBar = this.FindControl<Border>("TopBarBorder");
-                    if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
-                        topBar.Background = topBarBg;
-
-                    var statusBar = this.FindControl<Border>("StatusBar");
-                    if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
-                        statusBar.Background = statusBg;
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteSystemLog($"[MAINWINDOW] Theme background refresh failed: {ex}", "Error", "SYSTEM");
-                }
-            };
-            ThemeService.OnThemeChanged += _themeChangedBgHandler;
-
-            NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
-
-            // Keyboard shortcuts
-            this.KeyDown += (s, e) =>
-            {
-                var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
-                
-                if (ctrl && e.Key == Avalonia.Input.Key.B)
-                {
-                    // Ctrl+B - Backup All (parallel)
-                    _ = RunAllBackupsParallelAsync();
-                    e.Handled = true;
-                }
-                else if (ctrl && e.Key == Avalonia.Input.Key.T)
-                {
-                    // Ctrl+T - Test All (ping all)
-                    _ = RunAllChecksAsync();
-                    e.Handled = true;
-                }
-                else if (ctrl && e.Key == Avalonia.Input.Key.R)
-                {
-                    // Ctrl+R - Retry Failed
-                    _ = RunAllChecksAsync();
-                    e.Handled = true;
-                }
-                else if (e.Key == Avalonia.Input.Key.Escape)
-                {
-                    // Esc - Emergency Stop
-                    if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
-                    if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
-                    if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
-                    NotificationService.ShowBackupToast("Emergency Stop", "All running tasks have been cancelled.", "Warning");
-                    e.Handled = true;
-                }
-            };
-
-            SetupSystemTray();
-
-            // Handle window state changes for layout optimization
-            this.GetObservable(Window.WindowStateProperty).Subscribe(OnWindowStateChanged);
-
-            _homeControl = new HomeControl(_backupManager);
-            _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
-            _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
-            _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
-            _homeControl.OnNavigateBackupHistory += () => { ShowControl(_backupHistoryControl!); UpdateSidebarSelection("BackupHistory"); };
-            _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
-            _homeControl.OnRunAllBackupsParallel += () => _ = RunAllBackupsParallelAsync();
-            _homeControl.OnFtpSyncCheck += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.PerformSyncCheck(); };
-            _homeControl.OnFtpQuickBackup += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.StartBackupFromShell(); };
-            _homeControl.OnMailchimpSyncCheck += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.PerformSyncCheck(); };
-            _homeControl.OnMailchimpQuickBackup += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.StartFullBackupFromShell(); };
-            _homeControl.OnSqlSyncCheck += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.PerformSyncCheck(); };
-            _homeControl.OnSqlQuickBackup += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.StartBackupFromShell(); };
-            _homeControl.OnEmergencyStop += () =>
-            {
-                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
-                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
-                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
-                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled.", "Warning");
-            };
-            _ftpControl = new FtpControl(_backupManager);
-            _mailchimpControl = new MailchimpControl(_backupManager);
-            _sqlControl = new SqlControl(_backupManager);
-            WebDashboardService.EmergencyStopExecutor = () =>
-            {
-                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
-                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
-                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
-            };
-            _settingsControl = new SettingsControl(_backupManager);
-            _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
-            _profileControl = new ProfileControl();
-            _verificationControl = new VerificationControl();
-            _statisticsControl = new StatisticsControl();
-            _userManagementControl = new UserManagementControl();
-            _healthCheckControl = new HealthCheckControl();
-            _errorReportControl = new ErrorReportViewerControl();
-            _performanceControl = new PerformanceMetricsControl();
-            _backupHistoryControl = new BackupHistoryControl();
-            _backupScheduleControl = new BackupScheduleControl();
-
-            BackupSchedulingService.BackupExecutor = async (service, backupType) =>
-            {
-                BackupStateTracker.SetRunning(service, $"Backing up {service.ToUpper()} ({backupType})...");
-                try
-                {
-                    LogService.WriteSystemLog($"[MainWindow] Executing backup for {service} (Trigger: {backupType})", "Information", "BACKUPSCHEDULE");
-                    NotificationService.ShowBackupToast("Backup Triggered", $"Starting {service.ToUpper()} backup ({backupType})", "Info");
-
-                    return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        try
-                        {
-                            switch (service.ToLowerInvariant())
-                            {
-                                case "ftp":
-                                    if (_ftpControl != null)
-                                    {
-                                        await _ftpControl.RunBackupTaskAsync(backupType);
-                                        return true;
-                                    }
-                                    break;
-                                case "mailchimp":
-                                    if (_mailchimpControl != null)
-                                    {
-                                        await _mailchimpControl.RunBackupTaskAsync(backupType);
-                                        return true;
-                                    }
-                                    break;
-                                case "sql":
-                                    if (_sqlControl != null)
-                                    {
-                                        await _sqlControl.RunBackupTaskAsync(backupType);
-                                        return true;
-                                    }
-                                    break;
-                                case "all":
-                                default:
-                                    await RunAllBackupsParallelAsync();
-                                    return true;
-                            }
-                            return false;
-                        }
-                        finally
-                        {
-                            BackupStateTracker.SetIdle(service, "Idle");
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    BackupStateTracker.SetIdle(service, "Failed");
-                    LogService.WriteSystemLog($"[MainWindow] Backup execution failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
-                    return false;
-                }
-            };
-
-            BackupSchedulingService.MailchimpTaskExecutor = async task =>
-            {
-                if (_mailchimpControl == null) return false;
-                return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
-                    async () => await _mailchimpControl.RunSpecificTaskAsync(task));
-            };
-
-            _profileControl.OnAvatarChanged += LoadSidebarAvatar;
-            _profileControl.OnLogoutRequested += () => {
-                _allowClose = true;
-                AuthService.Logout();
-                OnLogoutRequested?.Invoke();
-            };
-            _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
-
-            // Start active process monitor
-            _activeProcessMonitorTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
-            _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
-            _activeProcessMonitorTimer.Start();
-
-
-            // Start Firebase polling timer (fallback for real-time listener)
-            _firebasePollTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            _firebasePollTimer.Tick += async (sender, e) =>
-            {
-                await FirebaseRemoteService.PollScheduleUpdatesAsync();
-                await FirebaseRemoteService.PollCommandsAsync();
-                // Update connection status
-                UpdateConnectionStatus(true); // Firebase is connected if we can poll
-            };
-            _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
-
-            // Start internet connectivity monitoring
-            NetworkConnectivityService.OnConnectivityChanged += OnConnectivityChangedHandler;
-            NetworkConnectivityService.StartMonitoring();
-
-            // Setup button click handlers
-            foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
-            {
-                if (btn is Button button)
-                {
-                    button.Click += SidebarButton_Click;
-                }
-            }
-
-            // Sidebar collapse/expand toggle
-            var sidebarToggle = this.FindControl<Button>("SidebarToggle");
-            if (sidebarToggle != null)
-                sidebarToggle.Click += (_, _) => { _sidebarCompact = !_sidebarCompact; UpdateSidebarCompactMode(); };
-
-            // Apply initial sidebar layout
-            UpdateSidebarCompactMode();
-
-            var btnSysInfo = this.FindControl<Button>("BtnSystemInfo");
-            if (btnSysInfo != null)
-            {
-                btnSysInfo.Click += async (s, e) =>
-                {
-                    ShowControl(_settingsControl);
-                    await ShowSystemInfoAsync();
-                };
-            }
-
-            // Initialize profile section
-            InitializeProfileSection();
-
-            _startupHealthPending = false;
-            SetStartupBusy(false);
-
-            if (!ConfigService.IsConfigured())
-            {
-                NotificationService.ShowBackupToast("Config", "Missing appsettings.local.json values. Please configure credentials first.", "Warning");
-                SetConfigRequiredMode(true);
-            }
-            else
-            {
-                ShowControl(_homeControl);
-                UpdateSidebarSelection("Home");
-            }
-
-            _backupManager.Start();
-
-            // Set version dynamically from assembly
-            var asm = System.Reflection.Assembly.GetExecutingAssembly();
-            var ver = asm.GetName().Version;
-            var versionStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v?.?.?";
-            var txtVer = this.FindControl<TextBlock>("TxtVersionBadge");
-            if (txtVer != null) txtVer.Text = versionStr;
-
-            if (UpdatePreferences.LoadAutoCheckOnStartup())
-            {
-                Dispatcher.UIThread.Post(async () =>
-                {
-                    await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
-                });
-            }
-            
-            // Handle window closing event
-            this.Closed += async (s, e) =>
-            {
-                if (_themeChangedIconHandler != null)
-                    ThemeService.OnThemeChanged -= _themeChangedIconHandler;
-                if (_themeChangedBgHandler != null)
-                    ThemeService.OnThemeChanged -= _themeChangedBgHandler;
-
-                if (_firebaseScheduleHandler != null)
-                    FirebaseRemoteService.OnScheduleUpdated -= _firebaseScheduleHandler;
-                if (_firebaseHealthHandler != null)
-                    FirebaseRemoteService.OnHealthThresholdsUpdated -= _firebaseHealthHandler;
-                if (_firebaseCommandHandler != null)
-                    FirebaseRemoteService.OnCommandReceived -= _firebaseCommandHandler;
-                if (_firebaseAutoScanHandler != null)
-                    FirebaseRemoteService.OnAutoScanUpdated -= _firebaseAutoScanHandler;
-
-                _backupManager.OnTimeUpdate -= UpdateTime;
-                _backupManager.OnHealthUpdate -= UpdateHealthStatus;
-
-                NetworkConnectivityService.OnConnectivityChanged -= OnConnectivityChangedHandler;
-                NetworkConnectivityService.StopMonitoring();
-
-                try
-                {
-                    // Stop all running backup operations first
-                    if (_ftpControl?.IsBusy == true)
-                    {
-                        LogService.WriteSystemLog("[MAINWINDOW] Stopping FTP operations...", "Information", "SYSTEM");
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping FTP operations...", "MAINWINDOW");
-                        _ftpControl.RequestCancelFromShell();
-                        await Task.Delay(1000); // Allow time for graceful cancellation
-                    }
-                    
-                    if (_mailchimpControl?.IsBusy == true)
-                    {
-                        LogService.WriteSystemLog("[MAINWINDOW] Stopping Mailchimp operations...", "Information", "SYSTEM");
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping Mailchimp operations...", "MAINWINDOW");
-                        _mailchimpControl.RequestCancelFromShell();
-                        await Task.Delay(1000); // Allow time for graceful cancellation
-                    }
-                    
-                    if (_sqlControl?.IsBusy == true)
-                    {
-                        LogService.WriteSystemLog("[MAINWINDOW] Stopping SQL operations...", "Information", "SYSTEM");
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping SQL operations...", "MAINWINDOW");
-                        _sqlControl.RequestCancelFromShell();
-                        await Task.Delay(1000); // Allow time for graceful cancellation
-                    }
-                    
-                    // Stop real-time monitoring service
-                    RealtimeMonitoringService.Stop();
-                    
-                    // Stop backup retention and retry services
-                    BackupRetentionService.Stop();
-                    BackupRetryService.Stop();
-                    
-                    // Stop backup manager
-                    _backupManager?.Stop();
-                    
-                    // Stop active process monitor timer
-                    _activeProcessMonitorTimer?.Stop();
-                    
-                    // Update connection status to offline
-                    if (AuthService.CurrentUser?.Username != null)
-                    {
-                        try
-                        {
-                            var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
-                            var database = new FirebaseClient(databaseUrl);
-                            await database
-                                .Child("users")
-                                .Child(AuthService.CurrentUser.Username)
-                                .Child("connection")
-                                .PatchAsync(new 
-                                { 
-                                    status = "offline", 
-                                    lastSeen = DateTime.UtcNow.ToString("o"),
-                                    appShutdown = true
-                                });
-                                
-                            await RealtimeMonitoringService.AddLogAsync("Info", "Connection status updated to offline", "MAINWINDOW");
-                        }
-                        catch (Exception ex)
-                        {
-                            LogService.WriteSystemLog($"[MAINWINDOW] Failed to update offline status: {ex.Message}", "Error", "SYSTEM");
-                            await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to update offline status: {ex.Message}", "MAINWINDOW");
-                        }
-                    }
-                    
-                    LogService.WriteSystemLog("[MAINWINDOW] All services stopped successfully", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "All services stopped successfully", "MAINWINDOW");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "PC application shutdown completed", "MAINWINDOW");
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteSystemLog($"[MAINWINDOW] Error during shutdown: {ex.Message}", "Error", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Error", $"Error during shutdown: {ex.Message}", "MAINWINDOW");
-                }
-            };
-            
-            // Initialize Firebase remote control only
-            LogService.WriteSystemLog("[MAINWINDOW] About to initialize Firebase remote control...", "Information", "SYSTEM");
-            
-            // Initialize Firebase remote control
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(2000); // Wait for UI to fully load
-                LogService.WriteSystemLog("[MAINWINDOW] Starting Firebase remote control initialization...", "Information", "SYSTEM");
-                await InitializeFirebaseRemoteControl();
-                LogService.WriteSystemLog("[MAINWINDOW] Firebase remote control initialization completed", "Information", "SYSTEM");
-            });
-        }
-
-        private async Task InitializeFirebaseRemoteControl()
-        {
-            try
-            {
-                LogService.WriteSystemLog("[MAINWINDOW] InitializeFirebaseRemoteControl started", "Information", "SYSTEM");
-                await RealtimeMonitoringService.AddLogAsync("Info", "InitializeFirebaseRemoteControl started", "MAINWINDOW");
-                
-                // Set initial status in SettingsControl
-                _settingsControl.UpdateHealthStatus("Initializing Firebase Remote Control...", false);
-                
-                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
-                var username = AuthService.CurrentUser?.Username;
-                
-                LogService.WriteSystemLog($"[MAINWINDOW] Username check: {username ?? "NULL"}", "Information", "SYSTEM");
-                await RealtimeMonitoringService.AddLogAsync("Info", $"Username check: {username ?? "NULL"}", "MAINWINDOW");
-                
-                if (username != null)
-                {
-                    LogService.WriteSystemLog("[MAINWINDOW] Username found, initializing services...", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "Username found, initializing services...", "MAINWINDOW");
-                    
-                    // Initialize real-time monitoring
-                    RealtimeMonitoringService.Initialize(databaseUrl, username);
-                    LogService.WriteSystemLog("[MAINWINDOW] RealtimeMonitoringService initialized", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "RealtimeMonitoringService initialized", "MAINWINDOW");
-                    
-                    // Initialize Firebase remote service
-                    FirebaseRemoteService.Initialize(databaseUrl, username);
-                    LogService.WriteSystemLog("[MAINWINDOW] FirebaseRemoteService initialized", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "FirebaseRemoteService initialized", "MAINWINDOW");
-
-                    // Start Firebase polling timer
-                    _firebasePollTimer?.Start();
-                    LogService.WriteSystemLog("[MAINWINDOW] Firebase polling timer started", "Information", "SYSTEM");
-                    
-                    // Initialize SystemStatusService to write system_status to Firebase
-                    SystemStatusService.Initialize(databaseUrl, username);
-                    LogService.WriteSystemLog("[MAINWINDOW] SystemStatusService initialized", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "SystemStatusService initialized", "MAINWINDOW");
-                    
-                    // Initialize Backup Retention Auto-Cleanup Service
-                    BackupRetentionService.Initialize();
-                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetentionService initialized", "Information", "SYSTEM");
-                    
-                    // Initialize Backup Retry Service with auto-retry on failure
-                    BackupRetryService.Initialize();
-                    BackupRetryService.OnRetryDue += OnRetryDue;
-                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetryService initialized", "Information", "SYSTEM");
-                    
-                    // Initialize FileDownloadService for HTTP file downloads
-                    if (ConfigService.Current.HttpServer.Enabled)
-                    {
-                        var backupDir = ConfigService.Current.Paths.FtpLocalFolder;
-                        FileDownloadService.Initialize(username, backupDir, ConfigService.Current.HttpServer.Port);
-                        await FileDownloadService.StartAsync();
-                        LogService.WriteSystemLog("[MAINWINDOW] FileDownloadService started", "Information", "SYSTEM");
-                        await RealtimeMonitoringService.AddLogAsync("Info", "FileDownloadService started", "MAINWINDOW");
-                    }
-                    
-                    // Listen for remote commands
-                    FirebaseRemoteService.ListenForCommands((commandType, commandId, data) => 
-                    {
-                        _ = ExecuteRemoteCommandAsync(commandType, commandId, data);
-                    });
-                    
-                    // Listen for quick actions
-                    ListenForQuickActions();
-                    
-                    // Load Firebase schedule and health thresholds
-                    await LoadFirebaseSettingsAsync();
-                    
-                    // Subscribe to real-time Firebase updates (store delegates for cleanup)
-                    _firebaseScheduleHandler = (schedule) =>
-                    {
-                        if (schedule != null)
-                        {
-                            LogService.WriteSystemLog("[MAINWINDOW] OnScheduleUpdated triggered - resetting BackupManager timers", "Information", "SYSTEM");
-                            ConfigService.MergeFirebaseSchedule(schedule);
-                            _backupManager?.ResetAutoScanTimers();
-                            _backupManager?.FireDailyScheduleUpdated();
-                            LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule updated in real-time", "Information", "SYSTEM");
-                        }
-                    };
-                    FirebaseRemoteService.OnScheduleUpdated += _firebaseScheduleHandler;
-
-                    _firebaseHealthHandler = (thresholds) =>
-                    {
-                        if (thresholds != null)
-                        {
-                            ConfigService.MergeFirebaseHealthThresholds(thresholds);
-                            LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds updated in real-time", "Information", "SYSTEM");
-                        }
-                    };
-                    FirebaseRemoteService.OnHealthThresholdsUpdated += _firebaseHealthHandler;
-
-                    _firebaseCommandHandler = (commandType, commandId) =>
-                    {
-                        LogService.WriteSystemLog($"[MAINWINDOW] Firebase command received: {commandType}", "Information", "SYSTEM");
-                        _ = ExecuteRemoteCommandAsync(commandType, commandId ?? "", null);
-                    };
-                    FirebaseRemoteService.OnCommandReceived += _firebaseCommandHandler;
-
-                    _firebaseAutoScanHandler = (autoScan) =>
-                    {
-                        if (autoScan != null)
-                        {
-                            ConfigService.MergeFirebaseAutoScan(autoScan);
-                            _backupManager?.ResetAutoScanTimers();
-                            _backupManager?.FireAutoScanTimersReset();
-                            LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan updated in real-time", "Information", "SYSTEM");
-                        }
-                    };
-                    FirebaseRemoteService.OnAutoScanUpdated += _firebaseAutoScanHandler;
-
-                    // Start real-time listeners
-                    FirebaseRemoteService.ListenForScheduleUpdates();
-                    FirebaseRemoteService.ListenForHealthThresholdUpdates();
-                    FirebaseRemoteService.ListenForAutoScanUpdates();
-                    
-                    LogService.WriteSystemLog("[FIREBASE] Remote control initialized", "Information", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Info", "Remote control initialized", "MAINWINDOW");
-                    
-                    // Update SettingsControl health status
-                    _settingsControl.UpdateHealthStatus("Remote Control Active (Firebase Connected)", false);
-                }
-                else
-                {
-                    LogService.WriteSystemLog("[FIREBASE] Failed to initialize remote control - no username", "Error", "SYSTEM");
-                    await RealtimeMonitoringService.AddLogAsync("Error", "Failed to initialize remote control - no username", "MAINWINDOW");
-                    
-                    // Update SettingsControl health status with error
-                    _settingsControl.UpdateHealthStatus("Initialization Failed - No Username", true);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[FIREBASE] Initialization error: {ex.Message}", "Error", "SYSTEM");
-                await RealtimeMonitoringService.AddLogAsync("Error", $"Initialization error: {ex.Message}", "MAINWINDOW");
-                
-                // Update SettingsControl health status with error
-                _settingsControl.UpdateHealthStatus($"Error: {ex.Message}", true);
-            }
-        }
-
-        private async Task LoadFirebaseSettingsAsync()
-        {
-            try
-            {
-                LogService.WriteSystemLog("[MAINWINDOW] Loading Firebase settings...", "Information", "SYSTEM");
-
-                var schedule = await FirebaseRemoteService.GetBackupScheduleAsync();
-                if (schedule != null)
-                {
-                    ConfigService.MergeFirebaseSchedule(schedule);
-                    LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule loaded", "Information", "SYSTEM");
-                }
-
-                var thresholds = await FirebaseRemoteService.GetHealthThresholdsAsync();
-                if (thresholds != null)
-                {
-                    ConfigService.MergeFirebaseHealthThresholds(thresholds);
-                    LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds loaded", "Information", "SYSTEM");
-                }
-
-                var autoScan = await FirebaseRemoteService.GetAutoScanSettingsAsync();
-                if (autoScan != null)
-                {
-                    ConfigService.MergeFirebaseAutoScan(autoScan);
-                    LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan loaded", "Information", "SYSTEM");
-                }
-
-                // Reset auto scan timers after loading settings
-                _backupManager?.ResetAutoScanTimers();
-                _backupManager?.FireDailyScheduleUpdated();
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[MAINWINDOW] Failed to load Firebase settings: {ex.Message}", "Error", "SYSTEM");
-            }
-        }
-
-        public async Task RefreshFirebaseSettingsAsync()
-        {
-            LogService.WriteSystemLog("[MAINWINDOW] Manual Firebase settings refresh triggered", "Information", "SYSTEM");
-            await LoadFirebaseSettingsAsync();
-        }
-
-                
-        
-        private void SetConfigRequiredMode(bool required)
-        {
-            _configRequired = required;
-
-            var sidebar = this.FindControl<StackPanel>("Sidebar");
-            if (sidebar != null)
-            {
-                foreach (var child in sidebar.Children)
-                {
-                    if (child is Button b && b.Tag is string tag)
-                    {
-                        b.IsEnabled = !required || string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase);
-                    }
-                }
-            }
-
-            var mainContent = this.FindControl<ContentControl>("MainContent");
-            if (mainContent != null) mainContent.IsEnabled = !required;
-
-            if (required)
-            {
-                ShowControl(_settingsControl);
-                UpdateSidebarSelection("Settings");
-                if (mainContent != null) mainContent.IsEnabled = true; // keep Settings itself usable
-            }
-        }
-
-        private void SetStartupBusy(bool busy)
-        {
-            var overlay = this.FindControl<Border>("StartupOverlay");
-            if (overlay != null) overlay.IsVisible = busy;
-        }
-
-        public static async System.Threading.Tasks.Task ShowSystemInfoAsync()
-        {
-            string buildDate = System.DateTime.Now.ToString("yyyy-MM-dd");
-            string creator = "Wesley";
-
-            string changelog = string.Empty;
-            try
-            {
-                var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-                var changelogPath = System.IO.Path.Combine(baseDir, "CHANGELOG.md");
-                if (System.IO.File.Exists(changelogPath))
-                {
-                    var md = System.IO.File.ReadAllText(changelogPath);
-                    changelog = BuildChangelogSummary(md);
-                }
-            }
-            catch { /* ignore file read errors and fall back to inline changelog */ }
-
-            if (string.IsNullOrWhiteSpace(changelog))
-            {
-                changelog = BackupConfig.AppVersion + "\n\n" +
-                           "UI:\n" +
-                           "- Modernized Fluent-dark look and unified button styles\n" +
-                           "- Accent Primary buttons per service (FTP/Mailchimp/SQL/Settings)\n" +
-                           "- Sidebar selected tab state\n" +
-                           "- Health badge shows detailed outdated services with per-service colors\n\n" +
-                           "STARTUP:\n" +
-                           "- Startup health scan overlay that blocks UI until scan completes\n\n" +
-                           "FIXES:\n" +
-                           "- SQL health check aligned with SQL Sync Check to prevent false OUTDATED";
-            }
-
-            string buildInfo = $"Build Date: {buildDate}\nCreator: {creator}";
-
-            // Create and show custom dialog
-            var dialog = new SystemInfoDialog(buildInfo, changelog);
-            var window = new Window
-            {
-                Content = dialog,
-                Width = 500,
-                Height = 400,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false,
-                ShowInTaskbar = false,
-                // No Topmost - ShowDialog makes it modal to parent only
-                Background = Avalonia.Media.Brushes.Transparent,
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0,
-                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None
-            };
-
-            dialog.OnOk += (sender, e) => window.Close();
-
-            // Get the main window as owner
-            var mainWindow = GetMainWindow();
-
-            if (mainWindow != null)
-            {
-                mainWindow.Activate();
-                await window.ShowDialog(mainWindow);
-            }
-        }
-
-        public static Window? GetMainWindow()
-        {
-            return Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
-        }
-
-
-        private static string BuildChangelogSummary(string markdown)
-        {
-            if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
-
-            var normalized = markdown.Replace("\r\n", "\n").Trim();
-            if (normalized.Length == 0) return string.Empty;
-
-            var section = ExtractSection(normalized, "## Unreleased");
-            if (string.IsNullOrWhiteSpace(section))
-            {
-                section = ExtractFirstReleaseSection(normalized);
-            }
-
-            if (string.IsNullOrWhiteSpace(section)) return string.Empty;
-
-            var added = ExtractSubSectionBullets(section, "### Added");
-            var changed = ExtractSubSectionBullets(section, "### Changed");
-            var fixedItems = ExtractSubSectionBullets(section, "### Fixed");
-
-            var sb = new StringBuilder();
-            sb.AppendLine("CHANGELOG SUMMARY:");
-            sb.AppendLine();
-
-            AppendBulletBlock(sb, "ADDED", added);
-            AppendBulletBlock(sb, "CHANGED", changed);
-            AppendBulletBlock(sb, "FIXED", fixedItems);
-
-            return sb.ToString().TrimEnd();
-        }
-
-        private static void AppendBulletBlock(StringBuilder sb, string title, string[] items)
-        {
-            sb.AppendLine(title + ":");
-            if (items.Length == 0)
-            {
-                sb.AppendLine("- (none)");
-            }
-            else
-            {
-                foreach (var item in items)
-                {
-                    sb.AppendLine("- " + item);
-                }
-            }
-            sb.AppendLine();
-        }
-
-        private static string ExtractSection(string markdown, string headerStartsWith)
-        {
-            var lines = markdown.Split('\n');
-            var start = -1;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                var l = lines[i].TrimEnd();
-                if (l.StartsWith(headerStartsWith, StringComparison.OrdinalIgnoreCase))
-                {
-                    start = i;
-                    break;
-                }
-            }
-
-            if (start < 0) return string.Empty;
-
-            var sb = new StringBuilder();
-            for (int i = start; i < lines.Length; i++)
-            {
-                var l = lines[i];
-                if (i != start && l.StartsWith("## ")) break;
-                sb.AppendLine(l);
-            }
-            return sb.ToString();
-        }
-
-        private static string ExtractFirstReleaseSection(string markdown)
-        {
-            var lines = markdown.Split('\n');
-            var start = -1;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                var l = lines[i].TrimEnd();
-                if (l.StartsWith("## ") && !l.StartsWith("## Unreleased", StringComparison.OrdinalIgnoreCase))
-                {
-                    start = i;
-                    break;
-                }
-            }
-
-            if (start < 0) return string.Empty;
-
-            var sb = new StringBuilder();
-            for (int i = start; i < lines.Length; i++)
-            {
-                var l = lines[i];
-                if (i != start && l.StartsWith("## ")) break;
-                sb.AppendLine(l);
-            }
-            return sb.ToString();
-        }
-
-        private static string[] ExtractSubSectionBullets(string sectionMarkdown, string subHeader)
-        {
-            var lines = sectionMarkdown.Replace("\r\n", "\n").Split('\n');
-            var start = -1;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                var l = lines[i].TrimEnd();
-                if (l.StartsWith(subHeader, StringComparison.OrdinalIgnoreCase))
-                {
-                    start = i + 1;
-                    break;
-                }
-            }
-
-            if (start < 0) return [];
-
-            var list = new List<string>();
-            for (int i = start; i < lines.Length; i++)
-            {
-                var l = lines[i].Trim();
-                if (l.StartsWith("### ") || l.StartsWith("## ")) break;
-                if (l.StartsWith("- "))
-                {
-                    list.Add(l.Substring(2).Trim());
-                }
-            }
-
-            return list.ToArray();
-        }
-
-        private void SidebarButton_Click(object? sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string tag)
-            {
-                if (_configRequired && !string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase))
-                {
-                    NotificationService.ShowBackupToast("Config", "Please complete Settings first.", "Warning");
-                    ShowControl(_settingsControl);
-                    UpdateSidebarSelection("Settings");
-                    return;
-                }
-
-                if (!NetworkConnectivityService.IsOnline && NetworkConnectivityService.IsInternetRequired(tag))
-                {
-                    NotificationService.ShowBackupToast("Offline", $"{tag} requires an internet connection.", "Warning");
-                    return;
-                }
-
-                UpdateSidebarSelection(tag);
-                switch (tag)
-                {
-                    case "Home":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Home Dashboard", "Info");
-                        ShowControl(_homeControl);
-                        break;
-                    case "FTP":
-                        NotificationService.ShowBackupToast("Tab", "Switched to FTP", "Info");
-                        ShowControl(_ftpControl);
-                        break;
-                    case "Mailchimp":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Mailchimp", "Info");
-                        ShowControl(_mailchimpControl);
-                        break;
-                    case "SQL":
-                        NotificationService.ShowBackupToast("Tab", "Switched to SQL", "Info");
-                        ShowControl(_sqlControl);
-                        break;
-                    case "Verification":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Verification", "Info");
-                        ShowControl(_verificationControl);
-                        break;
-                    case "Statistics":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Statistics", "Info");
-                        ShowControl(_statisticsControl);
-                        break;
-                    case "Settings":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Settings", "Info");
-                        ShowControl(_settingsControl);
-                        break;
-                    case "UserManagement":
-                        NotificationService.ShowBackupToast("Tab", "Switched to User Management", "Info");
-                        ShowControl(_userManagementControl);
-                        break;
-                    case "HealthCheck":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Health Check", "Info");
-                        ShowControl(_healthCheckControl);
-                        break;
-                    case "ErrorReports":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Error Reports", "Info");
-                        ShowControl(_errorReportControl);
-                        break;
-                    case "PerformanceMetrics":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Performance Metrics", "Info");
-                        ShowControl(_performanceControl);
-                        break;
-                    case "BackupHistory":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Backup History", "Info");
-                        ShowControl(_backupHistoryControl);
-                        break;
-                    case "BackupSchedule":
-                        NotificationService.ShowBackupToast("Tab", "Switched to Backup Schedule", "Info");
-                        ShowControl(_backupScheduleControl);
-                        break;
-                }
-            }
-        }
-
-        private void UpdateSidebarSelection(string activeTag)
-        {
-            _currentTag = activeTag;
-            var sidebar = this.FindControl<StackPanel>("Sidebar");
-            if (sidebar == null) return;
-
-            foreach (var child in sidebar.Children)
-            {
-                if (child is Button btn && btn.Tag is string tag)
-                {
-                    if (tag == activeTag)
-                    {
-                        btn.Classes.Add("Selected");
-                        var icon = btn.FindDescendantOfType<PathIcon>();
-                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#FCA311");
-                    }
-                    else
-                    {
-                        btn.Classes.Remove("Selected");
-                        var icon = btn.FindDescendantOfType<PathIcon>();
-                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#808080");
-                    }
-                }
-            }
-        }
-
-        private void UpdateSidebarCompactMode()
-        {
-            var compact = _sidebarCompact;
-
-            // Sidebar width transition drives the Auto column smoothly
-            var sidebarBorder = this.FindControl<Border>("SidebarBorder");
-            if (sidebarBorder != null) sidebarBorder.Width = compact ? 64 : 210;
-
-            // Logo text - fade opacity
-            var logoText = this.FindControl<TextBlock>("LogoText");
-            if (logoText != null) logoText.Opacity = compact ? 0 : 1;
-
-            // Sidebar nav items (section headers fade + button labels + alignment)
-            var sidebar = this.FindControl<StackPanel>("Sidebar");
-            if (sidebar != null)
-            {
-                foreach (var child in sidebar.Children)
-                {
-                    if (child is TextBlock tb)
-                    {
-                        tb.Opacity = compact ? 0 : 1;
-                        tb.IsVisible = !compact; // Collapse section headers in compact mode
-                    }
-                    else if (child is Button btn)
-                    {
-                        ToggleButtonTextOpacity(btn, compact ? 0 : 1);
-                        // In compact mode, set HorizontalContentAlignment to Center and no padding
-                        btn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                        btn.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
-                    }
-                }
-            }
-
-            // Profile text - fade opacity and adjust spacing
-            var profileBtn = this.FindControl<Button>("BtnProfile");
-            if (profileBtn != null)
-            {
-                profileBtn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                profileBtn.Padding = compact ? new Thickness(0) : new Thickness(8, 0);
-                if (profileBtn.Content is StackPanel profileSp)
-                {
-                    profileSp.Spacing = compact ? 0 : 10;
-                    // Center avatar in compact mode
-                    foreach (var c in profileSp.Children)
-                    {
-                        if (c is Grid avatarGrid)
-                            avatarGrid.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                    }
-                    // Center the StackPanel in compact mode
-                    profileSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-                }
-            }
-            var profileText = this.FindControl<StackPanel>("ProfileTextPanel");
-            if (profileText != null)
-            {
-                profileText.Opacity = compact ? 0 : 1;
-                profileText.IsVisible = !compact; // Collapse in compact mode
-            }
-
-            // Customize button text and spacing
-            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
-            if (btnCustomize != null)
-            {
-                // Manually handle Customize button since it uses same structure
-                if (btnCustomize.Content is StackPanel customizeSp)
-                {
-                    foreach (var c in customizeSp.Children)
-                    {
-                        if (c is TextBlock tb)
-                        {
-                            tb.Opacity = compact ? 0 : 1;
-                            tb.IsVisible = !compact; // Collapse text in compact mode
-                        }
-                        else if (c is PathIcon icon)
-                            icon.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                    }
-                    customizeSp.Spacing = compact ? 0 : 11;
-                    // Center the StackPanel in compact mode
-                    customizeSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-                }
-                btnCustomize.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                btnCustomize.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
-            }
-
-            // Toggle arrow direction
-            var toggleIcon = this.FindControl<PathIcon>("SidebarToggleIcon");
-            if (toggleIcon != null)
-            {
-                toggleIcon.Data = StreamGeometry.Parse(compact
-                    ? "M8.59,16.59L10,18L16,12L10,6L8.59,7.41L13.17,12L8.59,16.59Z"
-                    : "M15.41,7.41L14,6L8,12L14,18L15.41,16.59L10.83,12L15.41,7.41Z");
-            }
-
-            // Update tooltip
-            var toggleBtn = this.FindControl<Button>("SidebarToggle");
-            if (toggleBtn != null)
-                ToolTip.SetTip(toggleBtn, compact ? "Expand sidebar" : "Collapse sidebar");
-        }
-
-        private static void ToggleButtonTextVisibility(Button btn, bool visible)
-        {
-            if (btn.Content is StackPanel sp)
-            {
-                foreach (var c in sp.Children)
-                {
-                    if (c is TextBlock tb)
-                        tb.IsVisible = visible;
-                }
-            }
-        }
-
-        private static void ToggleButtonTextOpacity(Button btn, double opacity)
-        {
-            if (btn.Content is StackPanel sp)
-            {
-                bool isCompact = opacity < 0.5;
-                foreach (var c in sp.Children)
-                {
-                    if (c is TextBlock tb)
-                    {
-                        tb.Opacity = opacity;
-                        // Collapse text in compact mode so it doesn't take up layout space
-                        tb.IsVisible = !isCompact;
-                    }
-                    else if (c is PathIcon icon)
-                    {
-                        // Center the icon in compact mode
-                        icon.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                    }
-                }
-                // Adjust spacing: remove gap when text is hidden (compact mode)
-                sp.Spacing = isCompact ? 0 : 11;
-                // Set StackPanel alignment - stretch in expanded, center in compact
-                sp.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-            }
-        }
-
-        private void OnWindowStateChanged(WindowState state)
-        {
-            if (state == WindowState.Maximized || state == WindowState.Normal)
-            {
-                try
-                {
-                    var mainContent = this.FindControl<ContentControl>("MainContent");
-                    if (mainContent != null)
-                    {
-                        mainContent.Margin = state == WindowState.Maximized ? new Thickness(8) : new Thickness(20);
-                    }
-                }
-                catch { }
-            }
-            else if (state == WindowState.Minimized)
-            {
-                // Keeping ShowInTaskbar = true ensures user can always click taskbar button to restore!
-                this.ShowInTaskbar = true;
-
-                if (ConfigService.Current.Operation.MinimizeToTray && _trayIcon != null)
-                {
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        try
-                        {
-                            this.ShowInTaskbar = false;
-                            this.Hide();
-                            NotificationService.ShowBackupToast(
-                                "Minimized to Tray", 
-                                "PinayPal is running in background. Click the tray icon near the clock to restore.", 
-                                "Info");
-                        }
-                        catch { }
-                    });
-                }
-            }
-        }
-
-        /// <summary>
-        /// Minimizes or hides all owned dialog windows when the main window is minimized.
-        /// </summary>
-        private void MinimizeOwnedDialogs()
-        {
-            // Find all open windows and minimize/hide dialog windows
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktopLifetime)
-                return;
-            
-            var allWindows = desktopLifetime.Windows;
-            if (allWindows == null) return;
-
-            foreach (var window in allWindows)
-            {
-                try
-                {
-                    // Skip the main window itself
-                    if (window == this) continue;
-                    
-                    // Skip already closed/disposed windows
-                    if (window.PlatformImpl == null) continue;
-                    
-                    // If it's a dialog window (owned by this window), minimize it
-                    if (window.Owner == this)
-                    {
-                        window.WindowState = WindowState.Minimized;
-                    }
-                    // Also handle windows that might have been shown as dialogs but don't have explicit owner set
-                    else if (window.Title?.Contains("Confirm") == true || 
-                             window.Title?.Contains("Dialog") == true ||
-                             window.Title?.Contains("Backup") == true)
-                    {
-                        // For safety, only hide if it looks like a popup dialog
-                        if (window.WindowState != WindowState.Minimized)
-                        {
-                            window.WindowState = WindowState.Minimized;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteLiveLog($"[MainWindow] Error minimizing dialog: {ex.Message}", "", "Warning", "SYSTEM");
-                }
-            }
-        }
-
-        private void ShowControl(UserControl control)
-        {
-            var contentControl = this.FindControl<ContentControl>("MainContent");
-            if (contentControl != null)
-            {
-                contentControl.Content = control;
-            }
-
-            _activeTabAccentBrush = GetAccentBrushForControl(control);
-        }
-
-        private void OnConnectivityChangedHandler(bool isOnline)
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                // Show / hide offline banner
-                var banner = this.FindControl<Border>("OfflineBanner");
-                if (banner != null) banner.IsVisible = !isOnline;
-
-                // Update top-bar connection indicator
-                UpdateConnectionStatus(isOnline);
-
-                // Disable / enable internet-required sidebar buttons
-                var sidebar = this.FindControl<StackPanel>("Sidebar");
-                if (sidebar != null)
-                {
-                    foreach (var child in sidebar.Children)
-                    {
-                        if (child is Button btn && btn.Tag is string tag)
-                        {
-                            if (NetworkConnectivityService.IsInternetRequired(tag))
-                            {
-                                btn.IsEnabled = isOnline;
-                                btn.Opacity = isOnline ? 1.0 : 0.4;
-                            }
-                        }
-                    }
-                }
-
-                // If currently on an internet-required tab and we just went offline, redirect to Home
-                if (!isOnline && NetworkConnectivityService.IsInternetRequired(_currentTag))
-                {
-                    ShowControl(_homeControl);
-                    UpdateSidebarSelection("Home");
-                    NotificationService.ShowBackupToast("Offline", "Switched to Dashboard because the internet connection was lost.", "Warning");
-                }
-            });
-        }
-
-        private async Task RunAllChecksAsync()
-        {
-            // Ensure notifications are enabled for this operation
-            NotificationService.EnableNotifications();
-            
-            // Reset any stuck busy states before running checks
-            if (_ftpControl.IsBusy) _ftpControl.ResetBusy();
-            if (_mailchimpControl.IsBusy) _mailchimpControl.ResetBusy();
-            if (_sqlControl.IsBusy) _sqlControl.ResetBusy();
-            
-            NotificationService.ShowBackupToast("Dashboard", "Running sequential sync check on all services...", "Info");
-            
-            var results = new List<(string service, bool success)>();
-            
-            // Run checks one by one sequentially
-            try
-            {
-                NotificationService.ShowBackupToast("Dashboard", "Checking FTP...", "Info");
-                var ftpSuccess = await _ftpControl.TriggerSyncCheckAsync();
-                results.Add(("FTP", ftpSuccess));
-            }
-            catch
-            {
-                results.Add(("FTP", false));
-            }
-            
-            try
-            {
-                NotificationService.ShowBackupToast("Dashboard", "Checking Mailchimp...", "Info");
-                var mailchimpSuccess = await _mailchimpControl.TriggerSyncCheckAsync();
-                results.Add(("Mailchimp", mailchimpSuccess));
-            }
-            catch
-            {
-                results.Add(("Mailchimp", false));
-            }
-            
-            try
-            {
-                NotificationService.ShowBackupToast("Dashboard", "Checking SQL...", "Info");
-                var sqlSuccess = await _sqlControl.TriggerSyncCheckAsync();
-                results.Add(("SQL", sqlSuccess));
-            }
-            catch
-            {
-                results.Add(("SQL", false));
-            }
-            
-            var successCount = results.Count(r => r.success);
-            var failedServices = results.Where(r => !r.success).Select(r => r.service).ToList();
-            
-            // Run health check after all sync checks complete
-            _ = _backupManager.RunHealthCheckAsync();
-            
-            if (failedServices.Count > 0)
-            {
-                NotificationService.ShowBackupToast("Dashboard", $"Checks complete. {successCount}/{results.Count} succeeded. Failed: {string.Join(", ", failedServices)}", "Warning");
-            }
-            else
-            {
-                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{results.Count} succeeded).", "Success");
-            }
-        }
-
-        /// <summary>
-        /// Handles automatic retry when BackupRetryService triggers a retry.
-        /// </summary>
-        private async void OnRetryDue(string service)
-        {
-            try
-            {
-                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry triggered for {service}", "Information", "SYSTEM");
-                
-                switch (service)
-                {
-                    case "FTP":
-                        if (_ftpControl != null)
-                        {
-                            if (_ftpControl.IsBusy)
-                            {
-                                LogService.WriteSystemLog($"[MAINWINDOW] FTP control is busy, rescheduling retry", "Warning", "SYSTEM");
-                                BackupRetryService.Reschedule("FTP", TimeSpan.FromMinutes(2));
-                            }
-                            else
-                            {
-                                await _ftpControl.RunBackupTaskAsync("AUTO-RETRY");
-                            }
-                        }
-                        break;
-                    case "Mailchimp":
-                        if (_mailchimpControl != null)
-                        {
-                            if (_mailchimpControl.IsBusy)
-                            {
-                                LogService.WriteSystemLog($"[MAINWINDOW] Mailchimp control is busy, rescheduling retry", "Warning", "SYSTEM");
-                                BackupRetryService.Reschedule("Mailchimp", TimeSpan.FromMinutes(2));
-                            }
-                            else
-                            {
-                                await _mailchimpControl.RunBackupTaskAsync("AUTO-RETRY");
-                            }
-                        }
-                        break;
-                    case "SQL":
-                        if (_sqlControl != null)
-                        {
-                            if (_sqlControl.IsBusy)
-                            {
-                                LogService.WriteSystemLog($"[MAINWINDOW] SQL control is busy, rescheduling retry", "Warning", "SYSTEM");
-                                BackupRetryService.Reschedule("SQL", TimeSpan.FromMinutes(2));
-                            }
-                            else
-                            {
-                                await _sqlControl.RunBackupTaskAsync("AUTO-RETRY");
-                            }
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry failed for {service}: {ex.Message}", "Error", "SYSTEM");
-            }
-        }
-
-        /// <summary>
-        /// Runs all three backups in parallel using Task.WhenAll.
-        /// </summary>
-        private async Task RunAllBackupsParallelAsync()
-        {
-            if (_ftpControl == null || _mailchimpControl == null || _sqlControl == null) return;
-            
-            NotificationService.ShowBackupToast("Dashboard", "Starting parallel backup for all services...", "Info");
-            LogService.WriteSystemLog("[MAINWINDOW] Starting parallel backup for all services", "Information", "SYSTEM");
-            
-            var startTime = DateTime.Now;
-            
-            // Run all backups in parallel
-            await Task.WhenAll(
-                _ftpControl.RunBackupTaskAsync("PARALLEL"),
-                _mailchimpControl.RunBackupTaskAsync("PARALLEL"),
-                _sqlControl.RunBackupTaskAsync("PARALLEL")
-            );
-            
-            var duration = DateTime.Now - startTime;
-            LogService.WriteSystemLog($"[MAINWINDOW] Parallel backup completed in {duration.TotalMinutes:F1} minutes", "Information", "SYSTEM");
-            NotificationService.ShowBackupToast("Dashboard", $"All backups completed in {duration.TotalMinutes:F1}m", "Success");
-            
-            // Run health check after all backups complete
-            await _backupManager.RunHealthCheckAsync();
-        }
-
-        private static IBrush GetAccentBrushForControl(UserControl control)
-        {
-            if (control is HomeControl) return Brush.Parse("#FCA311");
-            if (control is FtpControl) return Brush.Parse("#52B788");
-            if (control is MailchimpControl) return Brush.Parse("#48CAE4");
-            if (control is SqlControl) return Brush.Parse("#FAD643");
-            if (control is SettingsControl) return Brush.Parse("#FCA311");
-            return Brush.Parse("#FCA311");
-        }
-
-        private static IBrush GetAccentBrushForService(string service)
-        {
-            if (service.Equals("Website", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FCA311");
-            if (service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#52B788");
-            if (service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#48CAE4");
-            if (service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
-            if (service.Equals("Database", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
-            return Brush.Parse("#FCA311");
-        }
-
-        private void UpdateTime(DateTime usTime, DateTime mnlTime, DateTime nextAuto, DateTime nextDaily)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                var txtUs = this.FindControl<TextBlock>("TxtUsTime");
-                var txtMnl = this.FindControl<TextBlock>("TxtMnlTime");
-                if (txtUs != null) txtUs.Text = usTime.ToString("yyyy-MM-dd hh:mm:sstt");
-                if (txtMnl != null) txtMnl.Text = mnlTime.ToString("yyyy-MM-dd hh:mm:sstt");
-
-                DateTime activeNextAuto = nextAuto;
-                DateTime activeNextDailyMnl = nextDaily;
-
-                var contentControl = this.FindControl<ContentControl>("MainContent");
-                if (contentControl?.Content is UserControl activeControl && activeControl is not HomeControl)
-                {
-                    if (activeControl is FtpControl)
-                    {
-                        activeNextAuto = _backupManager.NextFtpAutoScan;
-                        activeNextDailyMnl = BackupManager.NextFtpDailySyncMnl;
-                    }
-                    else if (activeControl is MailchimpControl)
-                    {
-                        activeNextAuto = _backupManager.NextMailchimpAutoScan;
-                        activeNextDailyMnl = BackupManager.NextMailchimpDailySyncMnl;
-                    }
-                    else if (activeControl is SqlControl)
-                    {
-                        activeNextAuto = _backupManager.NextSqlAutoScan;
-                        activeNextDailyMnl = BackupManager.NextSqlDailySyncMnl;
-                    }
-
-                    var txtAuto = activeControl.FindControl<TextBlock>("TxtAutoScan");
-                    var txtDaily = activeControl.FindControl<TextBlock>("TxtNextDaily");
-
-                    if (txtAuto != null) 
-                    {
-                        var diff = activeNextAuto - usTime;
-                        txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
-                    }
-                    if (txtDaily != null)
-                    {
-                        var diff = activeNextDailyMnl - mnlTime;
-                        txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
-                    }
-                }
-            });
-        }
-
-        private void UpdateHealthStatus(List<BackupHealthReport> reports)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (_startupHealthPending)
-                {
-                    _startupHealthPending = false;
-                    SetStartupBusy(false);
-                    
-                    // Enable notifications after startup complete
-                    NotificationService.EnableNotifications();
-                    
-                    // Show completion notification (now visible)
-                    NotificationService.ShowBackupToast("Startup", "Health scan complete.", "Info");
-                    
-                    // Show customize tab order button after health check completes
-                    var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
-                    if (btnCustomize != null) btnCustomize.IsVisible = true;
-                }
-
-                var txtHealth = this.FindControl<TextBlock>("TxtHealth");
-                var indicator = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("HealthIndicator");
-                var badge = this.FindControl<Border>("HealthBadge");
-
-                if (txtHealth != null)
-                {
-                    bool allOk = reports.TrueForAll(r => string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase));
-                    var outdated = reports
-                        .Where(r => !string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase))
-                        .Select(r => r.Service)
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToArray();
-
-                    var healthBrush = allOk
-                        ? Brush.Parse("#52B788")
-                        : Brush.Parse("#F38BA8");
-
-                    txtHealth.Inlines?.Clear();
-                    txtHealth.Text = string.Empty;
-
-                    txtHealth.Inlines ??= [];
-
-                    txtHealth.Inlines.Add(new Run(allOk ? "HEALTH: ALL BACKUPS IS UPDATED" : "HEALTH: ATTENTION REQUIRED")
-                    {
-                        Foreground = healthBrush
-                    });
-
-                    if (!allOk && outdated.Length > 0)
-                    {
-                        txtHealth.Inlines.Add(new Run("(") 
-                        {
-                            Foreground = Brush.Parse("#808080")
-                        });
-
-                        txtHealth.Inlines.Add(new Run("Outdated: ")
-                        {
-                            Foreground = Brush.Parse("#FCA311"),
-                            FontWeight = Avalonia.Media.FontWeight.SemiBold
-                        });
-
-                        for (int i = 0; i < outdated.Length; i++)
-                        {
-                            if (i > 0)
-                            {
-                                txtHealth.Inlines.Add(new Run(", ")
-                                {
-                                    Foreground = Brush.Parse("#808080")
-                                });
-                            }
-
-                            var svc = outdated[i];
-                            txtHealth.Inlines.Add(new Run(svc)
-                            {
-                                Foreground = GetAccentBrushForService(svc),
-                                FontWeight = Avalonia.Media.FontWeight.Bold
-                            });
-                        }
-
-                        txtHealth.Inlines.Add(new Run(")")
-                        {
-                            Foreground = Brush.Parse("#808080")
-                        });
-                    }
-
-                    if (indicator != null) indicator.Fill = healthBrush;
-                    if (badge != null) badge.Background = allOk
-                        ? Brush.Parse("#112B1E")
-                        : Brush.Parse("#2D1515");
-                }
-
-                var statusBar = this.FindControl<Border>("StatusBar");
-                var txtStatus = this.FindControl<TextBlock>("TxtStatus");
-                var statusIcon = this.FindControl<PathIcon>("StatusIcon");
-
-                if (statusBar != null)
-                {
-                    bool allOk = reports.TrueForAll(r => string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase));
-                    statusBar.Background = allOk
-                        ? Avalonia.Media.Brush.Parse("#0D1F15")
-                        : Avalonia.Media.Brush.Parse("#1A0F11");
-                    statusBar.BorderBrush = allOk
-                        ? Avalonia.Media.Brush.Parse("#2D6A4F")
-                        : Avalonia.Media.Brush.Parse("#F38BA8");
-
-                    if (txtStatus != null)
-                    {
-                        txtStatus.Foreground = allOk
-                            ? Avalonia.Media.Brush.Parse("#52B788")
-                            : Avalonia.Media.Brush.Parse("#F38BA8");
-                    }
-
-                    if (statusIcon != null)
-                    {
-                        statusIcon.Foreground = allOk
-                            ? Avalonia.Media.Brush.Parse("#52B788")
-                            : Avalonia.Media.Brush.Parse("#F38BA8");
-                    }
-                }
-            });
-        }
-
-        protected override void OnClosing(WindowClosingEventArgs e)
-        {
-            WindowStateService.Save(this);
-
-            if (!_allowClose)
-            {
-                if (ConfigService.Current.Operation.CloseToTray)
-                {
-                    e.Cancel = true;
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        try
-                        {
-                            this.ShowInTaskbar = false;
-                            this.Hide();
-                            NotificationService.ShowBackupToast("Minimized to Tray", "PinayPal Backup Manager is still running in background.", "Info");
-                        }
-                        catch { }
-                    });
-                    return;
-                }
-
-                e.Cancel = true;
-                _ = ConfirmCloseAsync();
-                return;
-            }
-
-            _backupManager.Stop();
-            FileDownloadService.Stop();
-            base.OnClosing(e);
-        }
-
-        private async System.Threading.Tasks.Task ConfirmCloseAsync()
-        {
-            bool anyBusy = _ftpControl.IsBusy || _mailchimpControl.IsBusy || _sqlControl.IsBusy;
-            string message = anyBusy
-                ? "A backup task is currently running.\n\nExit anyway? Running tasks will be cancelled."
-                : "Exit PinayPal Backup Manager?";
-
-            bool shouldClose = await NotificationService.ConfirmAsync(message, "Confirm Exit");
-            if (!shouldClose) return;
-
-            if (_ftpControl.IsBusy) _ftpControl.RequestCancelFromShell();
-            if (_mailchimpControl.IsBusy) _mailchimpControl.RequestCancelFromShell();
-            if (_sqlControl.IsBusy) _sqlControl.RequestCancelFromShell();
-
-            // Wait for tasks to cancel
-            await Task.Delay(1000);
-
-            // Stop real-time monitoring service
-            RealtimeMonitoringService.Stop();
-            
-            // Stop backup retention and retry services
-            BackupRetentionService.Stop();
-            BackupRetryService.Stop();
-
-            NotificationService.ShowBackupToast("Exiting", anyBusy ? "Closing app and cancelling running tasks." : "Closing app.", anyBusy ? "Warning" : "Info");
-
-            _allowClose = true;
-            Close();
-        }
-
-        private void UpdateActiveProcessCount(object? sender, EventArgs e)
-        {
-            int activeCount = 0;
-            if (_ftpControl?.IsBusy == true) activeCount++;
-            if (_mailchimpControl?.IsBusy == true) activeCount++;
-            if (_sqlControl?.IsBusy == true) activeCount++;
-            
-            _homeControl.SetActiveOperations(activeCount);
-        }
-
-
-        private bool _notifCenterOpen;
-
-        public void ToggleNotificationCenter()
-        {
-            _notifCenterOpen = !_notifCenterOpen;
-            var panel = this.FindControl<Border>("NotificationCenter");
-            var overlay = this.FindControl<Border>("NotificationOverlay");
-            if (panel != null) panel.IsVisible = _notifCenterOpen;
-            if (overlay != null) overlay.IsVisible = _notifCenterOpen;
-            if (_notifCenterOpen) { PopulateNotificationCenter(); NotificationHistoryService.MarkAllRead(); UpdateBellBadge(); }
-        }
-        
-        private void NotificationOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            // Close notification center when overlay is clicked
-            if (_notifCenterOpen)
-            {
-                ToggleNotificationCenter();
-            }
-        }
-
-        private void PopulateNotificationCenter()
-        {
-            var list = this.FindControl<StackPanel>("NotificationList");
-            if (list == null) return;
-            list.Children.Clear();
-            var entries = NotificationHistoryService.Entries;
-            if (entries.Count == 0)
-            {
-                list.Children.Add(new TextBlock { Text = "No notifications yet.", FontSize = 11, Foreground = Brush.Parse("#808080"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12) });
-                return;
-            }
-            foreach (var n in entries)
-            {
-                var item = new NotificationItem();
-                item.Title = n.Title;
-                item.Message = n.Message;
-                item.Timestamp = n.Time.ToString("h:mm tt");
-                
-                // Set icon brush based on type
-                string iconColor = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#FAD643" : n.Type == "Success" ? "#52B788" : "#FCA311";
-                item.IconBrush = Brush.Parse(iconColor);
-                
-                // Set icon data based on type
-                item.IconData = StreamGeometry.Parse(n.Type switch
-                {
-                    "Error" => "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
-                    "Warning" => "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z",
-                    "Success" => "M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z",
-                    _ => "M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
-                });
-                
-                // Handle dismiss
-                item.Dismissed += (s, e) =>
-                {
-                    NotificationHistoryService.Remove(n);
-                    Dispatcher.UIThread.Post(() => 
-                    { 
-                        if (list.Children.Contains(item)) 
-                            list.Children.Remove(item);
-                        UpdateBellBadge();
-                        if (NotificationHistoryService.Entries.Count == 0)
-                            PopulateNotificationCenter();
-                    });
-                };
-                
-                list.Children.Add(item);
-            }
-        }
-
-        private void UpdateBellBadge()
-        {
-            var badge = this.FindControl<Border>("BellBadge");
-            var count = this.FindControl<TextBlock>("BellCount");
-            int unread = NotificationHistoryService.UnreadCount;
-            if (badge != null) badge.IsVisible = unread > 0;
-            if (count != null) count.Text = unread > 9 ? "9+" : unread.ToString();
-        }
-
-        private Avalonia.Controls.TrayIcon? _trayIcon;
-
-        public void RestoreFromTray()
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                try
-                {
-                    this.ShowInTaskbar = true;
-                    this.Show();
-                    if (this.WindowState == WindowState.Minimized)
-                    {
-                        this.WindowState = WindowState.Normal;
-                    }
-                    this.BringIntoView();
-                    this.Activate();
-                    AppIconHelper.ForceForeground(this);
-                    this.Focus();
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteSystemLog($"[Tray] Error restoring window from tray: {ex.Message}", "Error", "SYSTEM");
-                }
-            });
-        }
-
-        private void SetupSystemTray()
-        {
-            try
-            {
-                _trayIcon = new Avalonia.Controls.TrayIcon();
-                var icon = AppIconHelper.GetAppWindowIcon();
-                if (icon != null)
-                {
-                    _trayIcon.Icon = icon;
-                }
-                _trayIcon.ToolTipText = "PinayPal Backup Manager";
-                _trayIcon.Clicked += (_, _) => RestoreFromTray();
-                
-                var menu = new Avalonia.Controls.NativeMenu();
-                
-                // Show Window
-                var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show Window" };
-                showItem.Click += (_, _) => RestoreFromTray();
-
-                // Open Dashboard
-                var dashboardItem = new Avalonia.Controls.NativeMenuItem { Header = "Open Dashboard" };
-                dashboardItem.Click += (_, _) => { RestoreFromTray(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); };
-
-                // Backup Now
-                var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Run All Backups Now" };
-                backupItem.Click += (_, _) => { RestoreFromTray(); _ = RunAllBackupsParallelAsync(); };
-
-                // Exit
-                var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit PinayPal" };
-                exitItem.Click += (_, _) => { _allowClose = true; Close(); };
-
-                menu.Items.Add(showItem);
-                menu.Items.Add(dashboardItem);
-                menu.Items.Add(backupItem);
-                menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
-                menu.Items.Add(exitItem);
-
-                _trayIcon.Menu = menu;
-                _trayIcon.IsVisible = true;
-
-                Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { _trayIcon });
-                LogService.WriteSystemLog("[Tray] System tray icon initialized successfully", "Information", "SYSTEM");
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[Tray] System tray setup error: {ex.Message}", "Warning", "SYSTEM");
-            }
-        }
-
-        
-        private void UpdateConnectionStatus(bool isOnline)
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var dot = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("ConnectionDot");
-                var text = this.FindControl<TextBlock>("ConnectionText");
-                if (dot != null && text != null)
-                {
-                    dot.Fill = isOnline 
-                        ? Avalonia.Media.Brush.Parse("#6b8e6b")  // Green
-                        : Avalonia.Media.Brush.Parse("#F38BA8"); // Red
-                    text.Text = isOnline ? "Online" : "Offline";
-                }
-            });
-        }
-
-        private async Task OpenTabOrderDialogAsync()
-        {
-            var dialog = new TabOrderDialog();
-            await dialog.ShowDialog<bool?>(this);
-            if (dialog.Saved) ApplySavedTabOrder();
-        }
-
-        private void ApplySavedTabOrder()
-        {
-            var sidebar = this.FindControl<StackPanel>("Sidebar");
-            if (sidebar == null) return;
-
-            var order = TabOrderDialog.LoadSavedTagOrder();
-            var buttons = sidebar.Children.OfType<Button>().ToList();
-            var separators = sidebar.Children.OfType<Rectangle>().ToList();
-
-            sidebar.Children.Clear();
-
-            bool first = true;
-            foreach (var tag in order)
-            {
-                var btn = buttons.FirstOrDefault(b => b.Tag is string t && t == tag);
-                if (btn == null) continue;
-
-                if (!first && tag == "Settings")
-                {
-                    var sep = separators.LastOrDefault();
-                    if (sep != null) sidebar.Children.Add(sep);
-                }
-                else if (!first && tag != "Settings" && first == false)
-                {
-                    if (tag == order.Skip(1).FirstOrDefault() && separators.Count > 0)
-                    {
-                    }
-                }
-
-                sidebar.Children.Add(btn);
-                first = false;
-            }
-
-            NotificationService.ShowBackupToast("Tabs", "Tab order updated.", "Success");
-        }
-
-        #region Profile Management
-
-        private void InitializeProfileSection()
-        {
-            // Update user info display
-            UpdateProfileDisplay();
-
-            // Setup profile button click
-            var btnProfile = this.FindControl<Button>("BtnProfile");
-            if (btnProfile != null)
-            {
-                btnProfile.Click += ToggleProfileMenu;
-            }
-
-            
-            // Listen for auth changes
-            AuthService.OnUserChanged += (user) => 
-            {
-                UpdateProfileDisplay();
-                UpdateUserManagementButtonVisibility();
-            };
-        }
-
-        private void UpdateProfileDisplay()
-        {
-            // Profile display simplified - only avatar shown in sidebar
-            LoadSidebarAvatar();
-        }
-
-        private void UpdateUserManagementButtonVisibility()
-        {
-            var btnUserManagement = this.FindControl<Button>("BtnUserManagement");
-            if (btnUserManagement != null)
-            {
-                btnUserManagement.IsVisible = AuthService.IsAdmin;
-            }
-        }
-
-        private void LoadSidebarAvatar()
-        {
-            try
-            {
-                AppDataPaths.MigrateFile("avatar.png");
-                var avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
-                
-                var imgAvatar = this.FindControl<Image>("AvatarImage");
-                var ellipseBg = this.FindControl<Ellipse>("AvatarImageBg");
-                
-                if (System.IO.File.Exists(avatarPath) && imgAvatar != null)
-                {
-                    var bitmap = new Avalonia.Media.Imaging.Bitmap(avatarPath);
-                    imgAvatar.Source = bitmap;
-                    imgAvatar.IsVisible = true;
-                    if (ellipseBg != null) ellipseBg.IsVisible = false;
-                }
-                else
-                {
-                    if (imgAvatar != null) imgAvatar.IsVisible = false;
-                    if (ellipseBg != null) ellipseBg.IsVisible = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MainWindow] Failed to load sidebar avatar: {ex.Message}");
-            }
-        }
-
-        private async Task ExecuteRemoteCommandAsync(string commandType, string commandId, string? data)
-        {
-            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "running");
-            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 0, "Starting operation...", "", "", "");
-            await RealtimeMonitoringService.AddLogAsync("Info", $"Remote command received: {commandType}", "REMOTE");
-            
-            try
-            {
-                switch (commandType)
-                {
-                    case BackupCommandTypes.TriggerFtpBackup:
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup triggered remotely");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
-                        
-                        BackupProgressService.StartBackup(commandId, "FTP");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_ftpControl!);
-                            UpdateSidebarSelection("FTP");
-                            _ftpControl?.StartBackupFromShell();
-                        });
-                        break;
-                        
-                    case BackupCommandTypes.TriggerMailchimpBackup:
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup triggered remotely");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
-                        
-                        BackupProgressService.StartBackup(commandId, "Mailchimp");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_mailchimpControl!);
-                            UpdateSidebarSelection("Mailchimp");
-                            _mailchimpControl?.StartFullBackupFromShell();
-                        });
-                        break;
-                        
-                    case BackupCommandTypes.TriggerSqlBackup:
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup triggered remotely");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
-                        
-                        BackupProgressService.StartBackup(commandId, "SQL");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_sqlControl!);
-                            UpdateSidebarSelection("SQL");
-                            _sqlControl?.StartBackupFromShell();
-                        });
-                        break;
-                        
-                    case BackupCommandTypes.PauseBackups:
-                        _backupManager.IsPaused = true;
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups paused remotely", "REMOTE");
-                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups paused");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups paused successfully", "", "", "");
-                        break;
-                        
-                    case BackupCommandTypes.ResumeBackups:
-                        _backupManager.IsPaused = false;
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups resumed remotely", "REMOTE");
-                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups resumed");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups resumed successfully", "", "", "");
-                        break;
-                        
-                    case BackupCommandTypes.SyncFiles:
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Backup files sync triggered remotely", "REMOTE");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Syncing backup files...", "", "", "");
-                        await RealtimeMonitoringService.SyncBackupFilesAsync();
-                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backup files synced");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backup files synced successfully", "", "", "");
-                        break;
-                        
-                    case BackupCommandTypes.DeleteBackupFile:
-                        await RealtimeMonitoringService.AddLogAsync("Info", $"Delete backup file requested: {data}", "REMOTE");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Deleting backup file...", "", "", "");
-                        
-                        // Parse file path from data
-                        if (!string.IsNullOrEmpty(data))
-                        {
-                            try
-                            {
-                                if (File.Exists(data))
-                                {
-                                    File.Delete(data);
-                                    await RealtimeMonitoringService.AddLogAsync("Info", $"Deleted backup file: {data}", "REMOTE");
-                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "File deleted");
-                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "File deleted successfully", "", "", "");
-                                }
-                                else
-                                {
-                                    await RealtimeMonitoringService.AddLogAsync("Error", $"File not found: {data}", "REMOTE");
-                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "File not found");
-                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "File not found", "", "", "");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to delete file: {ex.Message}", "REMOTE");
-                                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
-                                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
-                            }
-                        }
-                        else
-                        {
-                            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "No file path provided");
-                            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "No file path provided", "", "", "");
-                        }
-                        break;
-                        
-                    case "ftp_sync":
-                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "FTP", "FTP sync check started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing FTP sync...", "", "", "");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_ftpControl!);
-                            UpdateSidebarSelection("FTP");
-                            _ftpControl?.PerformSyncCheck();
-                        });
-                        break;
-                        
-                    case "ftp_backup":
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
-                        
-                        // Start progress tracking
-                        BackupProgressService.StartBackup(commandId, "FTP");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_ftpControl!);
-                            UpdateSidebarSelection("FTP");
-                            _ftpControl?.StartBackupFromShell();
-                        });
-                        break;
-                        
-                    case "mailchimp_sync":
-                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "Mailchimp", "Mailchimp sync check started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing Mailchimp sync...", "", "", "");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_mailchimpControl!);
-                            UpdateSidebarSelection("Mailchimp");
-                            _mailchimpControl?.PerformSyncCheck();
-                        });
-                        break;
-                        
-                    case "mailchimp_backup":
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
-                        
-                        // Start progress tracking
-                        BackupProgressService.StartBackup(commandId, "Mailchimp");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_mailchimpControl!);
-                            UpdateSidebarSelection("Mailchimp");
-                            _mailchimpControl?.StartFullBackupFromShell();
-                        });
-                        break;
-                        
-                    case "sql_sync":
-                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "SQL", "SQL sync check started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing SQL sync...", "", "", "");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_sqlControl!);
-                            UpdateSidebarSelection("SQL");
-                            _sqlControl?.PerformSyncCheck();
-                        });
-                        break;
-                        
-                    case "sql_backup":
-                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup started");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
-                        
-                        // Start progress tracking
-                        BackupProgressService.StartBackup(commandId, "SQL");
-                        
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            ShowControl(_sqlControl!);
-                            UpdateSidebarSelection("SQL");
-                            _sqlControl?.StartBackupFromShell();
-                        });
-                        break;
-                        
-                    case "test_log":
-                        await RealtimeMonitoringService.AddLogAsync("Info", "Test log triggered from Flutter app", "SYSTEM");
-                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Test log sent");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Test log sent successfully", "", "", "");
-                        break;
-                        
-                    default:
-                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", $"Unknown command type: {commandType}");
-                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "Unknown command type", "", "", "");
-                        await RealtimeMonitoringService.AddLogAsync("Error", $"Unknown command type: {commandType}", "REMOTE");
-                        return;
-                }
-                
-                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Success");
-                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Operation completed successfully", "", "", "");
-                await RealtimeMonitoringService.AddActivityAsync("backup_completed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation completed");
-                await RealtimeMonitoringService.AddLogAsync("Info", $"Command completed: {commandType}", "REMOTE");
-            }
-            catch (Exception ex)
-            {
-                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
-                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
-                await RealtimeMonitoringService.AddActivityAsync("backup_failed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation failed: {ex.Message}");
-                await RealtimeMonitoringService.AddLogAsync("Error", $"Command failed: {commandType} - {ex.Message}", "REMOTE");
-                
-                // End progress tracking if it was started
-                if (BackupProgressService.IsTracking)
-                {
-                    await BackupProgressService.CompleteBackupAsync(false, ex.Message);
-                }
-            }
-        }
-
-        private void ListenForQuickActions()
-        {
-            try
-            {
-                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
-                var database = new FirebaseClient(databaseUrl);
-                var username = AuthService.CurrentUser?.Username;
-                
-                if (username == null) return;
-                
-                // Simple polling approach for quick actions
-                Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        try
-                        {
-                            var quickActions = await database
-                                .Child("users")
-                                .Child(username)
-                                .Child("quick_actions")
-                                .OnceAsync<QuickAction>();
-
-                            foreach (var action in quickActions)
-                            {
-                                if (action.Object?.Status == "pending")
-                                {
-                                    switch (action.Object?.Action)
-                                    {
-                                        case "emergency_stop":
-                                            await HandleEmergencyStopAsync(action.Key);
-                                            break;
-                                        case "trigger_ftp_backup":
-                                            await HandleBackupTriggerAsync(action.Key, "ftp");
-                                            break;
-                                        case "trigger_sql_backup":
-                                            await HandleBackupTriggerAsync(action.Key, "sql");
-                                            break;
-                                        case "trigger_mailchimp_backup":
-                                            await HandleBackupTriggerAsync(action.Key, "mailchimp");
-                                            break;
-                                    }
-                                }
-                            }
-                            
-                            await Task.Delay(2000); // Check every 2 seconds
-                        }
-                        catch (Exception ex)
-                        {
-                            LogService.WriteSystemLog($"[QUICK_ACTIONS] Monitoring error: {ex.Message}", "Error", "SYSTEM");
-                            await Task.Delay(5000); // Wait longer on error
-                        }
-                    }
-                });
-                
-                LogService.WriteSystemLog("[FIREBASE] Listening for quick actions...", "Information", "SYSTEM");
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[FIREBASE] Failed to listen for quick actions: {ex.Message}", "Error", "SYSTEM");
-            }
-        }
-
-        private async Task HandleEmergencyStopAsync(string actionId)
-        {
-            try
-            {
-                LogService.WriteSystemLog("[QUICK_ACTIONS] Emergency stop triggered", "Warning", "SYSTEM");
-                await RealtimeMonitoringService.AddActivityAsync("emergency_stop", "System", "Emergency stop triggered from Flutter app");
-                
-                // Stop all running operations
-                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
-                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
-                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
-                
-                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled from Flutter app.", "Warning");
-                
-                // Update action status
-                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
-                var database = new FirebaseClient(databaseUrl);
-                var username = AuthService.CurrentUser?.Username;
-                
-                if (username != null)
-                {
-                    await database
-                        .Child("users")
-                        .Child(username)
-                        .Child("quick_actions")
-                        .Child(actionId)
-                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
-                }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[QUICK_ACTIONS] Emergency stop failed: {ex.Message}", "Error", "SYSTEM");
-            }
-        }
-
-        private async Task HandleBackupTriggerAsync(string actionId, string service)
-        {
-            try
-            {
-                LogService.WriteSystemLog($"[QUICK_ACTIONS] Backup trigger for {service} from Flutter app", "Information", "SYSTEM");
-                await RealtimeMonitoringService.AddActivityAsync("backup_triggered", service, $"{service.ToUpper()} backup triggered from Flutter app");
-
-                // Trigger the appropriate backup
-                switch (service.ToLower())
-                {
-                    case "ftp":
-                        if (_ftpControl != null && !_ftpControl.IsBusy)
-                        {
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ftpControl.StartBackupFromShell());
-                        }
-                        else
-                        {
-                            LogService.WriteSystemLog("[QUICK_ACTIONS] FTP backup skipped - already busy", "Warning", "SYSTEM");
-                        }
-                        break;
-                    case "sql":
-                        if (_sqlControl != null && !_sqlControl.IsBusy)
-                        {
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _sqlControl.StartBackupFromShell());
-                        }
-                        else
-                        {
-                            LogService.WriteSystemLog("[QUICK_ACTIONS] SQL backup skipped - already busy", "Warning", "SYSTEM");
-                        }
-                        break;
-                    case "mailchimp":
-                        if (_mailchimpControl != null && !_mailchimpControl.IsBusy)
-                        {
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _mailchimpControl.StartFullBackupFromShell());
-                        }
-                        else
-                        {
-                            LogService.WriteSystemLog("[QUICK_ACTIONS] Mailchimp backup skipped - already busy", "Warning", "SYSTEM");
-                        }
-                        break;
-                }
-
-                NotificationService.ShowBackupToast("Remote Trigger", $"{service.ToUpper()} backup triggered from Flutter app.", "Info");
-
-                // Update action status
-                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
-                var database = new FirebaseClient(databaseUrl);
-                var username = AuthService.CurrentUser?.Username;
-
-                if (username != null)
-                {
-                    await database
-                        .Child("users")
-                        .Child(username)
-                        .Child("quick_actions")
-                        .Child(actionId)
-                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
-                }
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[QUICK_ACTIONS] Failed to handle backup trigger for {service}: {ex.Message}", "Error", "SYSTEM");
-            }
-        }
-
-        private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
-        {
-            // Show ProfileControl in main content area
-            ShowControl(_profileControl);
-            UpdateSidebarSelection("Profile");
-        }
-
-        
-        private async Task ShowChangePasswordDialog()
-        {
-            var dialog = new ChangePasswordDialog();
-            var window = new Window
-            {
-                Title = "Change Password",
-                Width = 420,
-                Height = 480,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Background = Avalonia.Media.Brushes.Transparent,
-                CanResize = false,
-                ShowInTaskbar = false,
-                // No Topmost - ShowDialog makes it modal to parent only
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0,
-                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None
-            };
-
-            dialog.OnPasswordChanged += (s, e) =>
-            {
-                NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
-                window.Close();
-            };
-            dialog.OnCancel += (s, e) => window.Close();
-
-            this.Activate();
-            await window.ShowDialog(this);
-        }
-
-        private async Task ShowChangeUsernameDialog()
-        {
-            var dialog = new ChangeUsernameDialog();
-            var window = new Window
-            {
-                Title = "Change Username",
-                Width = 420,
-                Height = 360,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Background = Avalonia.Media.Brushes.Transparent,
-                CanResize = false,
-                ShowInTaskbar = false,
-                // No Topmost - ShowDialog makes it modal to parent only
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0,
-                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None,
-                Content = dialog
-            };
-
-            dialog.OnUsernameChanged += (s, e) =>
-            {
-                NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
-                window.Close();
-            };
-            dialog.OnCancel += (s, e) => window.Close();
-
-            this.Activate();
-            await window.ShowDialog(this);
-        }
-
-        private async Task UploadAvatar()
-        {
-            var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Select Avatar Image",
-                AllowMultiple = false,
-                FileTypeFilter = new List<FilePickerFileType>
-                {
-                    new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp" } }
-                }
-            });
-
-            if (result.Count > 0)
-            {
-                try
-                {
-                    var filePath = result[0].Path.LocalPath;
-                    var user = AuthService.CurrentUser;
-                    if (user == null) return;
-
-                    // Copy to app data folder
-                    var avatarFolder = EnvironmentConfigService.GetAvatarsPath();
-                    Directory.CreateDirectory(avatarFolder);
-
-                    var fileExt = System.IO.Path.GetExtension(filePath);
-                    var avatarPath = System.IO.Path.Combine(avatarFolder, $"{user.Id}{fileExt}" );
-
-                    File.Copy(filePath, avatarPath, overwrite: true);
-
-                    // Update user avatar in database
-                    var updated = AuthService.UpdateAvatar(user.Id, avatarPath);
-                    if (updated)
-                    {
-                        NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
-                    }
-                    else
-                    {
-                        NotificationService.ShowBackupToast("Profile", "Failed to save avatar.", "Error");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogService.WriteLiveLog($"Avatar upload failed: {ex.Message}", "", "Error", "SYSTEM");
-                    NotificationService.ShowBackupToast("Profile", "Avatar upload failed.", "Error");
-                }
-            }
-        }
-
-        private void ShowTwoFactorAuthDialog()
-        {
-            var user = AuthService.CurrentUser;
-            if (user == null) return;
-
-            const string dialogKey = "two_factor";
-            if (NotificationService.IsDialogOpen(dialogKey))
-                return;
-            NotificationService.RegisterDialog(dialogKey);
-
-            var dialog = new TwoFactorAuthDialog(user.Id);
-            var window = new Window
-            {
-                Title = "Two-Factor Authentication",
-                SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = Avalonia.Media.Brushes.Transparent,
-                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
-                CanResize = false,
-                ShowInTaskbar = false,
-                // No Topmost - ShowDialog makes it modal to parent only
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0,
-                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None,
-                Content = dialog
-            };
-
-            dialog.OnClose += (s, e) => window.Close();
-            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
-            this.Activate();
-            window.Show();
-        }
-
-        private void ShowLoginHistoryDialog()
-        {
-            var user = AuthService.CurrentUser;
-            if (user == null) return;
-
-            const string dialogKey2 = "login_history";
-            if (NotificationService.IsDialogOpen(dialogKey2))
-                return;
-            NotificationService.RegisterDialog(dialogKey2);
-
-            var dialog = new LoginHistoryDialog(user.Username);
-            var window = new Window
-            {
-                Title = "Login History",
-                SizeToContent = SizeToContent.WidthAndHeight,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = Avalonia.Media.Brushes.Transparent,
-                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
-                CanResize = false,
-                ShowInTaskbar = false,
-                // No Topmost - ShowDialog makes it modal to parent only
-                ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 0,
-                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
-                SystemDecorations = SystemDecorations.None,
-                Content = dialog
-            };
-
-            dialog.OnClose += (s, e) => window.Close();
-            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey2);
-            window.Show();
-        }
-
-        private async Task ShowDeleteAccountDialog()
-        {
-            var user = AuthService.CurrentUser;
-            if (user == null) return;
-
-            // Do not allow deleting admin accounts
-            if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                NotificationService.ShowBackupToast("Account", "Admin accounts cannot be deleted.", "Error");
-                return;
-            }
-
-            var confirm = await ConfirmDialog.ShowAsync(
-                "Delete Account",
-                "WARNING: This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?");
-
-            if (!confirm) return;
-
-            // Second confirmation
-            var confirm2 = await ConfirmDialog.ShowAsync(
-                "Confirm Deletion",
-                "Please confirm again: Your account, backups, and all data will be permanently removed.");
-
-            if (!confirm2) return;
-
-            // Delete user
-            var deleted = await AuthService.DeleteUserAsync(user.Id);
-            if (deleted)
-            {
-                NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");
-                await Task.Delay(2000);
-                _allowClose = true;
-                Close();
-            }
-            else
-            {
-                NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
-            }
-        }
-
-        #endregion
-    }
-}
-
-public class QuickAction
-{
-    public string Action { get; set; } = "";
-    public string Status { get; set; } = "";
-    public string Timestamp { get; set; } = "";
-}
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Documents;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Firebase.Database;
+using Firebase.Database.Query;
+using PinayPalBackupManager.Services;
+using PinayPalBackupManager.Models;
+using PinayPalBackupManager.UI.UserControls;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PinayPalBackupManager.UI
+{
+    public partial class MainWindow : Window
+    {
+        private readonly BackupManager _backupManager;
+        private readonly HomeControl _homeControl;
+        private readonly FtpControl _ftpControl;
+        private readonly MailchimpControl _mailchimpControl;
+        private readonly SqlControl _sqlControl;
+        private readonly SettingsControl _settingsControl;
+        private readonly ProfileControl _profileControl;
+        private readonly VerificationControl _verificationControl;
+        private readonly StatisticsControl _statisticsControl;
+        private readonly UserManagementControl _userManagementControl;
+        private readonly HealthCheckControl _healthCheckControl;
+        private readonly ErrorReportViewerControl _errorReportControl;
+        private readonly PerformanceMetricsControl _performanceControl;
+        private readonly BackupHistoryControl _backupHistoryControl;
+        private readonly BackupScheduleControl _backupScheduleControl;
+        private DispatcherTimer? _activeProcessMonitorTimer;
+        private DispatcherTimer? _firebasePollTimer;
+        private bool _allowClose;
+        private IBrush _activeTabAccentBrush = Brush.Parse("#52B788");
+        private bool _startupHealthPending = true;
+        private bool _configRequired;
+        private string _currentTag = "Home";
+        private bool _sidebarCompact = false;
+        public event Action? OnLogoutRequested;
+
+        // Stored delegates to unsubscribe from static ThemeService event on window close
+        private Action<bool>? _themeChangedIconHandler;
+        private Action<bool>? _themeChangedBgHandler;
+
+        // Stored delegates to unsubscribe from FirebaseRemoteService events on window close
+        private Action<Dictionary<string, object>?>? _firebaseScheduleHandler;
+        private Action<Dictionary<string, object>?>? _firebaseHealthHandler;
+        private Action<string, string?>? _firebaseCommandHandler;
+        private Action<Dictionary<string, object>?>? _firebaseAutoScanHandler;
+
+        public MainWindow()
+        {
+            Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            this.Icon = AppIconHelper.GetAppWindowIcon();
+            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
+            AppIconHelper.StartSingleInstanceListener(() => RestoreFromTray());
+
+            _backupManager = new BackupManager();
+            _backupManager.OnTimeUpdate += UpdateTime;
+            _backupManager.OnHealthUpdate += UpdateHealthStatus;
+
+            WindowStateService.Restore(this);
+
+
+            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+            if (btnCustomize != null) 
+            {
+                btnCustomize.Click += async (_, _) => await OpenTabOrderDialogAsync();
+                // Hide during startup health check
+                btnCustomize.IsVisible = !_startupHealthPending;
+            }
+
+            var btnBell = this.FindControl<Button>("BtnNotificationCenter");
+            if (btnBell != null) btnBell.Click += (_, _) => ToggleNotificationCenter();
+            var btnClearNotif = this.FindControl<Button>("BtnClearNotifications");
+            if (btnClearNotif != null) btnClearNotif.Click += (_, _) => { NotificationHistoryService.ClearAll(); PopulateNotificationCenter(); UpdateBellBadge(); };
+
+            // Sidebar theme toggle
+            var btnTheme = this.FindControl<Button>("BtnThemeToggle");
+            var themeIcon = this.FindControl<PathIcon>("ThemeIcon");
+            if (btnTheme != null) btnTheme.Click += (_, _) => ThemeService.Toggle();
+            if (themeIcon != null)
+            {
+                const string MoonPath = "M9,2C7.95,2.64 7,3.5 6.24,4.54C4.96,6.35 4.2,8.53 4.2,10.89C4.2,16.42 8.68,20.89 14.2,20.89C16.57,20.89 18.74,20.13 20.55,18.85C19.87,19.05 19.16,19.16 18.42,19.16C13.35,19.16 9.24,15.05 9.24,9.97C9.24,6.63 11.14,3.76 13.99,2.18C12.42,2.06 10.75,2.33 9,2Z";
+                const string SunPath = "M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,2L14.39,5.42C13.65,5.14 12.84,5 12,5C11.16,5 10.35,5.14 9.61,5.42L12,2M3.34,5L7.71,7.05C6.87,7.54 6.13,8.2 5.53,9L2.41,6.88L3.34,5M2,12L5.42,9.61C5.14,10.35 5,11.16 5,12C5,12.84 5.14,13.65 5.42,14.39L2,12M3.34,19L5.53,15C6.13,15.8 6.87,16.46 7.71,16.95L3.34,19M12,22L9.61,18.58C10.35,18.86 11.16,19 12,19C12.84,19 13.65,18.86 14.39,18.58L12,22M20.66,19L16.29,16.95C17.13,16.46 17.87,15.8 18.47,15L20.66,19M22,12L18.58,14.39C18.86,13.65 19,12.84 19,12C19,11.16 18.86,10.35 18.58,9.61L22,12M20.66,5L18.47,9C17.87,8.2 17.13,7.54 16.29,7.05L20.66,5Z";
+                themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(ThemeService.IsDark ? MoonPath : SunPath);
+                _themeChangedIconHandler = (isDark) =>
+                {
+                    try
+                    {
+                        if (themeIcon is not null)
+                            themeIcon.Data = Avalonia.Media.StreamGeometry.Parse(isDark ? MoonPath : SunPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[MAINWINDOW] Theme icon update failed: {ex}", "Error", "SYSTEM");
+                    }
+                };
+                ThemeService.OnThemeChanged += _themeChangedIconHandler;
+            }
+
+            // Force refresh main window backgrounds that don't update via DynamicResource on theme change
+            _themeChangedBgHandler = (isDark) =>
+            {
+                try
+                {
+                    if (Application.Current?.FindResource("AppBg") is IBrush appBg)
+                        this.Background = appBg;
+
+                    var sidebar = this.FindControl<Border>("SidebarBorder");
+                    if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
+                        sidebar.Background = sidebarBg;
+
+                    var topBar = this.FindControl<Border>("TopBarBorder");
+                    if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
+                        topBar.Background = topBarBg;
+
+                    var statusBar = this.FindControl<Border>("StatusBar");
+                    if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
+                        statusBar.Background = statusBg;
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MAINWINDOW] Theme background refresh failed: {ex}", "Error", "SYSTEM");
+                }
+            };
+            ThemeService.OnThemeChanged += _themeChangedBgHandler;
+
+            NotificationHistoryService.OnNewNotification += () => Dispatcher.UIThread.Post(() => { UpdateBellBadge(); if (_notifCenterOpen) PopulateNotificationCenter(); });
+
+            // Keyboard shortcuts
+            this.KeyDown += (s, e) =>
+            {
+                var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
+                
+                if (ctrl && e.Key == Avalonia.Input.Key.B)
+                {
+                    // Ctrl+B - Backup All (parallel)
+                    _ = RunAllBackupsParallelAsync();
+                    e.Handled = true;
+                }
+                else if (ctrl && e.Key == Avalonia.Input.Key.T)
+                {
+                    // Ctrl+T - Test All (ping all)
+                    _ = RunAllChecksAsync();
+                    e.Handled = true;
+                }
+                else if (ctrl && e.Key == Avalonia.Input.Key.R)
+                {
+                    // Ctrl+R - Retry Failed
+                    _ = RunAllChecksAsync();
+                    e.Handled = true;
+                }
+                else if (e.Key == Avalonia.Input.Key.Escape)
+                {
+                    // Esc - Emergency Stop
+                    if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                    if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                    if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                    NotificationService.ShowBackupToast("Emergency Stop", "All running tasks have been cancelled.", "Warning");
+                    e.Handled = true;
+                }
+            };
+
+            SetupSystemTray();
+
+            // Handle window state changes for layout optimization
+            this.GetObservable(Window.WindowStateProperty).Subscribe(OnWindowStateChanged);
+
+            _homeControl = new HomeControl(_backupManager);
+            _homeControl.OnNavigateFtp += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); };
+            _homeControl.OnNavigateMailchimp += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); };
+            _homeControl.OnNavigateSql += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); };
+            _homeControl.OnNavigateBackupHistory += () => { ShowControl(_backupHistoryControl!); UpdateSidebarSelection("BackupHistory"); };
+            _homeControl.OnRunAllChecks += () => _ = RunAllChecksAsync();
+            _homeControl.OnRunAllBackupsParallel += () => _ = RunAllBackupsParallelAsync();
+            _homeControl.OnFtpSyncCheck += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.PerformSyncCheck(); };
+            _homeControl.OnFtpQuickBackup += () => { ShowControl(_ftpControl!); UpdateSidebarSelection("FTP"); _ftpControl?.StartBackupFromShell(); };
+            _homeControl.OnMailchimpSyncCheck += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.PerformSyncCheck(); };
+            _homeControl.OnMailchimpQuickBackup += () => { ShowControl(_mailchimpControl!); UpdateSidebarSelection("Mailchimp"); _mailchimpControl?.StartFullBackupFromShell(); };
+            _homeControl.OnSqlSyncCheck += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.PerformSyncCheck(); };
+            _homeControl.OnSqlQuickBackup += () => { ShowControl(_sqlControl!); UpdateSidebarSelection("SQL"); _sqlControl?.StartBackupFromShell(); };
+            _homeControl.OnEmergencyStop += () =>
+            {
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled.", "Warning");
+            };
+            _ftpControl = new FtpControl(_backupManager);
+            _mailchimpControl = new MailchimpControl(_backupManager);
+            _sqlControl = new SqlControl(_backupManager);
+            WebDashboardService.EmergencyStopExecutor = () =>
+            {
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+            };
+            _settingsControl = new SettingsControl(_backupManager);
+            _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
+            _profileControl = new ProfileControl();
+            _verificationControl = new VerificationControl();
+            _statisticsControl = new StatisticsControl();
+            _userManagementControl = new UserManagementControl();
+            _healthCheckControl = new HealthCheckControl();
+            _errorReportControl = new ErrorReportViewerControl();
+            _performanceControl = new PerformanceMetricsControl();
+            _backupHistoryControl = new BackupHistoryControl();
+            _backupScheduleControl = new BackupScheduleControl();
+
+            BackupSchedulingService.BackupExecutor = async (service, backupType) =>
+            {
+                BackupStateTracker.SetRunning(service, $"Backing up {service.ToUpper()} ({backupType})...");
+                try
+                {
+                    LogService.WriteSystemLog($"[MainWindow] Executing backup for {service} (Trigger: {backupType})", "Information", "BACKUPSCHEDULE");
+                    NotificationService.ShowBackupToast("Backup Triggered", $"Starting {service.ToUpper()} backup ({backupType})", "Info");
+
+                    return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        try
+                        {
+                            switch (service.ToLowerInvariant())
+                            {
+                                case "ftp":
+                                    if (_ftpControl != null)
+                                    {
+                                        await _ftpControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "mailchimp":
+                                    if (_mailchimpControl != null)
+                                    {
+                                        await _mailchimpControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "sql":
+                                    if (_sqlControl != null)
+                                    {
+                                        await _sqlControl.RunBackupTaskAsync(backupType);
+                                        return true;
+                                    }
+                                    break;
+                                case "all":
+                                default:
+                                    await RunAllBackupsParallelAsync();
+                                    return true;
+                            }
+                            return false;
+                        }
+                        finally
+                        {
+                            BackupStateTracker.SetIdle(service, "Idle");
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    BackupStateTracker.SetIdle(service, "Failed");
+                    LogService.WriteSystemLog($"[MainWindow] Backup execution failed: {ex.Message}", "Error", "BACKUPSCHEDULE");
+                    return false;
+                }
+            };
+
+            BackupSchedulingService.MailchimpTaskExecutor = async task =>
+            {
+                if (_mailchimpControl == null) return false;
+                return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                    async () => await _mailchimpControl.RunSpecificTaskAsync(task));
+            };
+
+            _profileControl.OnAvatarChanged += LoadSidebarAvatar;
+            _profileControl.OnLogoutRequested += () => {
+                _allowClose = true;
+                AuthService.Logout();
+                OnLogoutRequested?.Invoke();
+            };
+            _settingsControl.OnCheckUpdates += async () => await UpdateService.CheckForUpdatesWithUiAsync();
+
+            // Start active process monitor
+            _activeProcessMonitorTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _activeProcessMonitorTimer.Tick += UpdateActiveProcessCount;
+            _activeProcessMonitorTimer.Start();
+
+
+            // Start Firebase polling timer (fallback for real-time listener)
+            _firebasePollTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _firebasePollTimer.Tick += async (sender, e) =>
+            {
+                await FirebaseRemoteService.PollScheduleUpdatesAsync();
+                await FirebaseRemoteService.PollCommandsAsync();
+                // Update connection status
+                UpdateConnectionStatus(true); // Firebase is connected if we can poll
+            };
+            _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
+
+            // Start internet connectivity monitoring
+            NetworkConnectivityService.OnConnectivityChanged += OnConnectivityChangedHandler;
+            NetworkConnectivityService.StartMonitoring();
+
+            // Setup button click handlers
+            foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
+            {
+                if (btn is Button button)
+                {
+                    button.Click += SidebarButton_Click;
+                }
+            }
+
+            // Sidebar collapse/expand toggle
+            var sidebarToggle = this.FindControl<Button>("SidebarToggle");
+            if (sidebarToggle != null)
+                sidebarToggle.Click += (_, _) => { _sidebarCompact = !_sidebarCompact; UpdateSidebarCompactMode(); };
+
+            // Apply initial sidebar layout
+            UpdateSidebarCompactMode();
+
+            var btnSysInfo = this.FindControl<Button>("BtnSystemInfo");
+            if (btnSysInfo != null)
+            {
+                btnSysInfo.Click += async (s, e) =>
+                {
+                    ShowControl(_settingsControl);
+                    await ShowSystemInfoAsync();
+                };
+            }
+
+            // Initialize profile section
+            InitializeProfileSection();
+
+            _startupHealthPending = false;
+            SetStartupBusy(false);
+
+            if (!ConfigService.IsConfigured())
+            {
+                NotificationService.ShowBackupToast("Config", "Missing appsettings.local.json values. Please configure credentials first.", "Warning");
+                SetConfigRequiredMode(true);
+            }
+            else
+            {
+                ShowControl(_homeControl);
+                UpdateSidebarSelection("Home");
+            }
+
+            _backupManager.Start();
+
+            // Set version dynamically from assembly
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            var ver = asm.GetName().Version;
+            var versionStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v?.?.?";
+            var txtVer = this.FindControl<TextBlock>("TxtVersionBadge");
+            if (txtVer != null) txtVer.Text = versionStr;
+
+            if (UpdatePreferences.LoadAutoCheckOnStartup())
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
+                });
+            }
+            
+            // Handle window closing event
+            this.Closed += async (s, e) =>
+            {
+                if (_themeChangedIconHandler != null)
+                    ThemeService.OnThemeChanged -= _themeChangedIconHandler;
+                if (_themeChangedBgHandler != null)
+                    ThemeService.OnThemeChanged -= _themeChangedBgHandler;
+
+                if (_firebaseScheduleHandler != null)
+                    FirebaseRemoteService.OnScheduleUpdated -= _firebaseScheduleHandler;
+                if (_firebaseHealthHandler != null)
+                    FirebaseRemoteService.OnHealthThresholdsUpdated -= _firebaseHealthHandler;
+                if (_firebaseCommandHandler != null)
+                    FirebaseRemoteService.OnCommandReceived -= _firebaseCommandHandler;
+                if (_firebaseAutoScanHandler != null)
+                    FirebaseRemoteService.OnAutoScanUpdated -= _firebaseAutoScanHandler;
+
+                _backupManager.OnTimeUpdate -= UpdateTime;
+                _backupManager.OnHealthUpdate -= UpdateHealthStatus;
+
+                NetworkConnectivityService.OnConnectivityChanged -= OnConnectivityChangedHandler;
+                NetworkConnectivityService.StopMonitoring();
+
+                try
+                {
+                    // Stop all running backup operations first
+                    if (_ftpControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping FTP operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping FTP operations...", "MAINWINDOW");
+                        _ftpControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    if (_mailchimpControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping Mailchimp operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping Mailchimp operations...", "MAINWINDOW");
+                        _mailchimpControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    if (_sqlControl?.IsBusy == true)
+                    {
+                        LogService.WriteSystemLog("[MAINWINDOW] Stopping SQL operations...", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Stopping SQL operations...", "MAINWINDOW");
+                        _sqlControl.RequestCancelFromShell();
+                        await Task.Delay(1000); // Allow time for graceful cancellation
+                    }
+                    
+                    // Stop real-time monitoring service
+                    RealtimeMonitoringService.Stop();
+                    
+                    // Stop backup retention and retry services
+                    BackupRetentionService.Stop();
+                    BackupRetryService.Stop();
+                    
+                    // Stop backup manager
+                    _backupManager?.Stop();
+                    
+                    // Stop active process monitor timer
+                    _activeProcessMonitorTimer?.Stop();
+                    
+                    // Update connection status to offline
+                    if (AuthService.CurrentUser?.Username != null)
+                    {
+                        try
+                        {
+                            var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                            var database = new FirebaseClient(databaseUrl);
+                            await database
+                                .Child("users")
+                                .Child(AuthService.CurrentUser.Username)
+                                .Child("connection")
+                                .PatchAsync(new 
+                                { 
+                                    status = "offline", 
+                                    lastSeen = DateTime.UtcNow.ToString("o"),
+                                    appShutdown = true
+                                });
+                                
+                            await RealtimeMonitoringService.AddLogAsync("Info", "Connection status updated to offline", "MAINWINDOW");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[MAINWINDOW] Failed to update offline status: {ex.Message}", "Error", "SYSTEM");
+                            await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to update offline status: {ex.Message}", "MAINWINDOW");
+                        }
+                    }
+                    
+                    LogService.WriteSystemLog("[MAINWINDOW] All services stopped successfully", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "All services stopped successfully", "MAINWINDOW");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "PC application shutdown completed", "MAINWINDOW");
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MAINWINDOW] Error during shutdown: {ex.Message}", "Error", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Error", $"Error during shutdown: {ex.Message}", "MAINWINDOW");
+                }
+            };
+            
+            // Initialize Firebase remote control only
+            LogService.WriteSystemLog("[MAINWINDOW] About to initialize Firebase remote control...", "Information", "SYSTEM");
+            
+            // Initialize Firebase remote control
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2000); // Wait for UI to fully load
+                LogService.WriteSystemLog("[MAINWINDOW] Starting Firebase remote control initialization...", "Information", "SYSTEM");
+                await InitializeFirebaseRemoteControl();
+                LogService.WriteSystemLog("[MAINWINDOW] Firebase remote control initialization completed", "Information", "SYSTEM");
+            });
+        }
+
+        private async Task InitializeFirebaseRemoteControl()
+        {
+            try
+            {
+                LogService.WriteSystemLog("[MAINWINDOW] InitializeFirebaseRemoteControl started", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Info", "InitializeFirebaseRemoteControl started", "MAINWINDOW");
+                
+                // Set initial status in SettingsControl
+                _settingsControl.UpdateHealthStatus("Initializing Firebase Remote Control...", false);
+                
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var username = AuthService.CurrentUser?.Username;
+                
+                LogService.WriteSystemLog($"[MAINWINDOW] Username check: {username ?? "NULL"}", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Info", $"Username check: {username ?? "NULL"}", "MAINWINDOW");
+                
+                if (username != null)
+                {
+                    LogService.WriteSystemLog("[MAINWINDOW] Username found, initializing services...", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "Username found, initializing services...", "MAINWINDOW");
+                    
+                    // Initialize real-time monitoring
+                    RealtimeMonitoringService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] RealtimeMonitoringService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "RealtimeMonitoringService initialized", "MAINWINDOW");
+                    
+                    // Initialize Firebase remote service
+                    FirebaseRemoteService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] FirebaseRemoteService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "FirebaseRemoteService initialized", "MAINWINDOW");
+
+                    // Start Firebase polling timer
+                    _firebasePollTimer?.Start();
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase polling timer started", "Information", "SYSTEM");
+                    
+                    // Initialize SystemStatusService to write system_status to Firebase
+                    SystemStatusService.Initialize(databaseUrl, username);
+                    LogService.WriteSystemLog("[MAINWINDOW] SystemStatusService initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "SystemStatusService initialized", "MAINWINDOW");
+                    
+                    // Initialize Backup Retention Auto-Cleanup Service
+                    BackupRetentionService.Initialize();
+                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetentionService initialized", "Information", "SYSTEM");
+                    
+                    // Initialize Backup Retry Service with auto-retry on failure
+                    BackupRetryService.Initialize();
+                    BackupRetryService.OnRetryDue += OnRetryDue;
+                    LogService.WriteSystemLog("[MAINWINDOW] BackupRetryService initialized", "Information", "SYSTEM");
+                    
+                    // Initialize FileDownloadService for HTTP file downloads
+                    if (ConfigService.Current.HttpServer.Enabled)
+                    {
+                        var backupDir = ConfigService.Current.Paths.FtpLocalFolder;
+                        FileDownloadService.Initialize(username, backupDir, ConfigService.Current.HttpServer.Port);
+                        await FileDownloadService.StartAsync();
+                        LogService.WriteSystemLog("[MAINWINDOW] FileDownloadService started", "Information", "SYSTEM");
+                        await RealtimeMonitoringService.AddLogAsync("Info", "FileDownloadService started", "MAINWINDOW");
+                    }
+                    
+                    // Listen for remote commands
+                    FirebaseRemoteService.ListenForCommands((commandType, commandId, data) => 
+                    {
+                        _ = ExecuteRemoteCommandAsync(commandType, commandId, data);
+                    });
+                    
+                    // Listen for quick actions
+                    ListenForQuickActions();
+                    
+                    // Load Firebase schedule and health thresholds
+                    await LoadFirebaseSettingsAsync();
+                    
+                    // Subscribe to real-time Firebase updates (store delegates for cleanup)
+                    _firebaseScheduleHandler = (schedule) =>
+                    {
+                        if (schedule != null)
+                        {
+                            LogService.WriteSystemLog("[MAINWINDOW] OnScheduleUpdated triggered - resetting BackupManager timers", "Information", "SYSTEM");
+                            ConfigService.MergeFirebaseSchedule(schedule);
+                            _backupManager?.ResetAutoScanTimers();
+                            _backupManager?.FireDailyScheduleUpdated();
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+                    FirebaseRemoteService.OnScheduleUpdated += _firebaseScheduleHandler;
+
+                    _firebaseHealthHandler = (thresholds) =>
+                    {
+                        if (thresholds != null)
+                        {
+                            ConfigService.MergeFirebaseHealthThresholds(thresholds);
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+                    FirebaseRemoteService.OnHealthThresholdsUpdated += _firebaseHealthHandler;
+
+                    _firebaseCommandHandler = (commandType, commandId) =>
+                    {
+                        LogService.WriteSystemLog($"[MAINWINDOW] Firebase command received: {commandType}", "Information", "SYSTEM");
+                        _ = ExecuteRemoteCommandAsync(commandType, commandId ?? "", null);
+                    };
+                    FirebaseRemoteService.OnCommandReceived += _firebaseCommandHandler;
+
+                    _firebaseAutoScanHandler = (autoScan) =>
+                    {
+                        if (autoScan != null)
+                        {
+                            ConfigService.MergeFirebaseAutoScan(autoScan);
+                            _backupManager?.ResetAutoScanTimers();
+                            _backupManager?.FireAutoScanTimersReset();
+                            LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan updated in real-time", "Information", "SYSTEM");
+                        }
+                    };
+                    FirebaseRemoteService.OnAutoScanUpdated += _firebaseAutoScanHandler;
+
+                    // Start real-time listeners
+                    FirebaseRemoteService.ListenForScheduleUpdates();
+                    FirebaseRemoteService.ListenForHealthThresholdUpdates();
+                    FirebaseRemoteService.ListenForAutoScanUpdates();
+                    
+                    LogService.WriteSystemLog("[FIREBASE] Remote control initialized", "Information", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Info", "Remote control initialized", "MAINWINDOW");
+                    
+                    // Update SettingsControl health status
+                    _settingsControl.UpdateHealthStatus("Remote Control Active (Firebase Connected)", false);
+                }
+                else
+                {
+                    LogService.WriteSystemLog("[FIREBASE] Failed to initialize remote control - no username", "Error", "SYSTEM");
+                    await RealtimeMonitoringService.AddLogAsync("Error", "Failed to initialize remote control - no username", "MAINWINDOW");
+                    
+                    // Update SettingsControl health status with error
+                    _settingsControl.UpdateHealthStatus("Initialization Failed - No Username", true);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[FIREBASE] Initialization error: {ex.Message}", "Error", "SYSTEM");
+                await RealtimeMonitoringService.AddLogAsync("Error", $"Initialization error: {ex.Message}", "MAINWINDOW");
+                
+                // Update SettingsControl health status with error
+                _settingsControl.UpdateHealthStatus($"Error: {ex.Message}", true);
+            }
+        }
+
+        private async Task LoadFirebaseSettingsAsync()
+        {
+            try
+            {
+                LogService.WriteSystemLog("[MAINWINDOW] Loading Firebase settings...", "Information", "SYSTEM");
+
+                var schedule = await FirebaseRemoteService.GetBackupScheduleAsync();
+                if (schedule != null)
+                {
+                    ConfigService.MergeFirebaseSchedule(schedule);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase schedule loaded", "Information", "SYSTEM");
+                }
+
+                var thresholds = await FirebaseRemoteService.GetHealthThresholdsAsync();
+                if (thresholds != null)
+                {
+                    ConfigService.MergeFirebaseHealthThresholds(thresholds);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase health thresholds loaded", "Information", "SYSTEM");
+                }
+
+                var autoScan = await FirebaseRemoteService.GetAutoScanSettingsAsync();
+                if (autoScan != null)
+                {
+                    ConfigService.MergeFirebaseAutoScan(autoScan);
+                    LogService.WriteSystemLog("[MAINWINDOW] Firebase auto scan loaded", "Information", "SYSTEM");
+                }
+
+                // Reset auto scan timers after loading settings
+                _backupManager?.ResetAutoScanTimers();
+                _backupManager?.FireDailyScheduleUpdated();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Failed to load Firebase settings: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        public async Task RefreshFirebaseSettingsAsync()
+        {
+            LogService.WriteSystemLog("[MAINWINDOW] Manual Firebase settings refresh triggered", "Information", "SYSTEM");
+            await LoadFirebaseSettingsAsync();
+        }
+
+                
+        
+        private void SetConfigRequiredMode(bool required)
+        {
+            _configRequired = required;
+
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar != null)
+            {
+                foreach (var child in sidebar.Children)
+                {
+                    if (child is Button b && b.Tag is string tag)
+                    {
+                        b.IsEnabled = !required || string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+            }
+
+            var mainContent = this.FindControl<ContentControl>("MainContent");
+            if (mainContent != null) mainContent.IsEnabled = !required;
+
+            if (required)
+            {
+                ShowControl(_settingsControl);
+                UpdateSidebarSelection("Settings");
+                if (mainContent != null) mainContent.IsEnabled = true; // keep Settings itself usable
+            }
+        }
+
+        private void SetStartupBusy(bool busy)
+        {
+            var overlay = this.FindControl<Border>("StartupOverlay");
+            if (overlay != null) overlay.IsVisible = busy;
+        }
+
+        public static async System.Threading.Tasks.Task ShowSystemInfoAsync()
+        {
+            string buildDate = System.DateTime.Now.ToString("yyyy-MM-dd");
+            string creator = "Wesley";
+
+            string changelog = string.Empty;
+            try
+            {
+                var baseDir = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+                var changelogPath = System.IO.Path.Combine(baseDir, "CHANGELOG.md");
+                if (System.IO.File.Exists(changelogPath))
+                {
+                    var md = System.IO.File.ReadAllText(changelogPath);
+                    changelog = BuildChangelogSummary(md);
+                }
+            }
+            catch { /* ignore file read errors and fall back to inline changelog */ }
+
+            if (string.IsNullOrWhiteSpace(changelog))
+            {
+                changelog = BackupConfig.AppVersion + "\n\n" +
+                           "UI:\n" +
+                           "- Modernized Fluent-dark look and unified button styles\n" +
+                           "- Accent Primary buttons per service (FTP/Mailchimp/SQL/Settings)\n" +
+                           "- Sidebar selected tab state\n" +
+                           "- Health badge shows detailed outdated services with per-service colors\n\n" +
+                           "STARTUP:\n" +
+                           "- Startup health scan overlay that blocks UI until scan completes\n\n" +
+                           "FIXES:\n" +
+                           "- SQL health check aligned with SQL Sync Check to prevent false OUTDATED";
+            }
+
+            string buildInfo = $"Build Date: {buildDate}\nCreator: {creator}";
+
+            // Create and show custom dialog
+            var dialog = new SystemInfoDialog(buildInfo, changelog);
+            var window = new Window
+            {
+                Content = dialog,
+                Width = 500,
+                Height = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                // No Topmost - ShowDialog makes it modal to parent only
+                Background = Avalonia.Media.Brushes.Transparent,
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None
+            };
+
+            dialog.OnOk += (sender, e) => window.Close();
+
+            // Get the main window as owner
+            var mainWindow = GetMainWindow();
+
+            if (mainWindow != null)
+            {
+                mainWindow.Activate();
+                await window.ShowDialog(mainWindow);
+            }
+        }
+
+        public static Window? GetMainWindow()
+        {
+            return Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+        }
+
+
+        private static string BuildChangelogSummary(string markdown)
+        {
+            if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
+
+            var normalized = markdown.Replace("\r\n", "\n").Trim();
+            if (normalized.Length == 0) return string.Empty;
+
+            var section = ExtractSection(normalized, "## Unreleased");
+            if (string.IsNullOrWhiteSpace(section))
+            {
+                section = ExtractFirstReleaseSection(normalized);
+            }
+
+            if (string.IsNullOrWhiteSpace(section)) return string.Empty;
+
+            var added = ExtractSubSectionBullets(section, "### Added");
+            var changed = ExtractSubSectionBullets(section, "### Changed");
+            var fixedItems = ExtractSubSectionBullets(section, "### Fixed");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("CHANGELOG SUMMARY:");
+            sb.AppendLine();
+
+            AppendBulletBlock(sb, "ADDED", added);
+            AppendBulletBlock(sb, "CHANGED", changed);
+            AppendBulletBlock(sb, "FIXED", fixedItems);
+
+            return sb.ToString().TrimEnd();
+        }
+
+        private static void AppendBulletBlock(StringBuilder sb, string title, string[] items)
+        {
+            sb.AppendLine(title + ":");
+            if (items.Length == 0)
+            {
+                sb.AppendLine("- (none)");
+            }
+            else
+            {
+                foreach (var item in items)
+                {
+                    sb.AppendLine("- " + item);
+                }
+            }
+            sb.AppendLine();
+        }
+
+        private static string ExtractSection(string markdown, string headerStartsWith)
+        {
+            var lines = markdown.Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith(headerStartsWith, StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i;
+                    break;
+                }
+            }
+
+            if (start < 0) return string.Empty;
+
+            var sb = new StringBuilder();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i];
+                if (i != start && l.StartsWith("## ")) break;
+                sb.AppendLine(l);
+            }
+            return sb.ToString();
+        }
+
+        private static string ExtractFirstReleaseSection(string markdown)
+        {
+            var lines = markdown.Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith("## ") && !l.StartsWith("## Unreleased", StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i;
+                    break;
+                }
+            }
+
+            if (start < 0) return string.Empty;
+
+            var sb = new StringBuilder();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i];
+                if (i != start && l.StartsWith("## ")) break;
+                sb.AppendLine(l);
+            }
+            return sb.ToString();
+        }
+
+        private static string[] ExtractSubSectionBullets(string sectionMarkdown, string subHeader)
+        {
+            var lines = sectionMarkdown.Replace("\r\n", "\n").Split('\n');
+            var start = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var l = lines[i].TrimEnd();
+                if (l.StartsWith(subHeader, StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i + 1;
+                    break;
+                }
+            }
+
+            if (start < 0) return [];
+
+            var list = new List<string>();
+            for (int i = start; i < lines.Length; i++)
+            {
+                var l = lines[i].Trim();
+                if (l.StartsWith("### ") || l.StartsWith("## ")) break;
+                if (l.StartsWith("- "))
+                {
+                    list.Add(l.Substring(2).Trim());
+                }
+            }
+
+            return list.ToArray();
+        }
+
+        private void SidebarButton_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag)
+            {
+                if (_configRequired && !string.Equals(tag, "Settings", StringComparison.OrdinalIgnoreCase))
+                {
+                    NotificationService.ShowBackupToast("Config", "Please complete Settings first.", "Warning");
+                    ShowControl(_settingsControl);
+                    UpdateSidebarSelection("Settings");
+                    return;
+                }
+
+                if (!NetworkConnectivityService.IsOnline && NetworkConnectivityService.IsInternetRequired(tag))
+                {
+                    NotificationService.ShowBackupToast("Offline", $"{tag} requires an internet connection.", "Warning");
+                    return;
+                }
+
+                UpdateSidebarSelection(tag);
+                switch (tag)
+                {
+                    case "Home":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Home Dashboard", "Info");
+                        ShowControl(_homeControl);
+                        break;
+                    case "FTP":
+                        NotificationService.ShowBackupToast("Tab", "Switched to FTP", "Info");
+                        ShowControl(_ftpControl);
+                        break;
+                    case "Mailchimp":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Mailchimp", "Info");
+                        ShowControl(_mailchimpControl);
+                        break;
+                    case "SQL":
+                        NotificationService.ShowBackupToast("Tab", "Switched to SQL", "Info");
+                        ShowControl(_sqlControl);
+                        break;
+                    case "Verification":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Verification", "Info");
+                        ShowControl(_verificationControl);
+                        break;
+                    case "Statistics":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Statistics", "Info");
+                        ShowControl(_statisticsControl);
+                        break;
+                    case "Settings":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Settings", "Info");
+                        ShowControl(_settingsControl);
+                        break;
+                    case "UserManagement":
+                        NotificationService.ShowBackupToast("Tab", "Switched to User Management", "Info");
+                        ShowControl(_userManagementControl);
+                        break;
+                    case "HealthCheck":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Health Check", "Info");
+                        ShowControl(_healthCheckControl);
+                        break;
+                    case "ErrorReports":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Error Reports", "Info");
+                        ShowControl(_errorReportControl);
+                        break;
+                    case "PerformanceMetrics":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Performance Metrics", "Info");
+                        ShowControl(_performanceControl);
+                        break;
+                    case "BackupHistory":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Backup History", "Info");
+                        ShowControl(_backupHistoryControl);
+                        break;
+                    case "BackupSchedule":
+                        NotificationService.ShowBackupToast("Tab", "Switched to Backup Schedule", "Info");
+                        ShowControl(_backupScheduleControl);
+                        break;
+                }
+            }
+        }
+
+        private void UpdateSidebarSelection(string activeTag)
+        {
+            _currentTag = activeTag;
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar == null) return;
+
+            foreach (var child in sidebar.Children)
+            {
+                if (child is Button btn && btn.Tag is string tag)
+                {
+                    if (tag == activeTag)
+                    {
+                        btn.Classes.Add("Selected");
+                        var icon = btn.FindDescendantOfType<PathIcon>();
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#FCA311");
+                    }
+                    else
+                    {
+                        btn.Classes.Remove("Selected");
+                        var icon = btn.FindDescendantOfType<PathIcon>();
+                        if (icon != null) icon.Foreground = Avalonia.Media.Brush.Parse("#808080");
+                    }
+                }
+            }
+        }
+
+        private void UpdateSidebarCompactMode()
+        {
+            var compact = _sidebarCompact;
+
+            // Sidebar width transition drives the Auto column smoothly
+            var sidebarBorder = this.FindControl<Border>("SidebarBorder");
+            if (sidebarBorder != null) sidebarBorder.Width = compact ? 64 : 210;
+
+            // Logo text - fade opacity
+            var logoText = this.FindControl<TextBlock>("LogoText");
+            if (logoText != null) logoText.Opacity = compact ? 0 : 1;
+
+            // Sidebar nav items (section headers fade + button labels + alignment)
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar != null)
+            {
+                foreach (var child in sidebar.Children)
+                {
+                    if (child is TextBlock tb)
+                    {
+                        tb.Opacity = compact ? 0 : 1;
+                        tb.IsVisible = !compact; // Collapse section headers in compact mode
+                    }
+                    else if (child is Button btn)
+                    {
+                        ToggleButtonTextOpacity(btn, compact ? 0 : 1);
+                        // In compact mode, set HorizontalContentAlignment to Center and no padding
+                        btn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                        btn.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
+                    }
+                }
+            }
+
+            // Profile text - fade opacity and adjust spacing
+            var profileBtn = this.FindControl<Button>("BtnProfile");
+            if (profileBtn != null)
+            {
+                profileBtn.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                profileBtn.Padding = compact ? new Thickness(0) : new Thickness(8, 0);
+                if (profileBtn.Content is StackPanel profileSp)
+                {
+                    profileSp.Spacing = compact ? 0 : 10;
+                    // Center avatar in compact mode
+                    foreach (var c in profileSp.Children)
+                    {
+                        if (c is Grid avatarGrid)
+                            avatarGrid.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                    // Center the StackPanel in compact mode
+                    profileSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+                }
+            }
+            var profileText = this.FindControl<StackPanel>("ProfileTextPanel");
+            if (profileText != null)
+            {
+                profileText.Opacity = compact ? 0 : 1;
+                profileText.IsVisible = !compact; // Collapse in compact mode
+            }
+
+            // Customize button text and spacing
+            var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+            if (btnCustomize != null)
+            {
+                // Manually handle Customize button since it uses same structure
+                if (btnCustomize.Content is StackPanel customizeSp)
+                {
+                    foreach (var c in customizeSp.Children)
+                    {
+                        if (c is TextBlock tb)
+                        {
+                            tb.Opacity = compact ? 0 : 1;
+                            tb.IsVisible = !compact; // Collapse text in compact mode
+                        }
+                        else if (c is PathIcon icon)
+                            icon.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                    customizeSp.Spacing = compact ? 0 : 11;
+                    // Center the StackPanel in compact mode
+                    customizeSp.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+                }
+                btnCustomize.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                btnCustomize.Padding = compact ? new Thickness(0) : new Thickness(12, 0);
+            }
+
+            // Toggle arrow direction
+            var toggleIcon = this.FindControl<PathIcon>("SidebarToggleIcon");
+            if (toggleIcon != null)
+            {
+                toggleIcon.Data = StreamGeometry.Parse(compact
+                    ? "M8.59,16.59L10,18L16,12L10,6L8.59,7.41L13.17,12L8.59,16.59Z"
+                    : "M15.41,7.41L14,6L8,12L14,18L15.41,16.59L10.83,12L15.41,7.41Z");
+            }
+
+            // Update tooltip
+            var toggleBtn = this.FindControl<Button>("SidebarToggle");
+            if (toggleBtn != null)
+                ToolTip.SetTip(toggleBtn, compact ? "Expand sidebar" : "Collapse sidebar");
+        }
+
+        private static void ToggleButtonTextVisibility(Button btn, bool visible)
+        {
+            if (btn.Content is StackPanel sp)
+            {
+                foreach (var c in sp.Children)
+                {
+                    if (c is TextBlock tb)
+                        tb.IsVisible = visible;
+                }
+            }
+        }
+
+        private static void ToggleButtonTextOpacity(Button btn, double opacity)
+        {
+            if (btn.Content is StackPanel sp)
+            {
+                bool isCompact = opacity < 0.5;
+                foreach (var c in sp.Children)
+                {
+                    if (c is TextBlock tb)
+                    {
+                        tb.Opacity = opacity;
+                        // Collapse text in compact mode so it doesn't take up layout space
+                        tb.IsVisible = !isCompact;
+                    }
+                    else if (c is PathIcon icon)
+                    {
+                        // Center the icon in compact mode
+                        icon.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                }
+                // Adjust spacing: remove gap when text is hidden (compact mode)
+                sp.Spacing = isCompact ? 0 : 11;
+                // Set StackPanel alignment - stretch in expanded, center in compact
+                sp.HorizontalAlignment = isCompact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+            }
+        }
+
+        private void OnWindowStateChanged(WindowState state)
+        {
+            if (state == WindowState.Maximized || state == WindowState.Normal)
+            {
+                try
+                {
+                    var mainContent = this.FindControl<ContentControl>("MainContent");
+                    if (mainContent != null)
+                    {
+                        mainContent.Margin = state == WindowState.Maximized ? new Thickness(8) : new Thickness(20);
+                    }
+                }
+                catch { }
+            }
+            else if (state == WindowState.Minimized)
+            {
+                // Keeping ShowInTaskbar = true ensures user can always click taskbar button to restore!
+                this.ShowInTaskbar = true;
+
+                if (ConfigService.Current.Operation.MinimizeToTray && _trayIcon != null)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        try
+                        {
+                            this.ShowInTaskbar = false;
+                            this.Hide();
+                            NotificationService.ShowBackupToast(
+                                "Minimized to Tray", 
+                                "PinayPal is running in background. Click the tray icon near the clock to restore.", 
+                                "Info");
+                        }
+                        catch { }
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Minimizes or hides all owned dialog windows when the main window is minimized.
+        /// </summary>
+        private void MinimizeOwnedDialogs()
+        {
+            // Find all open windows and minimize/hide dialog windows
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktopLifetime)
+                return;
+            
+            var allWindows = desktopLifetime.Windows;
+            if (allWindows == null) return;
+
+            foreach (var window in allWindows)
+            {
+                try
+                {
+                    // Skip the main window itself
+                    if (window == this) continue;
+                    
+                    // Skip already closed/disposed windows
+                    if (window.PlatformImpl == null) continue;
+                    
+                    // If it's a dialog window (owned by this window), minimize it
+                    if (window.Owner == this)
+                    {
+                        window.WindowState = WindowState.Minimized;
+                    }
+                    // Also handle windows that might have been shown as dialogs but don't have explicit owner set
+                    else if (window.Title?.Contains("Confirm") == true || 
+                             window.Title?.Contains("Dialog") == true ||
+                             window.Title?.Contains("Backup") == true)
+                    {
+                        // For safety, only hide if it looks like a popup dialog
+                        if (window.WindowState != WindowState.Minimized)
+                        {
+                            window.WindowState = WindowState.Minimized;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[MainWindow] Error minimizing dialog: {ex.Message}", "", "Warning", "SYSTEM");
+                }
+            }
+        }
+
+        private void ShowControl(UserControl control)
+        {
+            var contentControl = this.FindControl<ContentControl>("MainContent");
+            if (contentControl != null)
+            {
+                contentControl.Content = control;
+            }
+
+            _activeTabAccentBrush = GetAccentBrushForControl(control);
+        }
+
+        private void OnConnectivityChangedHandler(bool isOnline)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Show / hide offline banner
+                var banner = this.FindControl<Border>("OfflineBanner");
+                if (banner != null) banner.IsVisible = !isOnline;
+
+                // Update top-bar connection indicator
+                UpdateConnectionStatus(isOnline);
+
+                // Disable / enable internet-required sidebar buttons
+                var sidebar = this.FindControl<StackPanel>("Sidebar");
+                if (sidebar != null)
+                {
+                    foreach (var child in sidebar.Children)
+                    {
+                        if (child is Button btn && btn.Tag is string tag)
+                        {
+                            if (NetworkConnectivityService.IsInternetRequired(tag))
+                            {
+                                btn.IsEnabled = isOnline;
+                                btn.Opacity = isOnline ? 1.0 : 0.4;
+                            }
+                        }
+                    }
+                }
+
+                // If currently on an internet-required tab and we just went offline, redirect to Home
+                if (!isOnline && NetworkConnectivityService.IsInternetRequired(_currentTag))
+                {
+                    ShowControl(_homeControl);
+                    UpdateSidebarSelection("Home");
+                    NotificationService.ShowBackupToast("Offline", "Switched to Dashboard because the internet connection was lost.", "Warning");
+                }
+            });
+        }
+
+        private async Task RunAllChecksAsync()
+        {
+            // Ensure notifications are enabled for this operation
+            NotificationService.EnableNotifications();
+            
+            // Reset any stuck busy states before running checks
+            if (_ftpControl.IsBusy) _ftpControl.ResetBusy();
+            if (_mailchimpControl.IsBusy) _mailchimpControl.ResetBusy();
+            if (_sqlControl.IsBusy) _sqlControl.ResetBusy();
+            
+            NotificationService.ShowBackupToast("Dashboard", "Running sequential sync check on all services...", "Info");
+            
+            var results = new List<(string service, bool success)>();
+            
+            // Run checks one by one sequentially
+            try
+            {
+                NotificationService.ShowBackupToast("Dashboard", "Checking FTP...", "Info");
+                var ftpSuccess = await _ftpControl.TriggerSyncCheckAsync();
+                results.Add(("FTP", ftpSuccess));
+            }
+            catch
+            {
+                results.Add(("FTP", false));
+            }
+            
+            try
+            {
+                NotificationService.ShowBackupToast("Dashboard", "Checking Mailchimp...", "Info");
+                var mailchimpSuccess = await _mailchimpControl.TriggerSyncCheckAsync();
+                results.Add(("Mailchimp", mailchimpSuccess));
+            }
+            catch
+            {
+                results.Add(("Mailchimp", false));
+            }
+            
+            try
+            {
+                NotificationService.ShowBackupToast("Dashboard", "Checking SQL...", "Info");
+                var sqlSuccess = await _sqlControl.TriggerSyncCheckAsync();
+                results.Add(("SQL", sqlSuccess));
+            }
+            catch
+            {
+                results.Add(("SQL", false));
+            }
+            
+            var successCount = results.Count(r => r.success);
+            var failedServices = results.Where(r => !r.success).Select(r => r.service).ToList();
+            
+            // Run health check after all sync checks complete
+            _ = _backupManager.RunHealthCheckAsync();
+            
+            if (failedServices.Count > 0)
+            {
+                NotificationService.ShowBackupToast("Dashboard", $"Checks complete. {successCount}/{results.Count} succeeded. Failed: {string.Join(", ", failedServices)}", "Warning");
+            }
+            else
+            {
+                NotificationService.ShowBackupToast("Dashboard", $"All checks complete ({successCount}/{results.Count} succeeded).", "Success");
+            }
+        }
+
+        /// <summary>
+        /// Handles automatic retry when BackupRetryService triggers a retry.
+        /// </summary>
+        private async void OnRetryDue(string service)
+        {
+            try
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry triggered for {service}", "Information", "SYSTEM");
+                
+                switch (service)
+                {
+                    case "FTP":
+                        if (_ftpControl != null)
+                        {
+                            if (_ftpControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] FTP control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("FTP", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _ftpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
+                        }
+                        break;
+                    case "Mailchimp":
+                        if (_mailchimpControl != null)
+                        {
+                            if (_mailchimpControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] Mailchimp control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("Mailchimp", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _mailchimpControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
+                        }
+                        break;
+                    case "SQL":
+                        if (_sqlControl != null)
+                        {
+                            if (_sqlControl.IsBusy)
+                            {
+                                LogService.WriteSystemLog($"[MAINWINDOW] SQL control is busy, rescheduling retry", "Warning", "SYSTEM");
+                                BackupRetryService.Reschedule("SQL", TimeSpan.FromMinutes(2));
+                            }
+                            else
+                            {
+                                await _sqlControl.RunBackupTaskAsync("AUTO-RETRY");
+                            }
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[MAINWINDOW] Auto-retry failed for {service}: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        /// <summary>
+        /// Runs all three backups in parallel using Task.WhenAll.
+        /// </summary>
+        private async Task RunAllBackupsParallelAsync()
+        {
+            if (_ftpControl == null || _mailchimpControl == null || _sqlControl == null) return;
+            
+            NotificationService.ShowBackupToast("Dashboard", "Starting parallel backup for all services...", "Info");
+            LogService.WriteSystemLog("[MAINWINDOW] Starting parallel backup for all services", "Information", "SYSTEM");
+            
+            var startTime = DateTime.Now;
+            
+            // Run all backups in parallel
+            await Task.WhenAll(
+                _ftpControl.RunBackupTaskAsync("PARALLEL"),
+                _mailchimpControl.RunBackupTaskAsync("PARALLEL"),
+                _sqlControl.RunBackupTaskAsync("PARALLEL")
+            );
+            
+            var duration = DateTime.Now - startTime;
+            LogService.WriteSystemLog($"[MAINWINDOW] Parallel backup completed in {duration.TotalMinutes:F1} minutes", "Information", "SYSTEM");
+            NotificationService.ShowBackupToast("Dashboard", $"All backups completed in {duration.TotalMinutes:F1}m", "Success");
+            
+            // Run health check after all backups complete
+            await _backupManager.RunHealthCheckAsync();
+        }
+
+        private static IBrush GetAccentBrushForControl(UserControl control)
+        {
+            if (control is HomeControl) return Brush.Parse("#FCA311");
+            if (control is FtpControl) return Brush.Parse("#52B788");
+            if (control is MailchimpControl) return Brush.Parse("#48CAE4");
+            if (control is SqlControl) return Brush.Parse("#FAD643");
+            if (control is SettingsControl) return Brush.Parse("#FCA311");
+            return Brush.Parse("#FCA311");
+        }
+
+        private static IBrush GetAccentBrushForService(string service)
+        {
+            if (service.Equals("Website", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FCA311");
+            if (service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#52B788");
+            if (service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#48CAE4");
+            if (service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
+            if (service.Equals("Database", StringComparison.OrdinalIgnoreCase)) return Brush.Parse("#FAD643");
+            return Brush.Parse("#FCA311");
+        }
+
+        private void UpdateTime(DateTime usTime, DateTime mnlTime, DateTime nextAuto, DateTime nextDaily)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var txtUs = this.FindControl<TextBlock>("TxtUsTime");
+                var txtMnl = this.FindControl<TextBlock>("TxtMnlTime");
+                if (txtUs != null) txtUs.Text = usTime.ToString("yyyy-MM-dd hh:mm:sstt");
+                if (txtMnl != null) txtMnl.Text = mnlTime.ToString("yyyy-MM-dd hh:mm:sstt");
+
+                DateTime activeNextAuto = nextAuto;
+                DateTime activeNextDailyMnl = nextDaily;
+
+                var contentControl = this.FindControl<ContentControl>("MainContent");
+                if (contentControl?.Content is UserControl activeControl && activeControl is not HomeControl)
+                {
+                    if (activeControl is FtpControl)
+                    {
+                        activeNextAuto = _backupManager.NextFtpAutoScan;
+                        activeNextDailyMnl = BackupManager.NextFtpDailySyncMnl;
+                    }
+                    else if (activeControl is MailchimpControl)
+                    {
+                        activeNextAuto = _backupManager.NextMailchimpAutoScan;
+                        activeNextDailyMnl = BackupManager.NextMailchimpDailySyncMnl;
+                    }
+                    else if (activeControl is SqlControl)
+                    {
+                        activeNextAuto = _backupManager.NextSqlAutoScan;
+                        activeNextDailyMnl = BackupManager.NextSqlDailySyncMnl;
+                    }
+
+                    var txtAuto = activeControl.FindControl<TextBlock>("TxtAutoScan");
+                    var txtDaily = activeControl.FindControl<TextBlock>("TxtNextDaily");
+
+                    if (txtAuto != null) 
+                    {
+                        var diff = activeNextAuto - usTime;
+                        txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                    }
+                    if (txtDaily != null)
+                    {
+                        var diff = activeNextDailyMnl - mnlTime;
+                        txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                    }
+                }
+            });
+        }
+
+        private void UpdateHealthStatus(List<BackupHealthReport> reports)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (_startupHealthPending)
+                {
+                    _startupHealthPending = false;
+                    SetStartupBusy(false);
+                    
+                    // Enable notifications after startup complete
+                    NotificationService.EnableNotifications();
+                    
+                    // Show completion notification (now visible)
+                    NotificationService.ShowBackupToast("Startup", "Health scan complete.", "Info");
+                    
+                    // Show customize tab order button after health check completes
+                    var btnCustomize = this.FindControl<Button>("BtnCustomizeTabs");
+                    if (btnCustomize != null) btnCustomize.IsVisible = true;
+                }
+
+                var txtHealth = this.FindControl<TextBlock>("TxtHealth");
+                var indicator = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("HealthIndicator");
+                var badge = this.FindControl<Border>("HealthBadge");
+
+                if (txtHealth != null)
+                {
+                    bool allOk = reports.TrueForAll(r => string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase));
+                    var outdated = reports
+                        .Where(r => !string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase))
+                        .Select(r => r.Service)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+                    var healthBrush = allOk
+                        ? Brush.Parse("#52B788")
+                        : Brush.Parse("#F38BA8");
+
+                    txtHealth.Inlines?.Clear();
+                    txtHealth.Text = string.Empty;
+
+                    txtHealth.Inlines ??= [];
+
+                    txtHealth.Inlines.Add(new Run(allOk ? "HEALTH: ALL BACKUPS IS UPDATED" : "HEALTH: ATTENTION REQUIRED")
+                    {
+                        Foreground = healthBrush
+                    });
+
+                    if (!allOk && outdated.Length > 0)
+                    {
+                        txtHealth.Inlines.Add(new Run("(") 
+                        {
+                            Foreground = Brush.Parse("#808080")
+                        });
+
+                        txtHealth.Inlines.Add(new Run("Outdated: ")
+                        {
+                            Foreground = Brush.Parse("#FCA311"),
+                            FontWeight = Avalonia.Media.FontWeight.SemiBold
+                        });
+
+                        for (int i = 0; i < outdated.Length; i++)
+                        {
+                            if (i > 0)
+                            {
+                                txtHealth.Inlines.Add(new Run(", ")
+                                {
+                                    Foreground = Brush.Parse("#808080")
+                                });
+                            }
+
+                            var svc = outdated[i];
+                            txtHealth.Inlines.Add(new Run(svc)
+                            {
+                                Foreground = GetAccentBrushForService(svc),
+                                FontWeight = Avalonia.Media.FontWeight.Bold
+                            });
+                        }
+
+                        txtHealth.Inlines.Add(new Run(")")
+                        {
+                            Foreground = Brush.Parse("#808080")
+                        });
+                    }
+
+                    if (indicator != null) indicator.Fill = healthBrush;
+                    if (badge != null) badge.Background = allOk
+                        ? Brush.Parse("#112B1E")
+                        : Brush.Parse("#2D1515");
+                }
+
+                var statusBar = this.FindControl<Border>("StatusBar");
+                var txtStatus = this.FindControl<TextBlock>("TxtStatus");
+                var statusIcon = this.FindControl<PathIcon>("StatusIcon");
+
+                if (statusBar != null)
+                {
+                    bool allOk = reports.TrueForAll(r => string.Equals(r.Color, "LimeGreen", StringComparison.OrdinalIgnoreCase));
+                    statusBar.Background = allOk
+                        ? Avalonia.Media.Brush.Parse("#0D1F15")
+                        : Avalonia.Media.Brush.Parse("#1A0F11");
+                    statusBar.BorderBrush = allOk
+                        ? Avalonia.Media.Brush.Parse("#2D6A4F")
+                        : Avalonia.Media.Brush.Parse("#F38BA8");
+
+                    if (txtStatus != null)
+                    {
+                        txtStatus.Foreground = allOk
+                            ? Avalonia.Media.Brush.Parse("#52B788")
+                            : Avalonia.Media.Brush.Parse("#F38BA8");
+                    }
+
+                    if (statusIcon != null)
+                    {
+                        statusIcon.Foreground = allOk
+                            ? Avalonia.Media.Brush.Parse("#52B788")
+                            : Avalonia.Media.Brush.Parse("#F38BA8");
+                    }
+                }
+            });
+        }
+
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            WindowStateService.Save(this);
+
+            if (!_allowClose)
+            {
+                if (ConfigService.Current.Operation.CloseToTray)
+                {
+                    e.Cancel = true;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        try
+                        {
+                            this.ShowInTaskbar = false;
+                            this.Hide();
+                            NotificationService.ShowBackupToast("Minimized to Tray", "PinayPal Backup Manager is still running in background.", "Info");
+                        }
+                        catch { }
+                    });
+                    return;
+                }
+
+                e.Cancel = true;
+                _ = ConfirmCloseAsync();
+                return;
+            }
+
+            _backupManager.Stop();
+            FileDownloadService.Stop();
+            base.OnClosing(e);
+        }
+
+        private async System.Threading.Tasks.Task ConfirmCloseAsync()
+        {
+            bool anyBusy = _ftpControl.IsBusy || _mailchimpControl.IsBusy || _sqlControl.IsBusy;
+            string message = anyBusy
+                ? "A backup task is currently running.\n\nExit anyway? Running tasks will be cancelled."
+                : "Exit PinayPal Backup Manager?";
+
+            bool shouldClose = await NotificationService.ConfirmAsync(message, "Confirm Exit");
+            if (!shouldClose) return;
+
+            if (_ftpControl.IsBusy) _ftpControl.RequestCancelFromShell();
+            if (_mailchimpControl.IsBusy) _mailchimpControl.RequestCancelFromShell();
+            if (_sqlControl.IsBusy) _sqlControl.RequestCancelFromShell();
+
+            // Wait for tasks to cancel
+            await Task.Delay(1000);
+
+            // Stop real-time monitoring service
+            RealtimeMonitoringService.Stop();
+            
+            // Stop backup retention and retry services
+            BackupRetentionService.Stop();
+            BackupRetryService.Stop();
+
+            NotificationService.ShowBackupToast("Exiting", anyBusy ? "Closing app and cancelling running tasks." : "Closing app.", anyBusy ? "Warning" : "Info");
+
+            _allowClose = true;
+            Close();
+        }
+
+        private void UpdateActiveProcessCount(object? sender, EventArgs e)
+        {
+            int activeCount = 0;
+            if (_ftpControl?.IsBusy == true) activeCount++;
+            if (_mailchimpControl?.IsBusy == true) activeCount++;
+            if (_sqlControl?.IsBusy == true) activeCount++;
+            
+            _homeControl.SetActiveOperations(activeCount);
+        }
+
+
+        private bool _notifCenterOpen;
+
+        public void ToggleNotificationCenter()
+        {
+            _notifCenterOpen = !_notifCenterOpen;
+            var panel = this.FindControl<Border>("NotificationCenter");
+            var overlay = this.FindControl<Border>("NotificationOverlay");
+            if (panel != null) panel.IsVisible = _notifCenterOpen;
+            if (overlay != null) overlay.IsVisible = _notifCenterOpen;
+            if (_notifCenterOpen) { PopulateNotificationCenter(); NotificationHistoryService.MarkAllRead(); UpdateBellBadge(); }
+        }
+        
+        private void NotificationOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            // Close notification center when overlay is clicked
+            if (_notifCenterOpen)
+            {
+                ToggleNotificationCenter();
+            }
+        }
+
+        private void PopulateNotificationCenter()
+        {
+            var list = this.FindControl<StackPanel>("NotificationList");
+            if (list == null) return;
+            list.Children.Clear();
+            var entries = NotificationHistoryService.Entries;
+            if (entries.Count == 0)
+            {
+                list.Children.Add(new TextBlock { Text = "No notifications yet.", FontSize = 11, Foreground = Brush.Parse("#808080"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12) });
+                return;
+            }
+            foreach (var n in entries)
+            {
+                var item = new NotificationItem();
+                item.Title = n.Title;
+                item.Message = n.Message;
+                item.Timestamp = n.Time.ToString("h:mm tt");
+                
+                // Set icon brush based on type
+                string iconColor = n.Type == "Error" ? "#F38BA8" : n.Type == "Warning" ? "#FAD643" : n.Type == "Success" ? "#52B788" : "#FCA311";
+                item.IconBrush = Brush.Parse(iconColor);
+                
+                // Set icon data based on type
+                item.IconData = StreamGeometry.Parse(n.Type switch
+                {
+                    "Error" => "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
+                    "Warning" => "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z",
+                    "Success" => "M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z",
+                    _ => "M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                });
+                
+                // Handle dismiss
+                item.Dismissed += (s, e) =>
+                {
+                    NotificationHistoryService.Remove(n);
+                    Dispatcher.UIThread.Post(() => 
+                    { 
+                        if (list.Children.Contains(item)) 
+                            list.Children.Remove(item);
+                        UpdateBellBadge();
+                        if (NotificationHistoryService.Entries.Count == 0)
+                            PopulateNotificationCenter();
+                    });
+                };
+                
+                list.Children.Add(item);
+            }
+        }
+
+        private void UpdateBellBadge()
+        {
+            var badge = this.FindControl<Border>("BellBadge");
+            var count = this.FindControl<TextBlock>("BellCount");
+            int unread = NotificationHistoryService.UnreadCount;
+            if (badge != null) badge.IsVisible = unread > 0;
+            if (count != null) count.Text = unread > 9 ? "9+" : unread.ToString();
+        }
+
+        private Avalonia.Controls.TrayIcon? _trayIcon;
+
+        public void RestoreFromTray()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    this.ShowInTaskbar = true;
+                    this.Show();
+                    if (this.WindowState == WindowState.Minimized)
+                    {
+                        this.WindowState = WindowState.Normal;
+                    }
+                    this.BringIntoView();
+                    this.Activate();
+                    AppIconHelper.ForceForeground(this);
+                    this.Focus();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[Tray] Error restoring window from tray: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        private void SetupSystemTray()
+        {
+            try
+            {
+                _trayIcon = new Avalonia.Controls.TrayIcon();
+                var icon = AppIconHelper.GetAppWindowIcon();
+                if (icon != null)
+                {
+                    _trayIcon.Icon = icon;
+                }
+                _trayIcon.ToolTipText = "PinayPal Backup Manager";
+                _trayIcon.Clicked += (_, _) => RestoreFromTray();
+                
+                var menu = new Avalonia.Controls.NativeMenu();
+                
+                // Show Window
+                var showItem = new Avalonia.Controls.NativeMenuItem { Header = "Show Window" };
+                showItem.Click += (_, _) => RestoreFromTray();
+
+                // Open Dashboard
+                var dashboardItem = new Avalonia.Controls.NativeMenuItem { Header = "Open Dashboard" };
+                dashboardItem.Click += (_, _) => { RestoreFromTray(); ShowControl(_homeControl); UpdateSidebarSelection("Home"); };
+
+                // Quick Backup Submenu
+                var quickBackupItem = new Avalonia.Controls.NativeMenuItem { Header = "Quick Backup" };
+                var quickMenu = new Avalonia.Controls.NativeMenu();
+
+                var ftpItem = new Avalonia.Controls.NativeMenuItem { Header = "Website FTP Sync" };
+                ftpItem.Click += (_, _) => { _ = RunSingleBackupAsync("ftp"); };
+
+                var sqlItem = new Avalonia.Controls.NativeMenuItem { Header = "SQL Database Backup" };
+                sqlItem.Click += (_, _) => { _ = RunSingleBackupAsync("sql"); };
+
+                var mcItem = new Avalonia.Controls.NativeMenuItem { Header = "Mailchimp Sync" };
+                mcItem.Click += (_, _) => { _ = RunSingleBackupAsync("mailchimp"); };
+
+                quickMenu.Items.Add(ftpItem);
+                quickMenu.Items.Add(sqlItem);
+                quickMenu.Items.Add(mcItem);
+                quickBackupItem.Menu = quickMenu;
+
+                // Backup Now
+                var backupItem = new Avalonia.Controls.NativeMenuItem { Header = "Run All Backups Now" };
+                backupItem.Click += (_, _) => { RestoreFromTray(); _ = RunAllBackupsParallelAsync(); };
+
+                // Exit
+                var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit PinayPal" };
+                exitItem.Click += (_, _) => { _allowClose = true; Close(); };
+
+                menu.Items.Add(showItem);
+                menu.Items.Add(dashboardItem);
+                menu.Items.Add(quickBackupItem);
+                menu.Items.Add(backupItem);
+                menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
+                menu.Items.Add(exitItem);
+
+                _trayIcon.Menu = menu;
+                _trayIcon.IsVisible = true;
+
+                Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { _trayIcon });
+
+                // Hook backup state tracker to update tray tooltip with live % progress
+                BackupStateTracker.OnStateChanged += state =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_trayIcon != null)
+                        {
+                            if (state.IsBusy)
+                            {
+                                _trayIcon.ToolTipText = $"PinayPal: {state.Service.ToUpperInvariant()} ({state.Progress}%) - {state.StatusText}";
+                            }
+                            else
+                            {
+                                _trayIcon.ToolTipText = "PinayPal Backup Manager (Idle)";
+                            }
+                        }
+                    });
+                };
+
+                // Hook backup completion / failure to show toast / notification
+                BackupHistoryService.OnBackupCompleted += entry =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        bool isSuccess = entry.Status == "Success";
+                        string title = isSuccess ? $"Backup Succeeded ({entry.Service})" : $"Backup Failed ({entry.Service})";
+                        string msg = isSuccess
+                            ? $"{entry.Service} backup completed in {entry.Duration.TotalSeconds:F1}s" + (entry.SizeBytes > 0 ? $" ({entry.SizeBytes / 1024 / 1024} MB)" : "")
+                            : $"{entry.Service} backup failed: {entry.ErrorMessage}";
+
+                        NotificationService.ShowBackupToast(title, msg, isSuccess ? "Success" : "Error");
+                    });
+                };
+
+                LogService.WriteSystemLog("[Tray] System tray icon initialized successfully", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Tray] System tray setup error: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+
+        private async Task RunSingleBackupAsync(string service)
+        {
+            try
+            {
+                LogService.WriteSystemLog($"[Tray] Triggering quick backup for {service}", "Information", "SYSTEM");
+                NotificationService.ShowBackupToast("Quick Backup", $"Starting {service.ToUpperInvariant()} backup...", "Info");
+
+                if (BackupSchedulingService.BackupExecutor != null)
+                {
+                    await BackupSchedulingService.BackupExecutor(service, "TRAY");
+                }
+                else
+                {
+                    switch (service.ToLowerInvariant())
+                    {
+                        case "ftp":
+                            _ftpControl?.StartBackupFromShell();
+                            break;
+                        case "sql":
+                            _sqlControl?.StartBackupFromShell();
+                            break;
+                        case "mailchimp":
+                            _mailchimpControl?.StartFullBackupFromShell();
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Tray] Quick backup for {service} failed: {ex.Message}", "Error", "SYSTEM");
+                NotificationService.ShowBackupToast("Backup Failed", $"Could not start {service}: {ex.Message}", "Error");
+            }
+        }
+
+        
+        private void UpdateConnectionStatus(bool isOnline)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var dot = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("ConnectionDot");
+                var text = this.FindControl<TextBlock>("ConnectionText");
+                if (dot != null && text != null)
+                {
+                    dot.Fill = isOnline 
+                        ? Avalonia.Media.Brush.Parse("#6b8e6b")  // Green
+                        : Avalonia.Media.Brush.Parse("#F38BA8"); // Red
+                    text.Text = isOnline ? "Online" : "Offline";
+                }
+            });
+        }
+
+        private async Task OpenTabOrderDialogAsync()
+        {
+            var dialog = new TabOrderDialog();
+            await dialog.ShowDialog<bool?>(this);
+            if (dialog.Saved) ApplySavedTabOrder();
+        }
+
+        private void ApplySavedTabOrder()
+        {
+            var sidebar = this.FindControl<StackPanel>("Sidebar");
+            if (sidebar == null) return;
+
+            var order = TabOrderDialog.LoadSavedTagOrder();
+            var buttons = sidebar.Children.OfType<Button>().ToList();
+            var separators = sidebar.Children.OfType<Rectangle>().ToList();
+
+            sidebar.Children.Clear();
+
+            bool first = true;
+            foreach (var tag in order)
+            {
+                var btn = buttons.FirstOrDefault(b => b.Tag is string t && t == tag);
+                if (btn == null) continue;
+
+                if (!first && tag == "Settings")
+                {
+                    var sep = separators.LastOrDefault();
+                    if (sep != null) sidebar.Children.Add(sep);
+                }
+                else if (!first && tag != "Settings" && first == false)
+                {
+                    if (tag == order.Skip(1).FirstOrDefault() && separators.Count > 0)
+                    {
+                    }
+                }
+
+                sidebar.Children.Add(btn);
+                first = false;
+            }
+
+            NotificationService.ShowBackupToast("Tabs", "Tab order updated.", "Success");
+        }
+
+        #region Profile Management
+
+        private void InitializeProfileSection()
+        {
+            // Update user info display
+            UpdateProfileDisplay();
+
+            // Setup profile button click
+            var btnProfile = this.FindControl<Button>("BtnProfile");
+            if (btnProfile != null)
+            {
+                btnProfile.Click += ToggleProfileMenu;
+            }
+
+            
+            // Listen for auth changes
+            AuthService.OnUserChanged += (user) => 
+            {
+                UpdateProfileDisplay();
+                UpdateUserManagementButtonVisibility();
+            };
+        }
+
+        private void UpdateProfileDisplay()
+        {
+            // Profile display simplified - only avatar shown in sidebar
+            LoadSidebarAvatar();
+        }
+
+        private void UpdateUserManagementButtonVisibility()
+        {
+            var btnUserManagement = this.FindControl<Button>("BtnUserManagement");
+            if (btnUserManagement != null)
+            {
+                btnUserManagement.IsVisible = AuthService.IsAdmin;
+            }
+        }
+
+        private void LoadSidebarAvatar()
+        {
+            try
+            {
+                AppDataPaths.MigrateFile("avatar.png");
+                var avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
+                
+                var imgAvatar = this.FindControl<Image>("AvatarImage");
+                var ellipseBg = this.FindControl<Ellipse>("AvatarImageBg");
+                
+                if (System.IO.File.Exists(avatarPath) && imgAvatar != null)
+                {
+                    var bitmap = new Avalonia.Media.Imaging.Bitmap(avatarPath);
+                    imgAvatar.Source = bitmap;
+                    imgAvatar.IsVisible = true;
+                    if (ellipseBg != null) ellipseBg.IsVisible = false;
+                }
+                else
+                {
+                    if (imgAvatar != null) imgAvatar.IsVisible = false;
+                    if (ellipseBg != null) ellipseBg.IsVisible = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainWindow] Failed to load sidebar avatar: {ex.Message}");
+            }
+        }
+
+        private async Task ExecuteRemoteCommandAsync(string commandType, string commandId, string? data)
+        {
+            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "running");
+            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 0, "Starting operation...", "", "", "");
+            await RealtimeMonitoringService.AddLogAsync("Info", $"Remote command received: {commandType}", "REMOTE");
+            
+            try
+            {
+                switch (commandType)
+                {
+                    case BackupCommandTypes.TriggerFtpBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "FTP");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.TriggerMailchimpBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "Mailchimp");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.StartFullBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.TriggerSqlBackup:
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup triggered remotely");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
+                        
+                        BackupProgressService.StartBackup(commandId, "SQL");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case BackupCommandTypes.PauseBackups:
+                        _backupManager.IsPaused = true;
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups paused remotely", "REMOTE");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups paused");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups paused successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.ResumeBackups:
+                        _backupManager.IsPaused = false;
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backups resumed remotely", "REMOTE");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backups resumed");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backups resumed successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.SyncFiles:
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Backup files sync triggered remotely", "REMOTE");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Syncing backup files...", "", "", "");
+                        await RealtimeMonitoringService.SyncBackupFilesAsync();
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Backup files synced");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Backup files synced successfully", "", "", "");
+                        break;
+                        
+                    case BackupCommandTypes.DeleteBackupFile:
+                        await RealtimeMonitoringService.AddLogAsync("Info", $"Delete backup file requested: {data}", "REMOTE");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Deleting backup file...", "", "", "");
+                        
+                        // Parse file path from data
+                        if (!string.IsNullOrEmpty(data))
+                        {
+                            try
+                            {
+                                if (File.Exists(data))
+                                {
+                                    File.Delete(data);
+                                    await RealtimeMonitoringService.AddLogAsync("Info", $"Deleted backup file: {data}", "REMOTE");
+                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "File deleted");
+                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "File deleted successfully", "", "", "");
+                                }
+                                else
+                                {
+                                    await RealtimeMonitoringService.AddLogAsync("Error", $"File not found: {data}", "REMOTE");
+                                    await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "File not found");
+                                    await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "File not found", "", "", "");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                await RealtimeMonitoringService.AddLogAsync("Error", $"Failed to delete file: {ex.Message}", "REMOTE");
+                                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
+                                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
+                            }
+                        }
+                        else
+                        {
+                            await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", "No file path provided");
+                            await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "No file path provided", "", "", "");
+                        }
+                        break;
+                        
+                    case "ftp_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "FTP", "FTP sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing FTP sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "ftp_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "FTP", "FTP backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing FTP backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "FTP");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_ftpControl!);
+                            UpdateSidebarSelection("FTP");
+                            _ftpControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case "mailchimp_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "Mailchimp", "Mailchimp sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing Mailchimp sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "mailchimp_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "Mailchimp", "Mailchimp backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing Mailchimp backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "Mailchimp");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_mailchimpControl!);
+                            UpdateSidebarSelection("Mailchimp");
+                            _mailchimpControl?.StartFullBackupFromShell();
+                        });
+                        break;
+                        
+                    case "sql_sync":
+                        await RealtimeMonitoringService.AddActivityAsync("sync_check", "SQL", "SQL sync check started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 10, "Initializing SQL sync...", "", "", "");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.PerformSyncCheck();
+                        });
+                        break;
+                        
+                    case "sql_backup":
+                        await RealtimeMonitoringService.AddActivityAsync("backup_started", "SQL", "SQL backup started");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "running", 5, "Preparing SQL backup...", "", "", "");
+                        
+                        // Start progress tracking
+                        BackupProgressService.StartBackup(commandId, "SQL");
+                        
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            ShowControl(_sqlControl!);
+                            UpdateSidebarSelection("SQL");
+                            _sqlControl?.StartBackupFromShell();
+                        });
+                        break;
+                        
+                    case "test_log":
+                        await RealtimeMonitoringService.AddLogAsync("Info", "Test log triggered from Flutter app", "SYSTEM");
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Test log sent");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Test log sent successfully", "", "", "");
+                        break;
+                        
+                    default:
+                        await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", $"Unknown command type: {commandType}");
+                        await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, "Unknown command type", "", "", "");
+                        await RealtimeMonitoringService.AddLogAsync("Error", $"Unknown command type: {commandType}", "REMOTE");
+                        return;
+                }
+                
+                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "completed", "Success");
+                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "completed", 100, "Operation completed successfully", "", "", "");
+                await RealtimeMonitoringService.AddActivityAsync("backup_completed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation completed");
+                await RealtimeMonitoringService.AddLogAsync("Info", $"Command completed: {commandType}", "REMOTE");
+            }
+            catch (Exception ex)
+            {
+                await FirebaseRemoteService.UpdateCommandStatusAsync(commandId, "failed", ex.Message);
+                await RealtimeMonitoringService.UpdateCommandStatusAsync(commandId, commandType, "failed", 0, ex.Message, "", "", "");
+                await RealtimeMonitoringService.AddActivityAsync("backup_failed", commandType.Split('_')[0], $"{commandType.Split('_')[0].ToUpper()} operation failed: {ex.Message}");
+                await RealtimeMonitoringService.AddLogAsync("Error", $"Command failed: {commandType} - {ex.Message}", "REMOTE");
+                
+                // End progress tracking if it was started
+                if (BackupProgressService.IsTracking)
+                {
+                    await BackupProgressService.CompleteBackupAsync(false, ex.Message);
+                }
+            }
+        }
+
+        private void ListenForQuickActions()
+        {
+            try
+            {
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+                
+                if (username == null) return;
+                
+                // Simple polling approach for quick actions
+                Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var quickActions = await database
+                                .Child("users")
+                                .Child(username)
+                                .Child("quick_actions")
+                                .OnceAsync<QuickAction>();
+
+                            foreach (var action in quickActions)
+                            {
+                                if (action.Object?.Status == "pending")
+                                {
+                                    switch (action.Object?.Action)
+                                    {
+                                        case "emergency_stop":
+                                            await HandleEmergencyStopAsync(action.Key);
+                                            break;
+                                        case "trigger_ftp_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "ftp");
+                                            break;
+                                        case "trigger_sql_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "sql");
+                                            break;
+                                        case "trigger_mailchimp_backup":
+                                            await HandleBackupTriggerAsync(action.Key, "mailchimp");
+                                            break;
+                                    }
+                                }
+                            }
+                            
+                            await Task.Delay(2000); // Check every 2 seconds
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[QUICK_ACTIONS] Monitoring error: {ex.Message}", "Error", "SYSTEM");
+                            await Task.Delay(5000); // Wait longer on error
+                        }
+                    }
+                });
+                
+                LogService.WriteSystemLog("[FIREBASE] Listening for quick actions...", "Information", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[FIREBASE] Failed to listen for quick actions: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        private async Task HandleEmergencyStopAsync(string actionId)
+        {
+            try
+            {
+                LogService.WriteSystemLog("[QUICK_ACTIONS] Emergency stop triggered", "Warning", "SYSTEM");
+                await RealtimeMonitoringService.AddActivityAsync("emergency_stop", "System", "Emergency stop triggered from Flutter app");
+                
+                // Stop all running operations
+                if (_ftpControl?.IsBusy == true) _ftpControl.RequestCancelFromShell();
+                if (_mailchimpControl?.IsBusy == true) _mailchimpControl.RequestCancelFromShell();
+                if (_sqlControl?.IsBusy == true) _sqlControl.RequestCancelFromShell();
+                
+                NotificationService.ShowBackupToast("Emergency Stop", "All running tasks cancelled from Flutter app.", "Warning");
+                
+                // Update action status
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+                
+                if (username != null)
+                {
+                    await database
+                        .Child("users")
+                        .Child(username)
+                        .Child("quick_actions")
+                        .Child(actionId)
+                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Emergency stop failed: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        private async Task HandleBackupTriggerAsync(string actionId, string service)
+        {
+            try
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Backup trigger for {service} from Flutter app", "Information", "SYSTEM");
+                await RealtimeMonitoringService.AddActivityAsync("backup_triggered", service, $"{service.ToUpper()} backup triggered from Flutter app");
+
+                // Trigger the appropriate backup
+                switch (service.ToLower())
+                {
+                    case "ftp":
+                        if (_ftpControl != null && !_ftpControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ftpControl.StartBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] FTP backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                    case "sql":
+                        if (_sqlControl != null && !_sqlControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _sqlControl.StartBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] SQL backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                    case "mailchimp":
+                        if (_mailchimpControl != null && !_mailchimpControl.IsBusy)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => _mailchimpControl.StartFullBackupFromShell());
+                        }
+                        else
+                        {
+                            LogService.WriteSystemLog("[QUICK_ACTIONS] Mailchimp backup skipped - already busy", "Warning", "SYSTEM");
+                        }
+                        break;
+                }
+
+                NotificationService.ShowBackupToast("Remote Trigger", $"{service.ToUpper()} backup triggered from Flutter app.", "Info");
+
+                // Update action status
+                var databaseUrl = "https://pinaypal-backup-manager-default-rtdb.firebaseio.com/";
+                var database = new FirebaseClient(databaseUrl);
+                var username = AuthService.CurrentUser?.Username;
+
+                if (username != null)
+                {
+                    await database
+                        .Child("users")
+                        .Child(username)
+                        .Child("quick_actions")
+                        .Child(actionId)
+                        .PatchAsync(new { status = "completed", timestamp = DateTime.UtcNow.ToString("o") });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[QUICK_ACTIONS] Failed to handle backup trigger for {service}: {ex.Message}", "Error", "SYSTEM");
+            }
+        }
+
+        private void ToggleProfileMenu(object? sender, RoutedEventArgs e)
+        {
+            // Show ProfileControl in main content area
+            ShowControl(_profileControl);
+            UpdateSidebarSelection("Profile");
+        }
+
+        
+        private async Task ShowChangePasswordDialog()
+        {
+            var dialog = new ChangePasswordDialog();
+            var window = new Window
+            {
+                Title = "Change Password",
+                Width = 420,
+                Height = 480,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brushes.Transparent,
+                CanResize = false,
+                ShowInTaskbar = false,
+                // No Topmost - ShowDialog makes it modal to parent only
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None
+            };
+
+            dialog.OnPasswordChanged += (s, e) =>
+            {
+                NotificationService.ShowBackupToast("Profile", "Password changed successfully!", "Success");
+                window.Close();
+            };
+            dialog.OnCancel += (s, e) => window.Close();
+
+            this.Activate();
+            await window.ShowDialog(this);
+        }
+
+        private async Task ShowChangeUsernameDialog()
+        {
+            var dialog = new ChangeUsernameDialog();
+            var window = new Window
+            {
+                Title = "Change Username",
+                Width = 420,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Avalonia.Media.Brushes.Transparent,
+                CanResize = false,
+                ShowInTaskbar = false,
+                // No Topmost - ShowDialog makes it modal to parent only
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnUsernameChanged += (s, e) =>
+            {
+                NotificationService.ShowBackupToast("Profile", "Username changed successfully!", "Success");
+                window.Close();
+            };
+            dialog.OnCancel += (s, e) => window.Close();
+
+            this.Activate();
+            await window.ShowDialog(this);
+        }
+
+        private async Task UploadAvatar()
+        {
+            var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select Avatar Image",
+                AllowMultiple = false,
+                FileTypeFilter = new List<FilePickerFileType>
+                {
+                    new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp" } }
+                }
+            });
+
+            if (result.Count > 0)
+            {
+                try
+                {
+                    var filePath = result[0].Path.LocalPath;
+                    var user = AuthService.CurrentUser;
+                    if (user == null) return;
+
+                    // Copy to app data folder
+                    var avatarFolder = EnvironmentConfigService.GetAvatarsPath();
+                    Directory.CreateDirectory(avatarFolder);
+
+                    var fileExt = System.IO.Path.GetExtension(filePath);
+                    var avatarPath = System.IO.Path.Combine(avatarFolder, $"{user.Id}{fileExt}" );
+
+                    File.Copy(filePath, avatarPath, overwrite: true);
+
+                    // Update user avatar in database
+                    var updated = AuthService.UpdateAvatar(user.Id, avatarPath);
+                    if (updated)
+                    {
+                        NotificationService.ShowBackupToast("Profile", "Avatar uploaded successfully!", "Success");
+                    }
+                    else
+                    {
+                        NotificationService.ShowBackupToast("Profile", "Failed to save avatar.", "Error");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"Avatar upload failed: {ex.Message}", "", "Error", "SYSTEM");
+                    NotificationService.ShowBackupToast("Profile", "Avatar upload failed.", "Error");
+                }
+            }
+        }
+
+        private void ShowTwoFactorAuthDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            const string dialogKey = "two_factor";
+            if (NotificationService.IsDialogOpen(dialogKey))
+                return;
+            NotificationService.RegisterDialog(dialogKey);
+
+            var dialog = new TwoFactorAuthDialog(user.Id);
+            var window = new Window
+            {
+                Title = "Two-Factor Authentication",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                // No Topmost - ShowDialog makes it modal to parent only
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey);
+            this.Activate();
+            window.Show();
+        }
+
+        private void ShowLoginHistoryDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            const string dialogKey2 = "login_history";
+            if (NotificationService.IsDialogOpen(dialogKey2))
+                return;
+            NotificationService.RegisterDialog(dialogKey2);
+
+            var dialog = new LoginHistoryDialog(user.Username);
+            var window = new Window
+            {
+                Title = "Login History",
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Avalonia.Media.Brushes.Transparent,
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+                CanResize = false,
+                ShowInTaskbar = false,
+                // No Topmost - ShowDialog makes it modal to parent only
+                ExtendClientAreaToDecorationsHint = true,
+                ExtendClientAreaTitleBarHeightHint = 0,
+                ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                SystemDecorations = SystemDecorations.None,
+                Content = dialog
+            };
+
+            dialog.OnClose += (s, e) => window.Close();
+            window.Closed += (_, _) => NotificationService.UnregisterDialog(dialogKey2);
+            window.Show();
+        }
+
+        private async Task ShowDeleteAccountDialog()
+        {
+            var user = AuthService.CurrentUser;
+            if (user == null) return;
+
+            // Do not allow deleting admin accounts
+            if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                NotificationService.ShowBackupToast("Account", "Admin accounts cannot be deleted.", "Error");
+                return;
+            }
+
+            var confirm = await ConfirmDialog.ShowAsync(
+                "Delete Account",
+                "WARNING: This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?");
+
+            if (!confirm) return;
+
+            // Second confirmation
+            var confirm2 = await ConfirmDialog.ShowAsync(
+                "Confirm Deletion",
+                "Please confirm again: Your account, backups, and all data will be permanently removed.");
+
+            if (!confirm2) return;
+
+            // Delete user
+            var deleted = await AuthService.DeleteUserAsync(user.Id);
+            if (deleted)
+            {
+                NotificationService.ShowBackupToast("Account", "Account deleted. The application will now close.", "Warning");
+                await Task.Delay(2000);
+                _allowClose = true;
+                Close();
+            }
+            else
+            {
+                NotificationService.ShowBackupToast("Account", "Failed to delete account. Please try again.", "Error");
+            }
+        }
+
+        #endregion
+    }
+}
+
+public class QuickAction
+{
+    public string Action { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string Timestamp { get; set; } = "";
+}

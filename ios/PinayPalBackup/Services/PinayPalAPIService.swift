@@ -16,6 +16,7 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var logs: [String] = []
     @Published public var isConnecting: Bool = false
     @Published public var isOnline: Bool = false
+    @Published public var latencyMs: Int? = nil
     @Published public var lastErrorMessage: String? = nil
 
     private var pollTimer: AnyCancellable?
@@ -254,7 +255,10 @@ public class PinayPalAPIService: ObservableObject {
         }
 
         do {
+            let start = CFAbsoluteTimeGetCurrent()
             let (data, response) = try await URLSession.shared.data(for: request)
+            let elapsed = CFAbsoluteTimeGetCurrent() - start
+            self.latencyMs = Int(elapsed * 1000)
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 isOnline = false
                 return
@@ -341,6 +345,58 @@ public class PinayPalAPIService: ObservableObject {
             let items = try JSONDecoder().decode([BackupHistoryItem].self, from: data)
             self.history = items
         } catch { }
+    }
+
+    public func downloadBackupFile(filename: String) async -> URL? {
+        guard let safeName = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(serverUrl)/download/\(safeName)") else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 60
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (temporaryURL, response) = try await URLSession.shared.download(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            let destination = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            try? FileManager.default.removeItem(at: destination)
+            try FileManager.default.moveItem(at: temporaryURL, to: destination)
+            return destination
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    public func clearHistory() async -> Bool {
+        guard let url = URL(string: "\(serverUrl)/api/history") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        if let auth = getAuthorizationHeader() { request.addValue(auth, forHTTPHeaderField: "Authorization") }
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return false }
+            history = []
+            return true
+        } catch { return false }
+    }
+
+    public func makeDiagnosticsBundle() -> URL? {
+        let payload: [String: Any] = [
+            "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "serverUrl": serverUrl,
+            "connected": isOnline,
+            "latencyMs": latencyMs ?? NSNull(),
+            "lastError": lastErrorMessage ?? NSNull(),
+            "notificationStatus": NotificationService.shared.authorizationDescription,
+            "recentLogs": Array(logs.suffix(50)),
+            "generatedAt": ISO8601DateFormatter().string(from: Date())
+        ]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("PinayPal-Diagnostics.json")
+        try? data.write(to: url, options: .atomic)
+        return url
     }
 
     public func fetchLogs() async {

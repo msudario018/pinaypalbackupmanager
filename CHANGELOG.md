@@ -1,5 +1,38 @@
 # Changelog
 
+## v3.4.0 (2026-09-23)
+
+### Added & Improved
+- **iOS Home Tab**:
+  - Widened backup carousel cards to `min(UIScreen.main.bounds.width - 64, 340)` and increased pager height to 236pt for optimal card margins and lower pagination dots.
+  - Added real-time API latency indicator pill in the navigation header bar.
+  - Added global backup freshness summary strip above the service carousel.
+  - Added last backup result banner with completion timestamp, status, and duration below active backup banner.
+  - Added real-time app uptime metrics in System Status card.
+  - Added automated schedule countdown timers in daily schedules card (e.g. "in 2h 15m").
+- **iOS Activity Tab**:
+  - Added live active queue progress section with instant service feedback.
+  - Grouped backup history runs chronologically into Today, Yesterday, and past dates.
+  - Added inline retry button for failed backup runs.
+  - Added 7-day backup success rate summary card.
+- **iOS History Tab**:
+  - Added comprehensive history sorting by Recent, Size, Duration, and Failures.
+  - Added direct file download button for backup records with downloadable archives.
+  - Added toolbar CSV export share sheet and clear history action with confirmation dialog.
+- **iOS Settings Tab**:
+  - Added full About / App Info section with app version, server API version, latency, diagnostics bundle export, and GitHub release notes link.
+  - Added connection profiles manager to save, switch between, and remove server connection configurations.
+  - Added notification test panel to fire on-demand test alerts and verify permissions.
+  - Added data & storage section showing app document and cache sizes with a cache-clearing action.
+- **Web Dashboard**:
+  - Added session user display in header (`👤 username`) and one-click session logout button.
+  - Added dedicated Connection Health & Diagnostics card with real-time round-trip latency, last poll timestamp, server API version, and expandable/copyable raw diagnostics JSON.
+  - Unified API error responses with standardized error codes across all endpoints.
+- **Desktop PC App**:
+  - Enhanced system tray icon with Quick Backup submenu to trigger FTP, SQL, or Mailchimp backups directly from the notification area.
+  - Added real-time backup progress percentage and status tooltip on tray hover during active backups.
+  - Added balloon and toast notifications when backups complete or fail.
+
 ## v3.3.7 (2026-09-22)
 
 ### Fixed

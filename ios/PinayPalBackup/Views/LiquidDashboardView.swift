@@ -44,10 +44,16 @@ public struct LiquidDashboardView: View {
                     // Real-time Active Backup Banner
                     if let active = api.status?.activeBackup, active.isBusy == true {
                         activeBackupBanner(active: active)
+                    } else {
+                        // Last Backup Result Banner (shown when no backup is running)
+                        lastBackupResultBanner
                     }
 
                     // Master Action Banner
                     masterActionBanner
+
+                    // Freshness Summary Strip
+                    freshnessSummaryStrip
 
                     // Fast service selection belongs on Home, directly below the main action.
                     backupCarouselSection
@@ -219,6 +225,12 @@ public struct LiquidDashboardView: View {
                     .font(.system(size: 11))
                     .foregroundColor(LiquidTheme.textSecondary)
                     .lineLimit(1)
+
+                if let uptime = api.status?.system?.appUptime, !uptime.isEmpty {
+                    Text("⏱ \(uptime)")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(LiquidTheme.blue)
+                }
             }
             .padding(14)
             .liquidGlassCard(cornerRadius: 16, glow: (isHealthy ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.15))
@@ -337,7 +349,7 @@ public struct LiquidDashboardView: View {
                 carouselServiceCard(title: "Mailchimp", icon: "envelope.badge.fill", accent: LiquidTheme.cyan, meta: "Audience: \(api.status?.services?.mailchimp?.audienceId ?? "Not configured")", files: api.status?.services?.mailchimp?.fileCount ?? 0, bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0, serviceKey: "mailchimp", destination: .mailchimp)
             }
             .tabViewStyle(.page(indexDisplayMode: .automatic))
-            .frame(height: 202)
+            .frame(height: 236)
         }
     }
 
@@ -367,7 +379,7 @@ public struct LiquidDashboardView: View {
             .buttonStyle(.borderedProminent).tint(accent)
             .disabled(isTriggering || api.status?.activeBackup?.isBusy == true)
         }
-        .frame(width: 278, alignment: .leading).padding(16)
+        .frame(width: min(UIScreen.main.bounds.width - 64, 340), alignment: .leading).padding(16)
         .liquidGlassCard(cornerRadius: 20, glow: accent.opacity(0.20), variant: .prominent)
         .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -543,52 +555,111 @@ public struct LiquidDashboardView: View {
 
     // MARK: - Schedules Card
     private func schedulesCard(sched: ScheduleSpecs) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("⏰ AUTOMATED DAILY SCHEDULES")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(LiquidTheme.textSecondary)
+        TimelineView(.periodic(from: .now, by: 60)) { timeline in
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("⏰ AUTOMATED DAILY SCHEDULES")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
 
-                Spacer()
+                    Spacer()
 
-                Button {
-                    showSettingsSheet = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "slider.horizontal.3")
-                        Text("Manage")
+                    Button {
+                        showSettingsSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "slider.horizontal.3")
+                            Text("Manage")
+                        }
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.gold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(LiquidTheme.gold.opacity(0.12))
+                        .cornerRadius(8)
                     }
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(LiquidTheme.gold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(LiquidTheme.gold.opacity(0.12))
-                    .cornerRadius(8)
+                }
+
+                VStack(spacing: 8) {
+                    scheduleRow(title: "Website FTP", time: sched.ftpDaily ?? "10:00 PM MNL", interval: sched.ftpInterval ?? "3h", now: timeline.date)
+                    scheduleRow(title: "SQL Database", time: sched.sqlDaily ?? "5:00 PM MNL", interval: sched.sqlInterval ?? "2h 15m", now: timeline.date)
+                    scheduleRow(title: "Mailchimp", time: sched.mailchimpDaily ?? "6:00 PM MNL", interval: sched.mailchimpInterval ?? "2h", now: timeline.date)
                 }
             }
-
-            VStack(spacing: 8) {
-                scheduleRow(title: "Website FTP", time: sched.ftpDaily ?? "10:00 PM MNL", interval: sched.ftpInterval ?? "3h")
-                scheduleRow(title: "SQL Database", time: sched.sqlDaily ?? "5:00 PM MNL", interval: sched.sqlInterval ?? "2h 15m")
-                scheduleRow(title: "Mailchimp", time: sched.mailchimpDaily ?? "6:00 PM MNL", interval: sched.mailchimpInterval ?? "2h")
-            }
+            .padding(16)
+            .liquidGlassCard(cornerRadius: 18)
         }
-        .padding(16)
-        .liquidGlassCard(cornerRadius: 18)
     }
 
-    private func scheduleRow(title: String, time: String, interval: String) -> some View {
-        HStack {
+    private func scheduleRow(title: String, time: String, interval: String, now: Date) -> some View {
+        let countdown = countdownString(for: time, from: now)
+        return HStack {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
             Spacer()
+            if let countdown = countdown {
+                Text(countdown)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(LiquidTheme.gold, in: Capsule())
+            }
             Text(time)
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(LiquidTheme.gold)
             Text("(\(interval))")
                 .font(.system(size: 11))
                 .foregroundColor(LiquidTheme.textSecondary)
+        }
+    }
+
+    /// Parse schedule time like "10:00 PM MNL" and compute countdown from `now`
+    private func countdownString(for scheduleTime: String, from now: Date) -> String? {
+        // Strip timezone suffix for parsing
+        let cleaned = scheduleTime
+            .replacingOccurrences(of: " MNL", with: "")
+            .replacingOccurrences(of: " PHT", with: "")
+            .trimmingCharacters(in: .whitespaces)
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        // Manila is UTC+8
+        formatter.timeZone = TimeZone(identifier: "Asia/Manila")
+
+        guard let parsedTime = formatter.date(from: cleaned) else { return nil }
+
+        // Build target date in Manila timezone for today
+        let manila = TimeZone(identifier: "Asia/Manila")!
+        var calendar = Calendar.current
+        calendar.timeZone = manila
+
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: parsedTime)
+        guard let hour = timeComponents.hour, let minute = timeComponents.minute else { return nil }
+
+        var target = calendar.dateComponents([.year, .month, .day], from: now)
+        target.hour = hour
+        target.minute = minute
+        target.second = 0
+
+        guard var targetDate = calendar.date(from: target) else { return nil }
+
+        // If the target time already passed today, it's tomorrow
+        if targetDate <= now {
+            targetDate = calendar.date(byAdding: .day, value: 1, to: targetDate) ?? targetDate
+        }
+
+        let diff = targetDate.timeIntervalSince(now)
+        let totalMinutes = Int(diff) / 60
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        if hours > 0 {
+            return "in \(hours)h \(minutes)m"
+        } else {
+            return "in \(minutes)m"
         }
     }
 
@@ -667,6 +738,108 @@ public struct LiquidDashboardView: View {
         if b < k * k { return String(format: "%.1f KB", b / k) }
         if b < k * k * k { return String(format: "%.1f MB", b / (k * k)) }
         return String(format: "%.2f GB", b / (k * k * k))
+    }
+
+    // MARK: - Freshness Summary Strip
+    private var freshnessSummaryStrip: some View {
+        let services: [(String, ServiceItem?)] = [
+            ("FTP", api.status?.services?.ftp),
+            ("SQL", api.status?.services?.sql),
+            ("Mailchimp", api.status?.services?.mailchimp)
+        ]
+        let updated = services.filter { $0.1?.freshness?.isOutdated == false && $0.1?.freshness?.status != "never" }.count
+        let outdated = services.filter { $0.1?.freshness?.isOutdated == true }.count
+        let never = services.filter { $0.1?.freshness?.status == "never" || $0.1?.freshness == nil }.count
+
+        return HStack(spacing: 8) {
+            if outdated > 0 {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(LiquidTheme.gold)
+                    .font(.system(size: 13))
+                Text("\(outdated) Outdated")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+                Text("·")
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                Text("\(updated) Updated")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(LiquidTheme.emerald)
+            } else if updated > 0 {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundColor(LiquidTheme.emerald)
+                    .font(.system(size: 13))
+                Text("All Backups Fresh")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(LiquidTheme.emerald)
+            } else {
+                Image(systemName: "questionmark.circle")
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    .font(.system(size: 13))
+                Text("No backups recorded")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            }
+            Spacer()
+            if never > 0 {
+                Text("\(never) pending")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .liquidGlassCard(cornerRadius: 12)
+    }
+
+    // MARK: - Last Backup Result Banner
+    @ViewBuilder
+    private var lastBackupResultBanner: some View {
+        if let last = api.history.first {
+            let success = last.status.localizedCaseInsensitiveContains("success")
+            HStack(spacing: 10) {
+                Image(systemName: success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
+                    .font(.system(size: 16))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(last.service.uppercased()) \(success ? "completed" : last.status)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                    HStack(spacing: 6) {
+                        Text(last.time)
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        if let bytes = last.sizeBytes, bytes > 0 {
+                            Text("· \(formatBytes(bytes))")
+                                .font(.system(size: 10))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                        if let dur = last.durationSeconds, dur > 0 {
+                            Text("· \(String(format: "%.1fs", dur))")
+                                .font(.system(size: 10))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                    }
+                }
+
+                Spacer()
+
+                if !success {
+                    Button {
+                        triggerBackup(service: last.service.lowercased())
+                    } label: {
+                        Text("Retry")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(LiquidTheme.gold, in: Capsule())
+                    }
+                }
+            }
+            .padding(12)
+            .liquidGlassCard(cornerRadius: 14, glow: (success ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.15))
+        }
     }
 
     // MARK: - Master Action Banner
