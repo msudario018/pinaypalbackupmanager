@@ -658,7 +658,7 @@ public class PinayPalAPIService: ObservableObject {
             request.addValue(auth, forHTTPHeaderField: "Authorization")
         }
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 await fetchStatus()
                 return (true, "Remote sync verification completed.")

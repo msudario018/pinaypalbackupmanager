@@ -244,7 +244,7 @@ public struct MainView: View {
         case .automations: return "Automations"
         }
     }
-}}
+}
 
 private struct ActivityOverviewView: View {
     @ObservedObject var api: PinayPalAPIService

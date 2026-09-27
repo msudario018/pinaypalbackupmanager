@@ -449,10 +449,10 @@ public struct AutomationsView: View {
             let res = await api.triggerSyncCheck()
             await MainActor.run {
                 isRunningSyncCheck = false
-                if let msg = res["message"] as? String {
-                    syncCheckMessage = msg
-                } else if let err = res["error"] as? String {
-                    syncCheckMessage = "Sync check failed: \(err)"
+                if res.success {
+                    syncCheckMessage = res.message
+                } else {
+                    syncCheckMessage = "Sync check failed: \(res.message)"
                 }
             }
             await api.fetchAll()
