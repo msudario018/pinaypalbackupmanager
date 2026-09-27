@@ -541,4 +541,80 @@ public class PinayPalAPIService: ObservableObject {
         } catch { }
         return false
     }
+
+    public func changeUsername(newUsername: String) async -> (Bool, String) {
+        guard let url = URL(string: "\(serverUrl)/api/user/change-username") else {
+            return (false, "Invalid server URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 8
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = ["newUsername": newUsername]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            return (false, "Failed to encode payload")
+        }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let msg = json["message"] as? String ?? (http.statusCode == 200 ? "Username updated successfully." : "Failed to update username.")
+                    if http.statusCode == 200 {
+                        if var user = self.currentUser {
+                            user.username = newUsername
+                            user.fullName = newUsername
+                            self.currentUser = user
+                            if let enc = try? JSONEncoder().encode(user) {
+                                UserDefaults.standard.set(enc, forKey: "pp_current_user")
+                            }
+                        }
+                        return (true, msg)
+                    }
+                    return (false, msg)
+                }
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+        return (false, "Failed to update username.")
+    }
+
+    public func changePassword(currentPassword: String, newPassword: String) async -> (Bool, String) {
+        guard let url = URL(string: "\(serverUrl)/api/user/change-password") else {
+            return (false, "Invalid server URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 8
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "currentPassword": currentPassword,
+            "newPassword": newPassword
+        ]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            return (false, "Failed to encode payload")
+        }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let msg = json["message"] as? String ?? (http.statusCode == 200 ? "Password updated successfully." : "Failed to update password.")
+                    return (http.statusCode == 200, msg)
+                }
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+        return (false, "Failed to update password.")
+    }
 }

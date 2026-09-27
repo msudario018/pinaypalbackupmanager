@@ -1,5 +1,28 @@
 # Changelog
 
+## v3.5.0 (2026-09-27)
+
+### Added & Improved
+- **Desktop PC App**:
+  - Fixed auto-scan countdown timers freezing upon switching tabs by implementing a unified `OnLoaded` lifecycle re-subscription in `HomeControl`.
+  - Fixed auto-scan execution in `BackupManager` by decoupling FTP, Mailchimp, and SQL auto-scan checks into independent triggers.
+  - Fixed status bar `Last Health Check: Never` issue by storing in-memory timestamps and falling back to deep log scanning.
+  - Enforced 24h freshness checks in FTP and SQL `SyncCheckAsync`, ensuring outdated backups are accurately flagged rather than falsely labeled "LATEST".
+  - Aligned desktop Overall Health scoring with Web Dashboard freshness rules, penalizing stale (>24h) and missing backups so 3-day-old backups display "Outdated" instead of "Good".
+  - Subscribed individual FTP, Mailchimp, and SQL controls to `OnTimeUpdate` with proper timezone offsets so per-tab timers tick every second.
+  - Modernized the Software Update Available modal (`UpdateAvailableDialog`) with dark glassmorphism, version badges, changelog preview, and clear action buttons.
+- **Web Dashboard & API**:
+  - Added `/api/user/change-username` and `/api/user/change-password` endpoints with validation and session updates.
+  - Bumped Server API version to `v3.5.0`.
+- **iOS Companion App**:
+  - Generated and installed the official 1024x1024 app icon from `Assets/logo.png`.
+  - Overhauled Live Activity and Dynamic Island widgets (`BackupLiveActivityWidget`) with service badges, speed/ETA telemetry, and modern progress indicators.
+  - Added Profile Avatar button beside Settings gear in navigation header with `ProfileSheetView` for changing username, display name, and password.
+  - Added in-app `ChangelogSheetView` accessible from both Settings and Login screens with release notes and version badges.
+  - Added animated `SplashScreenView` on launch with breathing logo effects and smooth entrance animation.
+  - Fixed carousel pagination dot overlap on backup service cards in `LiquidDashboardView`.
+  - Bumped marketing version to `3.5.0` (Build `13`).
+
 ## v3.4.0 (2026-09-23)
 
 ### Added & Improved

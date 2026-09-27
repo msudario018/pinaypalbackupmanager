@@ -23,6 +23,7 @@ namespace PinayPalBackupManager.Services
         private DateTime _lastSqlDailyRunMnlDate;
 
         public bool IsPaused { get; set; } = false;
+        public static DateTime? LastHealthCheckTime { get; set; }
 
         public event Action<List<BackupHealthReport>>? OnHealthUpdate;
         public event Action<DateTime, DateTime, DateTime, DateTime>? OnTimeUpdate;
@@ -121,12 +122,12 @@ namespace PinayPalBackupManager.Services
                     _lastFtpAutoReset = now;
                     OnFtpAutoSyncRequested?.Invoke();
                 }
-                else if (now >= NextMailchimpAutoScan)
+                if (now >= NextMailchimpAutoScan)
                 {
                     _lastMailchimpAutoReset = now;
                     OnMailchimpAutoSyncRequested?.Invoke();
                 }
-                else if (now >= NextSqlAutoScan)
+                if (now >= NextSqlAutoScan)
                 {
                     _lastSqlAutoReset = now;
                     OnSqlAutoSyncRequested?.Invoke();
@@ -182,7 +183,7 @@ namespace PinayPalBackupManager.Services
                         Task.Run(async () => 
                         {
                             LogService.WriteSystemLog("HEALTH: Checking Website status...", "Information", "SYSTEM");
-                            return await CheckWebsiteHealthAsync();
+                            return await CheckWebsiteHealthAsync(freshWindowUtc);
                         }),
                         Task.Run(async () => 
                         {
@@ -199,6 +200,7 @@ namespace PinayPalBackupManager.Services
                     var results = await Task.WhenAll(healthTasks);
                     reports.AddRange(results);
 
+                    LastHealthCheckTime = DateTime.UtcNow;
                     LogService.WriteSystemLog("HEALTH: Global health check completed.", "Information", "SYSTEM");
                     OnHealthUpdate?.Invoke(reports);
 
@@ -228,7 +230,7 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async Task<BackupHealthReport> CheckWebsiteHealthAsync()
+        private static async Task<BackupHealthReport> CheckWebsiteHealthAsync(DateTime freshWindowUtc)
         {
             var report = new BackupHealthReport { Service = "Website" };
             if (Directory.Exists(BackupConfig.FtpLocalFolder))
@@ -240,8 +242,15 @@ namespace PinayPalBackupManager.Services
 
                 if (latestLocal != null)
                 {
-                    report.Status = "OK";
-                    report.Color = "LimeGreen";
+                    bool isLocalFresh = latestLocal.LastWriteTimeUtc >= freshWindowUtc;
+                    report.Status = isLocalFresh ? "OK" : "OUTDATED";
+                    report.Color = isLocalFresh ? "LimeGreen" : "Red";
+                    report.NeedsSync = !isLocalFresh;
+                    if (!isLocalFresh)
+                    {
+                        var age = DateTime.UtcNow - latestLocal.LastWriteTimeUtc;
+                        report.Missing = $"Local backup is {(int)age.TotalHours}h old (stale)";
+                    }
                     var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(latestLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
                     report.LastUpdate = mnlTime.ToString("MM/dd hh:mm:ss");
                     report.FileName = latestLocal.Name;
@@ -271,12 +280,19 @@ namespace PinayPalBackupManager.Services
                                     // Check file size for more accurate comparison
                                     if (matchingLocal.Length == ftpLatest.Length)
                                     {
-                                        report.Status = "OK";
-                                        report.Color = "LimeGreen";
+                                        bool isMatchFresh = matchingLocal.LastWriteTimeUtc >= freshWindowUtc;
+                                        report.Status = isMatchFresh ? "OK" : "OUTDATED";
+                                        report.Color = isMatchFresh ? "LimeGreen" : "Red";
+                                        report.NeedsSync = !isMatchFresh;
                                         var mnlTime2 = TimeZoneInfo.ConvertTimeFromUtc(matchingLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
                                         report.LastUpdate = mnlTime2.ToString("MM/dd hh:mm:ss");
                                         report.FileName = matchingLocal.Name;
-                                        LogService.WriteSystemLog($"HEALTH: Website OK - local file matches remote by name and size: {matchingLocal.Name}", "Information", "SYSTEM");
+                                        if (!isMatchFresh)
+                                        {
+                                            var age = DateTime.UtcNow - matchingLocal.LastWriteTimeUtc;
+                                            report.Missing = $"Local backup matches remote but is {(int)age.TotalHours}h old (stale)";
+                                        }
+                                        LogService.WriteSystemLog($"HEALTH: Website {report.Status} - local file matches remote by name and size: {matchingLocal.Name}", "Information", "SYSTEM");
                                     }
                                     else
                                     {
@@ -502,12 +518,19 @@ namespace PinayPalBackupManager.Services
                     // Simplified check: if remote file exists locally with same size, consider it OK
                     if (hasRemoteFileLocally && localSize == remoteSize)
                     {
-                        report.Status = "OK";
-                        report.Color = "LimeGreen";
+                        bool isSqlFresh = localLatest.LastWriteTimeUtc >= freshWindowUtc;
+                        report.Status = isSqlFresh ? "OK" : "OUTDATED";
+                        report.Color = isSqlFresh ? "LimeGreen" : "Red";
+                        report.NeedsSync = !isSqlFresh;
                         var remoteUtc = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
                         var remoteMnlTime1 = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
                         report.LastUpdate = $"Local has latest remote: {remoteLatest.Name} ({remoteMnlTime1:MM/dd HH:mm})";
-                        LogService.WriteSystemLog($"HEALTH: SQL OK - local has remote file with same size: {remoteLatest.Name}", "Information", "SYSTEM");
+                        if (!isSqlFresh)
+                        {
+                            var age = DateTime.UtcNow - localLatest.LastWriteTimeUtc;
+                            report.Missing = $"SQL backup is {(int)age.TotalHours}h old (stale)";
+                        }
+                        LogService.WriteSystemLog($"HEALTH: SQL {report.Status} - local has remote file with same size: {remoteLatest.Name}", "Information", "SYSTEM");
                         return report;
                     }
 
@@ -515,11 +538,11 @@ namespace PinayPalBackupManager.Services
                     var remoteUtc2 = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
                     var localLatestTimeDiff = remoteUtc2 - localLatest.LastWriteTimeUtc;
                     
-                    if (localLatestTimeDiff.TotalMinutes <= 1440) // 24 hours for timezone tolerance
+                    if (localLatestTimeDiff.TotalMinutes <= 1440 && localLatest.LastWriteTimeUtc >= freshWindowUtc) // 24 hours and fresh
                     {
                         report.Status = "OK";
                         report.Color = "LimeGreen";
-                        LogService.WriteSystemLog($"HEALTH: SQL OK - localLatest time diff within 24h", "Information", "SYSTEM");
+                        LogService.WriteSystemLog($"HEALTH: SQL OK - localLatest time diff within 24h and fresh", "Information", "SYSTEM");
                         return report;
                     }
 
@@ -567,16 +590,19 @@ namespace PinayPalBackupManager.Services
         public void ResetFtpTimer()
         {
             _lastFtpAutoReset = GetTzDate();
+            OnAutoScanTimersReset?.Invoke();
         }
 
         public void ResetMailchimpTimer()
         {
             _lastMailchimpAutoReset = GetTzDate();
+            OnAutoScanTimersReset?.Invoke();
         }
 
         public void ResetSqlTimer()
         {
             _lastSqlAutoReset = GetTzDate();
+            OnAutoScanTimersReset?.Invoke();
         }
 
         public static DateTime GetTzDate()

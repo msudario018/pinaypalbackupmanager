@@ -9,6 +9,8 @@ public struct MainView: View {
     @StateObject private var authManager = BiometricAuthManager()
     @State private var selectedTab: AppTab = .home
     @State private var showSettingsSheet = false
+    @State private var showProfileSheet = false
+    @State private var isShowingSplash = true
     @AppStorage("pp_theme_mode") private var themeMode: String = "dark"
     @Environment(\.colorScheme) private var systemColorScheme
 
@@ -21,26 +23,44 @@ public struct MainView: View {
     }
 
     public var body: some View {
-        Group {
-            if !api.isConfigured {
-                ConnectionSetupView()
-                    .environmentObject(api)
-            } else if !api.isLoggedIn {
-                LoginView()
-                    .environmentObject(api)
-                    .environmentObject(authManager)
-            } else if !authManager.isUnlocked {
-                BiometricShieldView(authManager: authManager) { }
-            } else {
-                appTabs
+        ZStack {
+            Group {
+                if !api.isConfigured {
+                    ConnectionSetupView()
+                        .environmentObject(api)
+                } else if !api.isLoggedIn {
+                    LoginView()
+                        .environmentObject(api)
+                        .environmentObject(authManager)
+                } else if !authManager.isUnlocked {
+                    BiometricShieldView(authManager: authManager) { }
+                } else {
+                    appTabs
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: api.isConfigured)
+            .animation(.easeInOut(duration: 0.25), value: api.isLoggedIn)
+            .animation(.easeInOut(duration: 0.25), value: authManager.isUnlocked)
+            .preferredColorScheme(activeColorScheme)
+            .sheet(isPresented: $showSettingsSheet) {
+                ServerConfigSheet(api: api, authManager: authManager)
+            }
+            .sheet(isPresented: $showProfileSheet) {
+                ProfileSheetView(api: api, authManager: authManager)
+            }
+
+            if isShowingSplash {
+                SplashScreenView()
+                    .transition(.opacity)
+                    .zIndex(100)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: api.isConfigured)
-        .animation(.easeInOut(duration: 0.25), value: api.isLoggedIn)
-        .animation(.easeInOut(duration: 0.25), value: authManager.isUnlocked)
-        .preferredColorScheme(activeColorScheme)
-        .sheet(isPresented: $showSettingsSheet) {
-            ServerConfigSheet(api: api, authManager: authManager)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                withAnimation(.easeOut(duration: 0.45)) {
+                    isShowingSplash = false
+                }
+            }
         }
         .onReceive(NotificationService.shared.$navigationRequest) { request in
             guard let request else { return }
@@ -111,15 +131,30 @@ public struct MainView: View {
                 }
             }
             Spacer()
-            Button {
-                showSettingsSheet = true
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(LiquidTheme.textPrimary)
-                    .frame(width: 36, height: 36)
+            HStack(spacing: 8) {
+                Button {
+                    showProfileSheet = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(LiquidTheme.gold.opacity(0.18))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(LiquidTheme.gold)
+                    }
+                }
+
+                Button {
+                    showSettingsSheet = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(LiquidTheme.textPrimary)
+                        .frame(width: 36, height: 36)
+                }
+                .background(Color.white.opacity(0.10), in: Circle())
             }
-            .background(Color.white.opacity(0.10), in: Circle())
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 14).padding(.vertical, 9)

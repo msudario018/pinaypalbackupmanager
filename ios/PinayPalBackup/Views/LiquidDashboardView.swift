@@ -8,6 +8,7 @@ public struct LiquidDashboardView: View {
     @State private var triggeringService: String? = nil
     @State private var toastMessage: String? = nil
     @State private var selectedService: ServiceDestination? = nil
+    @State private var carouselIndex: Int = 0
 
     private enum ServiceDestination: Identifiable {
         case ftp, sql, mailchimp
@@ -343,13 +344,28 @@ public struct LiquidDashboardView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
             }
-            TabView {
+            TabView(selection: $carouselIndex) {
                 carouselServiceCard(title: "Website / FTP", icon: "globe.americas.fill", accent: LiquidTheme.emerald, meta: "\(api.status?.services?.ftp?.host ?? "Not configured") : \(api.status?.services?.ftp?.port ?? 21)", files: api.status?.services?.ftp?.fileCount ?? 0, bytes: api.status?.services?.ftp?.sizeBytes ?? 0, serviceKey: "ftp", destination: .ftp)
+                    .tag(0)
                 carouselServiceCard(title: "SQL database", icon: "cylinder.split.1x2.fill", accent: LiquidTheme.purple, meta: api.status?.services?.sql?.user ?? "Not configured", files: api.status?.services?.sql?.fileCount ?? 0, bytes: api.status?.services?.sql?.sizeBytes ?? 0, serviceKey: "sql", destination: .sql)
+                    .tag(1)
                 carouselServiceCard(title: "Mailchimp", icon: "envelope.badge.fill", accent: LiquidTheme.cyan, meta: "Audience: \(api.status?.services?.mailchimp?.audienceId ?? "Not configured")", files: api.status?.services?.mailchimp?.fileCount ?? 0, bytes: api.status?.services?.mailchimp?.sizeBytes ?? 0, serviceKey: "mailchimp", destination: .mailchimp)
+                    .tag(2)
             }
-            .tabViewStyle(.page(indexDisplayMode: .automatic))
-            .frame(height: 236)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 206)
+
+            // Custom non-overlapping pagination capsule nodes
+            HStack(spacing: 8) {
+                ForEach(0..<3) { idx in
+                    Capsule()
+                        .fill(carouselIndex == idx ? LiquidTheme.gold : LiquidTheme.textSecondary(for: colorScheme).opacity(0.35))
+                        .frame(width: carouselIndex == idx ? 22 : 7, height: 6)
+                        .animation(.spring(response: 0.32, dampingFraction: 0.72), value: carouselIndex)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 4)
         }
     }
 

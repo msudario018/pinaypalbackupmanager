@@ -31,6 +31,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
                 _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
                 _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
+                _manager.OnTimeUpdate += (now, mnlTime, nextFtp, nextDaily) =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
+                        if (txtAuto != null && _manager != null)
+                        {
+                            var diff = _manager.NextSqlAutoScan - now;
+                            txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                        }
+                    });
+                };
             }
             
             this.FindControl<Button>("BtnStart")!.Click += async (s, e) => 
@@ -87,7 +99,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
                 if (txtAuto != null && _manager != null)
                 {
-                    var now = DateTime.Now;
+                    var now = BackupManager.GetTzDate();
                     var diff = _manager.NextSqlAutoScan - now;
                     txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
                 }
@@ -101,7 +113,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var txtDaily = this.FindControl<TextBlock>("TxtNextDaily");
                 if (txtDaily != null)
                 {
-                    var now = DateTime.Now;
+                    var now = BackupManager.GetTzDate();
                     var mnlTime = now.AddHours(15); // UTC-7 to UTC+8 is +15 hours
                     var diff = BackupManager.NextSqlDailySyncMnl - mnlTime;
                     txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
@@ -610,6 +622,18 @@ namespace PinayPalBackupManager.UI.UserControls
                     // Primary check: if we have the exact same file with same size, consider it up to date
                     if (hasRemoteFileLocally && sameName && sameSize)
                     {
+                        var fileTimeUtc = localLatest?.LastWriteTimeUtc ?? remoteLatest.LastWriteTime;
+                        var age = DateTime.UtcNow - fileTimeUtc;
+                        if (age.TotalHours > 24)
+                        {
+                            statusText = "OUTDATED";
+                            detailText = $"Local matches remote: {remoteLatest.Name}, but backup is {(int)age.TotalHours}h old{GetMirrorStatus(remoteLatest.Name, "SQL")}";
+                            colorHex = "#F38BA8";
+                            toastMessage = $"SQL backup is outdated ({(int)age.TotalHours}h old).";
+                            toastType = "Warning";
+                            return;
+                        }
+
                         statusText = "LATEST";
                         detailText = $"Local matches remote: {remoteLatest.Name} ({localSize:n0} bytes){GetMirrorStatus(remoteLatest.Name, "SQL")}";
                         colorHex = "#588157";

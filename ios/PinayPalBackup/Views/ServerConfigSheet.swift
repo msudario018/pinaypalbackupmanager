@@ -69,6 +69,7 @@ public struct ServerConfigSheet: View {
     @State private var profileName = ""
     @State private var showDiagnosticsShare = false
     @State private var diagnosticsURL: URL?
+    @State private var showChangelogSheet = false
 
     public var body: some View {
         NavigationStack {
@@ -129,6 +130,9 @@ public struct ServerConfigSheet: View {
             if let diagnosticsURL {
                 ShareSheet(items: [diagnosticsURL])
             }
+        }
+        .sheet(isPresented: $showChangelogSheet) {
+            ChangelogSheetView()
         }
     }
 
@@ -1248,13 +1252,25 @@ public struct ServerConfigSheet: View {
                         .cornerRadius(10)
                 }
 
-                Link(destination: URL(string: "https://github.com/msudario018/pinaypalbackupmanager/releases")!) {
-                    Label("View Release Notes", systemImage: "arrow.up.right.square")
+                Button {
+                    showChangelogSheet = true
+                } label: {
+                    Label("View In-App Changelog & Notes", systemImage: "sparkles")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(LiquidTheme.gold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(LiquidTheme.gold.opacity(0.1))
+                        .background(LiquidTheme.gold.opacity(0.12))
+                        .cornerRadius(10)
+                }
+
+                Link(destination: URL(string: "https://github.com/msudario018/pinaypalbackupmanager/releases")!) {
+                    Label("View GitHub Releases", systemImage: "arrow.up.right.square")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.06))
                         .cornerRadius(10)
                 }
             }

@@ -10,6 +10,7 @@ public struct LoginView: View {
     @State private var enableBiometricsToggle: Bool = UserDefaults.standard.bool(forKey: "pp_biometrics_enabled")
     @State private var isSubmitting: Bool = false
     @State private var errorMessage: String? = nil
+    @State private var showChangelog: Bool = false
 
     public init() {}
 
@@ -211,7 +212,28 @@ public struct LoginView: View {
                     .padding(.horizontal, 20)
 
                     // Footer note
-                    VStack(spacing: 8) {
+                    VStack(spacing: 12) {
+                        Button {
+                            showChangelog = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(LiquidTheme.gold)
+                                Text("v3.5.0 • What's New & Changelogs")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(LiquidTheme.gold)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(LiquidTheme.gold.opacity(0.12))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(LiquidTheme.gold.opacity(0.3), lineWidth: 0.8)
+                            )
+                        }
+
                         Text("Need to recover your username or password?")
                             .font(.system(size: 12))
                             .foregroundColor(LiquidTheme.textSecondary)
@@ -226,6 +248,9 @@ public struct LoginView: View {
                     .padding(.bottom, 36)
                 }
             }
+        }
+        .sheet(isPresented: $showChangelog) {
+            ChangelogSheetView()
         }
     }
 

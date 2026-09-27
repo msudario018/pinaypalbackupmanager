@@ -77,6 +77,18 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
                 _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
                 _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
+                _manager.OnTimeUpdate += (now, mnlTime, nextFtp, nextDaily) =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
+                        if (txtAuto != null && _manager != null)
+                        {
+                            var diff = _manager.NextMailchimpAutoScan - now;
+                            txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
+                        }
+                    });
+                };
             }
             
             this.FindControl<Button>("BtnRunFull")!.Click += async (s, e) => { NotificationService.ShowBackupToast("Mailchimp", "Starting full backup...", "Info"); await StartFullBackupAsync(); };
@@ -126,7 +138,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var txtAuto = this.FindControl<TextBlock>("TxtAutoScan");
                 if (txtAuto != null && _manager != null)
                 {
-                    var now = DateTime.Now;
+                    var now = BackupManager.GetTzDate();
                     var diff = _manager.NextMailchimpAutoScan - now;
                     txtAuto.Text = $"Auto-Scan: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";
                 }
@@ -140,7 +152,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 var txtDaily = this.FindControl<TextBlock>("TxtNextDaily");
                 if (txtDaily != null)
                 {
-                    var now = DateTime.Now;
+                    var now = BackupManager.GetTzDate();
                     var mnlTime = now.AddHours(15); // UTC-7 to UTC+8 is +15 hours
                     var diff = BackupManager.NextMailchimpDailySyncMnl - mnlTime;
                     txtDaily.Text = $"Next Daily: {(diff.TotalSeconds > 0 ? diff.ToString(@"hh\:mm\:ss") : "00:00:00")}";

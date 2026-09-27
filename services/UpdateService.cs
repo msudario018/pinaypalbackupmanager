@@ -80,8 +80,8 @@ namespace PinayPalBackupManager.Services
             {
                 Title = "Update Available",
                 Content = dialog,
-                Width = 450,
-                Height = 350,
+                Width = 520,
+                Height = 410,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 CanResize = false,
                 ShowInTaskbar = false,

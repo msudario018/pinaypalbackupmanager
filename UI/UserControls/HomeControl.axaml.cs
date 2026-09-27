@@ -282,17 +282,33 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (_cachedHealthMcScore != null) _cachedHealthMcScore.Text = $"{health.ServiceScores.GetValueOrDefault("Mailchimp", 0)}%";
                         if (_cachedHealthSqlScore != null) _cachedHealthSqlScore.Text = $"{health.ServiceScores.GetValueOrDefault("SQL", 0)}%";
 
-                        UpdateServicesStatusSummary(health.ServiceScores);
+                        int healthyCount = UpdateServicesStatusSummary(health.ServiceScores);
 
                         if (_cachedCriticalAlertsCount != null) _cachedCriticalAlertsCount.Text = health.CriticalAlerts.Count.ToString();
 
                         if (_cachedTimeSinceHealth != null)
                         {
                             var score = health.OverallScore;
-                            _cachedTimeSinceHealth.Text = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Poor";
-                            _cachedTimeSinceHealth.Foreground = score >= 80 ? new SolidColorBrush(Colors.Green) :
-                                                        score >= 50 ? new SolidColorBrush(Colors.Orange) :
-                                                        new SolidColorBrush(Colors.Red);
+                            if (healthyCount == 3 && score >= 80)
+                            {
+                                _cachedTimeSinceHealth.Text = "Good";
+                                _cachedTimeSinceHealth.Foreground = new SolidColorBrush(Colors.Green);
+                            }
+                            else if (healthyCount >= 2 && score >= 50)
+                            {
+                                _cachedTimeSinceHealth.Text = "Fair";
+                                _cachedTimeSinceHealth.Foreground = new SolidColorBrush(Colors.Orange);
+                            }
+                            else if (healthyCount > 0)
+                            {
+                                _cachedTimeSinceHealth.Text = "Attention";
+                                _cachedTimeSinceHealth.Foreground = new SolidColorBrush(Colors.Orange);
+                            }
+                            else
+                            {
+                                _cachedTimeSinceHealth.Text = "Outdated";
+                                _cachedTimeSinceHealth.Foreground = new SolidColorBrush(Colors.Red);
+                            }
                         }
                     });
                 }
@@ -2068,28 +2084,42 @@ namespace PinayPalBackupManager.UI.UserControls
 
                 // Last health check
                 string lastHealthCheck = "Never";
-                try
+                var lastCheck = BackupManager.LastHealthCheckTime ?? HealthCheckService.GetLastResult()?.Timestamp;
+                if (lastCheck.HasValue)
                 {
-                    if (File.Exists(AppDataPaths.SystemLogPath))
+                    var checkUtc = lastCheck.Value.Kind == DateTimeKind.Utc ? lastCheck.Value : lastCheck.Value.ToUniversalTime();
+                    var timeDiff = DateTime.UtcNow - checkUtc;
+                    lastHealthCheck = timeDiff.TotalSeconds < 60 ? "Just now" :
+                                      timeDiff.TotalMinutes < 60 ? $"{timeDiff.TotalMinutes:F0}m ago" :
+                                      timeDiff.TotalHours < 24 ? $"{timeDiff.TotalHours:F1}h ago" :
+                                      $"{timeDiff.TotalDays:F1}d ago";
+                }
+                else
+                {
+                    try
                     {
-                        var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 50);
-                        var healthCheckLog = logs.FirstOrDefault(l => l.Contains("HEALTH: Global health check completed"));
-                        if (healthCheckLog != null)
+                        if (File.Exists(AppDataPaths.SystemLogPath))
                         {
-                            var match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
-                            if (!match.Success)
-                                match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
-                            if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var healthTime))
+                            var logs = LogService.ImportLatestLogs(AppDataPaths.SystemLogPath, 150);
+                            var healthCheckLog = logs.FirstOrDefault(l => l.Contains("HEALTH: Global health check completed"));
+                            if (healthCheckLog != null)
                             {
-                                var timeDiff = DateTime.Now - healthTime;
-                                lastHealthCheck = timeDiff.TotalMinutes < 60 ? $"{timeDiff.TotalMinutes:F0}m ago" :
-                                                  timeDiff.TotalHours < 24 ? $"{timeDiff.TotalHours:F1}h ago" :
-                                                  $"{timeDiff.TotalDays:F1}d ago";
+                                var match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
+                                if (!match.Success)
+                                    match = System.Text.RegularExpressions.Regex.Match(healthCheckLog, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
+                                if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var healthTime))
+                                {
+                                    BackupManager.LastHealthCheckTime = healthTime.ToUniversalTime();
+                                    var timeDiff = DateTime.Now - healthTime;
+                                    lastHealthCheck = timeDiff.TotalMinutes < 60 ? $"{timeDiff.TotalMinutes:F0}m ago" :
+                                                      timeDiff.TotalHours < 24 ? $"{timeDiff.TotalHours:F1}h ago" :
+                                                      $"{timeDiff.TotalDays:F1}d ago";
+                                }
                             }
                         }
                     }
+                    catch (Exception ex) { LogService.WriteLiveLog($"[SYSTEM] Health check error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 }
-                catch (Exception ex) { LogService.WriteLiveLog($"[SYSTEM] Health check error: {ex.Message}", "", "Warning", "SYSTEM"); }
                 Dispatcher.UIThread.Post(() => { if (LastHealthCheck != null) LastHealthCheck.Text = lastHealthCheck; });
 
                 // Active processes
@@ -2390,12 +2420,12 @@ namespace PinayPalBackupManager.UI.UserControls
             return Brush.Parse("#F38BA8"); // Red - older
         }
 
-        private void UpdateServicesStatusSummary(Dictionary<string, int>? serviceScores)
+        private int UpdateServicesStatusSummary(Dictionary<string, int>? serviceScores)
         {
             if (serviceScores == null)
             {
                 // Don't set default values - leave as "SCANNING..." until actual data arrives
-                return;
+                return 0;
             }
 
             int healthyCount = 0;
@@ -2445,9 +2475,11 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Update Network Drive card
             UpdateNetworkDriveCard();
+
+            return healthyCount;
         }
 
-        private bool IsBackupStale(DateTime? lastBackupTime, double thresholdHours = 48)
+        private bool IsBackupStale(DateTime? lastBackupTime, double thresholdHours = 24)
         {
             if (!lastBackupTime.HasValue) return true;
             var manilaNow = GetManilaNow();
@@ -3027,12 +3059,44 @@ namespace PinayPalBackupManager.UI.UserControls
         protected override void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);
+
+            InitializeCachedControls();
+
+            // Re-subscribe events safely (unsubscribe first to ensure single subscription)
+            if (_manager != null)
+            {
+                _manager.OnAutoScanTimersReset -= OnAutoScanTimersReset;
+                _manager.OnAutoScanTimersReset += OnAutoScanTimersReset;
+
+                _manager.OnDailyScheduleUpdated -= OnDailyScheduleUpdated;
+                _manager.OnDailyScheduleUpdated += OnDailyScheduleUpdated;
+
+                _manager.OnHealthUpdate -= OnHealthUpdate;
+                _manager.OnHealthUpdate += OnHealthUpdate;
+
+                _manager.OnTimeUpdate -= OnTimeUpdate;
+                _manager.OnTimeUpdate += OnTimeUpdate;
+
+                _manager.OnBackupProgress -= OnBackupProgress;
+                _manager.OnBackupProgress += OnBackupProgress;
+            }
+
+            LogService.OnNewLogEntry -= OnNewSystemLogEntry;
+            LogService.OnNewLogEntry += OnNewSystemLogEntry;
+
+            ConfigService.OnScheduleChanged -= OnScheduleChangedFromFirebase;
+            ConfigService.OnScheduleChanged += OnScheduleChangedFromFirebase;
+
+            NetworkDriveService.OnMirrorProgress -= OnMirrorProgressUpdate;
+            NetworkDriveService.OnMirrorProgress += OnMirrorProgressUpdate;
+
             // Restart timers if control was unloaded and reloaded (e.g., tab switch)
             StartActiveProcessTimer();
             StartDashboardAutoRefresh();
             StartHealthAutoRefresh();
             StartStatsAutoRefresh();
             StartErrorRefreshTimer();
+
             // Force reset any stale progress state on reload
             _lastBackupProgressUpdate = DateTime.MinValue;
             _lastBackupWasComplete = false;
@@ -3066,6 +3130,16 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btnFtpMirror != null) btnFtpMirror.IsVisible = ndEnabled;
             if (btnMcMirror != null) btnMcMirror.IsVisible = ndEnabled;
             if (btnSqlMirror != null) btnSqlMirror.IsVisible = ndEnabled;
+
+            UpdateGreeting();
+            UpdateDailySchedule();
+            UpdateSchedSummary();
+            OnAutoScanTimersReset();
+
+            _ = UpdateStorageAsync();
+            _ = LoadWeeklyStatsAsync();
+            _ = LoadLastBackupSummariesAsync();
+            _ = LoadHealthDashboardAsync();
         }
 
         protected override void OnUnloaded(RoutedEventArgs e)

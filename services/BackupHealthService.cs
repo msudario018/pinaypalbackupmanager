@@ -102,6 +102,31 @@ namespace PinayPalBackupManager.Services
                     l.Contains("Synchronization completed") ||
                     l.Contains("SYNC COMPLETE"));
                 var serviceScore = total > 0 ? (successful * 100 / total) : 0;
+
+                // Factor in freshness: penalize stale or missing backups so old backups don't report 100%
+                var lastBackupUtc = GetLastServiceBackupTimeUtc(service);
+                if (lastBackupUtc == null)
+                {
+                    // Never backed up
+                    serviceScore = 0;
+                }
+                else
+                {
+                    var ageHours = (now - lastBackupUtc.Value).TotalHours;
+                    if (ageHours > 72)
+                    {
+                        serviceScore = Math.Min(serviceScore, 20); // >3 days old
+                    }
+                    else if (ageHours > 48)
+                    {
+                        serviceScore = Math.Min(serviceScore, 40); // >2 days old
+                    }
+                    else if (ageHours > 24)
+                    {
+                        serviceScore = Math.Min(serviceScore, 65); // >1 day old
+                    }
+                }
+
                 score.ServiceScores[service] = serviceScore;
             }
 
@@ -418,6 +443,59 @@ namespace PinayPalBackupManager.Services
             }
 
             return scores.Count > 0 ? (int)scores.Average() : 0;
+        }
+
+        public static DateTime? GetLastServiceBackupTimeUtc(string service)
+        {
+            try
+            {
+                // 1. Check history records
+                var history = BackupHistoryService.GetHistory();
+                var last = history?
+                    .Where(h => h.Service.Equals(service, StringComparison.OrdinalIgnoreCase) && 
+                                (h.Status.Equals("Success", StringComparison.OrdinalIgnoreCase) || h.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(h => h.Timestamp)
+                    .FirstOrDefault();
+
+                if (last != null) return last.Timestamp;
+
+                // 2. Check local backup folder for newest file
+                string folder = service.ToUpperInvariant() switch
+                {
+                    "FTP" => BackupConfig.FtpLocalFolder,
+                    "MAILCHIMP" => BackupConfig.MailchimpFolder,
+                    "SQL" => BackupConfig.SqlLocalFolder,
+                    _ => ""
+                };
+
+                if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+                {
+                    var newest = new DirectoryInfo(folder).GetFiles("*", SearchOption.AllDirectories)
+                        .Where(f => !f.Name.Equals("backuplog.txt", StringComparison.OrdinalIgnoreCase) && !f.Name.Equals("backup_log.txt", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(f => f.LastWriteTimeUtc)
+                        .FirstOrDefault();
+
+                    if (newest != null) return newest.LastWriteTimeUtc;
+                }
+
+                // 3. Fallback to newest successful log line
+                var logFile = GetLogFile(service);
+                if (File.Exists(logFile))
+                {
+                    var logs = LogService.ImportLatestLogs(logFile, 50);
+                    foreach (var l in logs)
+                    {
+                        if (l.Contains("SUCCESS") || l.Contains("COMPLETE") || l.Contains("DOWNLOAD COMPLETE"))
+                        {
+                            var t = ParseLogTime(l);
+                            if (t.HasValue) return t.Value.ToUniversalTime();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return null;
         }
     }
 }
