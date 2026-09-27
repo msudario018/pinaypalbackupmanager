@@ -53,9 +53,37 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.5.0",
+            version: "v3.6.0",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "3D Beveled Live Activity badges, rich notification system, PC toast gradients, and browser notification icons",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "3D Beveled Live Activity & Dynamic Island",
+                    description: "Overhauled with vibrant service-specific gradients (Mailchimp cyan-blue, SQL amber gold, FTP emerald jade), specular gloss highlights, ambient drop shadows, and active pulse dots."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Rich iOS Notifications",
+                    description: "Added contextual service emoji badges, descriptive subtitles, and time-sensitive interruption levels to cut through Focus modes for urgent alerts."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "PC Desktop Toast Gradient Badges",
+                    description: "Modernized desktop notifications to 38x38 squircle badges with vibrant multi-stop linear gradients and crisp white iconography."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Web Dashboard Brand Favicon & Push Icons",
+                    description: "Added /api/logo endpoint serving the official PinayPal emblem for browser desktop notifications and browser tab favicons."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.5.0",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "Live Activity overhaul, Profile management, App icon refresh, and UX polish",
             changes: [
                 ChangelogItem(

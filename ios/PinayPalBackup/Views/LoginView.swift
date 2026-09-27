@@ -220,7 +220,7 @@ public struct LoginView: View {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(LiquidTheme.gold)
-                                Text("v3.5.0 • What's New & Changelogs")
+                                Text("v3.6.0 • What's New & Changelogs")
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundColor(LiquidTheme.gold)
                             }

@@ -1,5 +1,28 @@
 # Changelog
 
+## v3.6.0 (2026-09-27)
+
+### Added & Improved
+- **iOS Live Activity & Dynamic Island Widgets**:
+  - Overhauled Live Activity icon with high-end 3D beveled squircle badge plates featuring specular gloss highlights and ambient drop shadows.
+  - Implemented dynamic service-specific gradients: Mailchimp electric cyan/blue (`#38BDF8` → `#1D4ED8`) with envelope shield icon, SQL amber gold (`#FBBF24` → `#D97706`) with database stack, and FTP emerald jade (`#34D399` → `#059669`) with globe network symbol.
+  - Added live pulsing status indicator during active backups and checkmark seal badge upon completion.
+  - Redesigned Lock Screen Live Activity banner with brand header (`PINAYPAL • SERVICE`), glowing multi-stop gradient progress bar, and pill percentage badge.
+  - Upgraded Dynamic Island compact leading/trailing, minimal, and expanded views with high-fidelity badges and progress chips.
+  - Bumped marketing version to `3.6.0` (Build `14`).
+- **iOS Rich Notifications**:
+  - Added contextual service emoji badges to backup notifications (`✅ 📬 MAILCHIMP`, `✅ 🗄️ SQL`, `🚨 Low Disk Space`, `🟢 Website Online`).
+  - Set `.timeSensitive` interruption levels for failed runs, low disk space warnings, and downtime alerts to break through Focus modes.
+- **Desktop PC App**:
+  - Upgraded toast notification icon badge in `ToastNotification.axaml` from a 24x24 flat ellipse to a modern 38x38 rounded squircle with drop shadows and white iconography.
+  - Implemented dynamic 3D linear gradient backgrounds tailored to notification types (Emerald for FTP, Blue for Mailchimp, Amber for SQL, Crimson for Errors, Gold for Warnings).
+  - Bumped desktop app version to `v3.6.0`.
+- **Web Dashboard & API**:
+  - Added `/api/logo` and `/favicon.ico` endpoints directly serving the official PinayPal emblem with caching headers.
+  - Linked brand favicon and apple-touch-icon in both Dashboard and Login HTML heads.
+  - Configured browser desktop push notifications with the PinayPal logo icon and badge.
+  - Bumped Server API version to `v3.6.0`.
+
 ## v3.5.0 (2026-09-27)
 
 ### Added & Improved
