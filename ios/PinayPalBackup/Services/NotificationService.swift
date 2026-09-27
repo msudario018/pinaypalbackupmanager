@@ -187,14 +187,16 @@ public final class NotificationService: NSObject, ObservableObject {
     }
 
     private func attachAppIcon(to content: UNMutableNotificationContent) {
-        guard let image = UIImage(named: "AppLogo"),
-              let data = image.pngData() else { return }
+        let image = UIImage(named: "NotificationLogo") ?? UIImage(named: "AppLogo")
+        guard let image, let data = image.pngData() else { return }
         let tempDir = FileManager.default.temporaryDirectory
-        let iconFile = tempDir.appendingPathComponent("NotificationEmblem.png")
-        try? data.write(to: iconFile)
-        if FileManager.default.fileExists(atPath: iconFile.path),
-           let attachment = try? UNNotificationAttachment(identifier: "app_emblem_\(UUID().uuidString)", url: iconFile, options: nil) {
+        let iconFile = tempDir.appendingPathComponent("NotificationEmblem_\(UUID().uuidString).png")
+        do {
+            try data.write(to: iconFile)
+            let attachment = try UNNotificationAttachment(identifier: "app_emblem_\(UUID().uuidString)", url: iconFile, options: nil)
             content.attachments = [attachment]
+        } catch {
+            print("[NotificationService] Attachment error: \(error)")
         }
     }
 

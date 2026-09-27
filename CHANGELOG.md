@@ -3,6 +3,18 @@
 ## v3.6.2 (2026-09-27)
 
 ### Added & Improved
+- **120Hz ProMotion Display Performance**:
+  - Enabled `CADisableMinimumFrameDurationOnPhone` in `Info.plist`, removing iOS's 60Hz frame rate clamp and unlocking native 120fps ultra-fluid rendering on iPhone ProMotion devices (iPhone 13 Pro through iPhone 17).
+  - Optimized SwiftUI animation curves and spring damping for seamless high-refresh-rate interactions.
+- **Background Live Activity & Dynamic Island Engine**:
+  - Configured `UIBackgroundModes` (`fetch`, `processing`) and `BGTaskSchedulerPermittedIdentifiers` in `Info.plist`.
+  - Implemented background execution lifecycle observer and background polling task in `PinayPalAPIService.swift` via `UIApplication.shared.beginBackgroundTask`.
+  - Live Activity and Dynamic Island now reliably continue updating in real-time (every 2.5s) while a backup is executing, even when the app is minimized or the iPhone is locked.
+  - Automatically terminates background tasks and releases system resources as soon as backup routines complete or emergency stop is invoked.
+- **Home Dashboard Real-Time Backup Progress HUD**:
+  - Overhauled active backup banner in `LiquidDashboardView.swift` into a prominent, high-precision Liquid Glass Progress HUD.
+  - Features real-time percentage indicators (`XX%`), service-specific dynamic icons and accent color themes (SQL Gold, FTP Blue, Mailchimp Purple), and a glowing animated liquid progress bar.
+  - Added real-time status text and tactile emergency STOP button with instant feedback.
 - **WWDC 2025 Liquid Glass Navigation Island Overhaul**:
   - Re-engineered the iOS navigation bar and persistent header into floating **Liquid Glass Islands** elevated above content.
   - Implemented high-transmittance optical transparency, 135-degree physical specular rim highlights, and multi-tier ambient elevation shadows.
@@ -13,7 +25,9 @@
   - Changed iOS application display name from **PinayPal** to **PinayPal Backup** across `Info.plist`, `project.pbxproj`, and header views.
   - Redesigned app icon to Apple's WWDC 2025 Liquid Glass specifications: solid porcelain-white 3D volumetric linked "pp" infinity emblem, layered concentric refractive liquid glass rings, 3D mechanical gear, and full-bleed royal purple to indigo gradient backdrop.
   - Generated complete multi-resolution icon suite with explicit iPhone notification (`20x20@2x`, `@3x`), Settings (`29x29`), Spotlight (`40x40`), and App (`60x60`, `1024x1024`) scales.
-  - Added rich notification emblem attachments in `NotificationService.swift` so notification banners always display the latest Liquid Glass icon.
+  - Added dedicated `NotificationLogo.imageset` and updated `NotificationService.swift` with dynamic UUID temp file caching to ensure iOS notification banners always display the latest emblem without file lock collisions.
+- **Windows PC & Web Icons Multi-Resolution**:
+  - Re-rendered multi-resolution `Assets/logo.ico` (16x16, 24x24, 32x32, 48x48, 64x64, 128x128, 256x256) and `Assets/logo.png` to match the WWDC 2025 Liquid Glass design.
 - **Remote Sync Verification & Outdated Detection Ecosystem**:
   - Created `SyncStatusService.cs`: Centralized remote vs local sync verification for FTP, SQL, and Mailchimp. Directly inspects actual disk archive files rather than relying solely on execution history timestamps.
   - Upgraded `ComputeServiceFreshness` in `WebDashboardService.cs`: Accurately marks backups as "Outdated" if local archives are missing, stale (>24h), or older than remote server archives.
@@ -36,7 +50,7 @@
   - Converted `LiquidTheme.textPrimary` and `LiquidTheme.textSecondary` to dynamic `UIColor`-backed tokens that automatically adapt with crisp contrast in light mode.
   - Eliminated hardcoded `.foregroundColor(.white)` and low-contrast white-on-white backgrounds across Dashboard, History, Settings, and Profile views.
 - **Version Bumps**:
-  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.2` (iOS Build `15`).
+  - Maintained PC Desktop App, Web Dashboard API, and iOS Companion App at `3.6.2` (iOS Build `15`).
 
 ## v3.6.0 (2026-09-27)
 

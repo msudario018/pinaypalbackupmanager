@@ -156,53 +156,113 @@ public struct LiquidDashboardView: View {
     }
 
     // MARK: - Active Backup Banner
+    private func activeServiceAccent(_ service: String) -> Color {
+        let s = service.lowercased()
+        if s.contains("sql") { return LiquidTheme.gold }
+        if s.contains("ftp") { return LiquidTheme.blue }
+        if s.contains("mailchimp") { return LiquidTheme.purple }
+        return LiquidTheme.emerald
+    }
+
+    private func activeServiceIcon(_ service: String) -> String {
+        let s = service.lowercased()
+        if s.contains("sql") { return "cylinder.split.1x2.fill" }
+        if s.contains("ftp") { return "globe.americas.fill" }
+        if s.contains("mailchimp") { return "envelope.badge.shield.half.filled" }
+        return "arrow.triangle.2.circlepath.circle.fill"
+    }
+
     private func activeBackupBanner(active: ActiveBackupSpec) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(LiquidTheme.gold.opacity(0.2))
-                    .frame(width: 36, height: 36)
+        let serviceName = active.service ?? "Routine"
+        let accent = activeServiceAccent(serviceName)
+        let icon = activeServiceIcon(serviceName)
+        let rawProgress = active.progress ?? 45
+        let clampedPct = min(max(rawProgress, 0), 100)
+        let progressFraction = Double(clampedPct) / 100.0
 
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: LiquidTheme.gold))
-                    .scaleEffect(0.85)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text("BACKUP IN PROGRESS")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(LiquidTheme.gold)
-
-                    Text("- \((active.service ?? "Backup").uppercased())")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+        return VStack(alignment: .leading, spacing: 12) {
+            // Header Row
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(accent.opacity(0.18))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(accent)
                 }
 
-                Text(active.statusText ?? "Executing backup routine...")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(LiquidTheme.textSecondary)
-                    .lineLimit(1)
-            }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("BACKUP IN PROGRESS")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundColor(accent)
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 5, height: 5)
+                        Text(serviceName.uppercased())
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                    }
 
-            Spacer()
-
-            Button {
-                Task {
-                    _ = await api.triggerEmergencyStop()
+                    Text(active.statusText ?? "Executing backup routine...")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        .lineLimit(1)
                 }
-            } label: {
-                Text("STOP")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(LiquidTheme.coral)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(LiquidTheme.coral.opacity(0.15))
-                    .cornerRadius(8)
+
+                Spacer()
+
+                // Percentage Badge & Stop Button
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(clampedPct)%")
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .foregroundColor(accent)
+
+                    Button {
+                        Task {
+                            _ = await api.triggerEmergencyStop()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("STOP")
+                                .font(.system(size: 10, weight: .black))
+                        }
+                        .foregroundColor(LiquidTheme.coral)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(LiquidTheme.coral.opacity(0.12))
+                        .cornerRadius(6)
+                    }
+                }
             }
+
+            // High Precision Liquid Progress Bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15))
+                        .frame(height: 7)
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [accent, LiquidTheme.gold],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(geo.size.width * CGFloat(progressFraction), 10), height: 7)
+                        .shadow(color: accent.opacity(0.4), radius: 4, x: 0, y: 1)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: progressFraction)
+                }
+            }
+            .frame(height: 7)
         }
         .padding(14)
-        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.gold.opacity(0.4), variant: .prominent)
+        .liquidGlassCard(cornerRadius: 18, glow: accent.opacity(0.35), variant: .prominent)
         .transition(.scale.combined(with: .opacity))
     }
 

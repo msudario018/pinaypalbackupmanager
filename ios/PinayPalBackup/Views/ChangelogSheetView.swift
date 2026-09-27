@@ -56,8 +56,23 @@ public struct ChangelogSheetView: View {
             version: "v3.6.2",
             releaseDate: "September 2026",
             isLatest: true,
-            highlight: "WWDC 2025 Liquid Glass navigation island overhaul, reimagined layered 3D app icon, remote sync verification, automated schedule countdowns, outdated backup alerts & badges, and light theme contrast polish",
+            highlight: "120Hz ProMotion display unlock, background Live Activity sync engine, Home backup progress HUD, WWDC 2025 Liquid Glass navigation, and refreshed app & notification icon suite",
             changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "120Hz ProMotion Display Performance",
+                    description: "Removed iOS 60Hz frame rate clamp with CADisableMinimumFrameDurationOnPhone, enabling buttery-smooth 120fps animations on iPhone 13 Pro through iPhone 17."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Background Live Activity & Dynamic Island Engine",
+                    description: "Added background execution tasks and UIBackgroundModes so Dynamic Island and Lock Screen Live Activities continuously update even when the device is locked or minimized."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Home Screen Real-Time Backup Progress HUD",
+                    description: "Re-engineered active backup card with real-time percentage indicators, dynamic service accent glows, a high-precision progress bar, and instant emergency stop."
+                ),
                 ChangelogItem(
                     type: .feature,
                     title: "WWDC 2025 Liquid Glass Navigation Island",
@@ -66,7 +81,7 @@ public struct ChangelogSheetView: View {
                 ChangelogItem(
                     type: .feature,
                     title: "Reimagined Liquid Glass App Icon & PinayPal Backup Name",
-                    description: "Updated app name to 'PinayPal Backup'. Rebuilt app icon with a solid porcelain-white 3D volumetric emblem, concentric liquid glass rings, full-bleed purple canvas, and dedicated notification icon suite."
+                    description: "Updated app name to 'PinayPal Backup'. Rebuilt app icon with a solid porcelain-white 3D volumetric emblem, concentric liquid glass rings, and dedicated notification icon suite."
                 ),
                 ChangelogItem(
                     type: .feature,

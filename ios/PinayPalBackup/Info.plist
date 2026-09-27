@@ -30,6 +30,18 @@
     <string>PinayPal Backup connects to your PC on your local home network to monitor and manage backup syncs in real time.</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.pinaypal.backupmanager.refresh</string>
+        <string>com.pinaypal.backupmanager.status</string>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

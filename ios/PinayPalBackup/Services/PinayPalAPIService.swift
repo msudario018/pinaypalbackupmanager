@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 @MainActor
 public class PinayPalAPIService: ObservableObject {
@@ -23,6 +24,9 @@ public class PinayPalAPIService: ObservableObject {
 
     private var pollTimer: AnyCancellable?
     private var lastRecordedBusyService: String? = nil
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    private var backgroundSyncTask: Task<Void, Never>? = nil
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     public init() {
         // Load saved user profile if exists
@@ -36,12 +40,21 @@ public class PinayPalAPIService: ObservableObject {
             self.serverUrl = "http://localhost:8080"
         }
 
+        setupLifecycleObservers()
+
         if isConfigured {
             startPolling()
             Task {
                 await fetchAll()
             }
         }
+    }
+
+    deinit {
+        for observer in lifecycleObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        endBackgroundLiveActivitySync()
     }
 
     public func saveSettings(url: String, pin: String) {
@@ -214,6 +227,83 @@ public class PinayPalAPIService: ObservableObject {
         return discovered
     }
 
+    private func setupLifecycleObservers() {
+        let enterBg = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleDidEnterBackground()
+            }
+        }
+        let enterFg = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleWillEnterForeground()
+            }
+        }
+        lifecycleObservers.append(contentsOf: [enterBg, enterFg])
+    }
+
+    private func handleDidEnterBackground() {
+        let isBusy = self.status?.activeBackup?.isBusy == true || BackupLiveActivityManager.shared.isActivityActive
+        if isBusy {
+            startBackgroundLiveActivitySync()
+        }
+    }
+
+    private func handleWillEnterForeground() {
+        endBackgroundLiveActivitySync()
+        startPolling()
+        Task {
+            await fetchStatus()
+        }
+    }
+
+    public func startBackgroundLiveActivitySync() {
+        guard backgroundTaskID == .invalid else { return }
+
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "PinayPalLiveActivitySync") { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.endBackgroundLiveActivitySync()
+            }
+        }
+
+        backgroundSyncTask?.cancel()
+        backgroundSyncTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self else { break }
+                await self.fetchStatus()
+
+                let stillBusy = await MainActor.run {
+                    self.status?.activeBackup?.isBusy == true || BackupLiveActivityManager.shared.isActivityActive
+                }
+
+                if !stillBusy {
+                    await MainActor.run {
+                        self.endBackgroundLiveActivitySync()
+                    }
+                    break
+                }
+
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+            }
+        }
+    }
+
+    public func endBackgroundLiveActivitySync() {
+        backgroundSyncTask?.cancel()
+        backgroundSyncTask = nil
+        if backgroundTaskID != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+    }
+
     public func startPolling() {
         pollTimer?.cancel()
         pollTimer = Timer.publish(every: 4.0, on: .main, in: .common)
@@ -328,6 +418,10 @@ public class PinayPalAPIService: ObservableObject {
                         message: "Backing up \(curService.uppercased())..."
                     )
                 }
+
+                if UIApplication.shared.applicationState != .active && backgroundTaskID == .invalid {
+                    startBackgroundLiveActivitySync()
+                }
             } else if wasBusy {
                 let sName = (prevService ?? "Backup").uppercased()
                 BackupLiveActivityManager.shared.endBackupActivity(success: true, message: "\(sName) completed successfully")
@@ -337,6 +431,7 @@ public class PinayPalAPIService: ObservableObject {
                     details: "Backup routine for \(sName) completed successfully."
                 )
                 lastRecordedBusyService = nil
+                endBackgroundLiveActivitySync()
             }
 
             // Disk space alert check
@@ -444,6 +539,10 @@ public class PinayPalAPIService: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 202 {
+                BackupLiveActivityManager.shared.startBackupActivity(service: service)
+                if UIApplication.shared.applicationState != .active {
+                    startBackgroundLiveActivitySync()
+                }
                 await fetchAll()
                 return true
             }
@@ -555,6 +654,8 @@ public class PinayPalAPIService: ObservableObject {
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                BackupLiveActivityManager.shared.endBackupActivity(success: false, message: "Emergency Stop Triggered")
+                endBackgroundLiveActivitySync()
                 await fetchStatus()
                 return true
             }
