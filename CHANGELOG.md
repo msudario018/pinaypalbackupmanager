@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.6.2 (2026-09-27)
+## v3.6.3 (2026-09-27)
 
 ### Added & Improved
 - **120Hz ProMotion Display Performance**:
@@ -50,7 +50,7 @@
   - Converted `LiquidTheme.textPrimary` and `LiquidTheme.textSecondary` to dynamic `UIColor`-backed tokens that automatically adapt with crisp contrast in light mode.
   - Eliminated hardcoded `.foregroundColor(.white)` and low-contrast white-on-white backgrounds across Dashboard, History, Settings, and Profile views.
 - **Version Bumps**:
-  - Maintained PC Desktop App, Web Dashboard API, and iOS Companion App at `3.6.2` (iOS Build `15`).
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.3` (iOS Build `16`).
 
 ## v3.6.0 (2026-09-27)
 

@@ -53,7 +53,7 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.2",
+            version: "v3.6.3",
             releaseDate: "September 2026",
             isLatest: true,
             highlight: "120Hz ProMotion display unlock, background Live Activity sync engine, Home backup progress HUD, WWDC 2025 Liquid Glass navigation, and refreshed app & notification icon suite",
