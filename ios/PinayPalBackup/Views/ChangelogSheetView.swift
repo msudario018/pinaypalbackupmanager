@@ -259,7 +259,7 @@ public struct ChangelogSheetView: View {
         .liquidGlassCard(
             cornerRadius: 20,
             glow: release.isLatest ? LiquidTheme.gold.opacity(0.18) : Color.white.opacity(0.05),
-            variant: release.isLatest ? .prominent : .standard
+            variant: release.isLatest ? .prominent : .regular
         )
     }
 }

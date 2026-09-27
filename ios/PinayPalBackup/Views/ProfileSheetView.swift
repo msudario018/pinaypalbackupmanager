@@ -209,9 +209,9 @@ public struct ProfileSheetView: View {
 
             infoRow(title: "Account Username", value: usernameDisplay, icon: "person.text.rectangle")
             infoRow(title: "Access Level", value: roleDisplay, icon: "lock.shield")
-            infoRow(title: "Desktop Machine", value: api.status?.system?.computerName ?? "Desktop Connected", icon: "desktopcomputer")
+            infoRow(title: "Desktop Machine", value: api.status?.system?.hostname ?? "Desktop Connected", icon: "desktopcomputer")
             infoRow(title: "Server Endpoint", value: api.serverUrl, icon: "network")
-            if let os = api.status?.system?.osVersion {
+            if let os = api.status?.system?.os {
                 infoRow(title: "Host OS", value: os, icon: "cpu")
             }
         }

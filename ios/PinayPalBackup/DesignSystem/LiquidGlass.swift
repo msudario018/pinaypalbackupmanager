@@ -12,6 +12,8 @@ public enum LiquidGlassVariant {
     case regular
     case prominent
     case subtle
+
+    public static var standard: LiquidGlassVariant { .regular }
 }
 
 // MARK: - Liquid Glass Card Modifier

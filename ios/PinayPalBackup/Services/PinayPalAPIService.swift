@@ -565,11 +565,17 @@ public class PinayPalAPIService: ObservableObject {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let msg = json["message"] as? String ?? (http.statusCode == 200 ? "Username updated successfully." : "Failed to update username.")
                     if http.statusCode == 200 {
-                        if var user = self.currentUser {
-                            user.username = newUsername
-                            user.fullName = newUsername
-                            self.currentUser = user
-                            if let enc = try? JSONEncoder().encode(user) {
+                        if let user = self.currentUser {
+                            let updated = AppUserProfile(
+                                id: user.id,
+                                username: newUsername,
+                                email: user.email,
+                                role: user.role,
+                                fullName: newUsername,
+                                avatarUrl: user.avatarUrl
+                            )
+                            self.currentUser = updated
+                            if let enc = try? JSONEncoder().encode(updated) {
                                 UserDefaults.standard.set(enc, forKey: "pp_current_user")
                             }
                         }

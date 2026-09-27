@@ -60,6 +60,9 @@ public struct SystemSpecs: Codable {
     public let systemUptime: String?
     public let appUptime: String?
     public let localIp: String?
+
+    public var computerName: String? { hostname }
+    public var osVersion: String? { os }
 }
 
 public struct ScheduleSpecs: Codable {
@@ -228,12 +231,12 @@ public struct PingResponse: Codable {
 }
 
 public struct AppUserProfile: Codable, Equatable {
-    public let id: Int
-    public let username: String
-    public let email: String?
-    public let role: String
-    public let fullName: String?
-    public let avatarUrl: String?
+    public var id: Int
+    public var username: String
+    public var email: String?
+    public var role: String
+    public var fullName: String?
+    public var avatarUrl: String?
 
     public init(id: Int, username: String, email: String? = nil, role: String = "User", fullName: String? = nil, avatarUrl: String? = nil) {
         self.id = id
