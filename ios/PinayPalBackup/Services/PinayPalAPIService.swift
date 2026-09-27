@@ -54,7 +54,6 @@ public class PinayPalAPIService: ObservableObject {
         for observer in lifecycleObservers {
             NotificationCenter.default.removeObserver(observer)
         }
-        endBackgroundLiveActivitySync()
     }
 
     public func saveSettings(url: String, pin: String) {
