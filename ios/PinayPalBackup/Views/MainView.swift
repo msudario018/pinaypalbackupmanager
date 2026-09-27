@@ -112,7 +112,7 @@ public struct MainView: View {
                 .resizable().aspectRatio(contentMode: .fit)
                 .frame(width: 28, height: 28).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
-                Text(selectedTab == .home ? "PinayPal" : tabTitle)
+                Text(selectedTab == .home ? "PinayPal Backup" : tabTitle)
                     .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.textPrimary(for: systemColorScheme))
                     .lineLimit(1)
@@ -238,7 +238,7 @@ public struct MainView: View {
 
     private var tabTitle: String {
         switch selectedTab {
-        case .home: return "PinayPal"
+        case .home: return "PinayPal Backup"
         case .activity: return "Activity"
         case .history: return "History"
         case .automations: return "Automations"

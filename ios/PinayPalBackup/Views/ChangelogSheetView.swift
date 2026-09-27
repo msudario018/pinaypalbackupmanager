@@ -65,8 +65,8 @@ public struct ChangelogSheetView: View {
                 ),
                 ChangelogItem(
                     type: .feature,
-                    title: "Reimagined Liquid Glass App Icon",
-                    description: "Redesigned app icon to Apple's WWDC 2025 Liquid Glass specification featuring layered 3D volumetric frosted glass, optical caustics, and specular edge reflections."
+                    title: "Reimagined Liquid Glass App Icon & PinayPal Backup Name",
+                    description: "Updated app name to 'PinayPal Backup'. Rebuilt app icon with a solid porcelain-white 3D volumetric emblem, concentric liquid glass rings, full-bleed purple canvas, and dedicated notification icon suite."
                 ),
                 ChangelogItem(
                     type: .feature,

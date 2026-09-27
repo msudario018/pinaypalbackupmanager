@@ -9,9 +9,11 @@
   - Replaced isolated static tab capsules with a continuous fluid sliding active lens using `matchedGeometryEffect`.
   - Added viscous spring physics (`response: 0.35, dampingFraction: 0.72`), tactile haptic detent feedback (`UIImpactFeedbackGenerator(style: .rigid)`), and micro-bounce icon scaling.
   - Added full support for `accessibilityReduceTransparency` fallback rendering.
-- **Reimagined Liquid Glass iOS App Icon**:
-  - Conforms to Apple's WWDC 2025 Liquid Glass icon design principles with simplified layered 3D volumetric frosted shapes, optical refraction, specular edge highlights, and rich purple-to-indigo gradient backdrop.
-  - Updated both `AppIcon-1024.png` and `AppLogo` asset sets.
+- **Reimagined Liquid Glass iOS App Icon & App Name**:
+  - Changed iOS application display name from **PinayPal** to **PinayPal Backup** across `Info.plist`, `project.pbxproj`, and header views.
+  - Redesigned app icon to Apple's WWDC 2025 Liquid Glass specifications: solid porcelain-white 3D volumetric linked "pp" infinity emblem, layered concentric refractive liquid glass rings, 3D mechanical gear, and full-bleed royal purple to indigo gradient backdrop.
+  - Generated complete multi-resolution icon suite with explicit iPhone notification (`20x20@2x`, `@3x`), Settings (`29x29`), Spotlight (`40x40`), and App (`60x60`, `1024x1024`) scales.
+  - Added rich notification emblem attachments in `NotificationService.swift` so notification banners always display the latest Liquid Glass icon.
 - **Remote Sync Verification & Outdated Detection Ecosystem**:
   - Created `SyncStatusService.cs`: Centralized remote vs local sync verification for FTP, SQL, and Mailchimp. Directly inspects actual disk archive files rather than relying solely on execution history timestamps.
   - Upgraded `ComputeServiceFreshness` in `WebDashboardService.cs`: Accurately marks backups as "Outdated" if local archives are missing, stale (>24h), or older than remote server archives.

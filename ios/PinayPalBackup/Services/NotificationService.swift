@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import UIKit
 
 public enum NotificationNavigationRequest: Equatable {
     case activity
@@ -99,6 +100,7 @@ public final class NotificationService: NSObject, ObservableObject {
         }
         content.categoryIdentifier = success ? "BACKUP_SUCCESS" : "BACKUP_FAILURE"
         content.userInfo = ["service": service.lowercased(), "destination": success ? "activity" : "logs"]
+        attachAppIcon(to: content)
         add(content, identifier: "backup_\(service)_\(UUID().uuidString)")
     }
 
@@ -113,6 +115,7 @@ public final class NotificationService: NSObject, ObservableObject {
             content.interruptionLevel = .timeSensitive
         }
         content.userInfo = ["destination": "activity"]
+        attachAppIcon(to: content)
         add(content, identifier: "low_disk_\(diskLetter)")
     }
 
@@ -133,6 +136,7 @@ public final class NotificationService: NSObject, ObservableObject {
         }
         content.categoryIdentifier = isOnline ? "BACKUP_SUCCESS" : "BACKUP_FAILURE"
         content.userInfo = ["destination": "activity"]
+        attachAppIcon(to: content)
         add(content, identifier: "website_\(stateKey)_\(UUID().uuidString)")
     }
 
@@ -150,6 +154,7 @@ public final class NotificationService: NSObject, ObservableObject {
         }
         content.categoryIdentifier = "BACKUP_FAILURE"
         content.userInfo = ["service": service.lowercased(), "destination": "activity"]
+        attachAppIcon(to: content)
         add(content, identifier: "outdated_\(service.lowercased())_\(UUID().uuidString)")
     }
 
@@ -161,7 +166,7 @@ public final class NotificationService: NSObject, ObservableObject {
 
     public func sendTestNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "🛡️ PinayPal Alerts Ready"
+        content.title = "🛡️ PinayPal Backup Alerts Ready"
         content.subtitle = "Notification channel operational"
         content.body = "You will receive real-time backup alerts, website status updates, and low disk warnings."
         content.sound = .default
@@ -169,7 +174,8 @@ public final class NotificationService: NSObject, ObservableObject {
             content.interruptionLevel = .active
         }
         content.userInfo = ["destination": "activity"]
-        add(content, identifier: "notification_test", diagnostic: "Test notification scheduled. If PinayPal is open, it should still show a banner.")
+        attachAppIcon(to: content)
+        add(content, identifier: "notification_test", diagnostic: "Test notification scheduled. If PinayPal Backup is open, it should still show a banner.")
     }
 
     private func configureCategories() {
@@ -178,6 +184,18 @@ public final class NotificationService: NSObject, ObservableObject {
         let failure = UNNotificationCategory(identifier: "BACKUP_FAILURE", actions: [retry, details], intentIdentifiers: [], options: [])
         let success = UNNotificationCategory(identifier: "BACKUP_SUCCESS", actions: [], intentIdentifiers: [], options: [])
         UNUserNotificationCenter.current().setNotificationCategories([failure, success])
+    }
+
+    private func attachAppIcon(to content: UNMutableNotificationContent) {
+        guard let image = UIImage(named: "AppLogo"),
+              let data = image.pngData() else { return }
+        let tempDir = FileManager.default.temporaryDirectory
+        let iconFile = tempDir.appendingPathComponent("NotificationEmblem.png")
+        try? data.write(to: iconFile)
+        if FileManager.default.fileExists(atPath: iconFile.path),
+           let attachment = try? UNNotificationAttachment(identifier: "app_emblem_\(UUID().uuidString)", url: iconFile, options: nil) {
+            content.attachments = [attachment]
+        }
     }
 
     private func add(_ content: UNMutableNotificationContent, identifier: String, diagnostic: String? = nil) {
