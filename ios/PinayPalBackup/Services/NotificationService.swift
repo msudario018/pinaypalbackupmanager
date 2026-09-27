@@ -77,9 +77,26 @@ public final class NotificationService: NSObject, ObservableObject {
     public func sendBackupNotification(service: String, success: Bool, details: String) {
         guard !success ? notifyOnFailure : notifyOnSuccess else { return }
         let content = UNMutableNotificationContent()
-        content.title = success ? "Backup completed: \(service)" : "Backup failed: \(service)"
+        let s = service.lowercased()
+        let iconBadge: String
+        if s.contains("sql") || s.contains("database") {
+            iconBadge = "🗄️"
+        } else if s.contains("mailchimp") || s.contains("email") {
+            iconBadge = "📬"
+        } else if s.contains("ftp") || s.contains("website") {
+            iconBadge = "🌐"
+        } else {
+            iconBadge = "💾"
+        }
+
+        let statusSymbol = success ? "✅" : "⚠️"
+        content.title = "\(statusSymbol) \(iconBadge) \(service.uppercased()) Backup \(success ? "Completed" : "Failed")"
+        content.subtitle = success ? "All archives verified & secured" : "Attention required — check backup logs"
         content.body = details
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = success ? .active : .timeSensitive
+        }
         content.categoryIdentifier = success ? "BACKUP_SUCCESS" : "BACKUP_FAILURE"
         content.userInfo = ["service": service.lowercased(), "destination": success ? "activity" : "logs"]
         add(content, identifier: "backup_\(service)_\(UUID().uuidString)")
@@ -88,9 +105,13 @@ public final class NotificationService: NSObject, ObservableObject {
     public func sendLowDiskAlert(diskLetter: String, freeGb: Double, percentUsed: Double) {
         guard notifyOnLowDisk, shouldSend(key: "low_disk_\(diskLetter)", cooldown: 86_400) else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Low disk space"
-        content.body = "Drive \(diskLetter) is \(Int(percentUsed))% full; \(String(format: "%.1f", freeGb)) GB remains."
+        content.title = "🚨 Low Disk Space Warning"
+        content.subtitle = "Drive \(diskLetter): \(Int(percentUsed))% Full"
+        content.body = "Only \(String(format: "%.1f", freeGb)) GB remaining on Drive \(diskLetter). Older backups may need cleanup."
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
         content.userInfo = ["destination": "activity"]
         add(content, identifier: "low_disk_\(diskLetter)")
     }
@@ -103,9 +124,13 @@ public final class NotificationService: NSObject, ObservableObject {
         guard shouldSend(key: stateKey, cooldown: 300) else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = isOnline ? "pinaypal.net is back online" : "pinaypal.net is unavailable"
+        content.title = isOnline ? "🟢 Website Online: pinaypal.net" : "🔴 Website Alert: pinaypal.net Offline"
+        content.subtitle = isOnline ? "Health check passed successfully" : "HTTP health probe did not respond"
         content.body = details
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = isOnline ? .active : .timeSensitive
+        }
         content.categoryIdentifier = isOnline ? "BACKUP_SUCCESS" : "BACKUP_FAILURE"
         content.userInfo = ["destination": "activity"]
         add(content, identifier: "website_\(stateKey)_\(UUID().uuidString)")
@@ -113,9 +138,13 @@ public final class NotificationService: NSObject, ObservableObject {
 
     public func sendTestNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "PinayPal notifications are ready"
-        content.body = "You will receive backup and disk-space alerts on this device."
+        content.title = "🛡️ PinayPal Alerts Ready"
+        content.subtitle = "Notification channel operational"
+        content.body = "You will receive real-time backup alerts, website status updates, and low disk warnings."
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .active
+        }
         content.userInfo = ["destination": "activity"]
         add(content, identifier: "notification_test", diagnostic: "Test notification scheduled. If PinayPal is open, it should still show a banner.")
     }

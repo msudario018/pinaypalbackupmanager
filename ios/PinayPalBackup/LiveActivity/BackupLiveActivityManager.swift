@@ -75,7 +75,7 @@ public class BackupLiveActivityManager: ObservableObject {
                 message: "Backing up \(service.uppercased())...",
                 speedText: "Connecting...",
                 etaText: "Estimating...",
-                serviceIcon: service.lowercased().contains("sql") ? "cylinder.split.1x2" : (service.lowercased().contains("ftp") ? "externaldrive.fill" : "envelope.badge.fill")
+                serviceIcon: serviceIconFor(service)
             )
 
             do {
@@ -118,10 +118,12 @@ public class BackupLiveActivityManager: ObservableObject {
         }
     }
 
-    public func updateBackupActivity(progress: Double, status: String, message: String, speedText: String? = nil, etaText: String? = nil) {
+    public func updateBackupActivity(progress: Double, status: String, message: String, speedText: String? = nil, etaText: String? = nil, serviceIcon: String? = nil) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
+
+            let icon = serviceIcon ?? activity.content.state.serviceIcon ?? serviceIconFor(activity.attributes.serviceName)
 
             let updatedState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,
@@ -130,7 +132,8 @@ public class BackupLiveActivityManager: ObservableObject {
                 isComplete: false,
                 message: message,
                 speedText: speedText,
-                etaText: etaText
+                etaText: etaText,
+                serviceIcon: icon
             )
 
             Task {
@@ -150,7 +153,10 @@ public class BackupLiveActivityManager: ObservableObject {
                 status: success ? "Completed" : "Failed",
                 progress: 1.0,
                 isComplete: true,
-                message: message
+                message: message,
+                speedText: success ? "All files synced" : "Halted",
+                etaText: success ? "0s" : "Error",
+                serviceIcon: success ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
             )
 
             // Clear the in-memory handle first. A following backup can then create its
@@ -166,5 +172,13 @@ public class BackupLiveActivityManager: ObservableObject {
             }
         }
         #endif
+    }
+
+    public func serviceIconFor(_ service: String) -> String {
+        let s = service.lowercased()
+        if s.contains("sql") || s.contains("database") { return "cylinder.split.1x2.fill" }
+        if s.contains("mailchimp") || s.contains("email") { return "envelope.badge.shield.half.filled" }
+        if s.contains("ftp") || s.contains("website") { return "globe.americas.fill" }
+        return "arrow.triangle.2.circlepath.circle.fill"
     }
 }

@@ -41,7 +41,7 @@ namespace PinayPalBackupManager.Services
             }
 
             // Public endpoints that do not require auth check:
-            bool isPublicEndpoint = path == "/api/ping" || path == "/api/user-login" || path == "/login";
+            bool isPublicEndpoint = path == "/api/ping" || path == "/api/user-login" || path == "/login" || path == "/api/logo" || path == "/favicon.ico";
 
             // PIN or Session Token Authentication check if enabled
             if (!isPublicEndpoint && ConfigService.Current.HttpServer.RequireAuth && !string.IsNullOrWhiteSpace(ConfigService.Current.HttpServer.WebPin))
@@ -64,6 +64,10 @@ namespace PinayPalBackupManager.Services
                 if (path == "/" || path == "/index.html" || path == "/dashboard")
                 {
                     await ServeDashboardHtmlAsync(response);
+                }
+                else if (path == "/api/logo" || path == "/favicon.ico")
+                {
+                    await ServeLogoAsync(response);
                 }
                 else if (path == "/api/ping")
                 {
@@ -1146,6 +1150,36 @@ namespace PinayPalBackupManager.Services
             return SendJsonAsync(response, statusCode, new { success = false, code, message, retryAfter });
         }
 
+        private static async Task ServeLogoAsync(HttpListenerResponse response)
+        {
+            var candidatePaths = new[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "logo.png"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Assets", "logo.png"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "icon.ico"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Assets", "icon.ico")
+            };
+
+            foreach (var p in candidatePaths)
+            {
+                if (File.Exists(p))
+                {
+                    var isIco = p.EndsWith(".ico", StringComparison.OrdinalIgnoreCase);
+                    response.StatusCode = 200;
+                    response.ContentType = isIco ? "image/x-icon" : "image/png";
+                    response.Headers.Add("Cache-Control", "public, max-age=86400");
+                    var bytes = await File.ReadAllBytesAsync(p);
+                    response.ContentLength64 = bytes.Length;
+                    await response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
+                    response.Close();
+                    return;
+                }
+            }
+
+            response.StatusCode = 404;
+            response.Close();
+        }
+
         private static async Task ServeLoginHtmlAsync(HttpListenerResponse response)
         {
             response.StatusCode = 200;
@@ -1156,6 +1190,8 @@ namespace PinayPalBackupManager.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>PinayPal Backup Manager - Login</title>
+    <link rel=""icon"" type=""image/png"" href=""/api/logo"">
+    <link rel=""apple-touch-icon"" href=""/api/logo"">
     <script>
         (function() {
             var theme = localStorage.getItem('pinaypal_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
@@ -1223,6 +1259,8 @@ namespace PinayPalBackupManager.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>PinayPal Backup Manager</title>
+    <link rel=""icon"" type=""image/png"" href=""/api/logo"">
+    <link rel=""apple-touch-icon"" href=""/api/logo"">
     <script>
         (function() {
             var theme = localStorage.getItem('pinaypal_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
@@ -2009,11 +2047,17 @@ namespace PinayPalBackupManager.Services
 
         function sendBrowserNotification(title, body) {
             if ('Notification' in window) {
+                var opts = {
+                    body: body,
+                    icon: '/api/logo',
+                    badge: '/api/logo',
+                    tag: 'pinaypal-status'
+                };
                 if (Notification.permission === 'granted') {
-                    new Notification(title, { body: body });
+                    new Notification(title, opts);
                 } else if (Notification.permission !== 'denied') {
                     Notification.requestPermission().then(function(p) {
-                        if (p === 'granted') new Notification(title, { body: body });
+                        if (p === 'granted') new Notification(title, opts);
                     });
                 }
             }

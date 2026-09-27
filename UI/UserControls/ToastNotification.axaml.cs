@@ -185,46 +185,66 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Set contextual icon based on notification content
             var contextualIcon = GetContextualIcon(title, message, type);
-            
-            // Set icon and colors based on type using tea-green palette
-            switch (type.ToLower())
-            {
-                case "success":
-                    var successDef = GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(204, 213, 174)));
-                    IconCircle.Fill = GetContextualFill(title, message, type, successDef);
-                    IconPath.Data = PathGeometry.Parse(contextualIcon);
-                    break;
-                case "warning":
-                    IconCircle.Fill = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(250, 214, 67)));
-                    IconPath.Data = PathGeometry.Parse(contextualIcon);
-                    break;
-                case "error":
-                    IconCircle.Fill = GetThemeResource("AppWarning", new SolidColorBrush(Color.FromRgb(243, 138, 168)));
-                    IconPath.Data = PathGeometry.Parse(contextualIcon);
-                    break;
-                default: // info
-                    var infoDef = GetThemeResource("AccentWebsite", new SolidColorBrush(Color.FromRgb(149, 213, 178)));
-                    IconCircle.Fill = GetContextualFill(title, message, type, infoDef);
-                    IconPath.Data = PathGeometry.Parse(contextualIcon);
-                    break;
-            }
+            IconPath.Data = PathGeometry.Parse(contextualIcon);
+            IconPath.Foreground = Brushes.White;
+
+            IconBadgeBorder.Background = GetContextualGradient(title, message, type);
         }
 
-        private IBrush GetContextualFill(string title, string message, string type, IBrush defaultBrush)
+        private IBrush GetContextualGradient(string title, string message, string type)
         {
             var titleLower = title.ToLower();
             var messageLower = message.ToLower();
+            var typeLower = type.ToLower();
 
-            if (titleLower.Contains("ftp") || messageLower.Contains("ftp") || titleLower.Contains("website") || messageLower.Contains("website"))
-                return GetThemeResource("AccentFtp", new SolidColorBrush(Color.FromRgb(52, 211, 153)));
+            Color startColor, endColor;
 
-            if (titleLower.Contains("mailchimp") || messageLower.Contains("mailchimp") || titleLower.Contains("email") || messageLower.Contains("email"))
-                return GetThemeResource("AccentMailchimp", new SolidColorBrush(Color.FromRgb(96, 165, 250)));
+            if (typeLower == "error" || titleLower.Contains("fail") || messageLower.Contains("fail") || titleLower.Contains("error"))
+            {
+                startColor = Color.FromRgb(239, 68, 68);
+                endColor = Color.FromRgb(185, 28, 28);
+            }
+            else if (typeLower == "warning" || titleLower.Contains("warn") || messageLower.Contains("warn") || titleLower.Contains("low disk"))
+            {
+                startColor = Color.FromRgb(245, 158, 11);
+                endColor = Color.FromRgb(217, 119, 6);
+            }
+            else if (titleLower.Contains("ftp") || messageLower.Contains("ftp") || titleLower.Contains("website") || messageLower.Contains("website"))
+            {
+                startColor = Color.FromRgb(16, 185, 129);
+                endColor = Color.FromRgb(5, 150, 105);
+            }
+            else if (titleLower.Contains("mailchimp") || messageLower.Contains("mailchimp") || titleLower.Contains("email") || messageLower.Contains("email"))
+            {
+                startColor = Color.FromRgb(59, 130, 246);
+                endColor = Color.FromRgb(29, 78, 216);
+            }
+            else if (titleLower.Contains("sql") || messageLower.Contains("sql") || titleLower.Contains("database") || messageLower.Contains("database"))
+            {
+                startColor = Color.FromRgb(245, 158, 11);
+                endColor = Color.FromRgb(180, 83, 9);
+            }
+            else if (typeLower == "success")
+            {
+                startColor = Color.FromRgb(16, 185, 129);
+                endColor = Color.FromRgb(4, 120, 87);
+            }
+            else
+            {
+                startColor = Color.FromRgb(14, 165, 233);
+                endColor = Color.FromRgb(3, 105, 161);
+            }
 
-            if (titleLower.Contains("sql") || messageLower.Contains("sql") || titleLower.Contains("database") || messageLower.Contains("database"))
-                return GetThemeResource("AccentSql", new SolidColorBrush(Color.FromRgb(251, 191, 36)));
-
-            return defaultBrush;
+            return new LinearGradientBrush
+            {
+                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                GradientStops = new GradientStops
+                {
+                    new GradientStop(startColor, 0),
+                    new GradientStop(endColor, 1)
+                }
+            };
         }
         
         private string GetContextualIcon(string title, string message, string type)
