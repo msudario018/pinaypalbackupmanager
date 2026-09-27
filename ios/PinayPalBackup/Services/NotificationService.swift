@@ -136,6 +136,29 @@ public final class NotificationService: NSObject, ObservableObject {
         add(content, identifier: "website_\(stateKey)_\(UUID().uuidString)")
     }
 
+    public func sendOutdatedBackupAlert(service: String, details: String) {
+        guard notifyOnFailure, shouldSend(key: "outdated_\(service.lowercased())", cooldown: 21_600) else { return } // 6 hour cooldown
+        let content = UNMutableNotificationContent()
+        let s = service.lowercased()
+        let iconBadge = s.contains("sql") ? "🗄️" : (s.contains("mailchimp") ? "📬" : "🌐")
+        content.title = "⚠️ Outdated Backup Alert: \(iconBadge) \(service.uppercased())"
+        content.subtitle = "Local backup is stale (> 24 hours) or remote is newer"
+        content.body = details
+        content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
+        content.categoryIdentifier = "BACKUP_FAILURE"
+        content.userInfo = ["service": service.lowercased(), "destination": "activity"]
+        add(content, identifier: "outdated_\(service.lowercased())_\(UUID().uuidString)")
+    }
+
+    public func setBadgeCount(_ count: Int) {
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(count)
+        }
+    }
+
     public func sendTestNotification() {
         let content = UNMutableNotificationContent()
         content.title = "🛡️ PinayPal Alerts Ready"

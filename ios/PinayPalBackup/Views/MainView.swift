@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct MainView: View {
     private enum AppTab: Hashable {
-        case home, activity, history, logs
+        case home, activity, history, automations
     }
 
     @StateObject private var api = PinayPalAPIService()
@@ -64,7 +64,7 @@ public struct MainView: View {
         }
         .onReceive(NotificationService.shared.$navigationRequest) { request in
             guard let request else { return }
-            selectedTab = request == .logs ? .logs : .activity
+            selectedTab = request == .logs ? .automations : .activity
             NotificationService.shared.clearNavigationRequest()
         }
         .onReceive(NotificationService.shared.$retryService) { service in
@@ -95,9 +95,9 @@ public struct MainView: View {
             .tag(AppTab.history)
 
             NavigationStack {
-                LiveLogsView(api: api, showSettingsSheet: $showSettingsSheet)
+                AutomationsView(api: api)
             }
-            .tag(AppTab.logs)
+            .tag(AppTab.automations)
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .top, spacing: 0) { persistentHeader }
@@ -113,7 +113,7 @@ public struct MainView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(selectedTab == .home ? "PinayPal" : tabTitle)
                     .font(.system(size: 18, weight: .black, design: .rounded))
-                    .foregroundColor(LiquidTheme.textPrimary)
+                    .foregroundColor(LiquidTheme.textPrimary(for: systemColorScheme))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                 HStack(spacing: 4) {
@@ -123,7 +123,7 @@ public struct MainView: View {
                     if api.isOnline, let ms = api.latencyMs {
                         Text("·")
                             .font(.caption2)
-                            .foregroundColor(LiquidTheme.textSecondary)
+                            .foregroundColor(LiquidTheme.textSecondary(for: systemColorScheme))
                         Text("\(ms)ms")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundColor(ms < 100 ? LiquidTheme.emerald : (ms < 500 ? LiquidTheme.gold : LiquidTheme.coral))
@@ -140,7 +140,7 @@ public struct MainView: View {
                             .fill(LiquidTheme.gold.opacity(0.18))
                             .frame(width: 36, height: 36)
                         Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: 22))
                             .foregroundColor(LiquidTheme.gold)
                     }
                 }
@@ -150,7 +150,7 @@ public struct MainView: View {
                 } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(LiquidTheme.textPrimary)
+                        .foregroundColor(LiquidTheme.textPrimary(for: systemColorScheme))
                         .frame(width: 36, height: 36)
                 }
                 .background(Color.white.opacity(0.10), in: Circle())
@@ -167,7 +167,7 @@ public struct MainView: View {
             tabButton(.home, "Home", "house.fill")
             tabButton(.activity, "Activity", "waveform.path.ecg")
             tabButton(.history, "History", "clock.arrow.circlepath")
-            tabButton(.logs, "Logs", "terminal.fill")
+            tabButton(.automations, "Automations", "bolt.shield.fill")
         }
         .padding(5)
         .liquidGlassBar()
@@ -182,7 +182,7 @@ public struct MainView: View {
                 Image(systemName: icon).font(.system(size: 14, weight: .bold))
                 Text(title).font(.system(size: 9, weight: .bold)).lineLimit(1).minimumScaleFactor(0.75)
             }
-            .foregroundColor(selectedTab == tab ? LiquidTheme.textPrimary : LiquidTheme.textSecondary)
+            .foregroundColor(selectedTab == tab ? LiquidTheme.textPrimary(for: systemColorScheme) : LiquidTheme.textSecondary(for: systemColorScheme))
             .frame(maxWidth: .infinity, minHeight: 45).padding(.vertical, 4)
             .background(selectedTab == tab ? LiquidTheme.gold.opacity(0.34) : .clear, in: Capsule())
         }
@@ -193,10 +193,10 @@ public struct MainView: View {
         case .home: return "PinayPal"
         case .activity: return "Activity"
         case .history: return "History"
-        case .logs: return "Live Logs"
+        case .automations: return "Automations"
         }
     }
-}
+}}
 
 private struct ActivityOverviewView: View {
     @ObservedObject var api: PinayPalAPIService

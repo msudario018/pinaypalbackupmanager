@@ -730,6 +730,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     ? "Warning"
                     : "Information";
             LogService.WriteLiveLog($"SYNC CHECK RESULT: {statusText} | {detailText}", BackupConfig.SqlLogFile, logLevel, "MANUAL");
+            SyncStatusService.UpdateStatus("SQL", statusText, detailText, string.Equals(statusText, "OUTDATED", StringComparison.OrdinalIgnoreCase) || statusText.Contains("ERROR"));
 
             NotificationService.ShowBackupToast("SQL", toastMessage, toastType);
 

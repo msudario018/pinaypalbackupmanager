@@ -93,6 +93,8 @@ public struct ServerConfigSheet: View {
                                 appearanceSection
                             } else if selectedSection == 3 {
                                 connectionSection
+                            } else if selectedSection == 4 {
+                                LiveLogsView(api: api, showSettingsSheet: .constant(false), isEmbedded: true)
                             } else {
                                 aboutSection
                             }
@@ -136,48 +138,74 @@ public struct ServerConfigSheet: View {
         }
     }
 
-    // MARK: - Segmented Header
+    // MARK: - Overhauled Category Picker
     private var segmentedPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                segmentButton(title: "Security", icon: "faceid", index: 0)
-                segmentButton(title: "Remote PC", icon: "desktopcomputer", index: 1)
-                segmentButton(title: "Theme", icon: "circle.lefthalf.filled", index: 2)
-                segmentButton(title: "Network", icon: "network", index: 3)
-                segmentButton(title: "About", icon: "info.circle", index: 4)
+            HStack(spacing: 8) {
+                categoryTabItem(title: "Security", icon: "lock.shield.fill", index: 0, badge: nil)
+                categoryTabItem(title: "Remote PC", icon: "desktopcomputer", index: 1, badge: nil)
+                categoryTabItem(title: "Theme", icon: "paintbrush.fill", index: 2, badge: nil)
+                categoryTabItem(title: "Network", icon: "network", index: 3, badge: nil)
+                categoryTabItem(title: "Live Logs", icon: "terminal.fill", index: 4, badge: "\(api.logs.count)")
+                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.2")
             }
-            .padding(4)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
         }
-        .background(colorScheme == .light ? Color.black.opacity(0.06) : Color.white.opacity(0.06))
-        .clipShape(Capsule(style: .continuous))
     }
 
-    private func segmentButton(title: String, icon: String, index: Int) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+    private func categoryTabItem(title: String, icon: String, index: Int, badge: String?) -> some View {
+        let isSelected = selectedSection == index
+        return Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
                 selectedSection = index
             }
             let haptic = UIImpactFeedbackGenerator(style: .light)
             haptic.impactOccurred()
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(isSelected ? .white : (colorScheme == .light ? LiquidTheme.goldDark : LiquidTheme.gold))
+
                 Text(title)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: isSelected ? .heavy : .semibold, design: .rounded))
+                    .foregroundColor(isSelected ? .white : LiquidTheme.textPrimary(for: colorScheme))
+
+                if let badge = badge, !badge.isEmpty {
+                    Text(badge)
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(isSelected ? Color.white.opacity(0.25) : (colorScheme == .light ? Color.black.opacity(0.08) : Color.white.opacity(0.12)))
+                        .cornerRadius(6)
+                        .foregroundColor(isSelected ? .white : LiquidTheme.textSecondary(for: colorScheme))
+                }
             }
-            .foregroundColor(selectedSection == index ? .black : LiquidTheme.textSecondary)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
             .background {
-                if selectedSection == index {
-                    Capsule(style: .continuous)
-                        .fill(LiquidTheme.gold)
-                        .shadow(color: LiquidTheme.gold.opacity(0.35), radius: 6, y: 2)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [LiquidTheme.goldDark, LiquidTheme.gold],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: LiquidTheme.gold.opacity(0.35), radius: 8, x: 0, y: 3)
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(LiquidTheme.card(for: colorScheme))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(LiquidTheme.border(for: colorScheme).opacity(colorScheme == .light ? 0.6 : 0.2), lineWidth: 1)
+                        )
                 }
             }
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Section 0: Face ID & Biometric Security
@@ -246,22 +274,22 @@ public struct ServerConfigSheet: View {
                 } label: {
                     HStack(spacing: 8) {
                         if isTestingBio {
-                            ProgressView().tint(.white).padding(.trailing, 4)
+                            ProgressView().tint(LiquidTheme.cyan).padding(.trailing, 4)
                         } else {
                             Image(systemName: "checkmark.shield.fill")
                                 .foregroundColor(LiquidTheme.cyan)
                         }
                         Text(isTestingBio ? "Scanning Biometrics..." : "Test Face ID Recognition Now")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.08))
+                    .background(LiquidTheme.card(for: colorScheme))
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                            .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                     )
                 }
 
@@ -977,12 +1005,12 @@ public struct ServerConfigSheet: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .padding(12)
-                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .background(LiquidTheme.card(for: colorScheme))
                         .cornerRadius(10)
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                         )
                 }
 
@@ -996,12 +1024,12 @@ public struct ServerConfigSheet: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .padding(12)
-                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .background(LiquidTheme.card(for: colorScheme))
                         .cornerRadius(10)
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                         )
                 }
 
@@ -1012,12 +1040,12 @@ public struct ServerConfigSheet: View {
 
                     SecureField("Enter PIN if configured", text: $inputPin)
                         .padding(12)
-                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .background(LiquidTheme.card(for: colorScheme))
                         .cornerRadius(10)
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                         )
                 }
             }
@@ -1114,12 +1142,12 @@ public struct ServerConfigSheet: View {
                         .autocapitalization(.allCharacters)
                         .disableAutocorrection(true)
                         .padding(12)
-                        .background(Color(red: 0.05, green: 0.07, blue: 0.1))
+                        .background(LiquidTheme.card(for: colorScheme))
                         .cornerRadius(10)
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                         )
                 }
 
@@ -1128,21 +1156,21 @@ public struct ServerConfigSheet: View {
                 } label: {
                     HStack(spacing: 8) {
                         if isSendingWol {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(LiquidTheme.emerald)
                         } else {
                             Image(systemName: "bolt.fill")
                         }
                         Text(isSendingWol ? "Broadcasting Packet..." : "Wake Up PC Now")
                     }
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.1))
+                    .background(LiquidTheme.card(for: colorScheme))
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(LiquidTheme.emerald.opacity(0.4), lineWidth: 1)
+                            .strokeBorder(LiquidTheme.emerald.opacity(0.5), lineWidth: 1)
                     )
                 }
                 .disabled(isSendingWol || wolMacAddress.isEmpty)
@@ -1163,20 +1191,20 @@ public struct ServerConfigSheet: View {
                 } label: {
                     HStack {
                         if isTesting {
-                            ProgressView().tint(.white).padding(.trailing, 6)
+                            ProgressView().tint(LiquidTheme.blue).padding(.trailing, 6)
                         }
                         Image(systemName: "network")
                         Text(isTesting ? "Testing Connection..." : "Test Connection")
                     }
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.white.opacity(0.08))
+                    .background(LiquidTheme.card(for: colorScheme))
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                            .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                     )
                 }
 
@@ -1245,11 +1273,15 @@ public struct ServerConfigSheet: View {
                 } label: {
                     Label("Export Diagnostics", systemImage: "square.and.arrow.up")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.1))
+                        .background(LiquidTheme.card(for: colorScheme))
                         .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
+                        )
                 }
 
                 Button {

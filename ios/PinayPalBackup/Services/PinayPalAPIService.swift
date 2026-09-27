@@ -18,6 +18,8 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var isOnline: Bool = false
     @Published public var latencyMs: Int? = nil
     @Published public var lastErrorMessage: String? = nil
+    @Published public var outdatedCount: Int = 0
+    @Published public var outdatedServices: [String] = []
 
     private var pollTimer: AnyCancellable?
     private var lastRecordedBusyService: String? = nil
@@ -273,6 +275,24 @@ public class PinayPalAPIService: ObservableObject {
             self.status = decoded
             self.isOnline = true
             self.lastErrorMessage = nil
+
+            // Evaluate outdated status across services
+            var outdatedList: [String] = []
+            let checkService: (String, ServiceItem?) -> Void = { name, item in
+                if item?.freshness?.isOutdated == true || item?.freshness?.status == "outdated" || item?.freshness?.status == "never" {
+                    outdatedList.append(name)
+                    let detail = item?.freshness?.badgeText ?? "\(name) backup is outdated"
+                    NotificationService.shared.sendOutdatedBackupAlert(service: name, details: detail)
+                }
+            }
+
+            checkService("FTP", decoded.services?.ftp)
+            checkService("SQL", decoded.services?.sql)
+            checkService("Mailchimp", decoded.services?.mailchimp)
+
+            self.outdatedCount = outdatedList.count
+            self.outdatedServices = outdatedList
+            NotificationService.shared.setBadgeCount(outdatedList.count)
 
             if let previousWebsiteOnline, let websiteOnline = decoded.website?.isOnline,
                previousWebsiteOnline != websiteOnline {
@@ -622,5 +642,30 @@ public class PinayPalAPIService: ObservableObject {
             return (false, error.localizedDescription)
         }
         return (false, "Failed to update password.")
+    }
+
+    public func triggerSyncCheck() async -> (success: Bool, message: String) {
+        var cleanUrl = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") {
+            cleanUrl.removeLast()
+        }
+        guard let url = URL(string: "\(cleanUrl)/api/sync/check") else {
+            return (false, "Invalid server URL")
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 12
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                await fetchStatus()
+                return (true, "Remote sync verification completed.")
+            }
+            return (false, "Sync check failed with HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        } catch {
+            return (false, error.localizedDescription)
+        }
     }
 }

@@ -576,6 +576,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 });
 
+                SyncStatusService.UpdateStatus("Mailchimp", statusText, detailText, string.Equals(statusText, "OUTDATED", StringComparison.OrdinalIgnoreCase) || statusText.Contains("ERROR"));
+
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     txtStatus.Text = statusText;

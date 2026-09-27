@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct BackupHistoryView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var api: PinayPalAPIService
     @Binding var showSettingsSheet: Bool
 
@@ -192,7 +193,7 @@ public struct BackupHistoryView: View {
             }
             Text(value)
                 .font(.system(size: 18, weight: .black, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -301,7 +302,7 @@ public struct BackupHistoryView: View {
                 HStack(spacing: 6) {
                     Text(item.service.uppercased())
                         .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
 
                     if let type = item.type, !type.isEmpty {
                         Text(type)
@@ -368,7 +369,7 @@ public struct BackupHistoryView: View {
 
             Text("No Snapshots Found")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
 
             Text("No backup history matches the selected filter.")
                 .font(.system(size: 13))
@@ -385,7 +386,7 @@ public struct BackupHistoryView: View {
 
         return NavigationStack {
             ZStack {
-                LiquidTheme.backgroundDark.ignoresSafeArea()
+                LiquidTheme.background(for: colorScheme).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -403,7 +404,7 @@ public struct BackupHistoryView: View {
 
                             Text(item.service.uppercased() + " BACKUP")
                                 .font(.system(size: 18, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
 
                             Text(isSuccess ? "Completed Successfully" : "Backup Failed")
                                 .font(.system(size: 14, weight: .bold))
@@ -491,7 +492,7 @@ public struct BackupHistoryView: View {
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                 .multilineTextAlignment(.trailing)
         }
     }

@@ -450,14 +450,14 @@ public struct ProfileSheetView: View {
                     Text("Switch User Account")
                 }
                 .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
-                .background(Color.white.opacity(0.08))
+                .background(LiquidTheme.card(for: colorScheme))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                 )
             }
 

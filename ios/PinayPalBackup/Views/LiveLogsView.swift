@@ -3,6 +3,8 @@ import SwiftUI
 public struct LiveLogsView: View {
     @ObservedObject var api: PinayPalAPIService
     @Binding var showSettingsSheet: Bool
+    public var isEmbedded: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var searchText: String = ""
     @State private var selectedLevel: LogLevel = .all
@@ -10,6 +12,12 @@ public struct LiveLogsView: View {
     @State private var isRefreshing: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var logFileUrl: URL? = nil
+
+    public init(api: PinayPalAPIService, showSettingsSheet: Binding<Bool> = .constant(false), isEmbedded: Bool = false) {
+        self.api = api
+        self._showSettingsSheet = showSettingsSheet
+        self.isEmbedded = isEmbedded
+    }
 
     public enum LogLevel: String, CaseIterable, Identifiable {
         case all = "All"
@@ -39,8 +47,33 @@ public struct LiveLogsView: View {
     }
 
     public var body: some View {
+        Group {
+            if isEmbedded {
+                embeddedContent
+            } else {
+                fullContent
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let url = logFileUrl {
+                ShareSheet(items: [url])
+            }
+        }
+    }
+
+    private var embeddedContent: some View {
+        VStack(spacing: 12) {
+            logsHeader
+            searchBar
+            filterPills
+            terminalWindow
+                .frame(minHeight: 380, maxHeight: 460)
+        }
+    }
+
+    private var fullContent: some View {
         ZStack {
-            LiquidTheme.backgroundDark.ignoresSafeArea()
+            LiquidTheme.background(for: colorScheme).ignoresSafeArea()
 
             VStack(spacing: 12) {
                 // Search Bar
@@ -58,11 +91,6 @@ public struct LiveLogsView: View {
                 Spacer().frame(height: 70)
             }
             .padding(.top, 68)
-        }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = logFileUrl {
-                ShareSheet(items: [url])
-            }
         }
     }
 
@@ -137,7 +165,7 @@ public struct LiveLogsView: View {
 
             TextField("Filter log entries (e.g. ftp, error, auth)...", text: $searchText)
                 .font(.system(size: 13))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
 

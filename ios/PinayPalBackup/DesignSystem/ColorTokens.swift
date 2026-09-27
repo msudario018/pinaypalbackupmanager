@@ -11,8 +11,20 @@ public struct LiquidTheme {
     public static let purple = Color(red: 0.655, green: 0.545, blue: 0.980)         // lavender
     public static let blue = Color(red: 0.376, green: 0.647, blue: 0.980)           // azure
     public static let coral = Color(red: 0.984, green: 0.443, blue: 0.549)          // rose
-    public static let textPrimary = Color(red: 0.941, green: 0.965, blue: 0.988)   // #F0F6FC
-    public static let textSecondary = Color(red: 0.545, green: 0.580, blue: 0.620) // #8B949E
+    public static let textPrimaryDark = Color(red: 0.941, green: 0.965, blue: 0.988)   // #F0F6FC
+    public static let textSecondaryDark = Color(red: 0.545, green: 0.580, blue: 0.620) // #8B949E
+
+    // Dynamic text tokens that automatically resolve according to system/environment light & dark modes
+    public static let textPrimary = Color(UIColor { trait in
+        trait.userInterfaceStyle == .light
+            ? UIColor(red: 0.059, green: 0.090, blue: 0.165, alpha: 1.0)
+            : UIColor(red: 0.941, green: 0.965, blue: 0.988, alpha: 1.0)
+    })
+    public static let textSecondary = Color(UIColor { trait in
+        trait.userInterfaceStyle == .light
+            ? UIColor(red: 0.392, green: 0.455, blue: 0.545, alpha: 1.0)
+            : UIColor(red: 0.545, green: 0.580, blue: 0.620, alpha: 1.0)
+    })
 
     // Light Mode tokens
     public static let backgroundLight = Color(red: 0.945, green: 0.957, blue: 0.992) // cool pearl

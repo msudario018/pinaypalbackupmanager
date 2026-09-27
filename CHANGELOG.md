@@ -1,5 +1,32 @@
 # Changelog
 
+## v3.6.2 (2026-09-27)
+
+### Added & Improved
+- **Remote Sync Verification & Outdated Detection Ecosystem**:
+  - Created `SyncStatusService.cs`: Centralized remote vs local sync verification for FTP, SQL, and Mailchimp. Directly inspects actual disk archive files rather than relying solely on execution history timestamps.
+  - Upgraded `ComputeServiceFreshness` in `WebDashboardService.cs`: Accurately marks backups as "Outdated" if local archives are missing, stale (>24h), or older than remote server archives.
+  - Added `/api/sync/check` endpoint for on-demand sync verification from Web Dashboard and iOS companion app.
+  - Integrated `SyncStatusService.UpdateStatus(...)` into `FtpControl`, `SqlControl`, and `MailchimpControl` on every sync check.
+- **iOS App - Outdated Detection, Alerts & Badges**:
+  - Implemented automatic outdated backup detection on app launch and periodic status poll.
+  - Added high-priority `.timeSensitive` outdated backup alerts with custom badge icons (`NotificationService.sendOutdatedBackupAlert`).
+  - Added home screen app icon badge counts (`NotificationService.setBadgeCount`) reflecting the number of outdated backups.
+  - Added prominent `outdatedWarningBanner` on the dashboard with a one-tap "Sync Check" trigger.
+  - Added dynamic `OUTDATED` / `FRESH` badge pills across carousel cards and service rows.
+- **iOS App - Navigation & Automations Overhaul**:
+  - Created `AutomationsView.swift`, replacing the main bar's "Logs" tab with a high-value "Automations & Schedules" tab.
+  - Features real-time countdown clocks for daily FTP, SQL, Mailchimp, and Health schedules (Manila Time UTC+8).
+  - Integrated live remote sync verification card, instant automation triggers, and maintenance policy overview.
+- **iOS App - Settings Sheet & Console Redesign**:
+  - Moved the Live Logs developer console directly into `ServerConfigSheet.swift` as an embedded diagnostic console.
+  - Overhauled Settings category selector: replaced cramped pill scroller with a modern card-based selector featuring rich gradients, shadows, and live badges.
+- **iOS App - Light Theme Optimization**:
+  - Converted `LiquidTheme.textPrimary` and `LiquidTheme.textSecondary` to dynamic `UIColor`-backed tokens that automatically adapt with crisp contrast in light mode.
+  - Eliminated hardcoded `.foregroundColor(.white)` and low-contrast white-on-white backgrounds across Dashboard, History, Settings, and Profile views.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.2` (iOS Build `15`).
+
 ## v3.6.0 (2026-09-27)
 
 ### Added & Improved

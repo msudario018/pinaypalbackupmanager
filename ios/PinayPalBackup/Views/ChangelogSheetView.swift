@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.0",
+            version: "v3.6.2",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "Remote sync verification, automated schedule countdowns, outdated backup alerts & badges, light theme contrast overhaul, and revamped settings tabs",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Remote Sync Verification & Outdated Detection",
+                    description: "Directly inspects local archive files and remote server timestamps to accurately detect stale backups across Web Dashboard, PC app, and iOS app."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Automations & Schedules Tab",
+                    description: "Brand new high-value main tab featuring live countdown clocks, auto-scan interval chips, quick-run backup actions, and instant remote sync checks."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Outdated Backup Alerts & App Icon Badges",
+                    description: "iOS app alerts you when backups are outdated, displaying warning banners, badged service cards, and updating the home screen app icon badge count."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Settings Tabs & Console Overhaul",
+                    description: "Moved the Live Console directly into Settings with a redesigned, card-based category picker, replacing the main logs tab with Automations."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Light Theme Contrast Polish",
+                    description: "Dynamic color tokens and high-contrast styling across all views, eliminating hardcoded white text on light pearl glass cards."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.0",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "3D Beveled Live Activity badges, rich notification system, PC toast gradients, and browser notification icons",
             changes: [
                 ChangelogItem(

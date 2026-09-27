@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.0";
+        public const string ApiVersion = "3.6.2";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -116,6 +116,18 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/website/status")
                 {
                     await SendJsonAsync(response, 200, await WebsiteMonitoringService.GetStatusAsync());
+                }
+                else if (path == "/api/sync/check" || path == "/api/sync-check")
+                {
+                    var ftpSync = await SyncStatusService.CheckFtpSyncAsync();
+                    var sqlSync = await SyncStatusService.CheckSqlSyncAsync();
+                    await SendJsonAsync(response, 200, new
+                    {
+                        success = true,
+                        message = "Sync check completed",
+                        ftp = ftpSync,
+                        sql = sqlSync
+                    });
                 }
                 else if (path == "/api/history" && request.HttpMethod == "GET")
                 {
@@ -464,6 +476,33 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
+                // 1. Inspect actual local backup files on disk
+                DateTime? newestFileUtc = null;
+                string? newestFileName = null;
+                long newestFileSize = 0;
+
+                if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+                {
+                    try
+                    {
+                        var dir = new DirectoryInfo(folderPath);
+                        var newestFile = dir.GetFiles("*", SearchOption.AllDirectories)
+                            .Where(f => !f.Name.Equals("backuplog.txt", StringComparison.OrdinalIgnoreCase) && 
+                                        !f.Name.Equals("backup_log.txt", StringComparison.OrdinalIgnoreCase))
+                            .OrderByDescending(f => f.LastWriteTimeUtc)
+                            .FirstOrDefault();
+
+                        if (newestFile != null)
+                        {
+                            newestFileUtc = newestFile.LastWriteTimeUtc;
+                            newestFileName = newestFile.Name;
+                            newestFileSize = newestFile.Length;
+                        }
+                    }
+                    catch { }
+                }
+
+                // 2. Check history records
                 var history = BackupHistoryService.GetHistory();
                 var lastSuccess = history?
                     .Where(h => h.Service.Equals(serviceName, StringComparison.OrdinalIgnoreCase) &&
@@ -471,32 +510,18 @@ namespace PinayPalBackupManager.Services
                     .OrderByDescending(h => h.Timestamp)
                     .FirstOrDefault();
 
-                DateTime? lastBackupTimeUtc = lastSuccess?.Timestamp;
+                DateTime? lastBackupTimeUtc = newestFileUtc ?? lastSuccess?.Timestamp;
 
-                // Fallback: check newest modified file in backup folder
-                if (lastBackupTimeUtc == null && !string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
-                {
-                    try
-                    {
-                        var dir = new DirectoryInfo(folderPath);
-                        var newestFile = dir.GetFiles("*", SearchOption.AllDirectories)
-                            .Where(f => !f.Name.Equals("backuplog.txt", StringComparison.OrdinalIgnoreCase))
-                            .OrderByDescending(f => f.LastWriteTimeUtc)
-                            .FirstOrDefault();
+                // 3. Consult SyncStatusService
+                var syncStatus = SyncStatusService.GetStatus(serviceName);
+                bool syncOutdated = syncStatus.IsOutdated || string.Equals(syncStatus.Status, "OUTDATED", StringComparison.OrdinalIgnoreCase);
 
-                        if (newestFile != null)
-                        {
-                            lastBackupTimeUtc = newestFile.LastWriteTimeUtc;
-                        }
-                    }
-                    catch { }
-                }
-
-                if (lastBackupTimeUtc.HasValue)
+                if (lastBackupTimeUtc.HasValue && newestFileUtc.HasValue)
                 {
                     var age = DateTime.UtcNow - lastBackupTimeUtc.Value;
                     var ageHours = Math.Max(0, age.TotalHours);
-                    var isOutdated = ageHours > thresholdHours;
+                    // Outdated if age exceeds threshold OR if sync check explicitly found remote is newer
+                    var isOutdated = ageHours > thresholdHours || syncOutdated;
 
                     string relStr;
                     if (age.TotalMinutes < 2) relStr = "Just now";
@@ -505,39 +530,60 @@ namespace PinayPalBackupManager.Services
                     else if (age.TotalDays < 30) relStr = $"{(int)age.TotalDays}d ago";
                     else relStr = $"{(int)(age.TotalDays / 30)}mo ago";
 
+                    string badgeText;
+                    if (syncOutdated && !string.IsNullOrEmpty(syncStatus.Detail))
+                    {
+                        badgeText = $"Outdated ({syncStatus.Detail})";
+                    }
+                    else if (isOutdated)
+                    {
+                        badgeText = $"Outdated ({relStr})";
+                    }
+                    else
+                    {
+                        badgeText = $"Updated ({relStr})";
+                    }
+
                     return new
                     {
                         status = isOutdated ? "outdated" : "updated",
                         isOutdated = isOutdated,
                         isUpdated = !isOutdated,
-                        badgeText = isOutdated ? $"Outdated ({relStr})" : $"Updated ({relStr})",
+                        badgeText = badgeText,
                         lastBackupTime = lastBackupTimeUtc.Value.ToString("o"),
                         relativeTime = relStr,
                         ageHours = Math.Round(ageHours, 1),
-                        thresholdHours = thresholdHours
+                        thresholdHours = thresholdHours,
+                        syncStatus = syncStatus.Status,
+                        syncDetail = syncStatus.Detail,
+                        latestFileName = newestFileName,
+                        latestFileSizeBytes = newestFileSize
                     };
                 }
 
+                // If no local files exist on disk, it is definitely OUTDATED
                 return new
                 {
                     status = "never",
                     isOutdated = true,
                     isUpdated = false,
-                    badgeText = "Never Backed Up",
+                    badgeText = "No Local Backup (Outdated)",
                     lastBackupTime = (string?)null,
                     relativeTime = "Never",
                     ageHours = -1.0,
-                    thresholdHours = thresholdHours
+                    thresholdHours = thresholdHours,
+                    syncStatus = syncStatus.Status,
+                    syncDetail = "Local folder has no completed backup archives"
                 };
             }
             catch
             {
                 return new
                 {
-                    status = "never",
+                    status = "unknown",
                     isOutdated = true,
                     isUpdated = false,
-                    badgeText = "Unknown",
+                    badgeText = "Status Unknown",
                     lastBackupTime = (string?)null,
                     relativeTime = "Unknown",
                     ageHours = -1.0,
@@ -1796,7 +1842,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.0</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.2</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>

@@ -53,6 +53,10 @@ public struct LiquidDashboardView: View {
                     // Master Action Banner
                     masterActionBanner
 
+                    if api.outdatedCount > 0 {
+                        outdatedWarningBanner
+                    }
+
                     // Freshness Summary Strip
                     freshnessSummaryStrip
 
@@ -104,7 +108,7 @@ public struct LiquidDashboardView: View {
                             .foregroundColor(LiquidTheme.emerald)
                         Text(toast)
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
@@ -172,7 +176,7 @@ public struct LiquidDashboardView: View {
 
                     Text("- \((active.service ?? "Backup").uppercased())")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                 }
 
                 Text(active.statusText ?? "Executing backup routine...")
@@ -371,6 +375,15 @@ public struct LiquidDashboardView: View {
 
     private func carouselServiceCard(title: String, icon: String, accent: Color, meta: String, files: Int, bytes: Int64, serviceKey: String, destination: ServiceDestination) -> some View {
         let isTriggering = triggeringService == serviceKey
+        let freshness: ServiceFreshnessSpec? = {
+            switch serviceKey {
+            case "ftp": return api.status?.services?.ftp?.freshness
+            case "sql": return api.status?.services?.sql?.freshness
+            case "mailchimp": return api.status?.services?.mailchimp?.freshness
+            default: return nil
+            }
+        }()
+
         return VStack(alignment: .leading, spacing: 12) {
             Button { selectedService = destination } label: {
                 HStack {
@@ -379,6 +392,25 @@ public struct LiquidDashboardView: View {
                         Text(title).font(.system(size: 15, weight: .black, design: .rounded)).foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
                     }
                     Spacer()
+                    if let f = freshness {
+                        if f.isOutdated == true {
+                            Text("OUTDATED")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.coral.opacity(0.18))
+                                .foregroundColor(LiquidTheme.coral)
+                                .cornerRadius(6)
+                        } else if f.status == "fresh" {
+                            Text("FRESH")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.emerald.opacity(0.18))
+                                .foregroundColor(LiquidTheme.emerald)
+                                .cornerRadius(6)
+                        }
+                    }
                     Image(systemName: "chevron.right.circle.fill").foregroundColor(accent)
                 }
             }
@@ -387,6 +419,9 @@ public struct LiquidDashboardView: View {
             HStack(spacing: 8) {
                 Text("\(files) files").liquidPill(tint: LiquidTheme.textSecondary(for: colorScheme))
                 Text(formatBytes(bytes)).liquidPill(tint: accent)
+                if let rel = freshness?.relativeTime, !rel.isEmpty {
+                    Text(rel).liquidPill(tint: (freshness?.isOutdated == true) ? LiquidTheme.coral : LiquidTheme.emerald)
+                }
             }
             Button { triggerBackup(service: serviceKey) } label: {
                 Label(isTriggering ? "Starting..." : "Quick run", systemImage: isTriggering ? "arrow.triangle.2.circlepath" : "play.fill")
@@ -443,6 +478,15 @@ public struct LiquidDashboardView: View {
 
     private func serviceRow(title: String, icon: String, accent: Color, meta: String, files: Int, bytes: Int64, serviceKey: String, destination: ServiceDestination) -> some View {
         let isTriggering = triggeringService == serviceKey
+        let freshness: ServiceFreshnessSpec? = {
+            switch serviceKey {
+            case "ftp": return api.status?.services?.ftp?.freshness
+            case "sql": return api.status?.services?.sql?.freshness
+            case "mailchimp": return api.status?.services?.mailchimp?.freshness
+            default: return nil
+            }
+        }()
+
         return VStack(alignment: .leading, spacing: 12) {
             Button {
                 selectedService = destination
@@ -455,29 +499,49 @@ public struct LiquidDashboardView: View {
 
                     Text(title)
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+
+                    if let f = freshness {
+                        if f.isOutdated == true {
+                            Text("OUTDATED")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.coral.opacity(0.18))
+                                .foregroundColor(LiquidTheme.coral)
+                                .cornerRadius(6)
+                        } else if f.status == "fresh" {
+                            Text("FRESH")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.emerald.opacity(0.18))
+                                .foregroundColor(LiquidTheme.emerald)
+                                .cornerRadius(6)
+                        }
+                    }
                 }
 
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
-                    .foregroundColor(LiquidTheme.textSecondary)
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
             }
             }
             .buttonStyle(.plain)
 
             Text(meta)
                 .font(.system(size: 12))
-                .foregroundColor(LiquidTheme.textSecondary)
+                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
 
             HStack(spacing: 8) {
                 Text("\(files) Files")
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.06))
+                    .background(LiquidTheme.border(for: colorScheme).opacity(0.3))
                     .cornerRadius(6)
-                    .foregroundColor(LiquidTheme.textSecondary)
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
 
                 Text(formatBytes(bytes))
                     .font(.system(size: 10, weight: .bold))
@@ -532,7 +596,7 @@ public struct LiquidDashboardView: View {
                         HStack {
                             Text(d.name ?? "Drive")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
 
                             if d.isBackupDrive == true {
                                 Text("BACKUP")
@@ -612,7 +676,7 @@ public struct LiquidDashboardView: View {
         return HStack {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
             Spacer()
             if let countdown = countdown {
                 Text(countdown)
@@ -807,6 +871,45 @@ public struct LiquidDashboardView: View {
         .liquidGlassCard(cornerRadius: 12)
     }
 
+    // MARK: - Outdated Warning Banner
+    private var outdatedWarningBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(LiquidTheme.coral)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("OUTDATED BACKUPS DETECTED")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundColor(LiquidTheme.coral)
+                Text("\(api.outdatedCount) service(s) need sync: \(api.outdatedServices.joined(separator: ", ").uppercased())")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+            }
+
+            Spacer()
+
+            Button {
+                Task {
+                    _ = await api.triggerSyncCheck()
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("Sync Check")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(LiquidTheme.coral, in: Capsule())
+            }
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.coral.opacity(0.35), variant: .prominent)
+    }
+
     // MARK: - Last Backup Result Banner
     @ViewBuilder
     private var lastBackupResultBanner: some View {
@@ -982,7 +1085,7 @@ public struct LiquidDashboardView: View {
                 .foregroundColor(LiquidTheme.textSecondary)
             Text(formatBytes(bytes))
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
         }
     }
 }
