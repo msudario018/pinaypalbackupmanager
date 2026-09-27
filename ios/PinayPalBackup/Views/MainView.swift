@@ -13,6 +13,7 @@ public struct MainView: View {
     @State private var isShowingSplash = true
     @AppStorage("pp_theme_mode") private var themeMode: String = "dark"
     @Environment(\.colorScheme) private var systemColorScheme
+    @Namespace private var tabNamespace
 
     private var activeColorScheme: ColorScheme? {
         switch themeMode {
@@ -157,9 +158,9 @@ public struct MainView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 14).padding(.vertical, 9)
-        .liquidGlassBar()
-        .padding(.horizontal, 10).padding(.top, 4)
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .liquidGlassNavigationIsland()
+        .padding(.horizontal, 14).padding(.top, 4)
     }
 
     private var liquidTabBar: some View {
@@ -169,23 +170,70 @@ public struct MainView: View {
             tabButton(.history, "History", "clock.arrow.circlepath")
             tabButton(.automations, "Automations", "bolt.shield.fill")
         }
-        .padding(5)
-        .liquidGlassBar()
-        .padding(.horizontal, 10).padding(.bottom, 4)
+        .padding(6)
+        .liquidGlassNavigationIsland()
+        .padding(.horizontal, 14)
+        .padding(.bottom, 6)
     }
 
     private func tabButton(_ tab: AppTab, _ title: String, _ icon: String) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.30, dampingFraction: 0.78)) { selectedTab = tab }
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: icon).font(.system(size: 14, weight: .bold))
-                Text(title).font(.system(size: 9, weight: .bold)).lineLimit(1).minimumScaleFactor(0.75)
+        let isSelected = selectedTab == tab
+        return Button {
+            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                selectedTab = tab
             }
-            .foregroundColor(selectedTab == tab ? LiquidTheme.textPrimary(for: systemColorScheme) : LiquidTheme.textSecondary(for: systemColorScheme))
-            .frame(maxWidth: .infinity, minHeight: 45).padding(.vertical, 4)
-            .background(selectedTab == tab ? LiquidTheme.gold.opacity(0.34) : .clear, in: Capsule())
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: isSelected ? .bold : .semibold))
+                    .foregroundColor(isSelected ? LiquidTheme.gold : LiquidTheme.textSecondary(for: systemColorScheme))
+                    .scaleEffect(isSelected ? 1.12 : 1.0)
+                    .animation(.spring(response: 0.30, dampingFraction: 0.65), value: isSelected)
+
+                Text(title)
+                    .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                    .foregroundColor(isSelected ? LiquidTheme.textPrimary(for: systemColorScheme) : LiquidTheme.textSecondary(for: systemColorScheme))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .padding(.vertical, 3)
+            .background {
+                if isSelected {
+                    ZStack {
+                        Capsule(style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: LiquidTheme.gold.opacity(0.42), location: 0.0),
+                                        .init(color: LiquidTheme.gold.opacity(0.18), location: 1.0)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Capsule(style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.70), location: 0.0),
+                                        .init(color: Color.white.opacity(0.18), location: 0.40),
+                                        .init(color: LiquidTheme.gold.opacity(0.45), location: 1.0)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.0
+                            )
+                    }
+                    .shadow(color: LiquidTheme.gold.opacity(0.28), radius: 8, x: 0, y: 2)
+                    .matchedGeometryEffect(id: "liquid_active_tab_lens", in: tabNamespace)
+                }
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private var tabTitle: String {

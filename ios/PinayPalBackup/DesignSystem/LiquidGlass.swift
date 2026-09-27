@@ -270,6 +270,79 @@ public struct LiquidGlassBarModifier: ViewModifier {
     }
 }
 
+// MARK: - WWDC 2025 Liquid Glass Navigation Island Modifier
+public struct LiquidGlassNavigationIslandModifier: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceTransparency) var reduceTransparency
+
+    private var isLight: Bool { colorScheme == .light }
+
+    private var islandFill: Color {
+        if reduceTransparency {
+            return isLight ? Color(white: 0.96) : Color(red: 0.08, green: 0.10, blue: 0.16)
+        }
+        return isLight
+            ? Color.white.opacity(0.72)
+            : Color(red: 0.05, green: 0.07, blue: 0.13).opacity(0.72)
+    }
+
+    private var specularStops: [Gradient.Stop] {
+        if isLight {
+            return [
+                .init(color: Color.white.opacity(0.95), location: 0.0),
+                .init(color: Color.white.opacity(0.40), location: 0.22),
+                .init(color: Color(red: 0.85, green: 0.88, blue: 0.94).opacity(0.40), location: 0.58),
+                .init(color: Color.white.opacity(0.75), location: 1.0)
+            ]
+        } else {
+            return [
+                .init(color: Color.white.opacity(0.75), location: 0.0),
+                .init(color: Color.white.opacity(0.22), location: 0.22),
+                .init(color: Color.white.opacity(0.06), location: 0.58),
+                .init(color: Color.white.opacity(0.28), location: 1.0)
+            ]
+        }
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    if !reduceTransparency {
+                        Capsule(style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    }
+
+                    Capsule(style: .continuous)
+                        .fill(islandFill)
+
+                    // Directional 135-degree physical specular glass rim highlight
+                    Capsule(style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                stops: specularStops,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.15
+                        )
+                }
+            }
+            .shadow(
+                color: isLight ? Color.black.opacity(0.04) : Color.black.opacity(0.30),
+                radius: 4,
+                x: 0,
+                y: 2
+            )
+            .shadow(
+                color: isLight ? Color(red: 0.3, green: 0.4, blue: 0.6).opacity(0.12) : LiquidTheme.gold.opacity(0.14),
+                radius: 18,
+                x: 0,
+                y: 8
+            )
+    }
+}
+
 // MARK: - View Extension Helpers
 public extension View {
     func liquidGlassCard(
@@ -290,5 +363,9 @@ public extension View {
 
     func liquidGlassBar() -> some View {
         self.modifier(LiquidGlassBarModifier())
+    }
+
+    func liquidGlassNavigationIsland() -> some View {
+        self.modifier(LiquidGlassNavigationIslandModifier())
     }
 }

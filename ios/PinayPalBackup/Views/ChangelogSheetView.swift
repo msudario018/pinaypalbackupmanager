@@ -56,8 +56,18 @@ public struct ChangelogSheetView: View {
             version: "v3.6.2",
             releaseDate: "September 2026",
             isLatest: true,
-            highlight: "Remote sync verification, automated schedule countdowns, outdated backup alerts & badges, light theme contrast overhaul, and revamped settings tabs",
+            highlight: "WWDC 2025 Liquid Glass navigation island overhaul, reimagined layered 3D app icon, remote sync verification, automated schedule countdowns, outdated backup alerts & badges, and light theme contrast polish",
             changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "WWDC 2025 Liquid Glass Navigation Island",
+                    description: "Re-engineered navigation and top header into floating Liquid Glass islands with continuous sliding active lens, viscous spring physics, 135° specular rim highlights, and tactile rigid haptics."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Reimagined Liquid Glass App Icon",
+                    description: "Redesigned app icon to Apple's WWDC 2025 Liquid Glass specification featuring layered 3D volumetric frosted glass, optical caustics, and specular edge reflections."
+                ),
                 ChangelogItem(
                     type: .feature,
                     title: "Remote Sync Verification & Outdated Detection",

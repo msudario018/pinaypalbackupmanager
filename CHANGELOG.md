@@ -3,6 +3,15 @@
 ## v3.6.2 (2026-09-27)
 
 ### Added & Improved
+- **WWDC 2025 Liquid Glass Navigation Island Overhaul**:
+  - Re-engineered the iOS navigation bar and persistent header into floating **Liquid Glass Islands** elevated above content.
+  - Implemented high-transmittance optical transparency, 135-degree physical specular rim highlights, and multi-tier ambient elevation shadows.
+  - Replaced isolated static tab capsules with a continuous fluid sliding active lens using `matchedGeometryEffect`.
+  - Added viscous spring physics (`response: 0.35, dampingFraction: 0.72`), tactile haptic detent feedback (`UIImpactFeedbackGenerator(style: .rigid)`), and micro-bounce icon scaling.
+  - Added full support for `accessibilityReduceTransparency` fallback rendering.
+- **Reimagined Liquid Glass iOS App Icon**:
+  - Conforms to Apple's WWDC 2025 Liquid Glass icon design principles with simplified layered 3D volumetric frosted shapes, optical refraction, specular edge highlights, and rich purple-to-indigo gradient backdrop.
+  - Updated both `AppIcon-1024.png` and `AppLogo` asset sets.
 - **Remote Sync Verification & Outdated Detection Ecosystem**:
   - Created `SyncStatusService.cs`: Centralized remote vs local sync verification for FTP, SQL, and Mailchimp. Directly inspects actual disk archive files rather than relying solely on execution history timestamps.
   - Upgraded `ComputeServiceFreshness` in `WebDashboardService.cs`: Accurately marks backups as "Outdated" if local archives are missing, stale (>24h), or older than remote server archives.
