@@ -2181,6 +2181,108 @@ namespace PinayPalBackupManager.UI.UserControls
                     _cachedWebsiteStatusDot.Fill = website.IsOnline ? onlineBrush : offlineBrush;
                 }
             });
+
+            try
+            {
+                var hw = await HardwareTelemetryService.GetTelemetryAsync();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateHostHardwareTelemetry(hw);
+                });
+            }
+            catch { }
+        }
+
+        private void UpdateHostHardwareTelemetry(HardwareTelemetry hw)
+        {
+            try
+            {
+                // CPU
+                var txtCpuName = this.FindControl<TextBlock>("TxtHwCpuName");
+                if (txtCpuName != null) txtCpuName.Text = hw.CpuName;
+
+                var txtCpuTemp = this.FindControl<TextBlock>("TxtHwCpuTemp");
+                if (txtCpuTemp != null) txtCpuTemp.Text = hw.CpuTempC.HasValue ? $"{hw.CpuTempC.Value:F0}°C" : "--°C";
+
+                var txtCpuUsage = this.FindControl<TextBlock>("TxtHwCpuUsage");
+                if (txtCpuUsage != null) txtCpuUsage.Text = $"{Math.Round(hw.CpuUsagePercent)}%";
+
+                var pbCpu = this.FindControl<ProgressBar>("PbHwCpu");
+                if (pbCpu != null) pbCpu.Value = Math.Min(100, Math.Max(0, hw.CpuUsagePercent));
+
+                var txtCpuBadge = this.FindControl<TextBlock>("TxtHwCpuTempBadge");
+                if (txtCpuBadge != null)
+                {
+                    txtCpuBadge.Text = hw.CpuTempStatus.ToUpperInvariant();
+                    txtCpuBadge.Foreground = hw.CpuTempStatus == "Hot" ? Brush.Parse("#FB7185") :
+                                             (hw.CpuTempStatus == "Warm" ? Brush.Parse("#D29922") : Brush.Parse("#34D399"));
+                }
+
+                var txtCpuCores = this.FindControl<TextBlock>("TxtHwCpuCores");
+                if (txtCpuCores != null) txtCpuCores.Text = $"{hw.CpuPhysicalCores} Cores / {hw.CpuLogicalCores} Threads";
+
+                // GPU
+                var txtGpuName = this.FindControl<TextBlock>("TxtHwGpuName");
+                if (txtGpuName != null) txtGpuName.Text = hw.GpuName;
+
+                var txtGpuTemp = this.FindControl<TextBlock>("TxtHwGpuTemp");
+                if (txtGpuTemp != null) txtGpuTemp.Text = hw.GpuTempC.HasValue ? $"{hw.GpuTempC.Value:F0}°C" : "N/A";
+
+                var txtGpuUsage = this.FindControl<TextBlock>("TxtHwGpuUsage");
+                if (txtGpuUsage != null) txtGpuUsage.Text = hw.GpuUsagePercent.HasValue ? $"{Math.Round(hw.GpuUsagePercent.Value)}%" : "N/A";
+
+                var pbGpu = this.FindControl<ProgressBar>("PbHwGpu");
+                if (pbGpu != null) pbGpu.Value = hw.GpuUsagePercent.HasValue ? Math.Min(100, Math.Max(0, hw.GpuUsagePercent.Value)) : 0;
+
+                var txtGpuBadge = this.FindControl<TextBlock>("TxtHwGpuTempBadge");
+                if (txtGpuBadge != null)
+                {
+                    txtGpuBadge.Text = hw.GpuTempStatus.ToUpperInvariant();
+                    txtGpuBadge.Foreground = hw.GpuTempStatus == "Hot" ? Brush.Parse("#FB7185") :
+                                             (hw.GpuTempStatus == "Warm" ? Brush.Parse("#D29922") : Brush.Parse("#34D399"));
+                }
+
+                var txtGpuDetails = this.FindControl<TextBlock>("TxtHwGpuDetails");
+                if (txtGpuDetails != null)
+                {
+                    string details = "";
+                    if (hw.GpuMemoryUsedMB.HasValue && hw.GpuMemoryTotalMB.HasValue)
+                        details += $"VRAM: {hw.GpuMemoryUsedMB.Value / 1024.0:F1}G/{hw.GpuMemoryTotalMB.Value / 1024.0:F1}G";
+                    else
+                        details += "VRAM: Standard";
+
+                    if (hw.GpuPowerWatts.HasValue)
+                        details += $" | {hw.GpuPowerWatts.Value:F0}W";
+                    txtGpuDetails.Text = details;
+                }
+
+                // RAM
+                var txtRamUsedTotal = this.FindControl<TextBlock>("TxtHwRamUsedTotal");
+                if (txtRamUsedTotal != null) txtRamUsedTotal.Text = $"{hw.RamUsedGB:F1} GB / {hw.RamTotalGB:F1} GB";
+
+                var txtRamFree = this.FindControl<TextBlock>("TxtHwRamFree");
+                if (txtRamFree != null) txtRamFree.Text = $"{hw.RamFreeGB:F1} GB Free";
+
+                var txtRamPercent = this.FindControl<TextBlock>("TxtHwRamPercent");
+                if (txtRamPercent != null) txtRamPercent.Text = $"{Math.Round(hw.RamUsagePercent)}%";
+
+                var pbRam = this.FindControl<ProgressBar>("PbHwRam");
+                if (pbRam != null) pbRam.Value = Math.Min(100, Math.Max(0, hw.RamUsagePercent));
+
+                var txtAppRam = this.FindControl<TextBlock>("TxtHwAppRam");
+                if (txtAppRam != null) txtAppRam.Text = $"Backup App: {hw.AppRamUsageMB:F0} MB";
+
+                // Host
+                var txtHost = this.FindControl<TextBlock>("TxtHwHostName");
+                if (txtHost != null) txtHost.Text = hw.Hostname;
+
+                var txtOs = this.FindControl<TextBlock>("TxtHwOsDesc");
+                if (txtOs != null) txtOs.Text = $"{hw.OsDescription} ({hw.Architecture})";
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[HomeControl] Hardware telemetry update error: {ex.Message}", "", "Warning", "SYSTEM");
+            }
         }
 
         private async Task UpdateQuickStatsAsync()

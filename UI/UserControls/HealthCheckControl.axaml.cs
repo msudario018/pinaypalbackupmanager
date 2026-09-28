@@ -177,7 +177,32 @@ namespace PinayPalBackupManager.UI.UserControls
                 resourceList.Children.Clear();
                 
                 // CPU
-                AddResourceRow(resourceList, "CPU", result.Resources.CpuUsagePercent, "#58A6FF");
+                AddResourceRow(resourceList, "CPU Load", result.Resources.CpuUsagePercent, "#58A6FF");
+
+                var hw = HardwareTelemetryService.GetTelemetrySync();
+                if (hw.CpuTempC.HasValue)
+                {
+                    string cpuTempColor = hw.CpuTempC.Value > 80 ? "#FB7185" : (hw.CpuTempC.Value > 65 ? "#D29922" : "#58A6FF");
+                    AddTelemetryRow(resourceList, "CPU Temperature", $"{hw.CpuTempC.Value:F1} °C ({hw.CpuTempStatus})", hw.CpuName, cpuTempColor);
+                }
+
+                if (hw.GpuUsagePercent.HasValue)
+                {
+                    AddResourceRow(resourceList, $"GPU Load ({hw.GpuName})", hw.GpuUsagePercent.Value, "#3FB950");
+                }
+                if (hw.GpuTempC.HasValue)
+                {
+                    string gpuTempColor = hw.GpuTempC.Value > 82 ? "#FB7185" : (hw.GpuTempC.Value > 70 ? "#D29922" : "#3FB950");
+                    string gpuExtra = hw.GpuPowerWatts.HasValue ? $"{hw.GpuPowerWatts:F1}W" : "";
+                    if (hw.GpuMemoryUsedMB.HasValue && hw.GpuMemoryTotalMB.HasValue)
+                        gpuExtra += $" | VRAM: {hw.GpuMemoryUsedMB.Value / 1024.0:F1}GB/{hw.GpuMemoryTotalMB.Value / 1024.0:F1}GB";
+                    AddTelemetryRow(resourceList, "GPU Temperature", $"{hw.GpuTempC.Value:F1} °C ({hw.GpuTempStatus})", $"{hw.GpuName} ({gpuExtra})", gpuTempColor);
+                }
+                else
+                {
+                    AddTelemetryRow(resourceList, "GPU Adapter", hw.GpuName, "Standard/Integrated GPU", "#8B949E");
+                }
+
                 // Memory
                 AddResourceRow(resourceList, "Memory", result.Resources.MemoryUsagePercent, "#A371F7");
                 // Disk
@@ -306,6 +331,52 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 LogService.WriteSystemLog($"Export failed: {ex.Message}", "Error", "HEALTHCHECK");
             }
+        }
+
+        private void AddTelemetryRow(StackPanel panel, string label, string value, string subtitle, string colorHex)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new Avalonia.Controls.ColumnDefinition(1, Avalonia.Controls.GridUnitType.Auto));
+            grid.ColumnDefinitions.Add(new Avalonia.Controls.ColumnDefinition(1, Avalonia.Controls.GridUnitType.Star));
+            grid.Margin = new Avalonia.Thickness(0, 4, 5, 4);
+
+            var leftStack = new StackPanel { Spacing = 1 };
+            var lbl = new TextBlock
+            {
+                Text = label,
+                FontSize = 11,
+                Foreground = Brush.Parse("#8B949E"),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            leftStack.Children.Add(lbl);
+            if (!string.IsNullOrEmpty(subtitle))
+            {
+                var sub = new TextBlock
+                {
+                    Text = subtitle,
+                    FontSize = 9,
+                    Foreground = Brush.Parse("#6E7681"),
+                    TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+                    MaxWidth = 220
+                };
+                leftStack.Children.Add(sub);
+            }
+
+            var val = new TextBlock
+            {
+                Text = value,
+                FontSize = 11,
+                FontWeight = Avalonia.Media.FontWeight.Bold,
+                Foreground = Brush.Parse(colorHex),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+
+            Grid.SetColumn(leftStack, 0);
+            Grid.SetColumn(val, 1);
+            grid.Children.Add(leftStack);
+            grid.Children.Add(val);
+            panel.Children.Add(grid);
         }
 
         private void AddResourceRow(StackPanel panel, string label, double value, string color)

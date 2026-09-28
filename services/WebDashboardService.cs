@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.4";
+        public const string ApiVersion = "3.6.5";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -108,6 +108,11 @@ namespace PinayPalBackupManager.Services
                 else if (path == "/api/status")
                 {
                     await ServeStatusApiAsync(response, request);
+                }
+                else if (path == "/api/hardware" || path == "/api/hardware/telemetry")
+                {
+                    var hw = await HardwareTelemetryService.GetTelemetryAsync();
+                    await SendJsonAsync(response, 200, hw);
                 }
                 else if (path == "/api/health")
                 {
@@ -822,6 +827,7 @@ namespace PinayPalBackupManager.Services
 
             var active = BackupStateTracker.CurrentState;
             var website = await WebsiteMonitoringService.GetStatusAsync();
+            var hardware = await HardwareTelemetryService.GetTelemetryAsync();
             var status = new
             {
                 appName = "PinayPal Backup Manager",
@@ -830,6 +836,7 @@ namespace PinayPalBackupManager.Services
                 isOnline = true,
                 sessionUser = sessionUser,
                 website = website,
+                hardware = hardware,
                 system = new
                 {
                     hostname = Environment.MachineName,
@@ -1903,7 +1910,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.6.4</span>
+                <span class=""version-badge"" id=""app-version"">v3.6.5</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -2013,6 +2020,107 @@ namespace PinayPalBackupManager.Services
                     <button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerBackup('mailchimp')"">Backup Mailchimp</button>
                 </div>
                 <div class=""service-detail"" id=""mailchimp-detail""><div class=""service-detail-title"">Mailchimp service console</div><div class=""service-summary"" id=""mailchimp-summary""></div><div class=""service-detail-title"">Individual exports</div><div class=""card-actions"" style=""display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:10px;""><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Members')"">Members</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Campaigns')"">Campaigns</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Reports')"">Reports</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Merge_Fields')"">Merge fields</button><button class=""btn-secondary"" onclick=""event.stopPropagation(); triggerMailchimpTask('Tags')"">Tags</button></div><div class=""service-console"" id=""mailchimp-console"">Loading Mailchimp logs…</div></div>
+            </div>
+        </div>
+
+        <!-- Dedicated Host PC Hardware & Thermal Telemetry Card -->
+        <div class=""health-card"" id=""host-hardware-telemetry-card"" style=""margin-bottom: 24px; border: 1px solid rgba(124, 156, 255, 0.4); background: linear-gradient(135deg, rgba(22, 27, 34, 0.95), rgba(27, 33, 44, 0.9));"">
+            <div style=""display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;"">
+                <div style=""display: flex; align-items: center; gap: 10px;"">
+                    <span style=""font-size: 20px;"">🖥️</span>
+                    <div>
+                        <div style=""font-weight: 800; font-size: 15px; letter-spacing: 0.5px; color: var(--gold);"">HOST PC HARDWARE &amp; THERMAL TELEMETRY</div>
+                        <div style=""font-size: 11px; color: var(--muted);"">Live sensor telemetry and thermal diagnostics from the PC host running the backup engine</div>
+                    </div>
+                </div>
+                <div style=""display: flex; align-items: center; gap: 8px;"">
+                    <span class=""tag tag-success"" style=""font-weight: 700; background: rgba(124, 156, 255, 0.15); color: var(--gold); border: 1px solid rgba(124, 156, 255, 0.4);"">
+                        🖥️ PC BACKUP HOST: <span id=""hw-host-badge"">--</span>
+                    </span>
+                    <span class=""badge-online"" style=""font-size: 10px;"">LIVE SENSORS</span>
+                </div>
+            </div>
+
+            <div class=""resources"" style=""grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));"">
+                <!-- CPU Block -->
+                <div class=""res-item"" style=""background: rgba(13, 17, 23, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 14px;"">
+                    <div class=""res-top"">
+                        <div class=""res-name"" style=""color: var(--blue); font-weight: 700;"">⚡ CPU Processor</div>
+                        <span class=""tag tag-success"" id=""hw-cpu-temp-badge"" style=""font-size: 10px;"">NORMAL</span>
+                    </div>
+                    <div style=""font-size: 12px; font-weight: 600; color: var(--text); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"" id=""hw-cpu-name"" title=""CPU Model"">Detecting CPU...</div>
+                    <div style=""display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;"">
+                        <div style=""display: flex; align-items: baseline; gap: 4px;"">
+                            <span style=""font-size: 22px; font-weight: 800; color: var(--blue);"" id=""hw-cpu-temp"">--°C</span>
+                            <span style=""font-size: 11px; color: var(--muted);"">temp</span>
+                        </div>
+                        <div style=""display: flex; align-items: baseline; gap: 4px;"">
+                            <span style=""font-size: 18px; font-weight: 700; color: var(--text);"" id=""hw-cpu-usage"">0%</span>
+                            <span style=""font-size: 11px; color: var(--muted);"">load</span>
+                        </div>
+                    </div>
+                    <div class=""progress-bar"" style=""margin-top: 8px;""><div class=""progress-fill"" id=""hw-cpu-fill"" style=""background: var(--blue); width: 0%;""></div></div>
+                    <div style=""display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px;"">
+                        <span id=""hw-cpu-cores"">-- Cores</span>
+                        <span id=""hw-cpu-threads"">-- Threads</span>
+                    </div>
+                </div>
+
+                <!-- GPU Block -->
+                <div class=""res-item"" style=""background: rgba(13, 17, 23, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 14px;"">
+                    <div class=""res-top"">
+                        <div class=""res-name"" style=""color: var(--green); font-weight: 700;"">🎮 GPU Graphics</div>
+                        <span class=""tag tag-success"" id=""hw-gpu-temp-badge"" style=""font-size: 10px;"">NORMAL</span>
+                    </div>
+                    <div style=""font-size: 12px; font-weight: 600; color: var(--text); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"" id=""hw-gpu-name"" title=""GPU Model"">Detecting GPU...</div>
+                    <div style=""display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;"">
+                        <div style=""display: flex; align-items: baseline; gap: 4px;"">
+                            <span style=""font-size: 22px; font-weight: 800; color: var(--green);"" id=""hw-gpu-temp"">--°C</span>
+                            <span style=""font-size: 11px; color: var(--muted);"">temp</span>
+                        </div>
+                        <div style=""display: flex; align-items: baseline; gap: 4px;"">
+                            <span style=""font-size: 18px; font-weight: 700; color: var(--text);"" id=""hw-gpu-usage"">0%</span>
+                            <span style=""font-size: 11px; color: var(--muted);"">load</span>
+                        </div>
+                    </div>
+                    <div class=""progress-bar"" style=""margin-top: 8px;""><div class=""progress-fill"" id=""hw-gpu-fill"" style=""background: var(--green); width: 0%;""></div></div>
+                    <div style=""display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px;"">
+                        <span id=""hw-gpu-vram"">VRAM: --</span>
+                        <span id=""hw-gpu-power"">Power: --</span>
+                    </div>
+                </div>
+
+                <!-- RAM Block -->
+                <div class=""res-item"" style=""background: rgba(13, 17, 23, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 14px;"">
+                    <div class=""res-top"">
+                        <div class=""res-name"" style=""color: var(--purple); font-weight: 700;"">🧠 Physical RAM</div>
+                        <span class=""tag tag-neutral"" id=""hw-ram-badge"" style=""font-size: 10px;"">0%</span>
+                    </div>
+                    <div style=""font-size: 12px; font-weight: 600; color: var(--text); margin-top: 4px;"" id=""hw-ram-used-total"">0 GB / 0 GB</div>
+                    <div style=""display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;"">
+                        <div style=""font-size: 11px; color: var(--muted);"" id=""hw-ram-free"">-- Free</div>
+                        <div style=""font-size: 11px; color: var(--gold);"" id=""hw-ram-app"">App: -- MB</div>
+                    </div>
+                    <div class=""progress-bar"" style=""margin-top: 8px;""><div class=""progress-fill"" id=""hw-ram-fill"" style=""background: var(--purple); width: 0%;""></div></div>
+                    <div style=""display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px;"">
+                        <span id=""hw-ram-pct"">Load: 0%</span>
+                        <span id=""hw-host-arch"">64-bit Architecture</span>
+                    </div>
+                </div>
+
+                <!-- Host Machine Context Block -->
+                <div class=""res-item"" style=""background: rgba(13, 17, 23, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 14px;"">
+                    <div class=""res-top"">
+                        <div class=""res-name"" style=""color: var(--cyan); font-weight: 700;"">🏠 Backup Host Context</div>
+                        <span class=""tag tag-success"" style=""font-size: 10px;"">BACKUP ENGINE</span>
+                    </div>
+                    <div style=""font-size: 12px; font-weight: 600; color: var(--text); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"" id=""hw-host-name-val"">Host: --</div>
+                    <div style=""font-size: 11px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"" id=""hw-os-val"">OS: --</div>
+                    <div style=""font-size: 11px; color: var(--muted); margin-top: 4px;"" id=""hw-uptime-val"">Uptime: --</div>
+                    <div style=""margin-top: 10px; padding: 4px 8px; border-radius: 6px; background: rgba(94, 231, 247, 0.1); border: 1px solid rgba(94, 231, 247, 0.25); font-size: 10px; color: var(--cyan);"">
+                        🛡️ PC Where Backup Engine Runs
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2230,7 +2338,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.4</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.5</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>
@@ -3096,6 +3204,92 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('active-service-status').textContent = sRes.activeBackup.statusText || 'In Progress...';
                 } else {
                     document.getElementById('active-backup-banner').style.display = 'none';
+                }
+
+                // Host PC Hardware & Telemetry
+                if (sRes.hardware) {
+                    const hw = sRes.hardware;
+                    const elBadge = document.getElementById('hw-host-badge');
+                    if (elBadge) elBadge.textContent = hw.hostname || 'PC-HOST';
+                    
+                    // CPU
+                    const elCpuName = document.getElementById('hw-cpu-name');
+                    if (elCpuName) {
+                        elCpuName.textContent = hw.cpuName || 'Intel Core Processor';
+                        elCpuName.title = hw.cpuName || '';
+                    }
+                    const elCpuTemp = document.getElementById('hw-cpu-temp');
+                    if (elCpuTemp) elCpuTemp.textContent = (hw.cpuTempC !== null && hw.cpuTempC !== undefined) ? `${hw.cpuTempC}°C` : '--°C';
+                    const elCpuUsage = document.getElementById('hw-cpu-usage');
+                    const cpuUsage = Math.round(hw.cpuUsagePercent || 0);
+                    if (elCpuUsage) elCpuUsage.textContent = `${cpuUsage}%`;
+                    const elCpuFill = document.getElementById('hw-cpu-fill');
+                    if (elCpuFill) elCpuFill.style.width = `${Math.min(100, Math.max(2, cpuUsage))}%`;
+                    const elCpuBadge = document.getElementById('hw-cpu-temp-badge');
+                    if (elCpuBadge && hw.cpuTempStatus) {
+                        elCpuBadge.textContent = hw.cpuTempStatus.toUpperCase();
+                        elCpuBadge.className = `tag ${hw.cpuTempStatus === 'Hot' ? 'tag-failed' : (hw.cpuTempStatus === 'Warm' ? 'tag-warning' : 'tag-success')}`;
+                    }
+                    const elCpuCores = document.getElementById('hw-cpu-cores');
+                    if (elCpuCores) elCpuCores.textContent = `${hw.cpuPhysicalCores || Math.round(hw.cpuLogicalCores/2)} Cores`;
+                    const elCpuThreads = document.getElementById('hw-cpu-threads');
+                    if (elCpuThreads) elCpuThreads.textContent = `${hw.cpuLogicalCores} Threads`;
+
+                    // GPU
+                    const elGpuName = document.getElementById('hw-gpu-name');
+                    if (elGpuName) {
+                        elGpuName.textContent = hw.gpuName || 'Graphics Adapter';
+                        elGpuName.title = hw.gpuName || '';
+                    }
+                    const elGpuTemp = document.getElementById('hw-gpu-temp');
+                    if (elGpuTemp) elGpuTemp.textContent = (hw.gpuTempC !== null && hw.gpuTempC !== undefined) ? `${hw.gpuTempC}°C` : 'N/A';
+                    const elGpuUsage = document.getElementById('hw-gpu-usage');
+                    const gpuUsage = hw.gpuUsagePercent !== null && hw.gpuUsagePercent !== undefined ? Math.round(hw.gpuUsagePercent) : null;
+                    if (elGpuUsage) elGpuUsage.textContent = gpuUsage !== null ? `${gpuUsage}%` : 'N/A';
+                    const elGpuFill = document.getElementById('hw-gpu-fill');
+                    if (elGpuFill) elGpuFill.style.width = `${gpuUsage !== null ? Math.min(100, Math.max(2, gpuUsage)) : 0}%`;
+                    const elGpuBadge = document.getElementById('hw-gpu-temp-badge');
+                    if (elGpuBadge && hw.gpuTempStatus) {
+                        elGpuBadge.textContent = hw.gpuTempStatus.toUpperCase();
+                        elGpuBadge.className = `tag ${hw.gpuTempStatus === 'Hot' ? 'tag-failed' : (hw.gpuTempStatus === 'Warm' ? 'tag-warning' : 'tag-success')}`;
+                    }
+                    const elGpuVram = document.getElementById('hw-gpu-vram');
+                    if (elGpuVram) {
+                        if (hw.gpuMemoryUsedMB && hw.gpuMemoryTotalMB) {
+                            elGpuVram.textContent = `VRAM: ${(hw.gpuMemoryUsedMB / 1024).toFixed(1)}GB / ${(hw.gpuMemoryTotalMB / 1024).toFixed(1)}GB`;
+                        } else {
+                            elGpuVram.textContent = 'VRAM: Standard';
+                        }
+                    }
+                    const elGpuPower = document.getElementById('hw-gpu-power');
+                    if (elGpuPower) {
+                        elGpuPower.textContent = hw.gpuPowerWatts !== null && hw.gpuPowerWatts !== undefined ? `Power: ${hw.gpuPowerWatts.toFixed(1)}W` : (hw.gpuDriverVersion ? `Driver: ${hw.gpuDriverVersion}` : 'Power: --');
+                    }
+
+                    // RAM
+                    const elRamUsedTotal = document.getElementById('hw-ram-used-total');
+                    if (elRamUsedTotal) elRamUsedTotal.textContent = `${hw.ramUsedGB} GB / ${hw.ramTotalGB} GB`;
+                    const elRamFree = document.getElementById('hw-ram-free');
+                    if (elRamFree) elRamFree.textContent = `${hw.ramFreeGB} GB Free`;
+                    const elRamApp = document.getElementById('hw-ram-app');
+                    if (elRamApp) elRamApp.textContent = `Backup App: ${hw.appRamUsageMB} MB`;
+                    const elRamPct = document.getElementById('hw-ram-pct');
+                    const ramPct = Math.round(hw.ramUsagePercent || 0);
+                    if (elRamPct) elRamPct.textContent = `Load: ${ramPct}%`;
+                    const elRamBadge = document.getElementById('hw-ram-badge');
+                    if (elRamBadge) elRamBadge.textContent = `${ramPct}%`;
+                    const elRamFill = document.getElementById('hw-ram-fill');
+                    if (elRamFill) elRamFill.style.width = `${Math.min(100, Math.max(2, ramPct))}%`;
+                    const elRamArch = document.getElementById('hw-host-arch');
+                    if (elRamArch) elRamArch.textContent = `${hw.architecture || '64-bit'} Platform`;
+
+                    // Context
+                    const elHostNameVal = document.getElementById('hw-host-name-val');
+                    if (elHostNameVal) elHostNameVal.textContent = `Machine: ${hw.hostname || '--'}`;
+                    const elOsVal = document.getElementById('hw-os-val');
+                    if (elOsVal) elOsVal.textContent = `OS: ${hw.osDescription || '--'}`;
+                    const elUptimeVal = document.getElementById('hw-uptime-val');
+                    if (elUptimeVal && sRes.system) elUptimeVal.textContent = `Host Uptime: ${sRes.system.systemUptime}`;
                 }
 
                 // Health & Hardware Metrics

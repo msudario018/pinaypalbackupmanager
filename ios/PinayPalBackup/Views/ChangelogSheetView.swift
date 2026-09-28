@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.4 (Build 17)",
+            version: "v3.6.5 (Build 18)",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "Host PC hardware telemetry with live CPU & GPU temperatures, dedicated resource cards across Web, Desktop, and iOS Companion apps",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Live CPU & GPU Temperature Telemetry",
+                    description: "Direct real-time hardware sensor readings for CPU temperature (°C) and GPU temperature (°C) from the PC running the backup engine."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Dedicated Host PC Hardware Cards",
+                    description: "Brand-new dedicated cards in Web Dashboard, Desktop App, and iOS Companion clearly highlighting metrics as host resources of the PC where the backup engine is executing."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Extended GPU Diagnostics & Power Metrics",
+                    description: "Live GPU model identification, load percentage, dedicated VRAM allocation (used / total), and active power draw (Watts) via direct GPU monitor."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Host Processor & Thermal Health Status",
+                    description: "CPU model identification, physical cores / logical threads, processor load %, and thermal health classification (Cool / Optimal / Warm / Hot)."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Restful Hardware Telemetry Endpoint",
+                    description: "Added /api/hardware/telemetry and enriched /api/status payload with host system specifications and sensor data for remote monitoring."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.4 (Build 17)",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "Cloudflare Quick Tunnel (temp websites), dual-tier LAN & Tunnel pairing, iOS profile avatar upload, and multi-channel email & disconnect alerts",
             changes: [
                 ChangelogItem(

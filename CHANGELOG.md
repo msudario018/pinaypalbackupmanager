@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.6.5 (2026-09-28)
+
+### Added & Improved
+- **Direct Host PC Hardware & Thermal Telemetry**:
+  - Added `HardwareTelemetryService.cs`: Implemented direct, low-overhead hardware telemetry engine to monitor the PC host running the PinayPal Backup engine.
+  - **Live CPU Temperature (°C)**: Direct ACPI hardware thermal zone sensor querying (`Win32_PerfFormattedData_Counters_ThermalZoneInformation` / `MSAcpi_ThermalZoneTemperature`) with dynamic thermal load calculation fallback.
+  - **Live GPU Temperature (°C) & Diagnostics**: Integrated direct NVIDIA SMI monitor (`nvidia-smi`) querying GPU model name, active GPU temperature (°C), GPU utilization (%), dedicated VRAM allocated/total (MB), and GPU active power draw (Watts), with graceful fallback to `Win32_VideoController`.
+  - **Host Memory & Identity**: Added physical host RAM capacity (total/used/free GB), backup manager process working set (MB), host machine name, and OS architecture metrics.
+  - Built-in reader-writer cache with 1.8-second TTL ensuring zero redundant process spawns even with multiple concurrent pollers (Web Dashboard, Desktop, iOS Companion).
+- **Dedicated Host PC Hardware Cards**:
+  - **Web Dashboard**: Added dedicated `🖥️ HOST PC HARDWARE & THERMAL TELEMETRY` card with `SERVER HOST RESOURCE (PC RUNNING BACKUP)` badge, real-time gauges, color-coded temperature badges (`COOL`, `OPTIMAL`, `WARM`, `HOT`), and processor/graphics detail bars.
+  - **Desktop PC Home Dashboard**: Added prominent `🖥️ HOST PC HARDWARE & TELEMETRY` card in `HomeControl.axaml` clearly distinguishing PC host resources from backup service statuses.
+  - **Desktop PC Health Check Tab**: Extended `HealthCheckControl.axaml.cs` System Resources list with live CPU Temperature and GPU Temperature/VRAM/Power telemetry rows.
+  - **iOS Companion App**: Added dedicated `HOST PC HARDWARE & TELEMETRY` Liquid Glass card in `LiquidDashboardView.swift` displaying host PC CPU and GPU temperatures with dual-gauge styling and host badge.
+- **REST Hardware Telemetry Endpoints**:
+  - Added `GET /api/hardware/telemetry` and `GET /api/hardware` endpoints.
+  - Extended `/api/status` JSON payload with a comprehensive `hardware` object for remote monitoring.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.5` (iOS Build `18`).
+
+
 ## v3.6.4 (2026-09-28)
 
 ### Added & Improved

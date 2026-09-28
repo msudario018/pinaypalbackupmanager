@@ -144,6 +144,104 @@
                 </Grid>
             </Border>
 
+            <!-- Host PC Hardware & Thermal Telemetry Card -->
+            <Border Name="HostHardwareCard" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="16"
+                    BoxShadow="0 2 8 #00000018, 0 4 16 #0000000C">
+                <Grid RowDefinitions="Auto, Auto">
+                    <!-- Card Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="🖥️" FontSize="16" VerticalAlignment="Center"/>
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="HOST PC HARDWARE &amp; TELEMETRY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                <TextBlock Text="Direct hardware sensors and thermal diagnostics from the PC host running the backup engine" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <Border Grid.Column="2" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="8,4" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                                <TextBlock Text="SERVER HOST (BACKUP RUNNING)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <!-- Telemetry Columns -->
+                    <Grid Grid.Row="1" Name="HostHardwareGrid" ColumnDefinitions="*, *, *, *">
+                        <!-- CPU -->
+                        <Border Grid.Column="0" Background="{DynamicResource AppSurface}" CornerRadius="10" Padding="12,10" Margin="0,0,6,0">
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="CPU Processor" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentFtp}"/>
+                                    <TextBlock Grid.Column="1" Name="TxtHwCpuTempBadge" Text="NORMAL" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                </Grid>
+                                <TextBlock Name="TxtHwCpuName" Text="Detecting CPU..." FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppText}" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Name="TxtHwCpuTemp" Text="--°C" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
+                                        <TextBlock Text="temp" FontSize="9" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Name="TxtHwCpuUsage" Text="0%" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                                        <TextBlock Text="load" FontSize="9" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ProgressBar Name="PbHwCpu" Height="4" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentFtp}" Background="{DynamicResource AppBorder}" CornerRadius="2"/>
+                                <TextBlock Name="TxtHwCpuCores" Text="-- Cores" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- GPU -->
+                        <Border Grid.Column="1" Background="{DynamicResource AppSurface}" CornerRadius="10" Padding="12,10" Margin="3,0,3,0">
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="GPU Graphics" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentWebsite}"/>
+                                    <TextBlock Grid.Column="1" Name="TxtHwGpuTempBadge" Text="NORMAL" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                </Grid>
+                                <TextBlock Name="TxtHwGpuName" Text="Detecting GPU..." FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppText}" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Name="TxtHwGpuTemp" Text="--°C" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                        <TextBlock Text="temp" FontSize="9" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Name="TxtHwGpuUsage" Text="0%" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                                        <TextBlock Text="load" FontSize="9" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ProgressBar Name="PbHwGpu" Height="4" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentWebsite}" Background="{DynamicResource AppBorder}" CornerRadius="2"/>
+                                <TextBlock Name="TxtHwGpuDetails" Text="VRAM: -- | Power: --" FontSize="9" Foreground="{DynamicResource AppMuted}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- RAM -->
+                        <Border Grid.Column="2" Background="{DynamicResource AppSurface}" CornerRadius="10" Padding="12,10" Margin="3,0,3,0">
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="Host Physical RAM" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentMailchimp}"/>
+                                    <TextBlock Grid.Column="1" Name="TxtHwRamPercent" Text="0%" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
+                                </Grid>
+                                <TextBlock Name="TxtHwRamUsedTotal" Text="0 GB / 0 GB" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                                    <TextBlock Name="TxtHwRamFree" Text="-- GB Free" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppSubtext}"/>
+                                </StackPanel>
+                                <ProgressBar Name="PbHwRam" Height="4" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentMailchimp}" Background="{DynamicResource AppBorder}" CornerRadius="2"/>
+                                <TextBlock Name="TxtHwAppRam" Text="Backup App: -- MB" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Host PC Identity -->
+                        <Border Grid.Column="3" Background="{DynamicResource AppSurface}" CornerRadius="10" Padding="12,10" Margin="6,0,0,0">
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="PC Host Info" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AppMuted}"/>
+                                    <TextBlock Grid.Column="1" Text="ONLINE" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                                </Grid>
+                                <TextBlock Name="TxtHwHostName" Text="PC-HOST" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppText}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Name="TxtHwOsDesc" Text="Windows" FontSize="9" Foreground="{DynamicResource AppSubtext}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                <TextBlock Text="Host PC running backup" FontSize="9" Foreground="{DynamicResource AccentWebsite}"/>
+                                <TextBlock Text="Active Backup Engine Node" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+
             <!-- Quick Stats Cards -->
             <Grid Name="QuickStatsGrid" ColumnDefinitions="*, *, *" MaxWidth="1200" HorizontalAlignment="Stretch" Margin="0,8,0,0">
                 <Border Grid.Column="0" Margin="0,0,8,0" Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="14" Padding="14"

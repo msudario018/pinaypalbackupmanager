@@ -11,6 +11,34 @@ public struct StatusResponse: Codable {
     public let website: WebsiteStatusSpec?
     public let lastBackup: LastBackupSpec?
     public let activeBackup: ActiveBackupSpec?
+    public let hardware: HardwareTelemetrySpec?
+}
+
+public struct HardwareTelemetrySpec: Codable, Equatable {
+    public let hostname: String?
+    public let hostRole: String?
+    public let osDescription: String?
+    public let architecture: String?
+    public let cpuName: String?
+    public let cpuPhysicalCores: Int?
+    public let cpuLogicalCores: Int?
+    public let cpuUsagePercent: Double?
+    public let cpuTempC: Double?
+    public let cpuTempStatus: String?
+    public let gpuName: String?
+    public let gpuTempC: Double?
+    public let gpuTempStatus: String?
+    public let gpuUsagePercent: Double?
+    public let gpuMemoryUsedMB: Int64?
+    public let gpuMemoryTotalMB: Int64?
+    public let gpuMemoryPercent: Double?
+    public let gpuPowerWatts: Double?
+    public let gpuDriverVersion: String?
+    public let ramTotalGB: Double?
+    public let ramUsedGB: Double?
+    public let ramFreeGB: Double?
+    public let ramUsagePercent: Double?
+    public let appRamUsageMB: Double?
 }
 
 public struct WebsiteStatusSpec: Codable {

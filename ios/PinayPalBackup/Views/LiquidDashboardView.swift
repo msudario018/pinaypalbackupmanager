@@ -70,6 +70,11 @@ public struct LiquidDashboardView: View {
                     // 4 Resource Metric Cards (Status, CPU, RAM, Disk)
                     metricsGrid
 
+                    // Dedicated Host PC Hardware & Telemetry Card (PC running backup)
+                    if let hw = api.status?.hardware {
+                        hostHardwareTelemetryCard(hw)
+                    }
+
                     // Storage Breakdown Visualizer
                     storageVisualizerCard
 
@@ -267,6 +272,159 @@ public struct LiquidDashboardView: View {
     }
 
     // MARK: - 4 Top Metrics Grid
+    // MARK: - Dedicated Host PC Hardware & Telemetry Card
+    private func hostHardwareTelemetryCard(_ hw: HardwareTelemetrySpec) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header
+            HStack {
+                Image(systemName: "desktopcomputer")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("HOST PC HARDWARE & TELEMETRY")
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("BACKUP HOST")
+                            .font(.system(size: 8, weight: .black))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(LiquidTheme.gold.opacity(0.18))
+                            .foregroundColor(LiquidTheme.gold)
+                            .cornerRadius(6)
+                    }
+                    Text("Live thermal sensors and hardware diagnostics from the PC host running the backup engine")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                }
+                Spacer()
+                if let host = hw.hostname {
+                    Text(host)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.06))
+                        .cornerRadius(8)
+                }
+            }
+
+            // Grid: CPU & GPU Cards
+            HStack(spacing: 12) {
+                // CPU Card
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("CPU PROCESSOR")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(LiquidTheme.cyan)
+                        Spacer()
+                        if let status = hw.cpuTempStatus {
+                            Text(status.uppercased())
+                                .font(.system(size: 8, weight: .black))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.cyan.opacity(0.15))
+                                .foregroundColor(LiquidTheme.cyan)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    Text(hw.cpuName ?? "Intel Core")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        .lineLimit(1)
+
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        if let temp = hw.cpuTempC {
+                            Text("\(String(format: "%.0f", temp))°C")
+                                .font(.system(size: 18, weight: .black))
+                                .foregroundColor(LiquidTheme.cyan)
+                        } else {
+                            Text("--°C")
+                                .font(.system(size: 18, weight: .black))
+                                .foregroundColor(LiquidTheme.cyan)
+                        }
+                        if let usage = hw.cpuUsagePercent {
+                            Text("\(Int(usage))% load")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                    }
+
+                    if let cores = hw.cpuPhysicalCores, let threads = hw.cpuLogicalCores {
+                        Text("\(cores) Cores / \(threads) Threads")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.04))
+                .cornerRadius(12)
+
+                // GPU Card
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("GPU GRAPHICS")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(LiquidTheme.emerald)
+                        Spacer()
+                        if let status = hw.gpuTempStatus {
+                            Text(status.uppercased())
+                                .font(.system(size: 8, weight: .black))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(LiquidTheme.emerald.opacity(0.15))
+                                .foregroundColor(LiquidTheme.emerald)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    Text(hw.gpuName ?? "Integrated GPU")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        .lineLimit(1)
+
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        if let temp = hw.gpuTempC {
+                            Text("\(String(format: "%.0f", temp))°C")
+                                .font(.system(size: 18, weight: .black))
+                                .foregroundColor(LiquidTheme.emerald)
+                        } else {
+                            Text("N/A")
+                                .font(.system(size: 16, weight: .black))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                        if let usage = hw.gpuUsagePercent {
+                            Text("\(Int(usage))% load")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        if let vramUsed = hw.gpuMemoryUsedMB, let vramTotal = hw.gpuMemoryTotalMB {
+                            Text("VRAM: \(String(format: "%.1f", Double(vramUsed)/1024.0))G")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                        if let power = hw.gpuPowerWatts {
+                            Text("\(String(format: "%.0f", power))W")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.04))
+                .cornerRadius(12)
+            }
+        }
+        .padding(16)
+        .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.gold.opacity(0.2))
+    }
+
     private var metricsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
             // 1. System Status

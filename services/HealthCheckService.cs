@@ -626,7 +626,7 @@ namespace PinayPalBackupManager.Services
             return await Task.FromResult(info);
         }
 
-        private static double GetCpuUsage()
+        public static double GetCpuUsage()
         {
             try
             {
