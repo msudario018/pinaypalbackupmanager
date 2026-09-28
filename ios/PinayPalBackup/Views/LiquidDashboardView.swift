@@ -9,6 +9,7 @@ public struct LiquidDashboardView: View {
     @State private var toastMessage: String? = nil
     @State private var selectedService: ServiceDestination? = nil
     @State private var carouselIndex: Int = 0
+    @State private var dismissedCompletionId: String? = nil
 
     private enum ServiceDestination: Identifiable {
         case ftp, sql, mailchimp
@@ -1132,50 +1133,77 @@ public struct LiquidDashboardView: View {
     @ViewBuilder
     private var lastBackupResultBanner: some View {
         if let last = api.history.first {
-            let success = last.status.localizedCaseInsensitiveContains("success")
-            HStack(spacing: 10) {
-                Image(systemName: success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
-                    .font(.system(size: 16))
+            let bannerKey = "\(last.service)_\(last.time)"
+            if dismissedCompletionId != bannerKey {
+                let success = last.status.localizedCaseInsensitiveContains("success")
+                HStack(spacing: 10) {
+                    Image(systemName: success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundColor(success ? LiquidTheme.emerald : LiquidTheme.coral)
+                        .font(.system(size: 16))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(last.service.uppercased()) \(success ? "completed" : last.status)")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
-                    HStack(spacing: 6) {
-                        Text(last.time)
-                            .font(.system(size: 10))
-                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
-                        if let bytes = last.sizeBytes, bytes > 0 {
-                            Text("· \(formatBytes(bytes))")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(last.service.uppercased()) \(success ? "COMPLETED" : last.status.uppercased())")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        HStack(spacing: 6) {
+                            Text(last.time)
                                 .font(.system(size: 10))
                                 .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
-                        }
-                        if let dur = last.durationSeconds, dur > 0 {
-                            Text("· \(String(format: "%.1fs", dur))")
-                                .font(.system(size: 10))
-                                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            if let bytes = last.sizeBytes, bytes > 0 {
+                                Text("· \(formatBytes(bytes))")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            }
+                            if let dur = last.durationSeconds, dur > 0 {
+                                Text("· \(String(format: "%.1fs", dur))")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            }
                         }
                     }
-                }
 
-                Spacer()
+                    Spacer()
 
-                if !success {
+                    if !success {
+                        Button {
+                            triggerBackup(service: last.service.lowercased())
+                        } label: {
+                            Text("Retry")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(LiquidTheme.gold, in: Capsule())
+                        }
+                    }
+
+                    // Quick dismiss button
                     Button {
-                        triggerBackup(service: last.service.lowercased())
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            dismissedCompletionId = bannerKey
+                        }
                     } label: {
-                        Text("Retry")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(LiquidTheme.gold, in: Capsule())
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                            .padding(6)
+                            .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(12)
+                .liquidGlassCard(cornerRadius: 14, glow: (success ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.15))
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .task(id: bannerKey) {
+                    if success {
+                        // Auto-hide completed card after 10 seconds
+                        try? await Task.sleep(nanoseconds: 10_000_000_000)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            dismissedCompletionId = bannerKey
+                        }
                     }
                 }
             }
-            .padding(12)
-            .liquidGlassCard(cornerRadius: 14, glow: (success ? LiquidTheme.emerald : LiquidTheme.coral).opacity(0.15))
         }
     }
 

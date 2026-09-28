@@ -29,6 +29,9 @@ namespace PinayPalBackupManager.UI.UserControls
         private System.Timers.ElapsedEventHandler? _statsRefreshTimerHandler;
         private System.Timers.Timer? _dashboardRefreshTimer;
         private System.Timers.ElapsedEventHandler? _dashboardRefreshTimerHandler;
+        private System.Timers.Timer? _hardwareTelemetryTimer;
+        private System.Timers.ElapsedEventHandler? _hardwareTelemetryTimerHandler;
+        private int _isHardwareRefreshing = 0;
         private int _isHealthRefreshing = 0;
         private int _isStatsRefreshing = 0;
         private int _isDashboardRefreshing = 0;
@@ -210,6 +213,9 @@ namespace PinayPalBackupManager.UI.UserControls
             
             // Start dashboard auto-refresh (every 30 seconds)
             StartDashboardAutoRefresh();
+
+            // Start realtime hardware telemetry auto-refresh (every 3 seconds)
+            StartHardwareTelemetryAutoRefresh();
 
             // Start error log refresh (every 60 seconds — less expensive than full dashboard)
             StartErrorRefreshTimer();
@@ -2039,6 +2045,41 @@ namespace PinayPalBackupManager.UI.UserControls
 
             LogService.WriteLiveLog("[ERRORS] Auto-refresh started (60s interval)", "", "Information", "SYSTEM");
         }
+
+        private void StartHardwareTelemetryAutoRefresh()
+        {
+            if (_hardwareTelemetryTimer != null)
+            {
+                _hardwareTelemetryTimer.Elapsed -= _hardwareTelemetryTimerHandler;
+                _hardwareTelemetryTimer.Stop();
+                _hardwareTelemetryTimer.Dispose();
+            }
+            _hardwareTelemetryTimerHandler = async (_, _) =>
+            {
+                if (Interlocked.Exchange(ref _isHardwareRefreshing, 1) == 1)
+                    return;
+
+                try
+                {
+                    var hw = await HardwareTelemetryService.GetTelemetryAsync();
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        UpdateHostHardwareTelemetry(hw);
+                    });
+                }
+                catch { }
+                finally
+                {
+                    Interlocked.Exchange(ref _isHardwareRefreshing, 0);
+                }
+            };
+            _hardwareTelemetryTimer = new System.Timers.Timer(3000); // Realtime 3-second update
+            _hardwareTelemetryTimer.Elapsed += _hardwareTelemetryTimerHandler;
+            _hardwareTelemetryTimer.AutoReset = true;
+            _hardwareTelemetryTimer.Start();
+
+            LogService.WriteLiveLog("[HARDWARE] Realtime telemetry auto-refresh started (3s interval)", "", "Information", "SYSTEM");
+        }
         
         private void UpdateRetryQueueStatus()
         {
@@ -3291,6 +3332,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 _dashboardRefreshTimer.Stop();
                 _dashboardRefreshTimer.Dispose();
                 _dashboardRefreshTimer = null;
+            }
+            if (_hardwareTelemetryTimer != null)
+            {
+                _hardwareTelemetryTimer.Elapsed -= _hardwareTelemetryTimerHandler;
+                _hardwareTelemetryTimer.Stop();
+                _hardwareTelemetryTimer.Dispose();
+                _hardwareTelemetryTimer = null;
             }
             if (_errorRefreshTimer != null)
             {

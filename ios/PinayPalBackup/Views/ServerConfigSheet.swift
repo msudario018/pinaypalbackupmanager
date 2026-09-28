@@ -148,7 +148,7 @@ public struct ServerConfigSheet: View {
                 categoryTabItem(title: "Theme", icon: "paintbrush.fill", index: 2, badge: nil)
                 categoryTabItem(title: "Network", icon: "network", index: 3, badge: nil)
                 categoryTabItem(title: "Live Logs", icon: "terminal.fill", index: 4, badge: "\(api.logs.count)")
-                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.5")
+                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.6")
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)

@@ -343,7 +343,7 @@ public class PinayPalAPIService: ObservableObject {
 
     public func startPolling() {
         pollTimer?.cancel()
-        pollTimer = Timer.publish(every: 4.0, on: .main, in: .common)
+        pollTimer = Timer.publish(every: 2.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 Task {

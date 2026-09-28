@@ -20,9 +20,17 @@ public class BackupLiveActivityManager: ObservableObject {
     public func restoreActiveActivityIfNeeded() {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            currentActivity = Activity<BackupActivityAttributes>.activities.first
-            isActivityActive = currentActivity != nil
-            currentService = (currentActivity as? Activity<BackupActivityAttributes>)?.attributes.serviceName ?? ""
+            let active = Activity<BackupActivityAttributes>.activities.first(where: { $0.activityState == .active })
+            currentActivity = active
+            isActivityActive = active != nil
+            currentService = active?.attributes.serviceName ?? ""
+
+            // Clean up any stale or ended activities left in the system
+            for stale in Activity<BackupActivityAttributes>.activities where stale.activityState != .active {
+                Task {
+                    await stale.end(nil, dismissalPolicy: .immediate)
+                }
+            }
         }
         #endif
     }
@@ -55,15 +63,23 @@ public class BackupLiveActivityManager: ObservableObject {
                 return false
             }
 
-            if currentActivity == nil {
-                restoreActiveActivityIfNeeded()
+            // Prune ended or cancelled activities
+            for stale in Activity<BackupActivityAttributes>.activities where stale.activityState != .active {
+                Task { await stale.end(nil, dismissalPolicy: .immediate) }
             }
-            if let currentActivity = currentActivity as? Activity<BackupActivityAttributes>, currentActivity.attributes.serviceName.caseInsensitiveCompare(service) == .orderedSame {
-                lastDiagnosticMessage = "Live Activity is already active for \(service)."
-                return true
-            }
-            if currentActivity != nil {
-                endBackupActivity(success: true, message: "New backup started")
+
+            // Check if there is an existing truly ACTIVE activity
+            if let active = Activity<BackupActivityAttributes>.activities.first(where: { $0.activityState == .active }) {
+                if active.attributes.serviceName.caseInsensitiveCompare(service) == .orderedSame {
+                    self.currentActivity = active
+                    self.isActivityActive = true
+                    self.currentService = service
+                    self.lastDiagnosticMessage = "Live Activity is active for \(service)."
+                    return true
+                } else {
+                    // Different service, end previous activity immediately
+                    Task { await active.end(nil, dismissalPolicy: .immediate) }
+                }
             }
 
             let attributes = BackupActivityAttributes(serviceName: service.uppercased(), startedAt: Date())
@@ -146,7 +162,14 @@ public class BackupLiveActivityManager: ObservableObject {
     public func endBackupActivity(success: Bool, message: String) {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            guard let activity = currentActivity as? Activity<BackupActivityAttributes> else { return }
+            let activity = (currentActivity as? Activity<BackupActivityAttributes>)
+                ?? Activity<BackupActivityAttributes>.activities.first(where: { $0.activityState == .active })
+            guard let activity = activity else {
+                self.currentActivity = nil
+                self.isActivityActive = false
+                self.currentService = ""
+                return
+            }
 
             let finalState = BackupActivityAttributes.ContentState(
                 service: activity.attributes.serviceName,
@@ -165,7 +188,7 @@ public class BackupLiveActivityManager: ObservableObject {
             self.isActivityActive = false
             self.currentService = ""
             Task {
-                await activity.end(.init(state: finalState, staleDate: nil), dismissalPolicy: .after(.now + 5))
+                await activity.end(.init(state: finalState, staleDate: nil), dismissalPolicy: .after(.now + 4))
                 await MainActor.run {
                     self.lastDiagnosticMessage = "Live Activity finished: \(success ? "success" : "failed")."
                 }

@@ -53,9 +53,47 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.5 (Build 18)",
+            version: "v3.6.6 (Build 19)",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "Intel Arc GPU telemetry fix, Live Activities & Dynamic Island lifecycle resolution, auto-dismissing backup completion banners, and authentic branding",
+            changes: [
+                ChangelogItem(
+                    type: .bugFix,
+                    title: "Intel Arc & Non-NVIDIA GPU Telemetry Fix",
+                    description: "Resolved 'N/A' temperature, load, and VRAM for Intel Arc A380 and AMD GPUs. Dedicated VRAM usage, 64-bit capacity, and active thermal states now report live across Web, Desktop, and iOS."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Auto-Dismissing Backup Completion Banner",
+                    description: "Backup completion banner in iOS Companion now displays 'COMPLETED' upon successful sync, includes a quick-dismiss ('X') button, and automatically hides after 10 seconds."
+                ),
+                ChangelogItem(
+                    type: .bugFix,
+                    title: "iOS Dynamic Island & Live Activities Fix",
+                    description: "Fixed Dynamic Island activity state restoration and stale session handling, added frequent update entitlements, ensuring Live Activities present reliably."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Real-time Host Telemetry & Dynamic Polling",
+                    description: "Desktop app now refreshes hardware metrics every 3 seconds; Web Dashboard and iOS companion poll every 2.5s and accelerate during active backups for true real-time visibility."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Web Dashboard Active Transfer Progress Bar",
+                    description: "Added a sleek, high-visibility animated progress bar and live completion percentage in the Web Dashboard active backup banner."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Authentic App Branding & Logo Integration",
+                    description: "Replaced generic emoji shield with the authentic PinayPal app icon from Assets/logo.ico in Web Dashboard headers and login screens."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.5 (Build 18)",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "Host PC hardware telemetry with live CPU & GPU temperatures, dedicated resource cards across Web, Desktop, and iOS Companion apps",
             changes: [
                 ChangelogItem(

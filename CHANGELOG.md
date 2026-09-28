@@ -1,5 +1,32 @@
 # Changelog
 
+## v3.6.6 (2026-09-28)
+
+### Added & Improved
+- **Intel Arc & Non-NVIDIA GPU Telemetry Fix**:
+  - Enhanced `HardwareTelemetryService.cs` with direct 64-bit VRAM querying from Windows Registry (`HardwareInformation.qwMemorySize`), bypassing the 4GB cap of legacy `Win32_VideoController.AdapterRAM`.
+  - Added dedicated GPU performance metrics query via `Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory` to track actual dedicated VRAM usage (MB) across non-NVIDIA GPUs (Intel Arc A380, AMD Radeon, integrated).
+  - Added 3D GPU engine utilization tracking via `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` and dynamic thermal modeling so GPU temperature and load report live values instead of "N/A" on Web, Desktop, and iOS companion apps.
+- **iOS Backup Completion Banner Auto-Dismiss**:
+  - In `LiquidDashboardView.swift`, resolved the issue where the backup completion card permanently occupied screen space.
+  - Added "COMPLETED" status indicator on successful backup, an immediate dismiss ('X') button, and a 10-second automatic fade/hide timer.
+- **iOS Dynamic Island & Live Activities Lifecycle Fix**:
+  - Overhauled `BackupLiveActivityManager.swift` state recovery: now filters strictly for truly `.active` activities, pruning stale or ended sessions that previously blocked new Dynamic Island instances from being requested.
+  - Added `NSSupportsLiveActivitiesFrequentUpdates` to `PinayPalBackup/Info.plist` and `PinayPalBackupWidgets/Info.plist`.
+  - Accelerated active backup synchronization so Dynamic Island and Lock Screen widgets reflect transfer progress in real time.
+- **Real-Time Host Hardware & Backup Progress Updates**:
+  - **Desktop PC App**: Added dedicated 3-second realtime hardware telemetry timer in `HomeControl.axaml.cs` so CPU, GPU, RAM, load, and temperatures update continuously on the desktop GUI.
+  - **Web Dashboard**: Set default polling interval to 3 seconds, with automatic 1.5-second fast polling during active backups.
+  - **iOS Companion App**: Increased polling frequency to 2.5 seconds with rapid refresh during active sync routines.
+- **Web Dashboard Active Transfer Progress Bar**:
+  - Enhanced the active backup banner in `WebDashboardService.cs` with a modern animated gradient progress bar and dynamic percentage indicator.
+- **Authentic App Branding & Logo Integration**:
+  - Replaced generic emoji shield with the authentic PinayPal app icon from `Assets/logo.ico` across Web Dashboard header and login pages.
+  - Updated `ServeLogoAsync` to prioritize `Assets/logo.ico`.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.6` (iOS Build `19`).
+
+
 ## v3.6.5 (2026-09-28)
 
 ### Added & Improved

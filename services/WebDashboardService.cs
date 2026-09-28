@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.5";
+        public const string ApiVersion = "3.6.6";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -1583,6 +1583,8 @@ namespace PinayPalBackupManager.Services
         {
             var candidatePaths = new[]
             {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "logo.ico"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Assets", "logo.ico"),
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "logo.png"),
                 Path.Combine(Directory.GetCurrentDirectory(), "Assets", "logo.png"),
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "icon.ico"),
@@ -1652,7 +1654,7 @@ namespace PinayPalBackupManager.Services
 </head>
 <body>
     <div class=""card"">
-        <div class=""logo"">🛡️ PinayPal</div>
+        <div class=""logo"" style=""display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;""><img src=""/api/logo"" alt=""PinayPal"" style=""width: 36px; height: 36px; object-fit: contain;"" /><span>PinayPal</span></div>
         <div class=""sub"">Web Dashboard Access</div>
         <input type=""password"" id=""pin"" placeholder=""ENTER PIN"" autofocus onkeydown=""if(event.key==='Enter')login()"">
         <button onclick=""login()"">Unlock Dashboard</button>
@@ -1814,6 +1816,8 @@ namespace PinayPalBackupManager.Services
             align-items: center;
             justify-content: space-between;
             animation: pulseGlow 2s infinite ease-in-out;
+            flex-wrap: wrap;
+            gap: 14px;
         }
         @keyframes pulseGlow {
             0%, 100% { box-shadow: 0 0 15px rgba(252,163,17,0.2); }
@@ -1909,8 +1913,8 @@ namespace PinayPalBackupManager.Services
         <!-- Header -->
         <header>
             <div class=""header-left"">
-                <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.6.5</span>
+                <div class=""logo"" style=""display: flex; align-items: center; gap: 10px;""><img src=""/api/logo"" alt=""PinayPal"" style=""width: 28px; height: 28px; object-fit: contain;"" /><span>PinayPal</span></div>
+                <span class=""version-badge"" id=""app-version"">v3.6.6</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -1920,9 +1924,9 @@ namespace PinayPalBackupManager.Services
                     <span id=""session-username"">—</span>
                 </span>
                 <select class=""dashboard-control"" id=""refresh-interval"" onchange=""setRefreshInterval(this.value)"" title=""Dashboard refresh interval"">
-                    <option value=""4000"">Refresh: 4 sec</option>
-                    <option value=""10000"">Refresh: 10 sec</option>
-                    <option value=""30000"">Refresh: 30 sec</option>
+                    <option value=""3000"">Refresh: 3 sec (Live)</option>
+                    <option value=""6000"">Refresh: 6 sec</option>
+                    <option value=""15000"">Refresh: 15 sec</option>
                     <option value=""0"">Refresh: Manual</option>
                 </select>
                 <button class=""btn-secondary"" onclick=""refreshDashboard()"">↻ Refresh</button>
@@ -1938,7 +1942,7 @@ namespace PinayPalBackupManager.Services
 
         <!-- Active Backup Realtime Banner -->
         <div class=""active-backup-banner"" id=""active-backup-banner"">
-            <div style=""display: flex; align-items: center; gap: 12px;"">
+            <div style=""display: flex; align-items: center; gap: 12px; min-width: 240px;"">
                 <span class=""active-pulse-dot""></span>
                 <div>
                     <div style=""font-size: 14px; font-weight: 800; color: var(--gold);"">
@@ -1947,6 +1951,16 @@ namespace PinayPalBackupManager.Services
                     <div style=""font-size: 12px; color: var(--text); margin-top: 2px;"" id=""active-service-status"">
                         Processing sync operation...
                     </div>
+                </div>
+            </div>
+            <!-- Realtime Transfer Progress Bar -->
+            <div style=""flex: 1; min-width: 220px; max-width: 480px; margin: 0 14px;"" id=""active-backup-progress-container"">
+                <div style=""display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;"">
+                    <span style=""color: var(--muted); font-weight: 600;"">Transfer Progress</span>
+                    <span id=""active-backup-pct"" style=""color: var(--gold); font-weight: 800;"">0%</span>
+                </div>
+                <div class=""progress-bar"" style=""height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;"">
+                    <div class=""progress-fill"" id=""active-backup-fill"" style=""width: 0%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--blue)); border-radius: 4px; transition: width 0.35s ease;""></div>
                 </div>
             </div>
             <div style=""display: flex; gap: 8px;"">
@@ -2338,7 +2352,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.5</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.6</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>
@@ -2515,7 +2529,7 @@ namespace PinayPalBackupManager.Services
         var lastWebsiteOnline = null;
         let historyPageSize = 12;
         let historyState = { page: 1, total: 0, hasMore: false, items: [] };
-        let refreshState = { dataTimer: null, logsTimer: null, interval: Number(localStorage.getItem('pinaypal_refresh_ms') || 4000) };
+        let refreshState = { dataTimer: null, logsTimer: null, interval: Number(localStorage.getItem('pinaypal_refresh_ms') || 3000) };
 
         function refreshDashboard() {
             loadData();
@@ -3202,6 +3216,16 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('active-backup-banner').style.display = 'flex';
                     document.getElementById('active-service-name').textContent = (sRes.activeBackup.service || 'Backup').toUpperCase();
                     document.getElementById('active-service-status').textContent = sRes.activeBackup.statusText || 'In Progress...';
+                    const progVal = Math.round(sRes.activeBackup.progress || 0);
+                    const elFill = document.getElementById('active-backup-fill');
+                    const elPct = document.getElementById('active-backup-pct');
+                    if (elFill) elFill.style.width = `${Math.min(100, Math.max(progVal > 0 ? progVal : 8, 0))}%`;
+                    if (elPct) elPct.textContent = progVal > 0 ? `${progVal}%` : 'Syncing...';
+
+                    // Realtime rapid update during active backup
+                    if (refreshState.interval && refreshState.interval > 1500) {
+                        setTimeout(loadData, 1500);
+                    }
                 } else {
                     document.getElementById('active-backup-banner').style.display = 'none';
                 }
@@ -3257,6 +3281,8 @@ namespace PinayPalBackupManager.Services
                     if (elGpuVram) {
                         if (hw.gpuMemoryUsedMB && hw.gpuMemoryTotalMB) {
                             elGpuVram.textContent = `VRAM: ${(hw.gpuMemoryUsedMB / 1024).toFixed(1)}GB / ${(hw.gpuMemoryTotalMB / 1024).toFixed(1)}GB`;
+                        } else if (hw.gpuMemoryTotalMB) {
+                            elGpuVram.textContent = `VRAM: ${(hw.gpuMemoryTotalMB / 1024).toFixed(1)}GB`;
                         } else {
                             elGpuVram.textContent = 'VRAM: Standard';
                         }
