@@ -32,8 +32,10 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
-          # Extract changelog for current version
-          NOTES=$(sed -n "/## .*$VERSION/,/## /p" CHANGELOG.md | head -n -1 | sed '1d')
+          # Extract the '## v<version>' section, stopping at the next '## ' (h2) heading.
+          # NOTE: a sed range with /## / as the end pattern truncates at '### ' subsection
+          # headings (e.g. '### Added & Improved'), yielding an empty body and the fallback notes.
+          NOTES=$(awk -v ver="$VERSION" '/^## /{ if(p) exit; if(index($0, ver)>0){ p=1; next } } p{ sub(/\r$/,""); print }' CHANGELOG.md)
           if [ -z "$NOTES" ]; then
             NOTES="Release v$VERSION"
           fi
