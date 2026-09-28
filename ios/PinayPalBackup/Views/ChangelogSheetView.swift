@@ -59,7 +59,7 @@ public struct ChangelogSheetView: View {
             highlight: "Intel Arc GPU telemetry fix, Live Activities & Dynamic Island lifecycle resolution, auto-dismissing backup completion banners, and authentic branding",
             changes: [
                 ChangelogItem(
-                    type: .bugFix,
+                    type: .fix,
                     title: "Intel Arc & Non-NVIDIA GPU Telemetry Fix",
                     description: "Resolved 'N/A' temperature, load, and VRAM for Intel Arc A380 and AMD GPUs. Dedicated VRAM usage, 64-bit capacity, and active thermal states now report live across Web, Desktop, and iOS."
                 ),
@@ -69,7 +69,7 @@ public struct ChangelogSheetView: View {
                     description: "Backup completion banner in iOS Companion now displays 'COMPLETED' upon successful sync, includes a quick-dismiss ('X') button, and automatically hides after 10 seconds."
                 ),
                 ChangelogItem(
-                    type: .bugFix,
+                    type: .fix,
                     title: "iOS Dynamic Island & Live Activities Fix",
                     description: "Fixed Dynamic Island activity state restoration and stale session handling, added frequent update entitlements, ensuring Live Activities present reliably."
                 ),

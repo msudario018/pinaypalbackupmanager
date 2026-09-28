@@ -404,7 +404,7 @@ public struct LiquidDashboardView: View {
                     }
 
                     HStack(spacing: 8) {
-                        if let vramUsed = hw.gpuMemoryUsedMB, let vramTotal = hw.gpuMemoryTotalMB {
+                        if let vramUsed = hw.gpuMemoryUsedMB, let _ = hw.gpuMemoryTotalMB {
                             Text("VRAM: \(String(format: "%.1f", Double(vramUsed)/1024.0))G")
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
