@@ -75,8 +75,13 @@ jobs:
             echo "Code signing enabled"
           fi
           
-          vpk pack -u PinayPal.PinayPalBackupManager -v "$TARGET_VERSION" -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico $SIGN_ARGS
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager $TARGET_VERSION" --tag "v$TARGET_VERSION" --token ${{ secrets.GITHUB_TOKEN }}
+          vpk pack -u PinayPal.PinayPalBackupManager -v "$TARGET_VERSION" -p publish --mainExe PinayPalBackupManager.exe --icon Assets/logo.ico --runtime win-x64 $SIGN_ARGS
+                    echo "Attempting Velopack upload..."
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager $TARGET_VERSION" --tag "v$TARGET_VERSION" --token ${{ secrets.GITHUB_TOKEN }} --merge || {
+            echo "Release conflict encountered, deleting existing release object and retrying..."
+            gh release delete "v$TARGET_VERSION" --yes || true
+            vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "PinayPalBackupManager $TARGET_VERSION" --tag "v$TARGET_VERSION" --token ${{ secrets.GITHUB_TOKEN }}
+          }
 
       - name: Update Release Notes
         shell: bash

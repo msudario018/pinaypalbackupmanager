@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.6.7 (2026-09-28)
+
+### Fixed & Improved
+- **PC Setup Wizard & Startup Flow Resolution**:
+  - Fixed startup routing in `App.axaml.cs` so that systems with existing accounts in `users.db` bypass the initial account creation wizard and proceed directly to login/auto-login.
+  - Automatically marks `ConfigService.MarkSetupComplete()` on update when valid accounts exist, eliminating the setup loop.
+  - Enhanced `SetupWizardWindow.axaml.cs` so that if an existing username is entered, it verifies the credentials and logs in rather than throwing a blocking error.
+  - Defaulted FTP, SQL, and Mailchimp checkboxes to unchecked in `SetupWizardWindow.axaml`, and auto-disables empty integrations during setup validation so users can complete onboarding without friction.
+  - Configured `desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnLastWindowClose` to prevent premature process termination during window transitions (`SetupWizardWindow` -> `MainWindow`/`LoginWindow`).
+- **Velopack 1.2 Lifecycle & Packaging Alignment**:
+  - Upgraded `Velopack` NuGet package to `1.2.158` across `PinayPalBackupManager.csproj`, matching the `vpk` tool version.
+  - Converted `Program.Main` from `async Task` to synchronous `void Main`, ensuring `VelopackApp.Build().Run()` is the immediate entry point instruction and avoiding compiler state machine (`MoveNext`) warnings.
+  - Positioned `VelopackApp.Build().Run()` ahead of `AppIconHelper.CheckSingleInstanceAndSignalExisting()`, ensuring installer and update hooks (`--veloapp-install`, `--veloapp-updated`) execute without single-instance interference.
+  - Added `--runtime win-x64` to `vpk pack` in `.github/workflows/velopack-release.yml`, resolving x86 fallback warnings.
+  - Added `--merge` and release cleanup fallback to `vpk upload github` in `.github/workflows/velopack-release.yml` to prevent existing tag collisions.
+- **Desktop UI Thread Safety**:
+  - Made `UpdateHealthStatus` in `SettingsControl.axaml.cs` thread-safe by wrapping control access in `Dispatcher.UIThread.Post(...)`.
+  - Moved `BackupCalendar` control lookup in `HomeControl.axaml.cs` onto the UI thread dispatcher, preventing `Call from invalid thread` exceptions.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.7` (iOS Build `20`).
+
 ## v3.6.6 (2026-09-28)
 
 ### Added & Improved

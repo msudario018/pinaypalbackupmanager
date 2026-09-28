@@ -41,7 +41,7 @@ public struct QRScannerView: View {
                         cloudflareUrl: "https://backup.pinaypal.com",
                         pin: "1234",
                         hostname: "SIMULATOR-PC",
-                        version: "3.6.6"
+                        version: "3.6.7"
                     )
                     let haptic = UINotificationFeedbackGenerator()
                     haptic.notificationOccurred(.success)

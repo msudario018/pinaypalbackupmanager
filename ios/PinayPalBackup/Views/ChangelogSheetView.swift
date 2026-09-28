@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.6 (Build 19)",
+            version: "v3.6.7 (Build 20)",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "PC Setup Wizard deadlock resolution, Velopack 1.2 update lifecycle integration, win-x64 packaging alignment, and UI thread safety",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "PC Setup Wizard Deadlock Resolution",
+                    description: "Fixed startup routing in App.axaml.cs to seamlessly bypass the initial account creation wizard when user accounts already exist in the database, preventing 'Username already exists' lockouts."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Setup Wizard Credential Linking",
+                    description: "SetupWizardWindow now automatically verifies existing account credentials if entered, linking the session and completing setup rather than halting with an error."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Velopack 1.2 & Entry Point Alignment",
+                    description: "Upgraded Velopack library to 1.2.158, placed VelopackApp.Build().Run() at the direct entry point of Program.Main, and added explicit win-x64 runtime targeting."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Graceful Optional Service Setup",
+                    description: "Defaulted FTP, SQL, and Mailchimp integration checkboxes to unchecked in initial setup, and auto-unchecks empty configurations so users can complete setup friction-free."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Desktop UI Thread Safety & Shutdown Protection",
+                    description: "Configured ShutdownMode to OnLastWindowClose to safeguard window transitions, and wrapped background telemetry control lookups in UI thread dispatchers."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.6 (Build 19)",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "Intel Arc GPU telemetry fix, Live Activities & Dynamic Island lifecycle resolution, auto-dismissing backup completion banners, and authentic branding",
             changes: [
                 ChangelogItem(

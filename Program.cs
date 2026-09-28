@@ -11,7 +11,7 @@ namespace PinayPalBackupManager
     class Program
     {
         [STAThread]
-        public static async Task Main(string[] args)
+        public static void Main(string[] args)
         {
             // Velopack lifecycle/install hooks must run first before mutexes, single instance checks, or UI
             VelopackApp.Build().Run();
@@ -35,7 +35,7 @@ namespace PinayPalBackupManager
             {
                 ConfigService.Load();
                 Services.LocalizationService.Load();
-                await AuthService.InitializeAsync();
+                AuthService.InitializeAsync().GetAwaiter().GetResult();
 
                 // Initialize environment and new services
                 try

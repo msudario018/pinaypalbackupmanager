@@ -22,7 +22,7 @@
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <TextBlock Text="Target Version:" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                        <TextBlock Name="TxtVersion" Text="v3.6.6" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                        <TextBlock Name="TxtVersion" Text="v3.6.7" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Border Grid.Column="2" Background="#163828" CornerRadius="6" Padding="8,3" BorderBrush="#34D39940" BorderThickness="1">
                         <TextBlock Text="RECOMMENDED" FontSize="9" FontWeight="Bold" Foreground="#34D399" LetterSpacing="0.5"/>
