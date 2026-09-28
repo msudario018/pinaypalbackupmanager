@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.7";
+        public const string ApiVersion = "3.6.8";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -230,6 +230,13 @@ namespace PinayPalBackupManager.Services
                 {
                     await CloudflareTunnelService.StopTunnelAsync();
                     await SendJsonAsync(response, 200, new { success = true, message = "Cloudflare tunnel stopped." });
+                }
+                else if (path == "/api/tunnel/quick/restart" && request.HttpMethod == "POST")
+                {
+                    // Force-recreates the Quick Tunnel with a fresh trycloudflare.com URL.
+                    // The iOS app calls this over Tailscale when the tunnel itself is down.
+                    var (success, url, msg) = await CloudflareTunnelService.RestartQuickTunnelAsync();
+                    await SendJsonAsync(response, success ? 200 : 500, new { success, url, message = msg ?? "Cloudflare tunnel recreated." });
                 }
                 else if (path == "/api/user/avatar")
                 {
@@ -848,7 +855,12 @@ namespace PinayPalBackupManager.Services
                     localIp = localIp,
                     allLocalIps = FileDownloadService.GetAllLocalIPv4Addresses(),
                     isBoundToAll = FileDownloadService.IsBoundToAllInterfaces,
-                    boundPrefixes = FileDownloadService.BoundPrefixes
+                    boundPrefixes = FileDownloadService.BoundPrefixes,
+                    // Remote failover routes advertised to the iOS companion app
+                    tailscaleUrl = TailscaleNetworkService.GetTailscaleUrl(),
+                    cloudflareUrl = CloudflareTunnelService.ActiveUrl ?? "",
+                    cloudflareActive = CloudflareTunnelService.IsRunning,
+                    cloudflareManaged = CloudflareTunnelService.IsAutoManaged
                 },
                 schedules = new
                 {
@@ -1198,6 +1210,7 @@ namespace PinayPalBackupManager.Services
                     allLocalUrls = allUrls,
                     fallbackUrl = cloudflare,
                     cloudflareUrl = cloudflare,
+                    tailscaleUrl = TailscaleNetworkService.GetTailscaleUrl(port),
                     pin = pin,
                     hostname = hostname,
                     version = ApiVersion
@@ -1238,6 +1251,8 @@ namespace PinayPalBackupManager.Services
                 allLocalUrls = allUrls,
                 fallbackUrl = cloudflare,
                 cloudflareUrl = cloudflare,
+                tailscaleUrl = TailscaleNetworkService.GetTailscaleUrl(port),
+                tailscaleActive = TailscaleNetworkService.IsAvailable,
                 quickTunnelActive = CloudflareTunnelService.IsRunning,
                 quickTunnelUrl = CloudflareTunnelService.ActiveUrl,
                 pin = pin,
@@ -1914,7 +1929,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"" style=""display: flex; align-items: center; gap: 10px;""><img src=""/api/logo"" alt=""PinayPal"" style=""width: 28px; height: 28px; object-fit: contain;"" /><span>PinayPal</span></div>
-                <span class=""version-badge"" id=""app-version"">v3.6.7</span>
+                <span class=""version-badge"" id=""app-version"">v3.6.8</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -2352,7 +2367,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.7</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.8</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>
@@ -2429,9 +2444,13 @@ namespace PinayPalBackupManager.Services
                     <span style=""color:var(--muted); font-weight:700;"">🏠 Local Wi-Fi:</span>
                     <span id=""qr-modal-local-url"" style=""color:var(--green); font-weight:600;"">--</span>
                 </div>
-                <div style=""display:flex; justify-content:space-between; align-items:center;"">
+                <div style=""display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"">
                     <span style=""color:var(--muted); font-weight:700;"">☁️ Fallback Tunnel:</span>
                     <span id=""qr-modal-fallback-url"" style=""color:var(--blue); font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis;"">--</span>
+                </div>
+                <div style=""display:flex; justify-content:space-between; align-items:center;"">
+                    <span style=""color:var(--muted); font-weight:700;"">Tailscale:</span>
+                    <span id=""qr-modal-tailscale-url"" style=""color:#22d3ee; font-weight:600; max-width:160px; overflow:hidden; text-overflow:ellipsis;"">--</span>
                 </div>
             </div>
             <div style=""margin-top: 14px; display:flex; gap:8px;"">
@@ -2628,6 +2647,10 @@ namespace PinayPalBackupManager.Services
                 const info = await res.json();
                 document.getElementById('qr-modal-local-url').textContent = info.localUrl || '--';
                 document.getElementById('qr-modal-fallback-url').textContent = info.fallbackUrl || (info.quickTunnelActive ? info.quickTunnelUrl : 'Not running');
+                const tailscaleEl = document.getElementById('qr-modal-tailscale-url');
+                if (tailscaleEl) {
+                    tailscaleEl.textContent = info.tailscaleUrl || 'Not detected';
+                }
             } catch (e) {}
         }
 

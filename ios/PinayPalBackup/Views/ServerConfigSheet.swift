@@ -7,6 +7,7 @@ private struct SavedConnectionProfile: Codable, Identifiable {
     var serverUrl: String
     var accessPin: String
     var failoverUrl: String
+    var tailscaleUrl: String?
 }
 
 public struct ServerConfigSheet: View {
@@ -24,6 +25,7 @@ public struct ServerConfigSheet: View {
     @AppStorage("pp_live_activities_enabled") private var liveActivitiesEnabled: Bool = true
     @AppStorage("pp_notify_reminder") private var notifyReminder: Bool = true
     @AppStorage("pp_notify_daily_digest") private var notifyDailyDigest: Bool = true
+    @AppStorage("pp_notify_tailscale") private var notifyTailscaleReminder: Bool = true
 
     @State private var selectedSection: Int = 0
 
@@ -31,6 +33,7 @@ public struct ServerConfigSheet: View {
     @State private var inputUrl: String = ""
     @State private var inputPin: String = ""
     @State private var failoverUrl: String = UserDefaults.standard.string(forKey: "pp_failover_url") ?? ""
+    @State private var tailscaleUrl: String = UserDefaults.standard.string(forKey: "pp_tailscale_url") ?? ""
     @State private var bgSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "pp_bg_sync_enabled")
     @State private var notifyFailure: Bool = UserDefaults.standard.object(forKey: "pp_notify_failure") == nil ? true : UserDefaults.standard.bool(forKey: "pp_notify_failure")
     @State private var notifySuccess: Bool = UserDefaults.standard.bool(forKey: "pp_notify_success")
@@ -118,6 +121,7 @@ public struct ServerConfigSheet: View {
             inputUrl = api.serverUrl
             inputPin = api.accessPin
             if !api.fallbackUrl.isEmpty { failoverUrl = api.fallbackUrl }
+            if !api.tailscaleUrl.isEmpty { tailscaleUrl = api.tailscaleUrl }
             loadRemoteSettingsIntoState()
             loadSavedProfiles()
         }
@@ -948,6 +952,20 @@ public struct ServerConfigSheet: View {
 
                 Divider().background(Color.white.opacity(0.08))
 
+                Toggle(isOn: $notifyTailscaleReminder) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Remind Me to Enable Tailscale")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Alerts when Cloudflare and LAN are both unreachable while off-site (max every 30 min)")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.cyan)
+
+                Divider().background(Color.white.opacity(0.08))
+
                 // Low Disk Space Threshold Slider
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -1032,6 +1050,29 @@ public struct ServerConfigSheet: View {
                             RoundedRectangle(cornerRadius: 10)
                                 .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
                         )
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("TAILSCALE FAILOVER URL (PRIVATE 100.x VPN)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(LiquidTheme.textSecondary)
+
+                    TextField("http://100.64.0.2:8080", text: $tailscaleUrl)
+                        .keyboardType(.URL)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .padding(12)
+                        .background(LiquidTheme.card(for: colorScheme))
+                        .cornerRadius(10)
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(LiquidTheme.border(for: colorScheme), lineWidth: 1)
+                        )
+
+                    Text("Third-tier failover: used automatically when LAN and Cloudflare are both unreachable. Auto-filled after pairing if Tailscale runs on your PC.")
+                        .font(.system(size: 10))
+                        .foregroundColor(LiquidTheme.textSecondary)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -1596,11 +1637,12 @@ public struct ServerConfigSheet: View {
     private func saveConnectionAndDismiss() {
         UserDefaults.standard.set(enableBiometrics, forKey: "pp_biometrics_enabled")
         UserDefaults.standard.set(failoverUrl.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pp_failover_url")
+        UserDefaults.standard.set(tailscaleUrl.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "pp_tailscale_url")
         UserDefaults.standard.set(bgSyncEnabled, forKey: "pp_bg_sync_enabled")
         UserDefaults.standard.set(notifyFailure, forKey: "pp_notify_failure")
         UserDefaults.standard.set(notifySuccess, forKey: "pp_notify_success")
         UserDefaults.standard.set(pollIntervalSec, forKey: "pp_poll_interval")
-        api.saveSettings(url: inputUrl, pin: inputPin, fallbackUrl: failoverUrl)
+        api.saveSettings(url: inputUrl, pin: inputPin, fallbackUrl: failoverUrl, tailscaleUrl: tailscaleUrl)
         dismiss()
     }
 
@@ -1623,7 +1665,8 @@ public struct ServerConfigSheet: View {
             name: trimmedName,
             serverUrl: trimmedUrl,
             accessPin: inputPin,
-            failoverUrl: failoverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+            failoverUrl: failoverUrl.trimmingCharacters(in: .whitespacesAndNewlines),
+            tailscaleUrl: tailscaleUrl.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         savedProfiles.removeAll { $0.name.localizedCaseInsensitiveCompare(trimmedName) == .orderedSame }
         savedProfiles.append(profile)
@@ -1637,6 +1680,7 @@ public struct ServerConfigSheet: View {
         inputUrl = profile.serverUrl
         inputPin = profile.accessPin
         failoverUrl = profile.failoverUrl
+        tailscaleUrl = profile.tailscaleUrl ?? ""
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 

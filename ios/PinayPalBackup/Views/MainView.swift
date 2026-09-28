@@ -23,6 +23,18 @@ public struct MainView: View {
         }
     }
 
+    private var routeChipLabel: String {
+        if api.isUsingTailscale { return "Tailscale" }
+        if api.isUsingFallback { return "Tunnel" }
+        return "LAN"
+    }
+
+    private var routeChipColor: Color {
+        if api.isUsingTailscale { return LiquidTheme.cyan }
+        if api.isUsingFallback { return LiquidTheme.purple }
+        return LiquidTheme.emerald
+    }
+
     public var body: some View {
         ZStack {
             Group {
@@ -138,15 +150,15 @@ public struct MainView: View {
                         } label: {
                             HStack(spacing: 3) {
                                 Circle()
-                                    .fill(api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald)
+                                    .fill(routeChipColor)
                                     .frame(width: 5, height: 5)
-                                Text(api.isUsingFallback ? "Tunnel" : "LAN")
+                                Text(routeChipLabel)
                                     .font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald)
+                                    .foregroundColor(routeChipColor)
                             }
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background((api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald).opacity(0.15))
+                            .background(routeChipColor.opacity(0.15))
                             .cornerRadius(4)
                         }
                         .buttonStyle(.plain)

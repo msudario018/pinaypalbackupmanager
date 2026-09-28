@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.6.8 (2026-09-29)
+
+### Added & Improved
+- **Tailscale Third-Tier Failover & Cloudflare Tunnel Watchdog**:
+  - Added `TailscaleNetworkService.cs` that auto-detects the local Tailscale interface (adapter name or CGNAT `100.64.0.0/10` address) and advertises `tailscaleUrl` through `/api/status`, `/api/connection-info`, and the pairing QR payload.
+  - Hardened `CloudflareTunnelService.cs` with an auto-restart watchdog: unexpected `cloudflared` exits are recreated with exponential backoff (5s → 60s), the tunnel is recreated whenever internet connectivity is restored, and the previous session's tunnel is resurrected on app launch — all gated by the new `HttpServer.AutoRestartTunnel` setting (default on).
+  - Added `POST /api/tunnel/quick/restart` for force-recreating the Quick Tunnel with a fresh `trycloudflare.com` URL; a single-flight gate prevents overlapping `cloudflared` processes.
+  - Manual tunnel stops now disarm the watchdog and clear the persisted quick-tunnel URL so user intent is respected.
+- **iOS Three-Route Auto-Failover (LAN → Cloudflare → Tailscale)**:
+  - `PinayPalAPIService.swift` walks an ordered route chain and automatically fails back to LAN, then Cloudflare, whenever they become reachable again.
+  - When a connection is established while the PC reports a managed-but-down tunnel, the app calls `/api/tunnel/quick/restart` to rerun `cloudflared`, then adopts the fresh ephemeral URL from `/api/status` (custom domains are never overridden; the PC's Tailscale URL is auto-adopted after pairing).
+  - Added a local **"Enable Tailscale"** notification for when Cloudflare and LAN are both unreachable while off-site (30-minute cooldown, toggleable under Settings → iOS alerts).
+  - New Tailscale failover URL field in Connection Setup and Settings, saved connection profiles now persist it, and the routing chip shows LAN / Tunnel / Tailscale states.
+- **Web Dashboard Pairing QR Modal**:
+  - Displays the detected Tailscale URL alongside the local Wi-Fi and fallback tunnel URLs.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.8` (iOS Build `21`).
+
 ## v3.6.7 (2026-09-28)
 
 ### Fixed & Improved

@@ -53,9 +53,32 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.7 (Build 20)",
+            version: "v3.6.8 (Build 21)",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "Tailscale third-tier failover, Cloudflare tunnel auto-restart watchdog, and off-site 'Enable Tailscale' alerts",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Tailscale Failover Route",
+                    description: "The app now falls back from LAN to Cloudflare to a private Tailscale 100.x address automatically, and hops back as soon as faster routes return."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Cloudflare Tunnel Auto-Recreate",
+                    description: "When a connection is established while the managed Quick Tunnel is down, the app asks the PC to rerun cloudflared and adopts the fresh trycloudflare.com URL."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Enable Tailscale Reminder",
+                    description: "A local notification prompts you to switch on the Tailscale VPN when Cloudflare and LAN are both unreachable while you're off-site."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.7 (Build 20)",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "PC Setup Wizard deadlock resolution, Velopack 1.2 update lifecycle integration, win-x64 packaging alignment, and UI thread safety",
             changes: [
                 ChangelogItem(

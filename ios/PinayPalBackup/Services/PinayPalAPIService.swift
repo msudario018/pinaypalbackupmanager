@@ -6,7 +6,9 @@ import UIKit
 public class PinayPalAPIService: ObservableObject {
     @Published public var serverUrl: String = UserDefaults.standard.string(forKey: "pp_server_url") ?? ""
     @Published public var fallbackUrl: String = UserDefaults.standard.string(forKey: "pp_fallback_url") ?? ""
+    @Published public var tailscaleUrl: String = UserDefaults.standard.string(forKey: "pp_tailscale_url") ?? ""
     @Published public var isUsingFallback: Bool = false
+    @Published public var isUsingTailscale: Bool = false
     @Published public var accessPin: String = UserDefaults.standard.string(forKey: "pp_access_pin") ?? ""
     @Published public var isConfigured: Bool = UserDefaults.standard.bool(forKey: "pp_is_configured")
     @Published public var isLoggedIn: Bool = UserDefaults.standard.bool(forKey: "pp_is_logged_in")
@@ -14,6 +16,9 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var currentUser: AppUserProfile? = nil
 
     public var activeBaseUrl: String {
+        if isUsingTailscale && !tailscaleUrl.isEmpty {
+            return tailscaleUrl
+        }
         if isUsingFallback && !fallbackUrl.isEmpty {
             return fallbackUrl
         }
@@ -22,6 +27,7 @@ public class PinayPalAPIService: ObservableObject {
 
     public var connectionModeName: String {
         if !isOnline { return "Offline" }
+        if isUsingTailscale { return "Tailscale VPN" }
         if isUsingFallback { return "Cloudflare Tunnel" }
         return "LAN Direct"
     }
@@ -76,7 +82,7 @@ public class PinayPalAPIService: ObservableObject {
         }
     }
 
-    public func saveSettings(url: String, pin: String, fallbackUrl: String? = nil) {
+    public func saveSettings(url: String, pin: String, fallbackUrl: String? = nil, tailscaleUrl: String? = nil) {
         var cleanUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanUrl.hasSuffix("/") {
             cleanUrl.removeLast()
@@ -94,7 +100,17 @@ public class PinayPalAPIService: ObservableObject {
             UserDefaults.standard.set(cleanFb, forKey: "pp_failover_url")
         }
 
+        if let ts = tailscaleUrl {
+            var cleanTs = ts.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanTs.hasSuffix("/") {
+                cleanTs.removeLast()
+            }
+            self.tailscaleUrl = cleanTs
+            UserDefaults.standard.set(cleanTs, forKey: "pp_tailscale_url")
+        }
+
         self.isUsingFallback = false
+        self.isUsingTailscale = false
         self.isConfigured = true
 
         UserDefaults.standard.set(self.serverUrl, forKey: "pp_server_url")
@@ -108,8 +124,19 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func toggleConnectionMode() async {
-        guard !fallbackUrl.isEmpty else { return }
-        isUsingFallback.toggle()
+        // Cycle through the configured routes: LAN → Cloudflare → Tailscale → LAN
+        if isUsingFallback {
+            isUsingFallback = false
+            isUsingTailscale = !tailscaleUrl.isEmpty
+        } else if isUsingTailscale {
+            isUsingFallback = false
+            isUsingTailscale = false
+        } else if !fallbackUrl.isEmpty {
+            isUsingFallback = true
+            isUsingTailscale = false
+        } else if !tailscaleUrl.isEmpty {
+            isUsingTailscale = true
+        }
         await fetchAll()
     }
 
@@ -372,83 +399,164 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func fetchStatus() async {
-        // If currently on fallback, occasionally probe primary server to see if local LAN is reachable
-        if isUsingFallback && !serverUrl.isEmpty {
-            if let pingUrl = URL(string: "\(serverUrl)/api/ping") {
-                var probeReq = URLRequest(url: pingUrl)
-                probeReq.timeoutInterval = 1.5
-                if let (_, resp) = try? await URLSession.shared.data(for: probeReq),
-                   (resp as? HTTPURLResponse)?.statusCode == 200 {
-                    // Local LAN has restored! Switch back to fast local network
-                    self.isUsingFallback = false
-                }
-            }
-        }
+        // Fail-back probes: hop to a lower-latency route whenever it becomes reachable again.
+        await failBackIfReachable()
 
-        let base = activeBaseUrl
-        guard let url = URL(string: "\(base)/api/status") else {
-            isOnline = false
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 6
-        if let auth = getAuthorizationHeader() {
-            request.addValue(auth, forHTTPHeaderField: "Authorization")
-        }
-
-        do {
-            let start = CFAbsoluteTimeGetCurrent()
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let elapsed = CFAbsoluteTimeGetCurrent() - start
-            self.latencyMs = Int(elapsed * 1000)
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                if !isUsingFallback && !fallbackUrl.isEmpty {
-                    await attemptFailoverStatus()
-                    return
-                }
-                isOnline = false
+        // Walk the failover chain starting from the active route: LAN → Cloudflare → Tailscale.
+        for route in failoverChain() {
+            if let decoded = await requestStatus(base: route.url) {
+                applyRoute(route.mode)
+                applyStatus(decoded)
+                await handleConnectedSideEffects(mode: route.mode)
                 return
             }
+        }
 
-            let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
-            applyStatus(decoded)
-        } catch {
-            if !isUsingFallback && !fallbackUrl.isEmpty {
-                await attemptFailoverStatus()
+        self.isOnline = false
+        self.lastErrorMessage = "No route to server: LAN, Cloudflare Tunnel and Tailscale are all unreachable."
+        notifyTailscaleNeeded()
+    }
+
+    private enum RouteMode { case lan, cloudflare, tailscale }
+
+    /// Ordered failover chain that always starts with the currently active route.
+    private func failoverChain() -> [(mode: RouteMode, url: String)] {
+        var routes: [(mode: RouteMode, url: String)] = []
+        if !serverUrl.isEmpty { routes.append((.lan, serverUrl)) }
+        if !fallbackUrl.isEmpty { routes.append((.cloudflare, fallbackUrl)) }
+        if !tailscaleUrl.isEmpty { routes.append((.tailscale, tailscaleUrl)) }
+
+        let currentMode: RouteMode = isUsingTailscale ? .tailscale : (isUsingFallback ? .cloudflare : .lan)
+        if let idx = routes.firstIndex(where: { $0.mode == currentMode }) {
+            let current = routes.remove(at: idx)
+            routes.insert(current, at: 0)
+        }
+        return routes
+    }
+
+    private func applyRoute(_ mode: RouteMode) {
+        self.isUsingFallback = mode == .cloudflare
+        self.isUsingTailscale = mode == .tailscale
+    }
+
+    /// Probes lower-latency routes while riding a remote one and hops back when they answer.
+    private func failBackIfReachable() async {
+        if isUsingFallback || isUsingTailscale {
+            if !serverUrl.isEmpty, await pingOk(serverUrl) {
+                applyRoute(.lan)
                 return
             }
-            self.isOnline = false
-            self.lastErrorMessage = error.localizedDescription
+        }
+        if isUsingTailscale, !fallbackUrl.isEmpty, await pingOk(fallbackUrl) {
+            applyRoute(.cloudflare)
         }
     }
 
-    private func attemptFailoverStatus() async {
-        guard let url = URL(string: "\(fallbackUrl)/api/status") else {
-            self.isOnline = false
-            return
+    private func pingOk(_ base: String) async -> Bool {
+        let clean = sanitizeUrl(base)
+        guard let url = URL(string: "\(clean)/api/ping") else { return false }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 1.5
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            return false
         }
+    }
+
+    private func requestStatus(base: String) async -> StatusResponse? {
+        let clean = sanitizeUrl(base)
+        guard let url = URL(string: "\(clean)/api/status") else { return nil }
+
         var request = URLRequest(url: url)
         request.timeoutInterval = 6
         if let auth = getAuthorizationHeader() {
             request.addValue(auth, forHTTPHeaderField: "Authorization")
         }
+
         do {
             let start = CFAbsoluteTimeGetCurrent()
             let (data, response) = try await URLSession.shared.data(for: request)
             let elapsed = CFAbsoluteTimeGetCurrent() - start
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                self.isOnline = false
-                return
+                return nil
             }
-            self.latencyMs = Int(elapsed * 1000)
             let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
-            self.isUsingFallback = true
-            applyStatus(decoded)
+            self.latencyMs = Int(elapsed * 1000)
+            return decoded
         } catch {
-            self.isOnline = false
-            self.lastErrorMessage = error.localizedDescription
+            return nil
         }
+    }
+
+    /// Post-connect housekeeping: adopt routes advertised by the PC and recreate the
+    /// Cloudflare Quick Tunnel when the PC reports it should be up but is down.
+    private func handleConnectedSideEffects(mode: RouteMode) async {
+        adoptServerAdvertisedRoutes()
+
+        if !fallbackUrl.isEmpty,
+           status?.system?.cloudflareActive == false,
+           status?.system?.cloudflareManaged == true {
+            // "Connection established → rerun cloudflared": over LAN this recovers a hung
+            // tunnel; over Tailscale it recovers a tunnel while the public route is dead.
+            await requestCloudflareRecreate()
+        }
+    }
+
+    /// The PC advertises its current Tailscale IP and (ephemeral) quick tunnel URL via /api/status.
+    private func adoptServerAdvertisedRoutes() {
+        guard let system = status?.system else { return }
+
+        if tailscaleUrl.isEmpty, let advertised = system.tailscaleUrl, !advertised.isEmpty {
+            let clean = sanitizeUrl(advertised)
+            tailscaleUrl = clean
+            UserDefaults.standard.set(clean, forKey: "pp_tailscale_url")
+        }
+
+        // Quick tunnel URLs change on every recreation: refresh ours, but never override a custom domain.
+        if let advertised = system.cloudflareUrl, !advertised.isEmpty, advertised.contains("trycloudflare.com"),
+           fallbackUrl.isEmpty || (fallbackUrl.contains("trycloudflare.com") && fallbackUrl != advertised) {
+            let clean = sanitizeUrl(advertised)
+            fallbackUrl = clean
+            UserDefaults.standard.set(clean, forKey: "pp_fallback_url")
+            UserDefaults.standard.set(clean, forKey: "pp_failover_url")
+        }
+    }
+
+    /// Asks the PC to recreate the Cloudflare Quick Tunnel (max once every 5 minutes).
+    private func requestCloudflareRecreate() async {
+        let now = Date().timeIntervalSince1970
+        let last = UserDefaults.standard.double(forKey: "pp_tunnel_recreate_last")
+        guard now - last > 300 else { return }
+        UserDefaults.standard.set(now, forKey: "pp_tunnel_recreate_last")
+
+        guard let url = URL(string: "\(sanitizeUrl(activeBaseUrl))/api/tunnel/quick/restart") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 45 // cloudflared bootstrap can take up to ~25s
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                // Give cloudflared a moment to publish its new URL; the next poll picks it up.
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        } catch { }
+    }
+
+    /// Fires the local "Enable Tailscale" reminder when every route is unreachable (e.g. off-site).
+    private func notifyTailscaleNeeded() {
+        guard isConfigured else { return }
+        NotificationService.shared.sendTailscaleEnableReminder(
+            tailscaleConfigured: !tailscaleUrl.isEmpty,
+            tunnelConfigured: !fallbackUrl.isEmpty
+        )
+    }
+
+    private func sanitizeUrl(_ raw: String) -> String {
+        var clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasSuffix("/") { clean.removeLast() }
+        return clean
     }
 
     private func applyStatus(_ decoded: StatusResponse) {
@@ -592,6 +700,7 @@ public class PinayPalAPIService: ObservableObject {
             "serverUrl": activeBaseUrl,
             "routingMode": connectionModeName,
             "isUsingFallback": isUsingFallback,
+            "isUsingTailscale": isUsingTailscale,
             "connected": isOnline,
             "latencyMs": latencyMs ?? NSNull(),
             "lastError": lastErrorMessage ?? NSNull(),

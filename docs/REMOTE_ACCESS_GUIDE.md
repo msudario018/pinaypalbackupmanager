@@ -80,13 +80,36 @@ To protect your remote dashboard with an extra security layer:
 
 ---
 
-## Method 4: Tailscale Mesh VPN (Private Network Alternative)
+## Method 4: Tailscale Mesh VPN (Private Network Alternative & Auto-Failover)
 
 If you don't want a public domain and only want private device-to-device access:
 1. Install [Tailscale](https://tailscale.com) on your Windows PC and your mobile phone.
 2. Sign in with the same account.
 3. Tailscale assigns your PC an IP address (e.g., `100.x.y.z`).
 4. On your phone browser, navigate directly to `http://100.x.y.z:8080/`.
+
+### Automatic Three-Tier Failover (LAN → Cloudflare → Tailscale)
+
+PinayPal Backup Manager treats Tailscale as a third-tier failover route:
+
+1. **Detection** — `TailscaleNetworkService.cs` automatically detects the Tailscale interface on
+   Windows (adapter named *Tailscale* or an address inside the CGNAT `100.64.0.0/10` range) and
+   advertises the URL through `/api/status`, `/api/connection-info`, and the pairing QR code.
+2. **iOS routing** — the iOS app tries the LAN URL first, then the Cloudflare Tunnel URL, then the
+   Tailscale URL, and automatically hops back to the faster route as soon as it responds again.
+3. **Cloudflare Tunnel watchdog** — if the `cloudflared` Quick Tunnel crashes or the internet drops,
+   the desktop recreates it with exponential backoff (5s → 60s) and again whenever connectivity is
+   restored. When the iOS app establishes a connection while the tunnel is down (for example over
+   Tailscale), it calls `POST /api/tunnel/quick/restart` so the PC reruns `cloudflared` and issues a
+   fresh `trycloudflare.com` URL — which the app then adopts automatically.
+4. **Enable Tailscale reminder** — if Cloudflare and the LAN are both unreachable while you are
+   off-site, the iOS app raises a local notification prompting you to switch on the Tailscale VPN
+   (toggleable under Settings → iOS alerts, max once every 30 minutes).
+
+> [!TIP]
+> Keep the Tailscale VPN enabled on your iPhone whenever you are away from home. The app only needs
+> the PC's `100.x.y.z:8080` URL — it is auto-filled after QR pairing or auto-adopted from
+> `/api/status` on the first successful connection.
 
 ---
 

@@ -50,7 +50,24 @@ A GitHub Actions workflow is included at [`.github/workflows/ios-build.yml`](fil
 In the app, tap the **Gear Icon (⚙️)** in the top right:
 - **Tunnel / Host URL:** Enter your Cloudflare Quick Tunnel (e.g. `https://your-name.trycloudflare.com`) or your PC's local LAN IP (e.g. `http://192.168.0.138:8080`).
 - **Web Access PIN:** Enter your secret PIN if configured in PinayPal Settings.
+- **Tailscale Failover URL (optional):** Your PC's private Tailscale address (e.g. `http://100.64.0.2:8080`). It is auto-filled after QR pairing when Tailscale runs on your PC, and auto-adopted from the server status on first connection.
 - **Tip for Cloudflare Quick Tunnel:** Always launch your tunnel on Windows with:
   ```cmd
   cloudflared tunnel --url http://localhost:8080 --http-host-header localhost
   ```
+
+---
+
+## Connection Failover & Tailscale Reminder
+
+The app routes traffic automatically through three tiers, always preferring the fastest reachable one:
+
+1. **LAN** (`http://192.168.x.x:8080`) — used when you are on the same Wi-Fi network.
+2. **Cloudflare Tunnel** — used when the LAN is unreachable (outside your home/office).
+3. **Tailscale** (`http://100.x.y.z:8080`) — used when the Cloudflare Tunnel is down, as long as the Tailscale VPN is enabled on your iPhone.
+
+Additional behaviour:
+
+- **Fail-back:** the app continuously probes LAN and Cloudflare and switches back the moment they respond (the header chip shows 🟢 LAN, 🟣 Tunnel, or 🩵 Tailscale).
+- **Tunnel recreation:** once connected, if the PC reports that its managed Cloudflare Quick Tunnel should be up but is down, the app asks it to rerun `cloudflared` over the active route and adopts the fresh URL automatically.
+- **Enable Tailscale notification:** when Cloudflare *and* the LAN are both unreachable (e.g. you are outside and the tunnel died), a local notification prompts you to switch on the Tailscale VPN. This reminder fires at most once every 30 minutes and can be disabled under **Settings → iOS Background Monitoring & Alerts → Remind Me to Enable Tailscale**.

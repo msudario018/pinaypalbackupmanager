@@ -158,6 +158,36 @@ public final class NotificationService: NSObject, ObservableObject {
         add(content, identifier: "outdated_\(service.lowercased())_\(UUID().uuidString)")
     }
 
+    /// Fired when the app cannot reach the PC over LAN, the Cloudflare Tunnel, or Tailscale —
+    /// typically when the user is off-site and the Tailscale VPN is switched off on the iPhone.
+    public func sendTailscaleEnableReminder(tailscaleConfigured: Bool, tunnelConfigured: Bool) {
+        guard UserDefaults.standard.object(forKey: "pp_notify_tailscale") as? Bool ?? true else { return }
+        guard shouldSend(key: "tailscale_enable_reminder", cooldown: 1800) else { return }
+
+        let content = UNMutableNotificationContent()
+        if tailscaleConfigured {
+            content.title = "📶 Tailscale Appears Disabled"
+            content.subtitle = "Cloudflare Tunnel is down and the LAN is unreachable"
+            content.body = "You're outside the local network and the Cloudflare Tunnel isn't responding. Open the Tailscale app and turn on the VPN to reconnect to your PC over its private 100.x address."
+        } else if tunnelConfigured {
+            content.title = "📶 No Route to Backup Server"
+            content.subtitle = "Cloudflare Tunnel is unreachable from here"
+            content.body = "The tunnel URL isn't answering and you're off the local network. Enable Tailscale on this iPhone and your PC for a private backup link that works anywhere."
+        } else {
+            content.title = "📶 Enable Tailscale to Stay Connected"
+            content.subtitle = "PC unreachable from this network"
+            content.body = "Your PC can't be reached right now. Install Tailscale on this iPhone and the PC, then add its 100.x URL in Connection Settings for remote access anywhere."
+        }
+        content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
+        content.categoryIdentifier = "BACKUP_FAILURE"
+        content.userInfo = ["destination": "activity"]
+        attachAppIcon(to: content)
+        add(content, identifier: "tailscale_reminder_\(UUID().uuidString)")
+    }
+
     public func setBadgeCount(_ count: Int) {
         if #available(iOS 16.0, *) {
             UNUserNotificationCenter.current().setBadgeCount(count)

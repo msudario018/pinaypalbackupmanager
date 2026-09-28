@@ -319,6 +319,9 @@ namespace PinayPalBackupManager.UI
             NetworkConnectivityService.OnConnectivityChanged += OnConnectivityChangedHandler;
             NetworkConnectivityService.StartMonitoring();
 
+            // Start the Cloudflare Quick Tunnel watchdog (auto-recreate on crash / connectivity restore)
+            CloudflareTunnelService.Initialize();
+
             // Setup button click handlers
             foreach (var btn in this.FindControl<StackPanel>("Sidebar")?.Children ?? [])
             {

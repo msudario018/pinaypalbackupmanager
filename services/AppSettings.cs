@@ -108,5 +108,7 @@ namespace PinayPalBackupManager.Services
         public string WebPin { get; set; } = "";
         public bool RequireAuth { get; set; } = false;
         public string CloudflareUrl { get; set; } = "";
+        /// <summary>Automatically recreate the Cloudflare Quick Tunnel after crashes, network loss, or app restart.</summary>
+        public bool AutoRestartTunnel { get; set; } = true;
     }
 }

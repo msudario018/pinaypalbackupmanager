@@ -77,6 +77,7 @@ public struct ConnectionQrPayload: Codable {
     public let allLocalUrls: [String]?
     public let fallbackUrl: String?
     public let cloudflareUrl: String?
+    public let tailscaleUrl: String?
     public let pin: String?
     public let hostname: String?
     public let version: String?
@@ -90,6 +91,10 @@ public struct SystemSpecs: Codable {
     public let systemUptime: String?
     public let appUptime: String?
     public let localIp: String?
+    public let tailscaleUrl: String?
+    public let cloudflareUrl: String?
+    public let cloudflareActive: Bool?
+    public let cloudflareManaged: Bool?
 
     public var computerName: String? { hostname }
     public var osVersion: String? { os }

@@ -39,6 +39,7 @@ public struct QRScannerView: View {
                         allLocalUrls: ["http://192.168.1.50:8080"],
                         fallbackUrl: "https://backup.pinaypal.com",
                         cloudflareUrl: "https://backup.pinaypal.com",
+                        tailscaleUrl: "http://100.64.0.2:8080",
                         pin: "1234",
                         hostname: "SIMULATOR-PC",
                         version: "3.6.7"
@@ -70,6 +71,7 @@ public struct QRScannerView: View {
                         allLocalUrls: [resultString],
                         fallbackUrl: nil,
                         cloudflareUrl: nil,
+                        tailscaleUrl: nil,
                         pin: nil,
                         hostname: nil,
                         version: nil
