@@ -39,13 +39,21 @@ namespace PinayPalBackupManager
             
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // If there are no users in database, or if it is the first run, ALWAYS launch the Setup Wizard
-                if (!AuthService.HasAnyUsers() || ConfigService.IsFirstRun())
+                // Ensure transitioning between windows (SetupWizard -> MainWindow/LoginWindow) does not trigger premature application exit
+                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnLastWindowClose;
+
+                // If there are no users in database, launch the Setup Wizard
+                if (!AuthService.HasAnyUsers())
                 {
                     ShowSetupWizard(desktop);
                 }
                 else
                 {
+                    // Existing users in database: ensure setup is marked complete so first-run flags align
+                    if (ConfigService.IsFirstRun())
+                    {
+                        ConfigService.MarkSetupComplete();
+                    }
                     ShowLogin(desktop);
                 }
             }

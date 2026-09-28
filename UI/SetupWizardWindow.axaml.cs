@@ -365,19 +365,28 @@ namespace PinayPalBackupManager.UI
 
         private bool ValidateFtpStep()
         {
-            if (!this.FindControl<CheckBox>("ChkEnableFTP")!.IsChecked!.Value)
+            var chk = this.FindControl<CheckBox>("ChkEnableFTP");
+            if (chk?.IsChecked != true)
                 return true;
 
-            var host = this.FindControl<TextBox>("TxtFtpHost")!.Text?.Trim() ?? "";
-            bool valid = true;
+            var host = this.FindControl<TextBox>("TxtFtpHost")?.Text?.Trim() ?? "";
+            var user = this.FindControl<TextBox>("TxtFtpUser")?.Text?.Trim() ?? "";
+            var pass = this.FindControl<TextBox>("TxtFtpPassword")?.Text ?? "";
+
+            // If all fields are empty, auto-disable FTP and proceed without blocking setup
+            if (string.IsNullOrWhiteSpace(host) && string.IsNullOrWhiteSpace(user) && string.IsNullOrWhiteSpace(pass))
+            {
+                chk.IsChecked = false;
+                return true;
+            }
 
             if (string.IsNullOrWhiteSpace(host))
             {
                 ShowError("ErrorFtpHost", "FTP host is required when FTP is enabled");
-                valid = false;
+                return false;
             }
 
-            return valid;
+            return true;
         }
 
         private bool ValidateSqlStep()
@@ -388,11 +397,20 @@ namespace PinayPalBackupManager.UI
 
         private bool ValidateMailchimpStep()
         {
-            if (!this.FindControl<CheckBox>("ChkEnableMailchimp")!.IsChecked!.Value)
+            var chk = this.FindControl<CheckBox>("ChkEnableMailchimp");
+            if (chk?.IsChecked != true)
                 return true;
 
-            var apiKey = this.FindControl<TextBox>("TxtMcApiKey")!.Text?.Trim() ?? "";
-            var audienceId = this.FindControl<TextBox>("TxtMcAudienceId")!.Text?.Trim() ?? "";
+            var apiKey = this.FindControl<TextBox>("TxtMcApiKey")?.Text?.Trim() ?? "";
+            var audienceId = this.FindControl<TextBox>("TxtMcAudienceId")?.Text?.Trim() ?? "";
+
+            // If all fields are empty, auto-disable Mailchimp and proceed without blocking setup
+            if (string.IsNullOrWhiteSpace(apiKey) && string.IsNullOrWhiteSpace(audienceId))
+            {
+                chk.IsChecked = false;
+                return true;
+            }
+
             bool valid = true;
 
             if (string.IsNullOrWhiteSpace(apiKey) || !apiKey.Contains('-'))
@@ -806,20 +824,39 @@ namespace PinayPalBackupManager.UI
                     var (success, message) = AuthService.CreateUser(username, password, "Admin", "Active", email, birthDate);
                     if (!success)
                     {
-                        await ShowErrorDialog($"Failed to create admin user: {message}");
-                        return;
-                    }
-
-                    // Auto-login the new admin asynchronously (non-blocking)
-                    var (loginSuccess, loginMessage) = await AuthService.LoginAsync(username, password);
-                    if (loginSuccess && AuthService.CurrentUser != null)
-                    {
-                        SessionService.SaveSession(AuthService.CurrentUser.Id);
+                        if (message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // If user already exists in database, attempt authentication with provided credentials
+                            var (loginSuccess, loginMessage) = await AuthService.LoginAsync(username, password);
+                            if (loginSuccess && AuthService.CurrentUser != null)
+                            {
+                                SessionService.SaveSession(AuthService.CurrentUser.Id);
+                            }
+                            else
+                            {
+                                await ShowErrorDialog($"User '{username}' already exists, but the password provided is incorrect.");
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            await ShowErrorDialog($"Failed to create admin user: {message}");
+                            return;
+                        }
                     }
                     else
                     {
-                        await ShowErrorDialog($"Admin user created, but auto-login failed: {loginMessage}");
-                        return;
+                        // Auto-login the new admin asynchronously (non-blocking)
+                        var (loginSuccess, loginMessage) = await AuthService.LoginAsync(username, password);
+                        if (loginSuccess && AuthService.CurrentUser != null)
+                        {
+                            SessionService.SaveSession(AuthService.CurrentUser.Id);
+                        }
+                        else
+                        {
+                            await ShowErrorDialog($"Admin user created, but auto-login failed: {loginMessage}");
+                            return;
+                        }
                     }
                 }
                 else
@@ -842,6 +879,11 @@ namespace PinayPalBackupManager.UI
                     var (success, message) = AuthService.CreateUser(username, password, "User", "Pending", email, birthDate);
                     if (!success)
                     {
+                        if (message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await ShowErrorDialog($"User '{username}' already exists. Please choose a different username.");
+                            return;
+                        }
                         await ShowErrorDialog($"Failed to create user: {message}");
                         return;
                     }

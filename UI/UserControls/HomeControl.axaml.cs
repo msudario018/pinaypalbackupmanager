@@ -1063,9 +1063,6 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 try
                 {
-                    var calendar = this.FindControl<WrapPanel>("BackupCalendar");
-                    if (calendar == null) return;
-
                     // Use BackupHistoryService for reliable backup records
                     var history = BackupHistoryService.GetHistory(500)
                         .Where(h => h.Timestamp >= DateTime.UtcNow.AddDays(-30))
@@ -1093,6 +1090,9 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     Dispatcher.UIThread.InvokeAsync(() =>
                     {
+                        var calendar = this.FindControl<WrapPanel>("BackupCalendar");
+                        if (calendar == null) return;
+
                         calendar.Children.Clear();
                         foreach (var date in dateStats.OrderBy(d => d.Key))
                         {

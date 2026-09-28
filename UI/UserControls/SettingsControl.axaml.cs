@@ -449,14 +449,17 @@ namespace PinayPalBackupManager.UI.UserControls
         /// </summary>
         public void UpdateHealthStatus(string status, bool isError = false)
         {
-            var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus");
-            if (txtStatus != null)
+            Dispatcher.UIThread.Post(() =>
             {
-                txtStatus.Text = $"Status: {status}";
-                txtStatus.Foreground = isError 
-                    ? Avalonia.Media.Brush.Parse("#F38BA8") 
-                    : Avalonia.Application.Current?.FindResource("AppSubtext") as Avalonia.Media.Brush;
-            }
+                var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus");
+                if (txtStatus != null)
+                {
+                    txtStatus.Text = $"Status: {status}";
+                    txtStatus.Foreground = isError 
+                        ? Avalonia.Media.Brush.Parse("#F38BA8") 
+                        : Avalonia.Application.Current?.FindResource("AppSubtext") as Avalonia.Media.Brush;
+                }
+            });
         }
 
         private static bool IsStartupEnabled()

@@ -13,6 +13,9 @@ namespace PinayPalBackupManager
         [STAThread]
         public static async Task Main(string[] args)
         {
+            // Velopack lifecycle/install hooks must run first before mutexes, single instance checks, or UI
+            VelopackApp.Build().Run();
+
             AppIconHelper.EnsureAppUserModelId();
             if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
             {
@@ -30,15 +33,6 @@ namespace PinayPalBackupManager
 
             try
             {
-                // Handle Velopack update operations first
-                if (args.Length > 0 && args[0].StartsWith("--velo"))
-                {
-                    VelopackApp.Build().Run();
-                    return;
-                }
-
-                VelopackApp.Build().Run();
-
                 ConfigService.Load();
                 Services.LocalizationService.Load();
                 await AuthService.InitializeAsync();

@@ -173,7 +173,7 @@
                                            Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
                             </StackPanel>
 
-                            <CheckBox x:Name="ChkEnableFTP" Content="Enable FTP backups" IsChecked="True" FontSize="13"/>
+                            <CheckBox x:Name="ChkEnableFTP" Content="Enable FTP backups" IsChecked="False" FontSize="13"/>
 
                             <StackPanel Spacing="10">
                                 <StackPanel Spacing="4">
@@ -224,7 +224,7 @@
                                            Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
                             </StackPanel>
 
-                            <CheckBox x:Name="ChkEnableSQL" Content="Enable SQL backups" IsChecked="True" FontSize="13"/>
+                            <CheckBox x:Name="ChkEnableSQL" Content="Enable SQL backups" IsChecked="False" FontSize="13"/>
 
                             <StackPanel Spacing="10">
                                 <StackPanel Spacing="4">
@@ -280,7 +280,7 @@
                                            Foreground="#6C7086" TextWrapping="Wrap" FontSize="13"/>
                             </StackPanel>
 
-                            <CheckBox x:Name="ChkEnableMailchimp" Content="Enable Mailchimp backups" IsChecked="True" FontSize="13"/>
+                            <CheckBox x:Name="ChkEnableMailchimp" Content="Enable Mailchimp backups" IsChecked="False" FontSize="13"/>
 
                             <StackPanel Spacing="10">
                                 <StackPanel Spacing="4">
