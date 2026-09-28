@@ -43,8 +43,13 @@ namespace PinayPalBackupManager.Services
         {
             var key = service.ToUpperInvariant();
             var info = _statuses.GetOrAdd(key, k => new SyncStatusInfo { Service = service });
+            bool transitionedToOutdated = false;
             lock (info)
             {
+                if (isOutdated && !info.IsOutdated)
+                {
+                    transitionedToOutdated = true;
+                }
                 info.Status = status;
                 info.Detail = detail;
                 info.IsOutdated = isOutdated;
@@ -53,6 +58,11 @@ namespace PinayPalBackupManager.Services
                 if (remoteTimeUtc.HasValue) info.RemoteLatestTimeUtc = remoteTimeUtc.Value;
                 if (localFile != null) info.LocalLatestFile = localFile;
                 if (localTimeUtc.HasValue) info.LocalLatestTimeUtc = localTimeUtc.Value;
+            }
+
+            if (transitionedToOutdated)
+            {
+                NotificationService.SendOutdatedAlertEmail(service, detail);
             }
         }
 

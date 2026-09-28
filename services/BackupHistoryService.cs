@@ -205,6 +205,9 @@ namespace PinayPalBackupManager.Services
                         PerformanceMetricsService.RecordBackupSuccess(entry.Service, true);
 
                         OnBackupCompleted?.Invoke(entry);
+
+                        // Trigger automated email alert if configured
+                        NotificationService.SendBackupEmailAlert(entry.Service, true, $"Duration: {duration.TotalSeconds:F1}s | Size: {sizeBytes / 1024 / 1024} MB | File: {Path.GetFileName(filePath)}");
                     }
                 }
                 catch (Exception ex)
@@ -235,6 +238,9 @@ namespace PinayPalBackupManager.Services
                         PerformanceMetricsService.RecordBackupSuccess(entry.Service, false);
 
                         OnBackupCompleted?.Invoke(entry);
+
+                        // Trigger automated email alert if configured
+                        NotificationService.SendBackupEmailAlert(entry.Service, false, errorMessage);
                     }
                 }
                 catch (Exception ex)

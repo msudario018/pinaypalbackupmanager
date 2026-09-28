@@ -140,7 +140,7 @@ public struct SplashScreenView: View {
                         }
                     }
 
-                    Text("v3.6.3 • Enterprise Companion")
+                    Text("v3.6.4 • Enterprise Companion")
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .foregroundColor(LiquidTheme.textSecondary.opacity(0.6))
                 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 public struct ProfileSheetView: View {
     @Environment(\.dismiss) private var dismiss
@@ -21,6 +22,12 @@ public struct ProfileSheetView: View {
     @State private var isChangingPassword: Bool = false
     @State private var passwordMessage: String? = nil
     @State private var passwordSuccess: Bool = false
+
+    // Avatar Upload States
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var isUploadingAvatar: Bool = false
+    @State private var avatarUploadMessage: String? = nil
+    @State private var avatarCacheBuster: String = "\(Date().timeIntervalSince1970)"
 
     // Confirmation & Switching
     @State private var showLogoutConfirmation: Bool = false
@@ -94,6 +101,29 @@ public struct ProfileSheetView: View {
                         .foregroundColor(LiquidTheme.gold)
                 }
             }
+                        .onChange(of: selectedPhotoItem) { newItem in
+                guard let newItem else { return }
+                Task {
+                    isUploadingAvatar = true
+                    avatarUploadMessage = nil
+                    if let data = try? await newItem.loadTransferable(type: Data.self) {
+                        let (ok, msg) = await api.uploadAvatar(imageData: data)
+                        if ok {
+                            avatarCacheBuster = "\(Date().timeIntervalSince1970)"
+                            avatarUploadMessage = "✓ Profile avatar updated!"
+                            let haptic = UINotificationFeedbackGenerator()
+                            haptic.notificationOccurred(.success)
+                        } else {
+                            avatarUploadMessage = msg
+                            let haptic = UINotificationFeedbackGenerator()
+                            haptic.notificationOccurred(.error)
+                        }
+                    } else {
+                        avatarUploadMessage = "Could not read photo data."
+                    }
+                    isUploadingAvatar = false
+                }
+            }
             .alert("Sign Out of PinayPal?", isPresented: $showLogoutConfirmation) {
                 Button("Sign Out", role: .destructive) {
                     Task {
@@ -112,43 +142,96 @@ public struct ProfileSheetView: View {
     // MARK: - Profile Header Card
     private var profileHeaderCard: some View {
         VStack(spacing: 14) {
-            ZStack {
-                // Outer glowing gradient ring
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [LiquidTheme.gold, LiquidTheme.purple, LiquidTheme.cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 3
-                    )
-                    .frame(width: 86, height: 86)
-                    .shadow(color: LiquidTheme.gold.opacity(0.45), radius: 12, x: 0, y: 4)
+            ZStack(alignment: .bottomTrailing) {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    ZStack {
+                        // Outer glowing gradient ring
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [LiquidTheme.gold, LiquidTheme.purple, LiquidTheme.cyan],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 3
+                            )
+                            .frame(width: 86, height: 86)
+                            .shadow(color: LiquidTheme.gold.opacity(0.45), radius: 12, x: 0, y: 4)
 
-                // Avatar Background
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [LiquidTheme.surfaceDark, Color(red: 0.15, green: 0.12, blue: 0.25)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 78, height: 78)
+                        // Avatar Remote Image or Fallback
+                        AsyncImage(url: URL(string: "\(api.activeBaseUrl)/api/user/avatar?cb=\(avatarCacheBuster)")) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 78, height: 78)
+                                    .clipShape(Circle())
+                            case .empty, .failure:
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [LiquidTheme.surfaceDark, Color(red: 0.15, green: 0.12, blue: 0.25)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 78, height: 78)
 
-                // Initials or Icon
-                Text(userInitials)
-                    .font(.system(size: 28, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white, LiquidTheme.gold],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                                    Text(userInitials)
+                                        .font(.system(size: 28, weight: .black, design: .rounded))
+                                        .foregroundStyle(
+                                            LinearGradient(
+                                                colors: [.white, LiquidTheme.gold],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                }
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+
+                        if isUploadingAvatar {
+                            Circle()
+                                .fill(Color.black.opacity(0.65))
+                                .frame(width: 78, height: 78)
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: LiquidTheme.gold))
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                // Camera Badge Button
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    ZStack {
+                        Circle()
+                            .fill(LiquidTheme.gold)
+                            .frame(width: 28, height: 28)
+                            .shadow(color: Color.black.opacity(0.4), radius: 3, x: 0, y: 2)
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.black)
+                    }
+                }
+                .buttonStyle(.plain)
+                .offset(x: 2, y: 2)
             }
             .padding(.top, 8)
+
+            if let msg = avatarUploadMessage {
+                Text(msg)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(msg.contains("✓") ? LiquidTheme.emerald : LiquidTheme.coral)
+                    .transition(.opacity)
+            } else {
+                Text("Tap photo to change avatar")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            }
 
             VStack(spacing: 4) {
                 Text(usernameDisplay)

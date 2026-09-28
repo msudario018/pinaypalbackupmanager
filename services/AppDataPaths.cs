@@ -27,6 +27,12 @@ namespace PinayPalBackupManager.Services
 
         public static string GetExistingOrCurrentPath(string fileName)
         {
+            var dataPath = GetDataPath(fileName);
+            if (File.Exists(dataPath))
+            {
+                return dataPath;
+            }
+
             var currentPath = GetPath(fileName);
             if (File.Exists(currentPath))
             {
@@ -39,7 +45,7 @@ namespace PinayPalBackupManager.Services
                 return legacyPath;
             }
 
-            return currentPath;
+            return dataPath;
         }
 
         public static string DataDirectory

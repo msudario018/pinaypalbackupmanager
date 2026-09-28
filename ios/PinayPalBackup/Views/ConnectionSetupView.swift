@@ -5,6 +5,7 @@ public struct ConnectionSetupView: View {
 
     @State private var serverUrlInput: String = "http://192.168.1.100:8080"
     @State private var pinInput: String = ""
+    @State private var fallbackUrlInput: String = ""
     @State private var isScanning: Bool = false
     @State private var isTesting: Bool = false
     @State private var discoveredServers: [(url: String, ping: PingResponse?)] = []
@@ -241,6 +242,26 @@ public struct ConnectionSetupView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
+                                Text("Cloudflare Tunnel / Fallback URL (Optional)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(LiquidTheme.textSecondary)
+
+                                TextField("https://trycloudflare.com or custom domain", text: $fallbackUrlInput)
+                                    .keyboardType(.URL)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .font(.system(size: 14, design: .monospaced))
+                                    .padding(12)
+                                    .background(Color.white.opacity(0.06))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                    )
+                                    .foregroundColor(LiquidTheme.textPrimary)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
                                 Text("Web Dashboard PIN (Optional)")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(LiquidTheme.textSecondary)
@@ -373,6 +394,9 @@ public struct ConnectionSetupView: View {
                     if let pin = payload.pin, !pin.isEmpty {
                         pinInput = pin
                     }
+                    if let fb = payload.fallbackUrl ?? payload.cloudflareUrl, !fb.isEmpty {
+                        fallbackUrlInput = fb
+                    }
                     showQrScanner = false
                     activeTab = 1
                     testConnection()
@@ -388,6 +412,9 @@ public struct ConnectionSetupView: View {
             }
             if !api.accessPin.isEmpty {
                 pinInput = api.accessPin
+            }
+            if !api.fallbackUrl.isEmpty {
+                fallbackUrlInput = api.fallbackUrl
             }
         }
     }
@@ -430,7 +457,7 @@ public struct ConnectionSetupView: View {
     }
 
     private func connectAndProceed() {
-        api.saveSettings(url: serverUrlInput, pin: pinInput)
+        api.saveSettings(url: serverUrlInput, pin: pinInput, fallbackUrl: fallbackUrlInput)
     }
 }
 

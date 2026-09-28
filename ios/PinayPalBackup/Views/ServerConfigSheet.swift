@@ -117,6 +117,7 @@ public struct ServerConfigSheet: View {
         .onAppear {
             inputUrl = api.serverUrl
             inputPin = api.accessPin
+            if !api.fallbackUrl.isEmpty { failoverUrl = api.fallbackUrl }
             loadRemoteSettingsIntoState()
             loadSavedProfiles()
         }
@@ -147,7 +148,7 @@ public struct ServerConfigSheet: View {
                 categoryTabItem(title: "Theme", icon: "paintbrush.fill", index: 2, badge: nil)
                 categoryTabItem(title: "Network", icon: "network", index: 3, badge: nil)
                 categoryTabItem(title: "Live Logs", icon: "terminal.fill", index: 4, badge: "\(api.logs.count)")
-                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.3")
+                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.4")
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
@@ -1599,7 +1600,7 @@ public struct ServerConfigSheet: View {
         UserDefaults.standard.set(notifyFailure, forKey: "pp_notify_failure")
         UserDefaults.standard.set(notifySuccess, forKey: "pp_notify_success")
         UserDefaults.standard.set(pollIntervalSec, forKey: "pp_poll_interval")
-        api.saveSettings(url: inputUrl, pin: inputPin)
+        api.saveSettings(url: inputUrl, pin: inputPin, fallbackUrl: failoverUrl)
         dismiss()
     }
 

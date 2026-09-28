@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.3";
+        public const string ApiVersion = "3.6.4";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -41,7 +41,7 @@ namespace PinayPalBackupManager.Services
             }
 
             // Public endpoints that do not require auth check:
-            bool isPublicEndpoint = path == "/api/ping" || path == "/api/user-login" || path == "/login" || path == "/api/logo" || path == "/favicon.ico";
+            bool isPublicEndpoint = path == "/api/ping" || path == "/api/user-login" || path == "/login" || path == "/api/logo" || path == "/favicon.ico" || (path == "/api/user/avatar" && request.HttpMethod == "GET");
 
             // PIN or Session Token Authentication check if enabled
             if (!isPublicEndpoint && ConfigService.Current.HttpServer.RequireAuth && !string.IsNullOrWhiteSpace(ConfigService.Current.HttpServer.WebPin))
@@ -204,6 +204,65 @@ namespace PinayPalBackupManager.Services
                         });
                     }
                     await SendJsonAsync(response, 200, new { success, message = msg });
+                }
+                else if (path == "/api/tunnel/quick/status" && request.HttpMethod == "GET")
+                {
+                    await SendJsonAsync(response, 200, new
+                    {
+                        status = CloudflareTunnelService.Status,
+                        activeUrl = CloudflareTunnelService.ActiveUrl,
+                        isStarting = CloudflareTunnelService.IsStarting,
+                        isRunning = CloudflareTunnelService.IsRunning,
+                        lastError = CloudflareTunnelService.LastError
+                    });
+                }
+                else if (path == "/api/tunnel/quick/start" && request.HttpMethod == "POST")
+                {
+                    var (success, url, msg) = await CloudflareTunnelService.StartQuickTunnelAsync();
+                    await SendJsonAsync(response, success ? 200 : 500, new { success, url, message = msg });
+                }
+                else if (path == "/api/tunnel/quick/stop" && request.HttpMethod == "POST")
+                {
+                    await CloudflareTunnelService.StopTunnelAsync();
+                    await SendJsonAsync(response, 200, new { success = true, message = "Cloudflare tunnel stopped." });
+                }
+                else if (path == "/api/user/avatar")
+                {
+                    if (request.HttpMethod == "GET")
+                    {
+                        await ServeUserAvatarAsync(response, request);
+                    }
+                    else if (request.HttpMethod == "POST")
+                    {
+                        await HandleUploadUserAvatarAsync(context);
+                    }
+                    else
+                    {
+                        await SendApiErrorAsync(response, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+                    }
+                }
+                else if (path == "/api/settings/notifications")
+                {
+                    if (request.HttpMethod == "GET")
+                    {
+                        await ServeNotificationSettingsApiAsync(response);
+                    }
+                    else if (request.HttpMethod == "POST")
+                    {
+                        await HandleNotificationSettingsPostAsync(context);
+                    }
+                    else
+                    {
+                        await SendApiErrorAsync(response, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+                    }
+                }
+                else if (path == "/api/settings/notifications/test-email" && request.HttpMethod == "POST")
+                {
+                    await HandleTestEmailPostAsync(context);
+                }
+                else if (path == "/api/connection-info" && request.HttpMethod == "GET")
+                {
+                    await ServeConnectionInfoApiAsync(response);
                 }
                 else
                 {
@@ -1120,7 +1179,7 @@ namespace PinayPalBackupManager.Services
                 var localIp = GetLocalIpAddress();
                 var port = ConfigService.Current.HttpServer.Port;
                 var pin = ConfigService.Current.HttpServer.WebPin ?? "";
-                var cloudflare = ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
+                var cloudflare = CloudflareTunnelService.ActiveUrl ?? ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
                 var hostname = Environment.MachineName;
 
                 var allIps = FileDownloadService.GetAllLocalIPv4Addresses();
@@ -1131,9 +1190,10 @@ namespace PinayPalBackupManager.Services
                     localUrl = $"http://{localIp}:{port}",
                     allLocalUrls = allUrls,
                     fallbackUrl = cloudflare,
+                    cloudflareUrl = cloudflare,
                     pin = pin,
                     hostname = hostname,
-                    version = BackupConfig.AppVersion
+                    version = ApiVersion
                 });
 
                 var generator = new QRCodeGenerator();
@@ -1152,6 +1212,322 @@ namespace PinayPalBackupManager.Services
             {
                 LogService.WriteSystemLog($"[WebDashboard] QR generation failed: {ex.Message}", "Error", "SYSTEM");
                 await SendJsonAsync(response, 500, new { error = ex.Message });
+            }
+        }
+
+        private static async Task ServeConnectionInfoApiAsync(HttpListenerResponse response)
+        {
+            var localIp = GetLocalIpAddress();
+            var port = ConfigService.Current.HttpServer.Port;
+            var pin = ConfigService.Current.HttpServer.WebPin ?? "";
+            var cloudflare = CloudflareTunnelService.ActiveUrl ?? ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
+            var hostname = Environment.MachineName;
+            var allIps = FileDownloadService.GetAllLocalIPv4Addresses();
+            var allUrls = allIps.Select(ip => $"http://{ip}:{port}").ToList();
+
+            await SendJsonAsync(response, 200, new
+            {
+                localUrl = $"http://{localIp}:{port}",
+                allLocalUrls = allUrls,
+                fallbackUrl = cloudflare,
+                cloudflareUrl = cloudflare,
+                quickTunnelActive = CloudflareTunnelService.IsRunning,
+                quickTunnelUrl = CloudflareTunnelService.ActiveUrl,
+                pin = pin,
+                hostname = hostname,
+                version = ApiVersion
+            });
+        }
+
+        private static async Task ServeUserAvatarAsync(HttpListenerResponse response, HttpListenerRequest request)
+        {
+            try
+            {
+                var currentUserId = AuthService.CurrentUser?.Id;
+                string? avatarPath = null;
+
+                if (currentUserId.HasValue)
+                {
+                    var userPath = Path.Combine(AppDataPaths.DataDirectory, $"avatar_{currentUserId.Value}.png");
+                    if (File.Exists(userPath)) avatarPath = userPath;
+                }
+
+                if (avatarPath == null)
+                {
+                    var defaultPath = Path.Combine(AppDataPaths.DataDirectory, "avatar.png");
+                    if (File.Exists(defaultPath)) avatarPath = defaultPath;
+                }
+
+                if (avatarPath == null && !string.IsNullOrWhiteSpace(AuthService.CurrentUser?.AvatarPath) && File.Exists(AuthService.CurrentUser.AvatarPath))
+                {
+                    avatarPath = AuthService.CurrentUser.AvatarPath;
+                }
+
+                if (avatarPath != null && File.Exists(avatarPath))
+                {
+                    byte[] bytes;
+                    using (var fs = new FileStream(avatarPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var ms = new MemoryStream())
+                    {
+                        await fs.CopyToAsync(ms);
+                        bytes = ms.ToArray();
+                    }
+
+                    response.StatusCode = 200;
+                    response.ContentType = "image/png";
+                    response.AddHeader("Cache-Control", "no-cache, must-revalidate");
+                    response.ContentLength64 = bytes.Length;
+                    await response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
+                    response.Close();
+                    return;
+                }
+
+                // If no avatar image found, return modern SVG avatar placeholder
+                var initial = (AuthService.CurrentUser?.Username ?? "A").Substring(0, 1).ToUpperInvariant();
+                var svg = $@"<svg xmlns=""http://www.w3.org/2000/svg"" width=""128"" height=""128"" viewBox=""0 0 128 128"">
+  <defs>
+    <linearGradient id=""grad"" x1=""0%"" y1=""0%"" x2=""100%"" y2=""100%"">
+      <stop offset=""0%"" stop-color=""#6366F1""/>
+      <stop offset=""100%"" stop-color=""#FCA311""/>
+    </linearGradient>
+  </defs>
+  <rect width=""128"" height=""128"" rx=""64"" fill=""url(#grad)""/>
+  <text x=""50%"" y=""54%"" text-anchor=""middle"" dominant-baseline=""middle"" fill=""#FFFFFF"" font-family=""Segoe UI, Roboto, -apple-system, sans-serif"" font-size=""52"" font-weight=""bold"">{initial}</text>
+</svg>";
+                var svgBytes = Encoding.UTF8.GetBytes(svg);
+                response.StatusCode = 200;
+                response.ContentType = "image/svg+xml";
+                response.AddHeader("Cache-Control", "public, max-age=3600");
+                response.ContentLength64 = svgBytes.Length;
+                await response.OutputStream.WriteAsync(svgBytes, 0, svgBytes.Length);
+                response.Close();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Error serving avatar: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(response, 500, "AVATAR_ERROR", ex.Message);
+            }
+        }
+
+        private static async Task HandleUploadUserAvatarAsync(HttpListenerContext context)
+        {
+            try
+            {
+                var request = context.Request;
+                byte[]? imageBytes = null;
+                var contentType = request.ContentType ?? "";
+
+                if (contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var reader = new StreamReader(request.InputStream, request.ContentEncoding);
+                    var body = await reader.ReadToEndAsync();
+                    using var doc = JsonDocument.Parse(body);
+                    if (doc.RootElement.TryGetProperty("image", out var imgProp) || doc.RootElement.TryGetProperty("avatarBase64", out imgProp))
+                    {
+                        var raw = imgProp.GetString() ?? "";
+                        if (raw.Contains(",")) raw = raw.Substring(raw.IndexOf(",") + 1);
+                        imageBytes = Convert.FromBase64String(raw);
+                    }
+                }
+                else
+                {
+                    // Direct binary upload or raw body
+                    using var ms = new MemoryStream();
+                    await request.InputStream.CopyToAsync(ms);
+                    var raw = ms.ToArray();
+                    if (raw.Length > 0)
+                    {
+                        // Check if multipart form data
+                        if (contentType.Contains("multipart/form-data") && contentType.Contains("boundary="))
+                        {
+                            var boundary = "--" + contentType.Split("boundary=")[1].Trim();
+                            imageBytes = ExtractMultipartFile(raw, boundary);
+                        }
+                        else
+                        {
+                            imageBytes = raw;
+                        }
+                    }
+                }
+
+                if (imageBytes == null || imageBytes.Length == 0)
+                {
+                    await SendApiErrorAsync(context.Response, 400, "EMPTY_IMAGE", "No image data was provided.");
+                    return;
+                }
+
+                Directory.CreateDirectory(AppDataPaths.DataDirectory);
+                var currentUserId = AuthService.CurrentUser?.Id ?? 1;
+                var userAvatarFile = Path.Combine(AppDataPaths.DataDirectory, $"avatar_{currentUserId}.png");
+                var generalAvatarFile = Path.Combine(AppDataPaths.DataDirectory, "avatar.png");
+
+                // Write without locking
+                await File.WriteAllBytesAsync(userAvatarFile, imageBytes);
+                try { await File.WriteAllBytesAsync(generalAvatarFile, imageBytes); } catch { }
+
+                // Update auth service state
+                if (AuthService.CurrentUser != null)
+                {
+                    AuthService.CurrentUser.AvatarPath = userAvatarFile;
+                }
+                AuthService.UpdateAvatar(currentUserId, userAvatarFile);
+
+                // Refresh desktop UI
+                _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    NotificationService.ShowBackupToast("Profile Avatar Updated", "Your profile photo was updated successfully from remote.", "Info");
+                });
+
+                await SendJsonAsync(context.Response, 200, new
+                {
+                    success = true,
+                    message = "Avatar uploaded successfully.",
+                    avatarUrl = "/api/user/avatar?t=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Error uploading avatar: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(context.Response, 500, "AVATAR_UPLOAD_FAILED", ex.Message);
+            }
+        }
+
+        private static byte[]? ExtractMultipartFile(byte[] data, string boundary)
+        {
+            var boundaryBytes = Encoding.UTF8.GetBytes(boundary);
+            int idx = IndexOfBytes(data, boundaryBytes, 0);
+            if (idx == -1) return data;
+
+            // Search header end \r\n\r\n
+            var headerEnd = new byte[] { 13, 10, 13, 10 };
+            int headerIdx = IndexOfBytes(data, headerEnd, idx);
+            if (headerIdx == -1) return data;
+
+            int bodyStart = headerIdx + 4;
+            int nextBoundary = IndexOfBytes(data, boundaryBytes, bodyStart);
+            if (nextBoundary == -1) nextBoundary = data.Length;
+            else if (nextBoundary >= 2 && data[nextBoundary - 2] == 13 && data[nextBoundary - 1] == 10)
+            {
+                nextBoundary -= 2;
+            }
+
+            int len = nextBoundary - bodyStart;
+            if (len <= 0) return null;
+            var result = new byte[len];
+            Array.Copy(data, bodyStart, result, 0, len);
+            return result;
+        }
+
+        private static int IndexOfBytes(byte[] source, byte[] pattern, int startIndex)
+        {
+            for (int i = startIndex; i <= source.Length - pattern.Length; i++)
+            {
+                bool match = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (source[i + j] != pattern[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) return i;
+            }
+            return -1;
+        }
+
+        private static async Task ServeNotificationSettingsApiAsync(HttpListenerResponse response)
+        {
+            var s = NotificationService.Settings;
+            await SendJsonAsync(response, 200, new
+            {
+                emailAlertsEnabled = s.EmailAlertsEnabled,
+                smtpHost = s.SmtpHost ?? "",
+                smtpPort = s.SmtpPort,
+                smtpSsl = s.SmtpSsl,
+                smtpUsername = s.SmtpUsername ?? "",
+                senderEmail = s.SenderEmail ?? "",
+                recipientEmail = s.RecipientEmail ?? "",
+                hasPassword = !string.IsNullOrEmpty(s.SmtpPassword),
+                notifyOnDisconnect = s.NotifyOnDisconnect,
+                notifyOnBackupSuccess = s.NotifyOnBackupSuccess,
+                notifyOnBackupFailure = s.NotifyOnBackupFailure,
+                notifyOnOutdated = s.NotifyOnOutdated
+            });
+        }
+
+        private static async Task HandleNotificationSettingsPostAsync(HttpListenerContext context)
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                await SendApiErrorAsync(context.Response, 400, "EMPTY_BODY", "Request body was empty.");
+                return;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                var s = NotificationService.Settings;
+
+                if (root.TryGetProperty("emailAlertsEnabled", out var ee)) s.EmailAlertsEnabled = ee.GetBoolean();
+                if (root.TryGetProperty("smtpHost", out var sh)) s.SmtpHost = sh.GetString() ?? "";
+                if (root.TryGetProperty("smtpPort", out var sp) && sp.TryGetInt32(out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
+                if (root.TryGetProperty("smtpSsl", out var ssl)) s.SmtpSsl = ssl.GetBoolean();
+                if (root.TryGetProperty("smtpUsername", out var su)) s.SmtpUsername = su.GetString() ?? "";
+                if (root.TryGetProperty("smtpPassword", out var pw) && !string.IsNullOrEmpty(pw.GetString())) s.SmtpPassword = pw.GetString() ?? "";
+                if (root.TryGetProperty("senderEmail", out var se)) s.SenderEmail = se.GetString() ?? "";
+                if (root.TryGetProperty("recipientEmail", out var re)) s.RecipientEmail = re.GetString() ?? "";
+                if (root.TryGetProperty("notifyOnDisconnect", out var nd)) s.NotifyOnDisconnect = nd.GetBoolean();
+                if (root.TryGetProperty("notifyOnBackupSuccess", out var ns)) s.NotifyOnBackupSuccess = ns.GetBoolean();
+                if (root.TryGetProperty("notifyOnBackupFailure", out var nf)) s.NotifyOnBackupFailure = nf.GetBoolean();
+                if (root.TryGetProperty("notifyOnOutdated", out var no)) s.NotifyOnOutdated = no.GetBoolean();
+
+                NotificationService.SaveSettings();
+
+                LogService.WriteSystemLog($"[WebDashboard] Email alert settings updated (Recipient: {s.RecipientEmail}, Host: {s.SmtpHost}:{s.SmtpPort})", "Information", "SYSTEM");
+
+                await SendJsonAsync(context.Response, 200, new { success = true, message = "Email notification settings saved." });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Error saving notification settings: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(context.Response, 500, "SETTINGS_ERROR", ex.Message);
+            }
+        }
+
+        private static async Task HandleTestEmailPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                string? targetEmail = null;
+                if (context.Request.HasEntityBody)
+                {
+                    using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(body);
+                            if (doc.RootElement.TryGetProperty("targetEmail", out var te))
+                            {
+                                targetEmail = te.GetString();
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                var (success, msg) = await NotificationService.SendTestEmailAsync(targetEmail);
+                await SendJsonAsync(context.Response, success ? 200 : 500, new { success, message = msg });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Error sending test email: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(context.Response, 500, "TEST_EMAIL_FAILED", ex.Message);
             }
         }
 
@@ -1527,12 +1903,15 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"">🛡️ PinayPal</div>
-                <span class=""version-badge"" id=""app-version"">v3.3.7</span>
+                <span class=""version-badge"" id=""app-version"">v3.6.4</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
             <div class=""header-actions"">
-                <span class=""session-user"" id=""session-user"" style=""font-size:11px; color:var(--muted); white-space:nowrap; display:flex; align-items:center; gap:4px;""><span style=""opacity:0.6"">👤</span> <span id=""session-username"">—</span></span>
+                <span class=""session-user"" id=""session-user"" style=""font-size:11px; color:var(--muted); white-space:nowrap; display:flex; align-items:center; gap:6px;"">
+                    <img id=""header-avatar"" src=""/api/user/avatar"" style=""width:24px; height:24px; border-radius:50%; object-fit:cover; border:1px solid var(--border);"" onerror=""this.style.opacity='0.4'"" />
+                    <span id=""session-username"">—</span>
+                </span>
                 <select class=""dashboard-control"" id=""refresh-interval"" onchange=""setRefreshInterval(this.value)"" title=""Dashboard refresh interval"">
                     <option value=""4000"">Refresh: 4 sec</option>
                     <option value=""10000"">Refresh: 10 sec</option>
@@ -1541,6 +1920,8 @@ namespace PinayPalBackupManager.Services
                 </select>
                 <button class=""btn-secondary"" onclick=""refreshDashboard()"">↻ Refresh</button>
                 <button class=""btn-secondary"" id=""theme-btn"" onclick=""toggleTheme()"">☀️ Light</button>
+                <button class=""btn-secondary"" id=""btn-header-tunnel"" onclick=""openTunnelModal()"">☁️ Tunnel</button>
+                <button class=""btn-secondary"" onclick=""openEmailModal()"">📧 Alerts</button>
                 <button class=""btn-secondary"" onclick=""openQrModal()"">📱 Pair iOS App</button>
                 <button class=""btn-secondary"" onclick=""runHealthCheck()"">⚡ Diagnostics</button>
                 <button class=""btn-primary"" onclick=""backupAll()"">🚀 Run All Backups</button>
@@ -1809,12 +2190,19 @@ namespace PinayPalBackupManager.Services
                             <td style=""color: var(--muted);"">Local IP:</td>
                             <td id=""spec-ip"">--</td>
                         </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">Cloudflare Tunnel:</td>
+                            <td id=""spec-tunnel-cell"">
+                                <span class=""tag tag-neutral"" id=""tunnel-badge"">STOPPED</span>
+                                <span id=""tunnel-url-text"" style=""font-size:12px; margin-left:6px; color:var(--blue);"">No active tunnel</span>
+                                <button class=""btn-secondary"" style=""padding:2px 8px; font-size:10px; margin-left:6px;"" onclick=""openTunnelModal()"">Manage</button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
                 <div class=""tip-box"">
-                    <strong>💡 Cloudflare Remote Tunnel Tip:</strong><br>
-                    To access remotely without <code>HTTP 400 Invalid Hostname</code> errors, start cloudflared with:<br>
-                    <span class=""tip-code"">cloudflared tunnel --url http://localhost:8080 --http-host-header localhost</span>
+                    <strong>💡 Quick Cloudflare Tunnel:</strong><br>
+                    Click <strong>☁️ Tunnel</strong> in the header or table above to create a temporary <code>trycloudflare.com</code> URL on-the-fly without an account.
                 </div>
             </div>
         </div>
@@ -1842,7 +2230,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.3</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.4</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>
@@ -1914,11 +2302,98 @@ namespace PinayPalBackupManager.Services
                 Open <strong>PinayPal Backup</strong> on your iPhone, select <em>Scan QR</em>, and point your camera at this code.
             </p>
             <img id=""qr-modal-img"" class=""modal-qr-img"" src="""" alt=""Pairing QR Code"" />
-            <div style=""font-size: 11px; color: var(--muted); margin-top: 10px; word-break: break-all;"">
-                Auto-configures your local IP and security PIN in one step.
+            <div style=""font-size: 12px; color: var(--text); margin-top: 10px; background:var(--inner-bg); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:left;"">
+                <div style=""display:flex; justify-content:space-between; margin-bottom:6px;"">
+                    <span style=""color:var(--muted); font-weight:700;"">🏠 Local Wi-Fi:</span>
+                    <span id=""qr-modal-local-url"" style=""color:var(--green); font-weight:600;"">--</span>
+                </div>
+                <div style=""display:flex; justify-content:space-between; align-items:center;"">
+                    <span style=""color:var(--muted); font-weight:700;"">☁️ Fallback Tunnel:</span>
+                    <span id=""qr-modal-fallback-url"" style=""color:var(--blue); font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis;"">--</span>
+                </div>
             </div>
-            <div style=""margin-top: 20px;"">
-                <button class=""btn-secondary"" style=""width: 100%;"" onclick=""closeQrModal()"">Close</button>
+            <div style=""margin-top: 14px; display:flex; gap:8px;"">
+                <button class=""btn-secondary"" style=""flex:1;"" onclick=""openTunnelModal()"">☁️ Tunnel Setup</button>
+                <button class=""btn-secondary"" style=""flex:1;"" onclick=""closeQrModal()"">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloudflare Quick Tunnel Modal -->
+    <div class=""modal-overlay"" id=""tunnel-modal"" onclick=""if(event.target === this) closeTunnelModal()"">
+        <div class=""modal-card"" style=""max-width: 480px; text-align: left;"">
+            <div style=""display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"">
+                <div style=""font-size: 18px; font-weight: 800; color: var(--gold); display:flex; align-items:center; gap:8px;"">
+                    <span>☁️ Cloudflare Quick Tunnel</span>
+                </div>
+                <span id=""modal-tunnel-badge"" class=""tag tag-neutral"">CHECKING...</span>
+            </div>
+            <p style=""font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5;"">
+                Generates a secure temporary public website via <code>trycloudflare.com</code> (powered by <code>cloudflared</code>). Enables remote access for the iOS app and web dashboard with zero account signup or router changes.
+            </p>
+            <div style=""background:var(--inner-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:14px;"">
+                <div style=""font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;"">Live Temporary URL</div>
+                <div id=""modal-tunnel-url"" style=""font-size:13px; font-weight:700; color:var(--blue); word-break:break-all;"">Not running</div>
+                <div id=""modal-tunnel-msg"" style=""font-size:11px; color:var(--muted); margin-top:4px;"">Click 'Start Quick Tunnel' to spin up a live website URL.</div>
+            </div>
+            <div style=""display:flex; gap:8px; flex-wrap:wrap;"">
+                <button class=""btn-primary"" id=""btn-start-tunnel"" onclick=""startQuickTunnel()"" style=""flex:1;"">🚀 Start Quick Tunnel</button>
+                <button class=""btn-secondary"" id=""btn-stop-tunnel"" onclick=""stopQuickTunnel()"" style=""border-color:var(--red); color:var(--red); display:none;"">🛑 Stop</button>
+                <button class=""btn-secondary"" id=""btn-copy-tunnel"" onclick=""copyTunnelUrl()"" style=""display:none;"">📋 Copy URL</button>
+                <button class=""btn-secondary"" onclick=""closeTunnelModal()"">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Alerts & Settings Modal -->
+    <div class=""modal-overlay"" id=""email-modal"" onclick=""if(event.target === this) closeEmailModal()"">
+        <div class=""modal-card"" style=""max-width: 520px; text-align: left;"">
+            <div style=""display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"">
+                <div style=""font-size: 18px; font-weight: 800; color: var(--gold); display:flex; align-items:center; gap:8px;"">
+                    <span>📧 Email &amp; Disconnect Alerts</span>
+                </div>
+            </div>
+            <p style=""font-size: 12px; color: var(--muted); margin-bottom: 14px;"">
+                Configure SMTP to receive automated emails when backups succeed or fail, when backups become outdated (&gt;24h), or when connection drops.
+            </p>
+            <div style=""display:flex; gap:6px; margin-bottom:12px;"">
+                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('gmail')"">Gmail</button>
+                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('outlook')"">Outlook</button>
+                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('custom')"">Custom</button>
+            </div>
+            <div style=""display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:8px;"">
+                <div>
+                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Host</label>
+                    <input id=""email-smtp-host"" type=""text"" placeholder=""smtp.gmail.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+                </div>
+                <div>
+                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Port</label>
+                    <input id=""email-smtp-port"" type=""number"" placeholder=""587"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+                </div>
+            </div>
+            <div style=""margin-bottom:8px;"">
+                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Username / Sender Email</label>
+                <input id=""email-smtp-user"" type=""email"" placeholder=""admin@example.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+            </div>
+            <div style=""margin-bottom:8px;"">
+                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Password / App Password</label>
+                <input id=""email-smtp-pass"" type=""password"" placeholder=""Leave blank to keep unchanged"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+            </div>
+            <div style=""margin-bottom:12px;"">
+                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Recipient Notification Email</label>
+                <input id=""email-recipient"" type=""email"" placeholder=""notify-me@example.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+            </div>
+            <div style=""background:var(--inner-bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:14px; font-size:12px;"">
+                <div style=""font-weight:700; margin-bottom:6px; font-size:11px; color:var(--muted); text-transform:uppercase;"">Notification Triggers</div>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-disconnect"" checked /> Alert on Network / Cloudflare Disconnect</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-failure"" checked /> Alert on Backup Failure</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-outdated"" checked /> Alert when Backup is Outdated (&gt;24h)</label>
+                <label style=""display:flex; align-items:center; gap:8px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-success"" /> Alert on Backup Success</label>
+            </div>
+            <div style=""display:flex; gap:8px;"">
+                <button class=""btn-primary"" onclick=""saveEmailSettings()"" style=""flex:1;"">💾 Save Email Config</button>
+                <button class=""btn-secondary"" onclick=""sendTestEmail()"">✉️ Send Test Email</button>
+                <button class=""btn-secondary"" onclick=""closeEmailModal()"">Close</button>
             </div>
         </div>
     </div>
@@ -2023,13 +2498,222 @@ namespace PinayPalBackupManager.Services
                 <div class=""service-summary-item""><div class=""service-summary-label"">Latest result</div><div class=""service-summary-value"">${serviceHistory ? escapeHtml(serviceHistory.status || '--') : '--'}</div></div>`;
         }
 
-        function openQrModal() {
+        async function openQrModal() {
             document.getElementById('qr-modal-img').src = '/api/connection-qr?t=' + Date.now();
             document.getElementById('qr-modal').style.display = 'flex';
+            try {
+                const res = await fetch('/api/connection-info');
+                const info = await res.json();
+                document.getElementById('qr-modal-local-url').textContent = info.localUrl || '--';
+                document.getElementById('qr-modal-fallback-url').textContent = info.fallbackUrl || (info.quickTunnelActive ? info.quickTunnelUrl : 'Not running');
+            } catch (e) {}
         }
 
         function closeQrModal() {
             document.getElementById('qr-modal').style.display = 'none';
+        }
+
+        let activeTunnelUrl = '';
+
+        async function openTunnelModal() {
+            document.getElementById('tunnel-modal').style.display = 'flex';
+            await checkTunnelStatus();
+        }
+
+        function closeTunnelModal() {
+            document.getElementById('tunnel-modal').style.display = 'none';
+        }
+
+        async function checkTunnelStatus() {
+            try {
+                const res = await fetch('/api/tunnel/quick/status');
+                const data = await res.json();
+                activeTunnelUrl = data.activeUrl || '';
+                const isRunning = data.isRunning && activeTunnelUrl;
+                const isStarting = data.isStarting;
+
+                const modalBadge = document.getElementById('modal-tunnel-badge');
+                const modalUrl = document.getElementById('modal-tunnel-url');
+                const modalMsg = document.getElementById('modal-tunnel-msg');
+                const btnStart = document.getElementById('btn-start-tunnel');
+                const btnStop = document.getElementById('btn-stop-tunnel');
+                const btnCopy = document.getElementById('btn-copy-tunnel');
+
+                const tableBadge = document.getElementById('tunnel-badge');
+                const tableUrl = document.getElementById('tunnel-url-text');
+                const headerBtn = document.getElementById('btn-header-tunnel');
+
+                if (isRunning) {
+                    if (modalBadge) { modalBadge.textContent = 'ONLINE'; modalBadge.className = 'tag tag-success'; }
+                    if (modalUrl) { modalUrl.innerHTML = `<a href=""${activeTunnelUrl}"" target=""_blank"" style=""color:var(--cyan); text-decoration:underline;"">${activeTunnelUrl}</a>`; }
+                    if (modalMsg) { modalMsg.textContent = 'Tunnel is active and routing public HTTPS traffic to localhost:8080.'; }
+                    if (btnStart) btnStart.style.display = 'none';
+                    if (btnStop) btnStop.style.display = 'inline-block';
+                    if (btnCopy) btnCopy.style.display = 'inline-block';
+
+                    if (tableBadge) { tableBadge.textContent = 'ONLINE'; tableBadge.className = 'tag tag-success'; }
+                    if (tableUrl) { tableUrl.textContent = activeTunnelUrl; }
+                    if (headerBtn) { headerBtn.style.borderColor = 'var(--green)'; headerBtn.style.color = 'var(--green)'; }
+                } else if (isStarting) {
+                    if (modalBadge) { modalBadge.textContent = 'STARTING...'; modalBadge.className = 'tag tag-warning pulse-badge'; }
+                    if (modalUrl) { modalUrl.textContent = 'Starting cloudflared & provisioning temp URL...'; }
+                    if (modalMsg) { modalMsg.textContent = 'Downloading cloudflared or acquiring tunnel hostname...'; }
+                    if (btnStart) { btnStart.textContent = 'Starting...'; btnStart.disabled = true; }
+                    if (btnStop) btnStop.style.display = 'none';
+                    if (btnCopy) btnCopy.style.display = 'none';
+
+                    if (tableBadge) { tableBadge.textContent = 'STARTING'; tableBadge.className = 'tag tag-warning'; }
+                    if (tableUrl) { tableUrl.textContent = 'Provisioning temporary website...'; }
+                } else {
+                    if (modalBadge) { modalBadge.textContent = 'STOPPED'; modalBadge.className = 'tag tag-neutral'; }
+                    if (modalUrl) { modalUrl.textContent = 'Not running'; }
+                    if (modalMsg) { modalMsg.textContent = data.lastError ? `Stopped (${data.lastError})` : 'Click Start to provision a temporary public website via trycloudflare.com.'; }
+                    if (btnStart) { btnStart.textContent = '🚀 Start Quick Tunnel'; btnStart.style.display = 'inline-block'; btnStart.disabled = false; }
+                    if (btnStop) btnStop.style.display = 'none';
+                    if (btnCopy) btnCopy.style.display = 'none';
+
+                    if (tableBadge) { tableBadge.textContent = 'STOPPED'; tableBadge.className = 'tag tag-neutral'; }
+                    if (tableUrl) { tableUrl.textContent = 'No active tunnel'; }
+                    if (headerBtn) { headerBtn.style.borderColor = ''; headerBtn.style.color = ''; }
+                }
+            } catch (e) {
+                console.error('Failed to check tunnel status:', e);
+            }
+        }
+
+        async function startQuickTunnel() {
+            showToast('Provisioning Cloudflare Quick Tunnel...');
+            const btnStart = document.getElementById('btn-start-tunnel');
+            if (btnStart) { btnStart.textContent = 'Provisioning...'; btnStart.disabled = true; }
+            try {
+                const res = await fetch('/api/tunnel/quick/start', { method: 'POST' });
+                const data = await res.json();
+                if (data.success && data.url) {
+                    showToast('Cloudflare Tunnel is LIVE!');
+                    playChime('success');
+                } else {
+                    showToast(data.message || 'Failed to start tunnel');
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            }
+            await checkTunnelStatus();
+        }
+
+        async function stopQuickTunnel() {
+            showToast('Stopping Cloudflare Tunnel...');
+            try {
+                await fetch('/api/tunnel/quick/stop', { method: 'POST' });
+                showToast('Tunnel stopped');
+            } catch (e) {
+                showToast('Error stopping tunnel');
+            }
+            await checkTunnelStatus();
+        }
+
+        function copyTunnelUrl() {
+            if (activeTunnelUrl) {
+                navigator.clipboard.writeText(activeTunnelUrl);
+                showToast('Copied URL to clipboard: ' + activeTunnelUrl);
+            }
+        }
+
+        // ── Email Settings & Notifications ──────────────────
+        function applySmtpPreset(type) {
+            if (type === 'gmail') {
+                document.getElementById('email-smtp-host').value = 'smtp.gmail.com';
+                document.getElementById('email-smtp-port').value = 587;
+                showToast('Applied Gmail preset (use App Password)');
+            } else if (type === 'outlook') {
+                document.getElementById('email-smtp-host').value = 'smtp-mail.outlook.com';
+                document.getElementById('email-smtp-port').value = 587;
+                showToast('Applied Outlook preset');
+            } else {
+                document.getElementById('email-smtp-host').value = '';
+                document.getElementById('email-smtp-port').value = 587;
+            }
+        }
+
+        async function openEmailModal() {
+            document.getElementById('email-modal').style.display = 'flex';
+            try {
+                const res = await fetch('/api/settings/notifications');
+                const s = await res.json();
+                document.getElementById('email-smtp-host').value = s.smtpHost || '';
+                document.getElementById('email-smtp-port').value = s.smtpPort || 587;
+                document.getElementById('email-smtp-user').value = s.smtpUsername || '';
+                document.getElementById('email-recipient').value = s.recipientEmail || '';
+                document.getElementById('email-trig-disconnect').checked = s.notifyOnDisconnect ?? true;
+                document.getElementById('email-trig-failure').checked = s.notifyOnBackupFailure ?? true;
+                document.getElementById('email-trig-outdated').checked = s.notifyOnOutdated ?? true;
+                document.getElementById('email-trig-success').checked = s.notifyOnBackupSuccess ?? false;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function closeEmailModal() {
+            document.getElementById('email-modal').style.display = 'none';
+        }
+
+        async function saveEmailSettings() {
+            showToast('Saving email settings...');
+            const payload = {
+                emailAlertsEnabled: true,
+                smtpHost: document.getElementById('email-smtp-host').value.trim(),
+                smtpPort: parseInt(document.getElementById('email-smtp-port').value) || 587,
+                smtpSsl: true,
+                smtpUsername: document.getElementById('email-smtp-user').value.trim(),
+                smtpPassword: document.getElementById('email-smtp-pass').value,
+                senderEmail: document.getElementById('email-smtp-user').value.trim(),
+                recipientEmail: document.getElementById('email-recipient').value.trim(),
+                notifyOnDisconnect: document.getElementById('email-trig-disconnect').checked,
+                notifyOnBackupFailure: document.getElementById('email-trig-failure').checked,
+                notifyOnOutdated: document.getElementById('email-trig-outdated').checked,
+                notifyOnBackupSuccess: document.getElementById('email-trig-success').checked
+            };
+            try {
+                const res = await fetch('/api/settings/notifications', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast('Email settings saved successfully');
+                    playChime('success');
+                } else {
+                    showToast('Failed to save: ' + (d.message || 'Error'));
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error saving: ' + e.message);
+                playChime('error');
+            }
+        }
+
+        async function sendTestEmail() {
+            showToast('Sending test email alert...');
+            try {
+                const res = await fetch('/api/settings/notifications/test-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetEmail: document.getElementById('email-recipient').value.trim() })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast('Test email sent successfully! Check inbox.');
+                    playChime('success');
+                } else {
+                    showToast('Failed to send test email: ' + (d.message || 'Error'));
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            }
         }
 
         function showToast(msg) {
@@ -2522,6 +3206,7 @@ namespace PinayPalBackupManager.Services
                     tbody.innerHTML = '<tr><td colspan=""6"" style=""text-align: center; color: var(--muted); padding: 24px;"">No backups recorded yet.</td></tr>';
                 }
                 renderHistory();
+                checkTunnelStatus();
             } catch(e) {
                 console.error(e);
             }

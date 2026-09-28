@@ -53,9 +53,47 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.3",
+            version: "v3.6.4 (Build 17)",
             releaseDate: "September 2026",
             isLatest: true,
+            highlight: "Cloudflare Quick Tunnel (temp websites), dual-tier LAN & Tunnel pairing, iOS profile avatar upload, and multi-channel email & disconnect alerts",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Cloudflare Quick Tunnel (Temp Website)",
+                    description: "Spin up instant, zero-account public temporary websites via Cloudflare tunnel for remote pairing and monitoring anywhere outside your local Wi-Fi."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Dual-Tier Failover & Routing Indicator",
+                    description: "iOS app seamlessly fails over between local LAN and Cloudflare Tunnel fallback, with live routing chips (🟢 LAN vs 🟣 Tunnel) and manual toggle."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Profile Avatar Upload on iOS",
+                    description: "Upload profile photos straight from iOS Photo Library via PhotosPicker with instant real-time synchronization to desktop PC and Web Dashboard."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Multi-Channel Email & Disconnect Alerts",
+                    description: "Desktop engine and Web Dashboard now send customizable email alerts for connection loss, tunnel drops, backup success/failures, or stale backups (>24h)."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "PC Desktop Profile Avatar Persistence",
+                    description: "Resolved issue where desktop profile avatars were not persisted upon app restart; optimized with lock-free file streaming and per-user cache."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Enhanced QR Pairing Experience",
+                    description: "Pairing QR codes embed local network endpoints alongside active Cloudflare Quick Tunnel fallback for instant one-tap scanning and connection."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.3",
+            releaseDate: "September 2026",
+            isLatest: false,
             highlight: "120Hz ProMotion display unlock, background Live Activity sync engine, Home backup progress HUD, WWDC 2025 Liquid Glass navigation, and refreshed app & notification icon suite",
             changes: [
                 ChangelogItem(

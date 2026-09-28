@@ -137,6 +137,63 @@
                 </StackPanel>
             </Border>
 
+            <!-- Email & Disconnect Alerts -->
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="EMAIL &amp; DISCONNECT ALERTS" FontWeight="Bold" Foreground="{DynamicResource AccentWarning}" Margin="0,0,0,6"/>
+                    <TextBlock Text="Receive instant email notifications on backup success/failure, outdated backups, or network/tunnel disconnects." Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                    
+                    <CheckBox Name="ChkEmailAlertsEnabled" Content="Enable Email Notifications" Foreground="{DynamicResource AppText}"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <Button Name="BtnPresetGmail" Content="Gmail Preset" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,5" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnPresetOutlook" Content="Outlook Preset" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,5" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="2*, *" Margin="0,4,0,0">
+                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                            <TextBlock Text="SMTP Host" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBox Name="TxtSmtpHost" Watermark="e.g. smtp.gmail.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Port" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBox Name="TxtSmtpPort" Text="587" TextAlignment="Center" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox Name="ChkSmtpSsl" Content="Use SSL / TLS (Recommended)" IsChecked="True" Foreground="{DynamicResource AppText}" Margin="0,2,0,0"/>
+
+                    <StackPanel Spacing="4" Margin="0,4,0,0">
+                        <TextBlock Text="Sender Email / SMTP Username" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBox Name="TxtSmtpUser" Watermark="e.g. your-email@gmail.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4" Margin="0,4,0,0">
+                        <TextBlock Text="SMTP App Password" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBox Name="TxtSmtpPass" PasswordChar="*" Watermark="App password (generated from Google/Microsoft account)" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4" Margin="0,4,0,0">
+                        <TextBlock Text="Recipient Notification Email" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBox Name="TxtRecipientEmail" Watermark="e.g. alert-receiver@example.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" Margin="0,6,0,0">
+                        <TextBlock Text="NOTIFICATION TRIGGERS" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
+                        <CheckBox Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupFailure" Content="Alert on Backup Failure" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyOutdated" Content="Alert when Backup is Outdated (&gt;24h)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Success" Foreground="{DynamicResource AppText}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                        <Button Name="BtnSaveEmailSettings" Content="Save Email Settings" Background="{DynamicResource AccentWarning}" Foreground="#000000" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnSendTestEmail" Content="Send Test Email" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
+                    <TextBlock Name="TxtEmailStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- System Information (4th) -->
             <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="10">

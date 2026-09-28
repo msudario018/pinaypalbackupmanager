@@ -36,10 +36,12 @@ public struct QRScannerView: View {
                 Button {
                     let simulated = ConnectionQrPayload(
                         localUrl: "http://192.168.1.50:8080",
+                        allLocalUrls: ["http://192.168.1.50:8080"],
                         fallbackUrl: "https://backup.pinaypal.com",
+                        cloudflareUrl: "https://backup.pinaypal.com",
                         pin: "1234",
                         hostname: "SIMULATOR-PC",
-                        version: "3.3.7"
+                        version: "3.6.4"
                     )
                     let haptic = UINotificationFeedbackGenerator()
                     haptic.notificationOccurred(.success)
@@ -63,7 +65,15 @@ public struct QRScannerView: View {
                     onScanSuccess(payload)
                 } else if resultString.hasPrefix("http") {
                     // Fallback in case raw URL is embedded
-                    let payload = ConnectionQrPayload(localUrl: resultString, fallbackUrl: nil, pin: nil, hostname: nil, version: nil)
+                    let payload = ConnectionQrPayload(
+                        localUrl: resultString,
+                        allLocalUrls: [resultString],
+                        fallbackUrl: nil,
+                        cloudflareUrl: nil,
+                        pin: nil,
+                        hostname: nil,
+                        version: nil
+                    )
                     let haptic = UINotificationFeedbackGenerator()
                     haptic.notificationOccurred(.success)
                     onScanSuccess(payload)

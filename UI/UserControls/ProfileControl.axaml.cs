@@ -345,12 +345,16 @@ namespace PinayPalBackupManager.UI.UserControls
                     var file = files[0];
                     var localPath = file.Path.LocalPath;
                     
-                    // Copy to app data directory (per-user)
-                    var avatarPath = AppDataPaths.GetDataPath("avatar.png");
+                    // Copy to app data directory (both global and per-user)
+                    var user = AuthService.CurrentUser;
+                    var avatarPath = user != null 
+                        ? AppDataPaths.GetDataPath($"avatar_{user.Id}.png") 
+                        : AppDataPaths.GetDataPath("avatar.png");
+
                     File.Copy(localPath, avatarPath, true);
+                    try { File.Copy(localPath, AppDataPaths.GetDataPath("avatar.png"), true); } catch { }
 
                     // Persist avatar path to the current user profile if available
-                    var user = AuthService.CurrentUser;
                     if (user != null)
                     {
                         AuthService.UpdateAvatar(user.Id, avatarPath);
@@ -381,12 +385,22 @@ namespace PinayPalBackupManager.UI.UserControls
                 var user = AuthService.CurrentUser;
                 if (user != null)
                 {
-                    var userAvatar = AuthService.GetAvatarPath(user.Id);
-                    if (!string.IsNullOrWhiteSpace(userAvatar))
-                        avatarPath = userAvatar;
+                    if (!string.IsNullOrWhiteSpace(user.AvatarPath) && File.Exists(user.AvatarPath))
+                    {
+                        avatarPath = user.AvatarPath;
+                    }
+                    else
+                    {
+                        var userAvatar = AuthService.GetAvatarPath(user.Id);
+                        if (!string.IsNullOrWhiteSpace(userAvatar) && File.Exists(userAvatar))
+                        {
+                            avatarPath = userAvatar;
+                            user.AvatarPath = userAvatar;
+                        }
+                    }
                 }
 
-                if (string.IsNullOrEmpty(avatarPath))
+                if (string.IsNullOrEmpty(avatarPath) || !File.Exists(avatarPath))
                 {
                     AppDataPaths.MigrateFile("avatar.png");
                     avatarPath = AppDataPaths.GetExistingOrCurrentPath("avatar.png");
@@ -397,8 +411,12 @@ namespace PinayPalBackupManager.UI.UserControls
                     var imgAvatar = this.FindControl<Image>("ImgAvatar");
                     if (imgAvatar != null)
                     {
-                        // Load image from file
-                        var bitmap = new Avalonia.Media.Imaging.Bitmap(avatarPath);
+                        // Load image safely from stream without locking file
+                        using var stream = File.Open(avatarPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        using var ms = new MemoryStream();
+                        stream.CopyTo(ms);
+                        ms.Position = 0;
+                        var bitmap = new Avalonia.Media.Imaging.Bitmap(ms);
                         imgAvatar.Source = bitmap;
                         imgAvatar.IsVisible = true;
                     }

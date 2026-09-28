@@ -1,5 +1,44 @@
 # Changelog
 
+## v3.6.4 (2026-09-28)
+
+### Added & Improved
+- **Cloudflare Quick Tunnel (On-Demand Temporary Websites)**:
+  - Added `CloudflareTunnelService.cs`: Integrated automatic zero-account temporary public website creation (`trycloudflare.com`) via `cloudflared`.
+  - Automatic binary discovery across standard install paths (`AppData\Local\Programs\cloudflared`, WinGet, PATH) and automated binary download from official Cloudflare GitHub releases.
+  - Spawns and manages `tunnel --url http://localhost:8080 --http-host-header localhost` process with real-time URL capture, stdout/stderr streaming, and graceful shutdown.
+  - Added Web Dashboard modal and REST endpoints (`GET /api/tunnel/quick/status`, `POST /api/tunnel/quick/start`, `POST /api/tunnel/quick/stop`) allowing one-click quick tunnel provisioning and termination from any browser or device.
+- **Enhanced Dual-Tier QR Pairing & Connection Payload**:
+  - Overhauled pairing QR generation in `WebDashboardService.cs` (`ServePairingQrAsync` and `/api/connection-info`).
+  - QR payload embeds primary LAN address, all detected local network interfaces (`allLocalUrls`), and active Cloudflare Quick Tunnel URL (`fallbackUrl` / `cloudflareUrl`).
+  - Web Dashboard QR modal displays the active Cloudflare fallback URL with instant copy-to-clipboard functionality.
+- **Dual-Tier iOS Routing & Auto-Failover**:
+  - `PinayPalAPIService.swift` seamlessly handles network transitions: if local Wi-Fi becomes unavailable, network requests automatically fail over to the Cloudflare Tunnel fallback.
+  - Periodic background probing gently checks if local LAN has been restored and seamlessly switches back to low-latency local network communication.
+  - Added live routing chips to the persistent navigation header (`🟢 LAN` vs `🟣 Tunnel`) with manual switch toggle.
+  - Updated `ConnectionSetupView.swift` to automatically capture and configure the Cloudflare fallback URL upon QR scan.
+- **iOS Profile Avatar Upload via PhotosPicker**:
+  - Added PhotosPicker in `ProfileSheetView.swift` allowing users to select any image from their iOS Photo Library.
+  - Directly uploads image data to `/api/user/avatar` with optimistic loading spinner, visual feedback toast, and real-time avatar cache busting.
+  - Displayed live profile avatars in `persistentHeader` and `ProfileSheetView` with modern SVG / initials fallback.
+- **Multi-Channel Email & Disconnect Alerts**:
+  - Upgraded `NotificationService.cs` with full SMTP email alert infrastructure with support for STARTTLS and SSL (ports 587, 465, 25).
+  - Added notification triggers for:
+    - Connection disconnects (local network drops or Cloudflare Quick Tunnel terminations).
+    - Backup routine completion (FTP, SQL, Mailchimp success).
+    - Backup failures with detailed error descriptions.
+    - Outdated backup routines (>24h since last successful sync).
+  - Added "EMAIL & DISCONNECT ALERTS" card to Desktop PC Settings with one-click SMTP presets (Gmail, Outlook/Office365), trigger checkboxes, recipient inputs, and an instant "Send Test Email" button.
+  - Added Web Dashboard Email Settings modal with live testing and configuration saving (`GET/POST /api/settings/notifications`, `POST /api/settings/notifications/test-email`).
+- **Desktop PC Profile Avatar Persistence Fix**:
+  - Fixed issue where desktop profile avatars were not persisted upon exiting or relaunching the application.
+  - `AppDataPaths.cs` now properly queries the `Data/` directory for `avatar_{userId}.png` and `avatar.png`.
+  - Re-engineered bitmap image loading in `MainWindow.axaml.cs` and `ProfileControl.axaml.cs` using non-locking memory streams (`FileShare.ReadWrite`), eliminating file lock crashes during avatar updates.
+  - `AuthService.UpdateAvatar` now updates current in-memory user avatar path and triggers UI update notifications.
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.4` (iOS Build `17`).
+
+
 ## v3.6.3 (2026-09-27)
 
 ### Added & Improved

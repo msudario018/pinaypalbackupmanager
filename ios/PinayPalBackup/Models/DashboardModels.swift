@@ -46,7 +46,9 @@ public struct ActiveBackupServiceSpec: Codable, Identifiable {
 
 public struct ConnectionQrPayload: Codable {
     public let localUrl: String
+    public let allLocalUrls: [String]?
     public let fallbackUrl: String?
+    public let cloudflareUrl: String?
     public let pin: String?
     public let hostname: String?
     public let version: String?

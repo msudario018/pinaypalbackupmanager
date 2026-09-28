@@ -350,6 +350,98 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnResetAllUsers.Click += async (_, _) => await ShowResetAllUsersConfirmationAsync();
             }
+
+            InitializeEmailAlerts();
+        }
+
+        private void InitializeEmailAlerts()
+        {
+            var chkEmail = this.FindControl<CheckBox>("ChkEmailAlertsEnabled");
+            var btnGmail = this.FindControl<Button>("BtnPresetGmail");
+            var btnOutlook = this.FindControl<Button>("BtnPresetOutlook");
+            var txtHost = this.FindControl<TextBox>("TxtSmtpHost");
+            var txtPort = this.FindControl<TextBox>("TxtSmtpPort");
+            var chkSsl = this.FindControl<CheckBox>("ChkSmtpSsl");
+            var txtUser = this.FindControl<TextBox>("TxtSmtpUser");
+            var txtPass = this.FindControl<TextBox>("TxtSmtpPass");
+            var txtRecipient = this.FindControl<TextBox>("TxtRecipientEmail");
+            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
+            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
+            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
+            var btnSave = this.FindControl<Button>("BtnSaveEmailSettings");
+            var btnTest = this.FindControl<Button>("BtnSendTestEmail");
+            var txtStatus = this.FindControl<TextBlock>("TxtEmailStatus");
+
+            var s = NotificationService.Settings;
+            if (chkEmail != null) chkEmail.IsChecked = s.EmailAlertsEnabled;
+            if (txtHost != null) txtHost.Text = s.SmtpHost;
+            if (txtPort != null) txtPort.Text = s.SmtpPort.ToString();
+            if (chkSsl != null) chkSsl.IsChecked = s.SmtpSsl;
+            if (txtUser != null) txtUser.Text = s.SmtpUsername;
+            if (txtPass != null) txtPass.Text = s.SmtpPassword;
+            if (txtRecipient != null) txtRecipient.Text = s.RecipientEmail;
+            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
+            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
+            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
+            if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
+
+            if (btnGmail != null && txtHost != null && txtPort != null && chkSsl != null)
+            {
+                btnGmail.Click += (_, _) =>
+                {
+                    txtHost.Text = "smtp.gmail.com";
+                    txtPort.Text = "587";
+                    chkSsl.IsChecked = true;
+                    NotificationService.ShowBackupToast("Preset", "Applied Gmail preset. Ensure you use an App Password.", "Info");
+                };
+            }
+
+            if (btnOutlook != null && txtHost != null && txtPort != null && chkSsl != null)
+            {
+                btnOutlook.Click += (_, _) =>
+                {
+                    txtHost.Text = "smtp-mail.outlook.com";
+                    txtPort.Text = "587";
+                    chkSsl.IsChecked = true;
+                    NotificationService.ShowBackupToast("Preset", "Applied Outlook preset.", "Info");
+                };
+            }
+
+            if (btnSave != null)
+            {
+                btnSave.Click += (_, _) =>
+                {
+                    s.EmailAlertsEnabled = chkEmail?.IsChecked == true;
+                    s.SmtpHost = txtHost?.Text?.Trim() ?? "";
+                    if (int.TryParse(txtPort?.Text?.Trim(), out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
+                    s.SmtpSsl = chkSsl?.IsChecked == true;
+                    s.SmtpUsername = txtUser?.Text?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(txtPass?.Text)) s.SmtpPassword = txtPass.Text;
+                    s.SenderEmail = txtUser?.Text?.Trim() ?? "";
+                    s.RecipientEmail = txtRecipient?.Text?.Trim() ?? "";
+                    s.NotifyOnDisconnect = chkDisc?.IsChecked == true;
+                    s.NotifyOnBackupFailure = chkFail?.IsChecked == true;
+                    s.NotifyOnOutdated = chkOut?.IsChecked == true;
+                    s.NotifyOnBackupSuccess = chkSucc?.IsChecked == true;
+
+                    NotificationService.SaveSettings();
+                    if (txtStatus != null) txtStatus.Text = "Notification settings saved successfully.";
+                    NotificationService.ShowBackupToast("Email Alerts", "Email notification settings saved.", "Info");
+                };
+            }
+
+            if (btnTest != null)
+            {
+                btnTest.Click += async (_, _) =>
+                {
+                    if (txtStatus != null) txtStatus.Text = "Sending test email alert...";
+                    var target = txtRecipient?.Text?.Trim();
+                    var (success, msg) = await NotificationService.SendTestEmailAsync(target);
+                    if (txtStatus != null) txtStatus.Text = success ? "Test email sent successfully! Check your inbox." : $"Test failed: {msg}";
+                    NotificationService.ShowBackupToast("Email Test", success ? "Test email delivered!" : msg, success ? "Info" : "Error");
+                };
+            }
         }
 
         /// <summary>

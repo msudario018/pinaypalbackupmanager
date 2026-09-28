@@ -434,9 +434,160 @@ namespace PinayPalBackupManager.Services
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[NOTIFICATION] Direct email to {toEmail} failed: {ex.Message}", "Error", "SYSTEM");
+                LogService.WriteSystemLog($"[Notification] Failed to send email to {toEmail}: {ex.Message}", "Error", "SYSTEM");
                 return false;
             }
+        }
+
+        public static async Task<(bool success, string message)> SendTestEmailAsync(string? targetEmail = null)
+        {
+            var recipient = !string.IsNullOrWhiteSpace(targetEmail) ? targetEmail : _settings.EmailRecipients.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(_settings.SmtpHost))
+                return (false, "SMTP Host is not configured.");
+            if (string.IsNullOrWhiteSpace(_settings.EmailFrom))
+                return (false, "Sender email (EmailFrom) is not configured.");
+            if (string.IsNullOrWhiteSpace(recipient))
+                return (false, "Target recipient email is required.");
+
+            try
+            {
+                using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+                {
+                    EnableSsl = _settings.SmtpUseSsl,
+                    Credentials = new NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword),
+                    Timeout = 12000
+                };
+
+                var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(_settings.EmailFrom, "PinayPal Backup Manager"),
+                    Subject = "✅ PinayPal Backup Manager - Test Notification",
+                    Body = $@"<html>
+<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
+    <div style=""max-width: 500px; margin: auto; background: #161a23; border: 1px solid #eab308; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #eab308; margin-top: 0;"">PinayPal Backup Manager</h2>
+        <p>This is a test notification confirming your email alerting configuration is active and working!</p>
+        <div style=""background: #0f172a; padding: 12px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
+            <div><strong>Host:</strong> {_settings.SmtpHost}:{_settings.SmtpPort}</div>
+            <div><strong>Sender:</strong> {_settings.EmailFrom}</div>
+            <div><strong>Machine:</strong> {Environment.MachineName}</div>
+            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
+        </div>
+        <p style=""color: #10b981; font-weight: bold;"">✅ All systems operational</p>
+    </div>
+</body>
+</html>",
+                    IsBodyHtml = true
+                };
+                mailMessage.To.Add(recipient!);
+                await client.SendMailAsync(mailMessage);
+                return (true, "Test email delivered successfully!");
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        public static void SendBackupEmailAlert(string serviceName, bool success, string details)
+        {
+            if (!_settings.EmailEnabled) return;
+            if (success && !_settings.NotifyOnBackupSuccess) return;
+            if (!success && !_settings.NotifyOnBackupFailure) return;
+
+            var recipients = _settings.EmailRecipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+            if (recipients.Count == 0) return;
+
+            _ = Task.Run(async () =>
+            {
+                var icon = success ? "✅" : "🚨";
+                var statusColor = success ? "#10b981" : "#ef4444";
+                var statusText = success ? "COMPLETED SUCCESSFULLY" : "FAILED / ERROR";
+                var subject = $"{icon} PinayPal Backup {serviceName.ToUpper()}: {statusText}";
+
+                var htmlBody = $@"<html>
+<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
+    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid {statusColor}; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #eab308; margin-top: 0;"">PinayPal Backup Manager</h2>
+        <div style=""font-size: 16px; font-weight: bold; color: {statusColor}; margin-bottom: 12px;"">
+            {icon} {serviceName.ToUpper()} Backup: {statusText}
+        </div>
+        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px; line-height: 1.6;"">
+            <div><strong>Service:</strong> {serviceName.ToUpper()}</div>
+            <div><strong>Host:</strong> {Environment.MachineName}</div>
+            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
+            <div style=""margin-top: 8px;""><strong>Details:</strong><br><span style=""color: #cbd5e1;"">{WebUtility.HtmlEncode(details)}</span></div>
+        </div>
+    </div>
+</body>
+</html>";
+
+                foreach (var recipient in recipients)
+                {
+                    await SendDirectEmailAsync(recipient, subject, htmlBody, isHtml: true);
+                }
+            });
+        }
+
+        public static void SendDisconnectAlertEmail(string reason)
+        {
+            if (!_settings.EmailEnabled || !_settings.NotifyOnDisconnect) return;
+            var recipients = _settings.EmailRecipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+            if (recipients.Count == 0) return;
+
+            _ = Task.Run(async () =>
+            {
+                var subject = "⚠️ PinayPal Alert: Local / Cloudflare Disconnected";
+                var htmlBody = $@"<html>
+<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
+    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid #f97316; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #f97316; margin-top: 0;"">⚠️ Disconnection Warning</h2>
+        <p>A network connectivity or tunnel disruption was detected on your host machine.</p>
+        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
+            <div><strong>Host:</strong> {Environment.MachineName}</div>
+            <div><strong>Reason:</strong> {WebUtility.HtmlEncode(reason)}</div>
+            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
+        </div>
+    </div>
+</body>
+</html>";
+
+                foreach (var recipient in recipients)
+                {
+                    await SendDirectEmailAsync(recipient, subject, htmlBody, isHtml: true);
+                }
+            });
+        }
+
+        public static void SendOutdatedAlertEmail(string serviceName, string detail)
+        {
+            if (!_settings.EmailEnabled || !_settings.NotifyOnOutdated) return;
+            var recipients = _settings.EmailRecipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+            if (recipients.Count == 0) return;
+
+            _ = Task.Run(async () =>
+            {
+                var subject = $"⚠️ PinayPal Backup Outdated: {serviceName.ToUpper()}";
+                var htmlBody = $@"<html>
+<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
+    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid #eab308; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #eab308; margin-top: 0;"">⚠️ Outdated Backup Alert</h2>
+        <p>The backup for <strong>{serviceName.ToUpper()}</strong> is outdated or local archive is behind remote.</p>
+        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
+            <div><strong>Service:</strong> {serviceName.ToUpper()}</div>
+            <div><strong>Detail:</strong> {WebUtility.HtmlEncode(detail)}</div>
+            <div><strong>Host:</strong> {Environment.MachineName}</div>
+            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
+        </div>
+    </div>
+</body>
+</html>";
+
+                foreach (var recipient in recipients)
+                {
+                    await SendDirectEmailAsync(recipient, subject, htmlBody, isHtml: true);
+                }
+            });
         }
         
         private static async Task<bool> SendSmsNotification(NotificationMessage notification)
@@ -563,6 +714,18 @@ namespace PinayPalBackupManager.Services
             }
         }
         
+        public static NotificationSettings Settings
+        {
+            get => GetSettings();
+            set
+            {
+                lock (_settingsLock)
+                {
+                    _settings = value;
+                }
+            }
+        }
+
         public static void SaveSettings()
         {
             try
@@ -611,14 +774,30 @@ namespace PinayPalBackupManager.Services
     public class NotificationSettings
     {
         public bool EmailEnabled { get; set; } = false;
+        public bool EmailAlertsEnabled { get => EmailEnabled; set => EmailEnabled = value; }
         public bool SmsEnabled { get; set; } = false;
         public string SmtpHost { get; set; } = string.Empty;
         public int SmtpPort { get; set; } = 587;
         public bool SmtpUseSsl { get; set; } = true;
+        public bool SmtpSsl { get => SmtpUseSsl; set => SmtpUseSsl = value; }
         public string SmtpUsername { get; set; } = string.Empty;
         public string SmtpPassword { get; set; } = string.Empty;
         public string EmailFrom { get; set; } = string.Empty;
+        public string SenderEmail { get => EmailFrom; set => EmailFrom = value; }
         public List<string> EmailRecipients { get; set; } = new();
+        public string RecipientEmail
+        {
+            get => EmailRecipients.FirstOrDefault() ?? string.Empty;
+            set
+            {
+                EmailRecipients.Clear();
+                if (!string.IsNullOrWhiteSpace(value)) EmailRecipients.Add(value.Trim());
+            }
+        }
+        public bool NotifyOnDisconnect { get; set; } = true;
+        public bool NotifyOnBackupSuccess { get; set; } = true;
+        public bool NotifyOnBackupFailure { get; set; } = true;
+        public bool NotifyOnOutdated { get; set; } = true;
         public List<string> SmsRecipients { get; set; } = new();
         public string SmsApiKey { get; set; } = string.Empty;
         public string SmsProvider { get; set; } = "Twilio"; // Twilio, AWS SNS, etc.

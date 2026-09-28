@@ -5,11 +5,26 @@ import UIKit
 @MainActor
 public class PinayPalAPIService: ObservableObject {
     @Published public var serverUrl: String = UserDefaults.standard.string(forKey: "pp_server_url") ?? ""
+    @Published public var fallbackUrl: String = UserDefaults.standard.string(forKey: "pp_fallback_url") ?? ""
+    @Published public var isUsingFallback: Bool = false
     @Published public var accessPin: String = UserDefaults.standard.string(forKey: "pp_access_pin") ?? ""
     @Published public var isConfigured: Bool = UserDefaults.standard.bool(forKey: "pp_is_configured")
     @Published public var isLoggedIn: Bool = UserDefaults.standard.bool(forKey: "pp_is_logged_in")
     @Published public var authToken: String? = UserDefaults.standard.string(forKey: "pp_auth_token")
     @Published public var currentUser: AppUserProfile? = nil
+
+    public var activeBaseUrl: String {
+        if isUsingFallback && !fallbackUrl.isEmpty {
+            return fallbackUrl
+        }
+        return serverUrl.isEmpty ? "http://localhost:8080" : serverUrl
+    }
+
+    public var connectionModeName: String {
+        if !isOnline { return "Offline" }
+        if isUsingFallback { return "Cloudflare Tunnel" }
+        return "LAN Direct"
+    }
 
     @Published public var status: StatusResponse? = nil
     @Published public var remoteSettings: RemoteSettings? = nil
@@ -35,6 +50,11 @@ public class PinayPalAPIService: ObservableObject {
             self.currentUser = user
         }
 
+        // Migrate or load fallback URL
+        if fallbackUrl.isEmpty, let legacy = UserDefaults.standard.string(forKey: "pp_failover_url"), !legacy.isEmpty {
+            self.fallbackUrl = legacy
+        }
+
         // If serverUrl is empty, default to localhost for simulation but leave isConfigured false
         if serverUrl.isEmpty {
             self.serverUrl = "http://localhost:8080"
@@ -56,13 +76,25 @@ public class PinayPalAPIService: ObservableObject {
         }
     }
 
-    public func saveSettings(url: String, pin: String) {
+    public func saveSettings(url: String, pin: String, fallbackUrl: String? = nil) {
         var cleanUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanUrl.hasSuffix("/") {
             cleanUrl.removeLast()
         }
         self.serverUrl = cleanUrl
         self.accessPin = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let fb = fallbackUrl {
+            var cleanFb = fb.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanFb.hasSuffix("/") {
+                cleanFb.removeLast()
+            }
+            self.fallbackUrl = cleanFb
+            UserDefaults.standard.set(cleanFb, forKey: "pp_fallback_url")
+            UserDefaults.standard.set(cleanFb, forKey: "pp_failover_url")
+        }
+
+        self.isUsingFallback = false
         self.isConfigured = true
 
         UserDefaults.standard.set(self.serverUrl, forKey: "pp_server_url")
@@ -73,6 +105,12 @@ public class PinayPalAPIService: ObservableObject {
         Task {
             await fetchAll()
         }
+    }
+
+    public func toggleConnectionMode() async {
+        guard !fallbackUrl.isEmpty else { return }
+        isUsingFallback.toggle()
+        await fetchAll()
     }
 
     public func pingServer(url: String) async -> (success: Bool, ping: PingResponse?, error: String?) {
@@ -101,7 +139,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func login(username: String, password: String) async -> (success: Bool, message: String) {
-        var cleanUrl = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanUrl.hasSuffix("/") {
             cleanUrl.removeLast()
         }
@@ -149,7 +187,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func logout() async {
-        var cleanUrl = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanUrl.hasSuffix("/") {
             cleanUrl.removeLast()
         }
@@ -334,7 +372,21 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func fetchStatus() async {
-        guard let url = URL(string: "\(serverUrl)/api/status") else {
+        // If currently on fallback, occasionally probe primary server to see if local LAN is reachable
+        if isUsingFallback && !serverUrl.isEmpty {
+            if let pingUrl = URL(string: "\(serverUrl)/api/ping") {
+                var probeReq = URLRequest(url: pingUrl)
+                probeReq.timeoutInterval = 1.5
+                if let (_, resp) = try? await URLSession.shared.data(for: probeReq),
+                   (resp as? HTTPURLResponse)?.statusCode == 200 {
+                    // Local LAN has restored! Switch back to fast local network
+                    self.isUsingFallback = false
+                }
+            }
+        }
+
+        let base = activeBaseUrl
+        guard let url = URL(string: "\(base)/api/status") else {
             isOnline = false
             return
         }
@@ -351,104 +403,143 @@ public class PinayPalAPIService: ObservableObject {
             let elapsed = CFAbsoluteTimeGetCurrent() - start
             self.latencyMs = Int(elapsed * 1000)
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                if !isUsingFallback && !fallbackUrl.isEmpty {
+                    await attemptFailoverStatus()
+                    return
+                }
                 isOnline = false
                 return
             }
 
             let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
-
-            let wasBusy = self.status?.activeBackup?.isBusy == true
-            let prevService = self.status?.activeBackup?.service ?? lastRecordedBusyService
-            let previousWebsiteOnline = self.status?.website?.isOnline
-
-            self.status = decoded
-            self.isOnline = true
-            self.lastErrorMessage = nil
-
-            // Evaluate outdated status across services
-            var outdatedList: [String] = []
-            let checkService: (String, ServiceItem?) -> Void = { name, item in
-                if item?.freshness?.isOutdated == true || item?.freshness?.status == "outdated" || item?.freshness?.status == "never" {
-                    outdatedList.append(name)
-                    let detail = item?.freshness?.badgeText ?? "\(name) backup is outdated"
-                    NotificationService.shared.sendOutdatedBackupAlert(service: name, details: detail)
-                }
+            applyStatus(decoded)
+        } catch {
+            if !isUsingFallback && !fallbackUrl.isEmpty {
+                await attemptFailoverStatus()
+                return
             }
+            self.isOnline = false
+            self.lastErrorMessage = error.localizedDescription
+        }
+    }
 
-            checkService("FTP", decoded.services?.ftp)
-            checkService("SQL", decoded.services?.sql)
-            checkService("Mailchimp", decoded.services?.mailchimp)
-
-            self.outdatedCount = outdatedList.count
-            self.outdatedServices = outdatedList
-            NotificationService.shared.setBadgeCount(outdatedList.count)
-
-            if let previousWebsiteOnline, let websiteOnline = decoded.website?.isOnline,
-               previousWebsiteOnline != websiteOnline {
-                NotificationService.shared.sendWebsiteStatusNotification(
-                    isOnline: websiteOnline,
-                    details: websiteOnline
-                        ? "The public HTTPS check is responding again."
-                        : (decoded.website?.error ?? "The public HTTPS check failed.")
-                )
+    private func attemptFailoverStatus() async {
+        guard let url = URL(string: "\(fallbackUrl)/api/status") else {
+            self.isOnline = false
+            return
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let start = CFAbsoluteTimeGetCurrent()
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let elapsed = CFAbsoluteTimeGetCurrent() - start
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                self.isOnline = false
+                return
             }
-
-            let nowBusy = decoded.activeBackup?.isBusy == true
-            let curService = decoded.activeBackup?.service ?? "Backup"
-
-            if nowBusy {
-                let serviceChanged = lastRecordedBusyService.map {
-                    $0.caseInsensitiveCompare(curService) != .orderedSame
-                } ?? false
-                if serviceChanged && BackupLiveActivityManager.shared.isActivityActive {
-                    BackupLiveActivityManager.shared.endBackupActivity(
-                        success: true,
-                        message: "Starting \(curService.uppercased()) backup"
-                    )
-                }
-                lastRecordedBusyService = curService
-                if !BackupLiveActivityManager.shared.isActivityActive {
-                    BackupLiveActivityManager.shared.startBackupActivity(service: curService)
-                } else {
-                    let prog = Double(decoded.activeBackup?.progress ?? 50) / 100.0
-                    BackupLiveActivityManager.shared.updateBackupActivity(
-                        progress: prog,
-                        status: decoded.activeBackup?.statusText ?? "In Progress",
-                        message: "Backing up \(curService.uppercased())..."
-                    )
-                }
-
-                if UIApplication.shared.applicationState != .active && backgroundTaskID == .invalid {
-                    startBackgroundLiveActivitySync()
-                }
-            } else if wasBusy {
-                let sName = (prevService ?? "Backup").uppercased()
-                BackupLiveActivityManager.shared.endBackupActivity(success: true, message: "\(sName) completed successfully")
-                NotificationService.shared.sendBackupNotification(
-                    service: sName,
-                    success: true,
-                    details: "Backup routine for \(sName) completed successfully."
-                )
-                lastRecordedBusyService = nil
-                endBackgroundLiveActivitySync()
-            }
-
-            // Disk space alert check
-            if let disk = decoded.health?.disk, let pct = disk.percent, pct > 88 {
-                NotificationService.shared.sendLowDiskAlert(
-                    diskLetter: disk.primaryDriveLetter ?? "C:",
-                    freeGb: Double(disk.availableGB ?? 0),
-                    percentUsed: pct
-                )
-            }
+            self.latencyMs = Int(elapsed * 1000)
+            let decoded = try JSONDecoder().decode(StatusResponse.self, from: data)
+            self.isUsingFallback = true
+            applyStatus(decoded)
         } catch {
             self.isOnline = false
             self.lastErrorMessage = error.localizedDescription
         }
     }
 
+    private func applyStatus(_ decoded: StatusResponse) {
+        let wasBusy = self.status?.activeBackup?.isBusy == true
+        let prevService = self.status?.activeBackup?.service ?? lastRecordedBusyService
+        let previousWebsiteOnline = self.status?.website?.isOnline
+
+        self.status = decoded
+        self.isOnline = true
+        self.lastErrorMessage = nil
+
+        // Evaluate outdated status across services
+        var outdatedList: [String] = []
+        let checkService: (String, ServiceItem?) -> Void = { name, item in
+            if item?.freshness?.isOutdated == true || item?.freshness?.status == "outdated" || item?.freshness?.status == "never" {
+                outdatedList.append(name)
+                let detail = item?.freshness?.badgeText ?? "\(name) backup is outdated"
+                NotificationService.shared.sendOutdatedBackupAlert(service: name, details: detail)
+            }
+        }
+
+        checkService("FTP", decoded.services?.ftp)
+        checkService("SQL", decoded.services?.sql)
+        checkService("Mailchimp", decoded.services?.mailchimp)
+
+        self.outdatedCount = outdatedList.count
+        self.outdatedServices = outdatedList
+        NotificationService.shared.setBadgeCount(outdatedList.count)
+
+        if let previousWebsiteOnline, let websiteOnline = decoded.website?.isOnline,
+           previousWebsiteOnline != websiteOnline {
+            NotificationService.shared.sendWebsiteStatusNotification(
+                isOnline: websiteOnline,
+                details: websiteOnline
+                    ? "The public HTTPS check is responding again."
+                    : (decoded.website?.error ?? "The public HTTPS check failed.")
+            )
+        }
+
+        let nowBusy = decoded.activeBackup?.isBusy == true
+        let curService = decoded.activeBackup?.service ?? "Backup"
+
+        if nowBusy {
+            let serviceChanged = lastRecordedBusyService.map {
+                $0.caseInsensitiveCompare(curService) != .orderedSame
+            } ?? false
+            if serviceChanged && BackupLiveActivityManager.shared.isActivityActive {
+                BackupLiveActivityManager.shared.endBackupActivity(
+                    success: true,
+                    message: "Starting \(curService.uppercased()) backup"
+                )
+            }
+            lastRecordedBusyService = curService
+            if !BackupLiveActivityManager.shared.isActivityActive {
+                BackupLiveActivityManager.shared.startBackupActivity(service: curService)
+            } else {
+                let prog = Double(decoded.activeBackup?.progress ?? 50) / 100.0
+                BackupLiveActivityManager.shared.updateBackupActivity(
+                    progress: prog,
+                    status: decoded.activeBackup?.statusText ?? "In Progress",
+                    message: "Backing up \(curService.uppercased())..."
+                )
+            }
+
+            if UIApplication.shared.applicationState != .active && backgroundTaskID == .invalid {
+                startBackgroundLiveActivitySync()
+            }
+        } else if wasBusy {
+            let sName = (prevService ?? "Backup").uppercased()
+            BackupLiveActivityManager.shared.endBackupActivity(success: true, message: "\(sName) completed successfully")
+            NotificationService.shared.sendBackupNotification(
+                service: sName,
+                success: true,
+                details: "Backup routine for \(sName) completed successfully."
+            )
+            lastRecordedBusyService = nil
+            endBackgroundLiveActivitySync()
+        }
+
+        // Disk space alert check
+        if let disk = decoded.health?.disk, let pct = disk.percent, pct > 88 {
+            NotificationService.shared.sendLowDiskAlert(
+                diskLetter: disk.primaryDriveLetter ?? "C:",
+                freeGb: Double(disk.availableGB ?? 0),
+                percentUsed: pct
+            )
+        }
+    }
+
     public func fetchHistory() async {
-        guard let url = URL(string: "\(serverUrl)/api/history") else { return }
+        guard let url = URL(string: "\(activeBaseUrl)/api/history") else { return }
         var request = URLRequest(url: url)
         if let auth = getAuthorizationHeader() {
             request.addValue(auth, forHTTPHeaderField: "Authorization")
@@ -463,7 +554,7 @@ public class PinayPalAPIService: ObservableObject {
 
     public func downloadBackupFile(filename: String) async -> URL? {
         guard let safeName = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "\(serverUrl)/download/\(safeName)") else { return nil }
+              let url = URL(string: "\(activeBaseUrl)/download/\(safeName)") else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 60
         if let auth = getAuthorizationHeader() {
@@ -483,7 +574,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func clearHistory() async -> Bool {
-        guard let url = URL(string: "\(serverUrl)/api/history") else { return false }
+        guard let url = URL(string: "\(activeBaseUrl)/api/history") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         if let auth = getAuthorizationHeader() { request.addValue(auth, forHTTPHeaderField: "Authorization") }
@@ -498,7 +589,9 @@ public class PinayPalAPIService: ObservableObject {
     public func makeDiagnosticsBundle() -> URL? {
         let payload: [String: Any] = [
             "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
-            "serverUrl": serverUrl,
+            "serverUrl": activeBaseUrl,
+            "routingMode": connectionModeName,
+            "isUsingFallback": isUsingFallback,
             "connected": isOnline,
             "latencyMs": latencyMs ?? NSNull(),
             "lastError": lastErrorMessage ?? NSNull(),
@@ -514,7 +607,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func fetchLogs() async {
-        guard let url = URL(string: "\(serverUrl)/api/logs") else { return }
+        guard let url = URL(string: "\(activeBaseUrl)/api/logs") else { return }
         var request = URLRequest(url: url)
         if let auth = getAuthorizationHeader() {
             request.addValue(auth, forHTTPHeaderField: "Authorization")
@@ -528,7 +621,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func triggerBackup(service: String) async -> Bool {
-        guard let url = URL(string: "\(serverUrl)/api/backup/\(service)") else { return false }
+        guard let url = URL(string: "\(activeBaseUrl)/api/backup/\(service)") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         if let auth = getAuthorizationHeader() {
@@ -561,7 +654,7 @@ public class PinayPalAPIService: ObservableObject {
 
     public func triggerMailchimpExport(task: String) async -> Bool {
         guard let encodedTask = task.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(serverUrl)/api/backup/mailchimp-task?task=\(encodedTask)") else { return false }
+              let url = URL(string: "\(activeBaseUrl)/api/backup/mailchimp-task?task=\(encodedTask)") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         if let auth = getAuthorizationHeader() {
@@ -584,7 +677,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func runDiagnostics() async -> Bool {
-        guard let url = URL(string: "\(serverUrl)/api/health/run") else { return false }
+        guard let url = URL(string: "\(activeBaseUrl)/api/health/run") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         if let auth = getAuthorizationHeader() {
@@ -602,7 +695,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func fetchRemoteSettings() async {
-        guard let url = URL(string: "\(serverUrl)/api/settings") else { return }
+        guard let url = URL(string: "\(activeBaseUrl)/api/settings") else { return }
         var request = URLRequest(url: url)
         request.timeoutInterval = 6
         if let auth = getAuthorizationHeader() {
@@ -619,7 +712,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func saveRemoteSettings(_ settings: RemoteSettings) async -> Bool {
-        guard let url = URL(string: "\(serverUrl)/api/settings") else { return false }
+        guard let url = URL(string: "\(activeBaseUrl)/api/settings") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -642,7 +735,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func triggerEmergencyStop() async -> Bool {
-        guard let url = URL(string: "\(serverUrl)/api/emergency-stop") else { return false }
+        guard let url = URL(string: "\(activeBaseUrl)/api/emergency-stop") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 6
@@ -663,7 +756,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func changeUsername(newUsername: String) async -> (Bool, String) {
-        guard let url = URL(string: "\(serverUrl)/api/user/change-username") else {
+        guard let url = URL(string: "\(activeBaseUrl)/api/user/change-username") else {
             return (false, "Invalid server URL")
         }
         var request = URLRequest(url: url)
@@ -711,7 +804,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func changePassword(currentPassword: String, newPassword: String) async -> (Bool, String) {
-        guard let url = URL(string: "\(serverUrl)/api/user/change-password") else {
+        guard let url = URL(string: "\(activeBaseUrl)/api/user/change-password") else {
             return (false, "Invalid server URL")
         }
         var request = URLRequest(url: url)
@@ -745,7 +838,7 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func triggerSyncCheck() async -> (success: Bool, message: String) {
-        var cleanUrl = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanUrl.hasSuffix("/") {
             cleanUrl.removeLast()
         }
@@ -768,4 +861,54 @@ public class PinayPalAPIService: ObservableObject {
             return (false, error.localizedDescription)
         }
     }
+    public func uploadAvatar(imageData: Data) async -> (Bool, String) {
+        guard let url = URL(string: "\(activeBaseUrl)/api/user/avatar") else {
+            return (false, "Invalid server URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("image/png", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = imageData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let msg = json["message"] as? String ?? "Avatar uploaded successfully"
+                        if let avatarUrl = json["avatarUrl"] as? String, let user = self.currentUser {
+                            let updated = AppUserProfile(
+                                id: user.id,
+                                username: user.username,
+                                email: user.email,
+                                role: user.role,
+                                fullName: user.fullName,
+                                avatarUrl: avatarUrl
+                            )
+                            self.currentUser = updated
+                            if let enc = try? JSONEncoder().encode(updated) {
+                                UserDefaults.standard.set(enc, forKey: "pp_current_user")
+                            }
+                        }
+                        return (true, msg)
+                    }
+                    return (true, "Avatar uploaded successfully")
+                } else {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let msg = json["error"] as? String ?? json["message"] as? String {
+                        return (false, msg)
+                    }
+                    return (false, "Upload failed with HTTP \(http.statusCode)")
+                }
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+        return (false, "Failed to upload avatar")
+    }
+
 }

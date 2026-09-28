@@ -94,6 +94,10 @@ namespace PinayPalBackupManager.Services
                 try
                 {
                     OnConnectivityChanged?.Invoke(nowOnline);
+                    if (!nowOnline)
+                    {
+                        NotificationService.SendDisconnectAlertEmail("Internet or local network connection was lost.");
+                    }
                 }
                 catch (Exception ex)
                 {

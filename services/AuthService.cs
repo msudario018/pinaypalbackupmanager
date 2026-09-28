@@ -968,6 +968,12 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@id", userId);
                 var result = cmd.ExecuteNonQuery() > 0;
 
+                if (result && CurrentUser != null && CurrentUser.Id == userId)
+                {
+                    CurrentUser.AvatarPath = avatarPath;
+                    OnUserChanged?.Invoke(CurrentUser);
+                }
+
                 return result;
             }
             catch

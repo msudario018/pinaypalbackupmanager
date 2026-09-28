@@ -129,6 +129,28 @@ public struct MainView: View {
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundColor(ms < 100 ? LiquidTheme.emerald : (ms < 500 ? LiquidTheme.gold : LiquidTheme.coral))
                     }
+                    if api.isOnline {
+                        Text("·")
+                            .font(.caption2)
+                            .foregroundColor(LiquidTheme.textSecondary(for: systemColorScheme))
+                        Button {
+                            Task { await api.toggleConnectionMode() }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald)
+                                    .frame(width: 5, height: 5)
+                                Text(api.isUsingFallback ? "Tunnel" : "LAN")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald)
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background((api.isUsingFallback ? LiquidTheme.purple : LiquidTheme.emerald).opacity(0.15))
+                            .cornerRadius(4)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             Spacer()
@@ -140,10 +162,23 @@ public struct MainView: View {
                         Circle()
                             .fill(LiquidTheme.gold.opacity(0.18))
                             .frame(width: 36, height: 36)
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(LiquidTheme.gold)
+                        AsyncImage(url: URL(string: "\(api.activeBaseUrl)/api/user/avatar")) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img.resizable().aspectRatio(contentMode: .fill)
+                                    .frame(width: 36, height: 36)
+                                    .clipShape(Circle())
+                            default:
+                                Image(systemName: "person.crop.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(LiquidTheme.gold)
+                            }
+                        }
                     }
+                    .overlay(
+                        Circle()
+                            .stroke(LiquidTheme.gold.opacity(0.4), lineWidth: 1)
+                    )
                 }
 
                 Button {
