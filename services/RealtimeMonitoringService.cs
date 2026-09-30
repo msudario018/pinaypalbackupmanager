@@ -55,13 +55,21 @@ namespace PinayPalBackupManager.Services
 
                 // Start connection status monitoring (heartbeat every 30 seconds as per Flutter requirements)
                 _connectionTimer = new System.Timers.Timer(30000); // 30 seconds
-                _connectionTimer.Elapsed += async (sender, e) => await UpdateConnectionStatusAsync();
+                _connectionTimer.Elapsed += async (sender, e) =>
+                {
+                    try { await UpdateConnectionStatusAsync(); }
+                    catch (Exception ex) { LogService.WriteSystemLog($"[REALTIME_MONITORING] Connection tick error: {ex.Message}", "Warning", "SYSTEM"); }
+                };
                 _connectionTimer.AutoReset = true;
                 _connectionTimer.Start();
 
                 // Start system monitoring (every 5 seconds for real-time monitoring)
                 _systemMonitoringTimer = new System.Timers.Timer(5000); // 5 seconds
-                _systemMonitoringTimer.Elapsed += async (sender, e) => await UpdateSystemMonitoringAsync();
+                _systemMonitoringTimer.Elapsed += async (sender, e) =>
+                {
+                    try { await UpdateSystemMonitoringAsync(); }
+                    catch (Exception ex) { LogService.WriteSystemLog($"[REALTIME_MONITORING] System monitoring tick error: {ex.Message}", "Warning", "SYSTEM"); }
+                };
                 _systemMonitoringTimer.AutoReset = true;
                 _systemMonitoringTimer.Start();
 

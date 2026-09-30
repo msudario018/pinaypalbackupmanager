@@ -10,6 +10,7 @@ public struct LiquidDashboardView: View {
     @State private var selectedService: ServiceDestination? = nil
     @State private var carouselIndex: Int = 0
     @State private var dismissedCompletionId: String? = nil
+    @State private var isRecreatingTunnel: Bool = false
 
     private enum ServiceDestination: Identifiable {
         case ftp, sql, mailchimp
@@ -43,6 +44,13 @@ public struct LiquidDashboardView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
+                    // Failover & Tunnel State Banners
+                    if !api.isOnline {
+                        offlineFailoverBanner
+                    } else if api.status?.system?.cloudflareActive == false && api.status?.system?.cloudflareManaged == true {
+                        cloudflareDownBanner
+                    }
+
                     // Real-time Active Backup Banner
                     if let active = api.status?.activeBackup, active.isBusy == true {
                         activeBackupBanner(active: active)
@@ -1088,6 +1096,121 @@ public struct LiquidDashboardView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .liquidGlassCard(cornerRadius: 12)
+    }
+
+    // MARK: - Failover & Tunnel State Banners
+    private var offlineFailoverBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(LiquidTheme.coral)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("BACKUP SERVER UNREACHABLE")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(LiquidTheme.coral)
+                    Text("Cloudflare Tunnel and LAN routes are not answering.")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                }
+                Spacer()
+            }
+
+            Text("If you're outside your home network, open Tailscale to connect to your PC's private 100.x mesh IP.")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: "tailscale://"), UIApplication.shared.canOpenURL(url) {
+                        UIApplication.shared.open(url)
+                    } else if let webUrl = URL(string: "https://tailscale.com/download") {
+                        UIApplication.shared.open(webUrl)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Open Tailscale")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(LiquidTheme.cyan, in: Capsule())
+                }
+
+                Button {
+                    Task {
+                        await api.fetchAll()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Retry")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.white.opacity(0.12), in: Capsule())
+                }
+            }
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.coral.opacity(0.35), variant: .prominent)
+    }
+
+    private var cloudflareDownBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "cloud.bolt.fill")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(LiquidTheme.gold)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("CLOUDFLARE TUNNEL INACTIVE")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundColor(LiquidTheme.gold)
+                Text("Connected via \(api.connectionModeName). Recreate the tunnel to restore remote web access.")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+            }
+
+            Spacer()
+
+            Button {
+                Task {
+                    isRecreatingTunnel = true
+                    let (ok, msg) = await api.forceRestartCloudflareTunnel()
+                    isRecreatingTunnel = false
+                    toastMessage = ok ? "Tunnel recreated!" : "Failed: \(msg)"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        toastMessage = nil
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if isRecreatingTunnel {
+                        ProgressView().scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    Text(isRecreatingTunnel ? "Starting..." : "Recreate")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundColor(.black)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(LiquidTheme.gold, in: Capsule())
+            }
+            .disabled(isRecreatingTunnel)
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 16, glow: LiquidTheme.gold.opacity(0.35), variant: .prominent)
     }
 
     // MARK: - Outdated Warning Banner

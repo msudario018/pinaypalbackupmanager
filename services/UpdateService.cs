@@ -109,12 +109,13 @@ namespace PinayPalBackupManager.Services
                 ? desktop.MainWindow
                 : null;
 
-            if (mainWindow != null)
+            if (mainWindow != null && mainWindow.IsVisible && mainWindow.WindowState != Avalonia.Controls.WindowState.Minimized)
             {
                 await window.ShowDialog(mainWindow);
             }
             else
             {
+                window.WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen;
                 window.Show();
                 return await tcs.Task;
             }

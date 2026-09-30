@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.6.8";
+        public const string ApiVersion = "3.6.9";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -1929,7 +1929,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"" style=""display: flex; align-items: center; gap: 10px;""><img src=""/api/logo"" alt=""PinayPal"" style=""width: 28px; height: 28px; object-fit: contain;"" /><span>PinayPal</span></div>
-                <span class=""version-badge"" id=""app-version"">v3.6.8</span>
+                <span class=""version-badge"" id=""app-version"">v3.6.9</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -2335,11 +2335,18 @@ namespace PinayPalBackupManager.Services
                                 <button class=""btn-secondary"" style=""padding:2px 8px; font-size:10px; margin-left:6px;"" onclick=""openTunnelModal()"">Manage</button>
                             </td>
                         </tr>
+                        <tr>
+                            <td style=""color: var(--muted);"">Tailscale VPN:</td>
+                            <td id=""spec-tailscale-cell"">
+                                <span class=""tag tag-neutral"" id=""tailscale-badge"">CHECKING</span>
+                                <span id=""tailscale-url-text"" style=""font-size:12px; margin-left:6px; color:#22d3ee;"">--</span>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
                 <div class=""tip-box"">
-                    <strong>💡 Quick Cloudflare Tunnel:</strong><br>
-                    Click <strong>☁️ Tunnel</strong> in the header or table above to create a temporary <code>trycloudflare.com</code> URL on-the-fly without an account.
+                    <strong>💡 Quick Cloudflare Tunnel &amp; Tailscale:</strong><br>
+                    Click <strong>☁️ Tunnel</strong> in the header or table above to create or recreate a temporary <code>trycloudflare.com</code> URL on-the-fly. For a permanent zero-config mesh VPN, use Tailscale private addresses.
                 </div>
             </div>
         </div>
@@ -2367,7 +2374,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.8</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.6.9</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>
@@ -2479,6 +2486,7 @@ namespace PinayPalBackupManager.Services
             </div>
             <div style=""display:flex; gap:8px; flex-wrap:wrap;"">
                 <button class=""btn-primary"" id=""btn-start-tunnel"" onclick=""startQuickTunnel()"" style=""flex:1;"">🚀 Start Quick Tunnel</button>
+                <button class=""btn-secondary"" id=""btn-restart-tunnel"" onclick=""restartQuickTunnel()"" style=""border-color:var(--gold); color:var(--gold); display:none;"">🔄 Recreate Tunnel</button>
                 <button class=""btn-secondary"" id=""btn-stop-tunnel"" onclick=""stopQuickTunnel()"" style=""border-color:var(--red); color:var(--red); display:none;"">🛑 Stop</button>
                 <button class=""btn-secondary"" id=""btn-copy-tunnel"" onclick=""copyTunnelUrl()"" style=""display:none;"">📋 Copy URL</button>
                 <button class=""btn-secondary"" onclick=""closeTunnelModal()"">Close</button>
@@ -2681,6 +2689,7 @@ namespace PinayPalBackupManager.Services
                 const modalUrl = document.getElementById('modal-tunnel-url');
                 const modalMsg = document.getElementById('modal-tunnel-msg');
                 const btnStart = document.getElementById('btn-start-tunnel');
+                const btnRestart = document.getElementById('btn-restart-tunnel');
                 const btnStop = document.getElementById('btn-stop-tunnel');
                 const btnCopy = document.getElementById('btn-copy-tunnel');
 
@@ -2693,6 +2702,7 @@ namespace PinayPalBackupManager.Services
                     if (modalUrl) { modalUrl.innerHTML = `<a href=""${activeTunnelUrl}"" target=""_blank"" style=""color:var(--cyan); text-decoration:underline;"">${activeTunnelUrl}</a>`; }
                     if (modalMsg) { modalMsg.textContent = 'Tunnel is active and routing public HTTPS traffic to localhost:8080.'; }
                     if (btnStart) btnStart.style.display = 'none';
+                    if (btnRestart) btnRestart.style.display = 'inline-block';
                     if (btnStop) btnStop.style.display = 'inline-block';
                     if (btnCopy) btnCopy.style.display = 'inline-block';
 
@@ -2704,6 +2714,7 @@ namespace PinayPalBackupManager.Services
                     if (modalUrl) { modalUrl.textContent = 'Starting cloudflared & provisioning temp URL...'; }
                     if (modalMsg) { modalMsg.textContent = 'Downloading cloudflared or acquiring tunnel hostname...'; }
                     if (btnStart) { btnStart.textContent = 'Starting...'; btnStart.disabled = true; }
+                    if (btnRestart) btnRestart.style.display = 'none';
                     if (btnStop) btnStop.style.display = 'none';
                     if (btnCopy) btnCopy.style.display = 'none';
 
@@ -2714,6 +2725,7 @@ namespace PinayPalBackupManager.Services
                     if (modalUrl) { modalUrl.textContent = 'Not running'; }
                     if (modalMsg) { modalMsg.textContent = data.lastError ? `Stopped (${data.lastError})` : 'Click Start to provision a temporary public website via trycloudflare.com.'; }
                     if (btnStart) { btnStart.textContent = '🚀 Start Quick Tunnel'; btnStart.style.display = 'inline-block'; btnStart.disabled = false; }
+                    if (btnRestart) btnRestart.style.display = 'none';
                     if (btnStop) btnStop.style.display = 'none';
                     if (btnCopy) btnCopy.style.display = 'none';
 
@@ -2743,6 +2755,29 @@ namespace PinayPalBackupManager.Services
             } catch (e) {
                 showToast('Error: ' + e.message);
                 playChime('error');
+            }
+            await checkTunnelStatus();
+        }
+
+        async function restartQuickTunnel() {
+            showToast('Recreating Cloudflare Quick Tunnel...');
+            const btnRestart = document.getElementById('btn-restart-tunnel');
+            if (btnRestart) { btnRestart.textContent = 'Recreating...'; btnRestart.disabled = true; }
+            try {
+                const res = await fetch('/api/tunnel/quick/restart', { method: 'POST' });
+                const data = await res.json();
+                if (data.success && data.url) {
+                    showToast('Cloudflare Tunnel recreated with new URL!');
+                    playChime('success');
+                } else {
+                    showToast(data.message || 'Failed to recreate tunnel');
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            } finally {
+                if (btnRestart) { btnRestart.textContent = '🔄 Recreate Tunnel'; btnRestart.disabled = false; }
             }
             await checkTunnelStatus();
         }
@@ -3103,6 +3138,20 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('spec-app-uptime').textContent = sRes.system.appUptime;
                     document.getElementById('spec-ip').textContent = sRes.system.localIp;
                     document.getElementById('cpu-cores').textContent = `${sRes.system.cores} Cores`;
+
+                    const tsBadge = document.getElementById('tailscale-badge');
+                    const tsUrlText = document.getElementById('tailscale-url-text');
+                    if (tsBadge && tsUrlText) {
+                        if (sRes.system.tailscaleUrl) {
+                            tsBadge.className = 'tag tag-success';
+                            tsBadge.textContent = 'ACTIVE';
+                            tsUrlText.innerHTML = `<a href=""${sRes.system.tailscaleUrl}"" target=""_blank"" style=""color:#22d3ee; text-decoration:underline;"">${sRes.system.tailscaleUrl}</a>`;
+                        } else {
+                            tsBadge.className = 'tag tag-neutral';
+                            tsBadge.textContent = 'OFFLINE';
+                            tsUrlText.textContent = 'Not detected / Tailscale offline';
+                        }
+                    }
                 }
 
                 // Services & Freshness

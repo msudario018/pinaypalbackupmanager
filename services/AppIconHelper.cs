@@ -213,5 +213,70 @@ namespace PinayPalBackupManager.Services
             }
             catch { }
         }
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern uint RegisterWindowMessage(string lpString);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
+        private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
+        private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+        {
+            if (IntPtr.Size == 8)
+                return SetWindowLongPtr64(hWnd, nIndex, dwNewLong);
+            else
+                return new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        private const int GWLP_WNDPROC = -4;
+
+        private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        private static WndProcDelegate? _taskbarSubclassDelegate;
+        private static IntPtr _originalWndProc = IntPtr.Zero;
+        private static uint _wmTaskbarCreated = 0;
+
+        /// <summary>
+        /// Hooks the Win32 window message for "TaskbarCreated".
+        /// When Windows Explorer restarts, or when resuming from sleep/screen lock,
+        /// Windows broadcasts this message so applications can restore their system tray icons.
+        /// </summary>
+        public static void HookTaskbarCreated(Window window, Action onTaskbarCreated)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+
+            try
+            {
+                var handle = window.TryGetPlatformHandle();
+                if (handle == null || handle.Handle == IntPtr.Zero) return;
+
+                if (_wmTaskbarCreated == 0)
+                {
+                    _wmTaskbarCreated = RegisterWindowMessage("TaskbarCreated");
+                }
+
+                IntPtr hwnd = handle.Handle;
+                _taskbarSubclassDelegate = (hWnd, msg, wParam, lParam) =>
+                {
+                    if (_wmTaskbarCreated != 0 && msg == _wmTaskbarCreated)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            try { onTaskbarCreated?.Invoke(); } catch { }
+                        });
+                    }
+                    return CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+                };
+
+                IntPtr newProcPtr = Marshal.GetFunctionPointerForDelegate(_taskbarSubclassDelegate);
+                _originalWndProc = SetWindowLongPtr(hwnd, GWLP_WNDPROC, newProcPtr);
+            }
+            catch { }
+        }
     }
 }

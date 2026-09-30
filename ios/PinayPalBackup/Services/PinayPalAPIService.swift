@@ -524,24 +524,41 @@ public class PinayPalAPIService: ObservableObject {
         }
     }
 
-    /// Asks the PC to recreate the Cloudflare Quick Tunnel (max once every 5 minutes).
+    /// Requests the PC to restart/recreate the Cloudflare Quick Tunnel (e.g. over Tailscale or LAN).
+    @discardableResult
+    public func forceRestartCloudflareTunnel() async -> (success: Bool, message: String) {
+        let cleanBase = sanitizeUrl(activeBaseUrl)
+        guard let url = URL(string: "\(cleanBase)/api/tunnel/quick/restart") else {
+            return (false, "Invalid endpoint URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 45 // cloudflared bootstrap can take up to ~25s
+        if let token = authToken, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "pp_tunnel_recreate_last")
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                await fetchAll()
+                return (true, "Cloudflare Tunnel recreated successfully.")
+            } else {
+                let msg = String(data: data, encoding: .utf8) ?? "Failed to restart tunnel."
+                return (false, msg)
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    /// Asks the PC to recreate the Cloudflare Quick Tunnel (max once every 5 minutes in background).
     private func requestCloudflareRecreate() async {
         let now = Date().timeIntervalSince1970
         let last = UserDefaults.standard.double(forKey: "pp_tunnel_recreate_last")
         guard now - last > 300 else { return }
-        UserDefaults.standard.set(now, forKey: "pp_tunnel_recreate_last")
-
-        guard let url = URL(string: "\(sanitizeUrl(activeBaseUrl))/api/tunnel/quick/restart") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 45 // cloudflared bootstrap can take up to ~25s
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                // Give cloudflared a moment to publish its new URL; the next poll picks it up.
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-            }
-        } catch { }
+        _ = await forceRestartCloudflareTunnel()
     }
 
     /// Fires the local "Enable Tailscale" reminder when every route is unreachable (e.g. off-site).

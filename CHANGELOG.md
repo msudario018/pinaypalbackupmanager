@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.6.9 (2026-10-01)
+
+### Fixed & Improved
+- **PC 24/7 Long-Running Stability & Tray Persistence**:
+  - **Fixed Long-Running App Exits**: Enforced `desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown` in `App.axaml.cs`. Avalonia's default `OnLastWindowClose` mode inadvertently terminated the entire application whenever `MainWindow.Hide()` minimized the app to the system tray or when transient modal dialogs closed.
+  - **Auto-Restoring System Tray Icon**: Hooked Win32 `"TaskbarCreated"` window message (`AppIconHelper.cs` and `MainWindow.axaml.cs`) using `RegisterWindowMessage` and window subclassing; automatically recreates the Win32 `Shell_NotifyIcon` tray icon when Windows Explorer restarts or after sleep/lock-screen recovery.
+  - **Synchronous Crash Telemetry**: Added synchronous crash logging to `system_log.txt` and `startup.log` upon `AppDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException`, guaranteeing crash diagnostics are flushed to disk before process death.
+  - **Timer & Async Crash Hardening**: Guarded all background timer elapsed delegates in `RealtimeMonitoringService.cs`, `SystemStatusService.cs`, `NetworkConnectivityService.cs`, and `MainWindow.axaml.cs` with internal try-catch blocks to prevent unhandled `async void` exceptions from crashing the process.
+  - **WMI COM Resource Leak Elimination**: Wrapped all `ManagementObjectSearcher` collections and `ManagementObject` instances in `HardwareTelemetryService.cs` in `using` blocks to prevent COM handle exhaustion during continuous hardware telemetry monitoring.
+  - **Safe Background Update Dialogs**: Guarded `UpdateService.ShowUpdateDialogAsync` so that `ShowDialog(mainWindow)` is only called when `mainWindow.IsVisible && mainWindow.WindowState != WindowState.Minimized`, preventing Avalonia `InvalidOperationException` crashes when updates are detected while running minimized.
+
+- **iOS Failover & Tunnel Management Addons**:
+  - **Interactive Offline Failover Assistant**: Added smart `offlineFailoverBanner` to `LiquidDashboardView.swift` when Cloudflare and LAN routes are unreachable, offering one-tap deep linking to launch the Tailscale VPN app (`tailscale://`) or web installer, plus a fast connection retry action.
+  - **Cloudflare Tunnel Inactive Banner**: Added one-tap "Recreate" banner when connected via Tailscale or LAN while the managed tunnel is down, enabling immediate recovery of public remote access directly from iPhone.
+  - **Direct API Tunnel Control**: Added `forceRestartCloudflareTunnel()` to `PinayPalAPIService.swift` to invoke `POST /api/tunnel/quick/restart` with authorization headers.
+  - **In-App Changelog**: Updated `ChangelogSheetView.swift` with v3.6.9 (Build 22) release notes.
+
+- **Web Dashboard Controls & Remote Access**:
+  - **Quick Tunnel Recreate Button**: Added "🔄 Recreate Tunnel" button to the Cloudflare Quick Tunnel modal, enabling immediate generation of fresh `trycloudflare.com` URLs with single-flight process protection.
+  - **Tailscale Mesh VPN Card**: Added real-time Tailscale VPN status and live link indicator to the System Specs & Remote Access card on the dashboard.
+
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.6.9` (iOS Build `22`).
+
 ## v3.6.8 (2026-09-29)
 
 ### Added & Improved

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -12,14 +13,27 @@ namespace PinayPalBackupManager
     {
         public override async void Initialize()
         {
-            // Global crash handler: log any unhandled exception so the app does not silently die
+            // Global crash handler: log any unhandled exception directly to disk synchronously so the app does not silently die
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                try { LogService.WriteSystemLog($"[FATAL] Unhandled exception: {e.ExceptionObject}", "Error", "SYSTEM"); } catch { }
+                try
+                {
+                    var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [FATAL] Unhandled exception: {e.ExceptionObject}\n";
+                    try { File.AppendAllText(AppDataPaths.SystemLogPath, msg); } catch { }
+                    try { File.AppendAllText(AppDataPaths.GetLogPath("startup.log"), msg); } catch { }
+                    try { LogService.Flush(); } catch { }
+                }
+                catch { }
             };
             TaskScheduler.UnobservedTaskException += (s, e) =>
             {
-                try { LogService.WriteSystemLog($"[FATAL] Unobserved task exception: {e.Exception}", "Error", "SYSTEM"); } catch { }
+                try
+                {
+                    var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [FATAL] Unobserved task exception: {e.Exception}\n";
+                    try { File.AppendAllText(AppDataPaths.SystemLogPath, msg); } catch { }
+                    try { LogService.Flush(); } catch { }
+                }
+                catch { }
                 e.SetObserved();
             };
 
@@ -39,8 +53,8 @@ namespace PinayPalBackupManager
             
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // Ensure transitioning between windows (SetupWizard -> MainWindow/LoginWindow) does not trigger premature application exit
-                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnLastWindowClose;
+                // Must be OnExplicitShutdown: prevents Avalonia from terminating when MainWindow is hidden/minimized to tray or when modal/update dialogs close
+                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
 
                 // If there are no users in database, launch the Setup Wizard
                 if (!AuthService.HasAnyUsers())

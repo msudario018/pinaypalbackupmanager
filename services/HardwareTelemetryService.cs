@@ -251,16 +251,20 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT Name, NumberOfCores, NumberOfLogicalProcessors FROM Win32_Processor");
+                using var collection = searcher.Get();
                 int totalCores = 0;
-                foreach (var obj in searcher.Get())
+                foreach (ManagementObject obj in collection)
                 {
-                    if (string.IsNullOrWhiteSpace(_cachedCpuName) && obj["Name"] != null)
+                    using (obj)
                     {
-                        _cachedCpuName = obj["Name"].ToString()?.Trim();
-                    }
-                    if (obj["NumberOfCores"] != null && int.TryParse(obj["NumberOfCores"].ToString(), out var cores))
-                    {
-                        totalCores += cores;
+                        if (string.IsNullOrWhiteSpace(_cachedCpuName) && obj["Name"] != null)
+                        {
+                            _cachedCpuName = obj["Name"].ToString()?.Trim();
+                        }
+                        if (obj["NumberOfCores"] != null && int.TryParse(obj["NumberOfCores"].ToString(), out var cores))
+                        {
+                            totalCores += cores;
+                        }
                     }
                 }
                 if (totalCores > 0)
@@ -282,24 +286,28 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT HighPrecisionTemperature, Temperature FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation");
-                foreach (var obj in searcher.Get())
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    if (obj["HighPrecisionTemperature"] != null)
+                    using (obj)
                     {
-                        var hp = Convert.ToDouble(obj["HighPrecisionTemperature"]);
-                        if (hp > 2000 && hp < 4500)
+                        if (obj["HighPrecisionTemperature"] != null)
                         {
-                            var c = (hp / 10.0) - 273.15;
-                            if (c >= 10 && c <= 120) return c;
+                            var hp = Convert.ToDouble(obj["HighPrecisionTemperature"]);
+                            if (hp > 2000 && hp < 4500)
+                            {
+                                var c = (hp / 10.0) - 273.15;
+                                if (c >= 10 && c <= 120) return c;
+                            }
                         }
-                    }
-                    if (obj["Temperature"] != null)
-                    {
-                        var k = Convert.ToDouble(obj["Temperature"]);
-                        if (k > 200 && k < 450)
+                        if (obj["Temperature"] != null)
                         {
-                            var c = k - 273.15;
-                            if (c >= 10 && c <= 120) return c;
+                            var k = Convert.ToDouble(obj["Temperature"]);
+                            if (k > 200 && k < 450)
+                            {
+                                var c = k - 273.15;
+                                if (c >= 10 && c <= 120) return c;
+                            }
                         }
                     }
                 }
@@ -309,13 +317,17 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var searcher = new ManagementObjectSearcher(@"root\WMI", "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature");
-                foreach (var obj in searcher.Get())
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    if (obj["CurrentTemperature"] != null)
+                    using (obj)
                     {
-                        var raw = Convert.ToDouble(obj["CurrentTemperature"]);
-                        var c = (raw / 10.0) - 273.15;
-                        if (c >= 10 && c <= 120) return c;
+                        if (obj["CurrentTemperature"] != null)
+                        {
+                            var raw = Convert.ToDouble(obj["CurrentTemperature"]);
+                            var c = (raw / 10.0) - 273.15;
+                            if (c >= 10 && c <= 120) return c;
+                        }
                     }
                 }
             }
@@ -402,12 +414,16 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT DedicatedUsage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory");
+                using var collection = searcher.Get();
                 long maxDedicated = 0;
-                foreach (var obj in searcher.Get())
+                foreach (ManagementObject obj in collection)
                 {
-                    if (obj["DedicatedUsage"] != null && ulong.TryParse(obj["DedicatedUsage"].ToString(), out var bytes))
+                    using (obj)
                     {
-                        if ((long)bytes > maxDedicated) maxDedicated = (long)bytes;
+                        if (obj["DedicatedUsage"] != null && ulong.TryParse(obj["DedicatedUsage"].ToString(), out var bytes))
+                        {
+                            if ((long)bytes > maxDedicated) maxDedicated = (long)bytes;
+                        }
                     }
                 }
                 if (maxDedicated > 0)
@@ -421,14 +437,18 @@ namespace PinayPalBackupManager.Services
             try
             {
                 using var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT UtilizationPercentage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine WHERE Name LIKE '%engtype_3D%'");
+                using var collection = searcher.Get();
                 ulong totalUtil = 0;
                 int count = 0;
-                foreach (var obj in searcher.Get())
+                foreach (ManagementObject obj in collection)
                 {
-                    if (obj["UtilizationPercentage"] != null && ulong.TryParse(obj["UtilizationPercentage"].ToString(), out var util))
+                    using (obj)
                     {
-                        totalUtil += util;
-                        count++;
+                        if (obj["UtilizationPercentage"] != null && ulong.TryParse(obj["UtilizationPercentage"].ToString(), out var util))
+                        {
+                            totalUtil += util;
+                            count++;
+                        }
                     }
                 }
                 if (count > 0)

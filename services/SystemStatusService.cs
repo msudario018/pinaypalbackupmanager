@@ -32,7 +32,11 @@ namespace PinayPalBackupManager.Services
                 
                 // Start automatic updates every 30 seconds
                 _updateTimer = new System.Timers.Timer(30000); // 30 seconds
-                _updateTimer.Elapsed += async (sender, e) => await UpdateSystemStatusAsync();
+                _updateTimer.Elapsed += async (sender, e) =>
+                {
+                    try { await UpdateSystemStatusAsync(); }
+                    catch (Exception ex) { LogService.WriteSystemLog($"[SYSTEM_STATUS] Update tick error: {ex.Message}", "Warning", "SYSTEM"); }
+                };
                 _updateTimer.AutoReset = true;
                 _updateTimer.Start();
                 

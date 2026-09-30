@@ -43,7 +43,17 @@ namespace PinayPalBackupManager.Services
             StopMonitoring();
 
             _pollTimer = new Timer(interval?.TotalMilliseconds ?? 15000); // default 15s
-            _pollTimer.Elapsed += async (_, _) => await CheckConnectivityAsync();
+            _pollTimer.Elapsed += async (_, _) =>
+            {
+                try
+                {
+                    await CheckConnectivityAsync();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteLiveLog($"[NetworkConnectivity] Poll error: {ex.Message}", "", "Debug", "SYSTEM");
+                }
+            };
             _pollTimer.AutoReset = true;
             _pollTimer.Start();
 

@@ -65,7 +65,11 @@ namespace PinayPalBackupManager.UI
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
             this.Icon = AppIconHelper.GetAppWindowIcon();
-            this.Opened += (s, e) => AppIconHelper.SetNativeWindowIcon(this);
+            this.Opened += (s, e) =>
+            {
+                AppIconHelper.SetNativeWindowIcon(this);
+                AppIconHelper.HookTaskbarCreated(this, () => RecreateTrayIcon());
+            };
             AppIconHelper.StartSingleInstanceListener(() => RestoreFromTray());
 
             _backupManager = new BackupManager();
@@ -308,10 +312,17 @@ namespace PinayPalBackupManager.UI
             };
             _firebasePollTimer.Tick += async (sender, e) =>
             {
-                await FirebaseRemoteService.PollScheduleUpdatesAsync();
-                await FirebaseRemoteService.PollCommandsAsync();
-                // Update connection status
-                UpdateConnectionStatus(true); // Firebase is connected if we can poll
+                try
+                {
+                    await FirebaseRemoteService.PollScheduleUpdatesAsync();
+                    await FirebaseRemoteService.PollCommandsAsync();
+                    // Update connection status
+                    UpdateConnectionStatus(true); // Firebase is connected if we can poll
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[FIREBASE] Polling tick error: {ex.Message}", "Warning", "SYSTEM");
+                }
             };
             _settingsControl.OnConfigSaved += () => SetConfigRequiredMode(!ConfigService.IsConfigured());
 
@@ -1665,6 +1676,7 @@ namespace PinayPalBackupManager.UI
             _backupManager.Stop();
             FileDownloadService.Stop();
             base.OnClosing(e);
+            (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
         }
 
         private async System.Threading.Tasks.Task ConfirmCloseAsync()
@@ -1695,6 +1707,7 @@ namespace PinayPalBackupManager.UI
 
             _allowClose = true;
             Close();
+            (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
         }
 
         private void UpdateActiveProcessCount(object? sender, EventArgs e)
@@ -1860,7 +1873,12 @@ namespace PinayPalBackupManager.UI
 
                 // Exit
                 var exitItem = new Avalonia.Controls.NativeMenuItem { Header = "Exit PinayPal" };
-                exitItem.Click += (_, _) => { _allowClose = true; Close(); };
+                exitItem.Click += (_, _) =>
+                {
+                    _allowClose = true;
+                    Close();
+                    (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+                };
 
                 menu.Items.Add(showItem);
                 menu.Items.Add(dashboardItem);
@@ -1913,6 +1931,27 @@ namespace PinayPalBackupManager.UI
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[Tray] System tray setup error: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+
+        public void RecreateTrayIcon()
+        {
+            try
+            {
+                if (_trayIcon != null)
+                {
+                    _trayIcon.IsVisible = true;
+                    Avalonia.Controls.TrayIcon.SetIcons(Avalonia.Application.Current!, new Avalonia.Controls.TrayIcons { _trayIcon });
+                    LogService.WriteSystemLog("[Tray] System tray icon restored after TaskbarCreated signal.", "Information", "SYSTEM");
+                }
+                else
+                {
+                    SetupSystemTray();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Tray] Error restoring tray icon: {ex.Message}", "Warning", "SYSTEM");
             }
         }
 

@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
+            version: "v3.6.9 (Build 22)",
+            releaseDate: "October 2026",
+            isLatest: true,
+            highlight: "PC 24/7 background stability & tray persistence, Tailscale failover launcher, and Cloudflare tunnel recreate controls",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "PC 24/7 Long-Running Stability",
+                    description: "Fixed desktop app exiting after long runs by locking Avalonia ShutdownMode to explicit shutdown, preventing hidden background closures."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Auto-Restoring System Tray Icon",
+                    description: "Hooked Win32 TaskbarCreated message to automatically restore the PC system tray icon after Windows Explorer restarts, sleep, or lock screen."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "WMI Leak & Timer Exception Hardening",
+                    description: "Disposed COM searchers in HardwareTelemetryService to eliminate resource leaks and guarded all background timers against unhandled crash states."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "iOS Tailscale Failover Assistant",
+                    description: "Added actionable offline banner that lets you launch Tailscale VPN directly when Cloudflare Tunnel and local Wi-Fi are unreachable."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Manual Tunnel Recreate (iOS & Web)",
+                    description: "Added one-tap Cloudflare Quick Tunnel recreation from both the iOS dashboard and Web Dashboard to quickly generate a fresh public URL."
+                )
+            ]
+        ),
+        ChangelogRelease(
             version: "v3.6.8 (Build 21)",
             releaseDate: "September 2026",
-            isLatest: true,
+            isLatest: false,
             highlight: "Tailscale third-tier failover, Cloudflare tunnel auto-restart watchdog, and off-site 'Enable Tailscale' alerts",
             changes: [
                 ChangelogItem(
