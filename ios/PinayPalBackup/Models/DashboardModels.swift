@@ -289,3 +289,23 @@ public struct UserLoginResponse: Codable {
     public let message: String?
     public let user: AppUserProfile?
 }
+
+public struct RouteLatencyInfo: Identifiable, Equatable {
+    public let id: String
+    public let name: String
+    public let routeType: String
+    public let url: String
+    public let latencyMs: Int?
+    public let isReachable: Bool
+    public let isCurrent: Bool
+
+    public init(name: String, routeType: String, url: String, latencyMs: Int?, isReachable: Bool, isCurrent: Bool) {
+        self.id = "\(routeType)-\(url)"
+        self.name = name
+        self.routeType = routeType
+        self.url = url
+        self.latencyMs = latencyMs
+        self.isReachable = isReachable
+        self.isCurrent = isCurrent
+    }
+}

@@ -129,7 +129,7 @@ public struct LiquidAIAssistantSheet: View {
                 .fill(api.isOnline ? LiquidTheme.emerald : LiquidTheme.coral)
                 .frame(width: 8, height: 8)
 
-            Text(api.isOnline ? "Connected to Host PC (\(api.activeHostName.isEmpty ? "PinayPal" : api.activeHostName))" : "Host PC Offline")
+            Text(api.isOnline ? "Connected to Host PC (\(api.activeHostName))" : "Host PC Offline")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
 

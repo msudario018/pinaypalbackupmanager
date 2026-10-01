@@ -32,18 +32,10 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
-          # Extract the '## v<version>' section, stopping at the next '## ' (h2) heading.
-          # NOTE: a sed range with /## / as the end pattern truncates at '### ' subsection
-          # headings (e.g. '### Added & Improved'), yielding an empty body and the fallback notes.
-          NOTES=$(awk -v ver="$VERSION" '/^## /{ if(p) exit; if(index($0, ver)>0){ p=1; next } } p{ sub(/\r$/,""); print }' CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES="Release v$VERSION"
+          awk -v ver="$VERSION" '/^## /{ if(p) exit; if(index($0, ver)>0){ p=1; next } } p{ sub(/\r$/,""); print }' CHANGELOG.md > release_notes.txt
+          if [ ! -s release_notes.txt ]; then
+            echo "Release v$VERSION" > release_notes.txt
           fi
-          # Escape for GitHub Actions
-          NOTES="${NOTES//'%'/'%25'}"
-          NOTES="${NOTES//$'\n'/'%0A'}"
-          NOTES="${NOTES//$'\r'/'%0D'}"
-          echo "notes=$NOTES" >> $GITHUB_OUTPUT
 
       - name: Publish Application
         run: dotnet publish PinayPalBackupManager.csproj -c Release -o publish -r win-x64 --self-contained true
@@ -66,9 +58,6 @@ jobs:
             rm -f "Releases/PinayPal.PinayPalBackupManager-${TARGET_VERSION}"*
           fi
 
-          # Write release notes to file
-          echo "${{ steps.get-changelog.outputs.notes }}" > release_notes.txt
-          
           # Build signing args if secrets exist
           SIGN_ARGS=""
           if [ -n "$SIGN_CERT" ] && [ -n "$SIGN_PASS" ]; then
@@ -90,11 +79,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get changelog from file and decode URL encoding
-          NOTES=$(cat release_notes.txt)
-          
-          # Decode URL encoding (reverse of the encoding done earlier)
-          NOTES=$(echo "$NOTES" | sed 's/%0A/\n/g; s/%0D//g; s/%25/%/g')
-          
-          # Update release body using gh CLI
-          gh release edit v${{ steps.get-version.outputs.version }} --notes "$NOTES" || echo "Failed to update release notes"
+          TARGET_VERSION="${{ steps.get-version.outputs.version }}"
+          gh release edit "v$TARGET_VERSION" --notes-file release_notes.txt || echo "Failed to update release notes"

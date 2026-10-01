@@ -32,6 +32,10 @@ public class PinayPalAPIService: ObservableObject {
         return "LAN Direct"
     }
 
+    public var activeHostName: String {
+        status?.system?.hostname ?? status?.hardware?.hostname ?? "PinayPal"
+    }
+
     @Published public var status: StatusResponse? = nil
     @Published public var remoteSettings: RemoteSettings? = nil
     @Published public var history: [BackupHistoryItem] = []
@@ -591,7 +595,7 @@ public class PinayPalAPIService: ObservableObject {
         for t in targets {
             let clean = sanitizeUrl(t.url)
             guard let url = URL(string: "\(clean)/api/ping") else {
-                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil as Int?, isReachable: false, isCurrent: t.isCurrent))
                 continue
             }
 
@@ -604,10 +608,10 @@ public class PinayPalAPIService: ObservableObject {
                     let ms = max(1, Int((CFAbsoluteTimeGetCurrent() - start) * 1000))
                     results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: ms, isReachable: true, isCurrent: t.isCurrent))
                 } else {
-                    results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+                    results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil as Int?, isReachable: false, isCurrent: t.isCurrent))
                 }
             } catch {
-                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil as Int?, isReachable: false, isCurrent: t.isCurrent))
             }
         }
 
