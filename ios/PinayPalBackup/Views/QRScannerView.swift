@@ -42,7 +42,7 @@ public struct QRScannerView: View {
                         tailscaleUrl: "http://100.64.0.2:8080",
                         pin: "1234",
                         hostname: "SIMULATOR-PC",
-                        version: "3.7.0"
+                        version: "3.7.1"
                     )
                     let haptic = UINotificationFeedbackGenerator()
                     haptic.notificationOccurred(.success)

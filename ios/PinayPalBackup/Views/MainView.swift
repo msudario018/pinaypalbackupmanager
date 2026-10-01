@@ -15,6 +15,26 @@ public struct MainView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Namespace private var tabNamespace
 
+    // Facebook-style tab click animation state
+    @State private var tabScales: [AppTab: CGFloat] = [
+        .home: 1.0,
+        .activity: 1.0,
+        .history: 1.0,
+        .automations: 1.0
+    ]
+    @State private var tabOffsets: [AppTab: CGFloat] = [
+        .home: 0.0,
+        .activity: 0.0,
+        .history: 0.0,
+        .automations: 0.0
+    ]
+    @State private var tabRipples: [AppTab: Bool] = [
+        .home: false,
+        .activity: false,
+        .history: false,
+        .automations: false
+    ]
+
     private var activeColorScheme: ColorScheme? {
         switch themeMode {
         case "light": return .light
@@ -122,10 +142,10 @@ public struct MainView: View {
         HStack(spacing: 10) {
             Image("AppLogo")
                 .resizable().aspectRatio(contentMode: .fit)
-                .frame(width: 28, height: 28).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: 26, height: 26).clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(selectedTab == .home ? "PinayPal Backup" : tabTitle)
-                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .font(.system(size: 17, weight: .black, design: .rounded))
                     .foregroundColor(LiquidTheme.textPrimary(for: systemColorScheme))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
@@ -173,16 +193,16 @@ public struct MainView: View {
                     ZStack {
                         Circle()
                             .fill(LiquidTheme.gold.opacity(0.18))
-                            .frame(width: 36, height: 36)
+                            .frame(width: 34, height: 34)
                         AsyncImage(url: URL(string: "\(api.activeBaseUrl)/api/user/avatar")) { phase in
                             switch phase {
                             case .success(let img):
                                 img.resizable().aspectRatio(contentMode: .fill)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 34, height: 34)
                                     .clipShape(Circle())
                             default:
                                 Image(systemName: "person.crop.circle.fill")
-                                    .font(.system(size: 22))
+                                    .font(.system(size: 20))
                                     .foregroundColor(LiquidTheme.gold)
                             }
                         }
@@ -197,55 +217,144 @@ public struct MainView: View {
                     showSettingsSheet = true
                 } label: {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(LiquidTheme.textPrimary(for: systemColorScheme))
-                        .frame(width: 36, height: 36)
+                        .frame(width: 34, height: 34)
                 }
                 .background(Color.white.opacity(0.10), in: Circle())
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 14).padding(.vertical, 8)
+        .padding(.horizontal, 12).padding(.vertical, 6)
         .liquidGlassNavigationIsland()
-        .padding(.horizontal, 14).padding(.top, 4)
+        .padding(.horizontal, 14).padding(.top, 2)
+        .background(
+            LinearGradient(
+                stops: [
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.0),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.95), location: 0.50),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.65), location: 0.82),
+                    .init(color: Color.clear, location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
+        )
     }
 
     private var liquidTabBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             tabButton(.home, "Home", "house.fill")
             tabButton(.activity, "Activity", "waveform.path.ecg")
             tabButton(.history, "History", "clock.arrow.circlepath")
             tabButton(.automations, "Automations", "bolt.shield.fill")
         }
-        .padding(6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
         .liquidGlassNavigationIsland()
-        .padding(.horizontal, 14)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+        .background(
+            LinearGradient(
+                stops: [
+                    .init(color: Color.clear, location: 0.0),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.70), location: 0.35),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.95), location: 0.75),
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
+    private func onTabTapped(_ tab: AppTab) {
+        let isAlreadyActive = (selectedTab == tab)
+        let haptic = UIImpactFeedbackGenerator(style: isAlreadyActive ? .rigid : .medium)
+        haptic.impactOccurred()
+
+        if isAlreadyActive {
+            // Facebook-style double bounce pop on active tab re-tap
+            withAnimation(.spring(response: 0.12, dampingFraction: 0.45)) {
+                tabScales[tab] = 0.82
+                tabOffsets[tab] = -2.0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.42)) {
+                    tabScales[tab] = 1.22
+                    tabOffsets[tab] = -3.5
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.70)) {
+                        tabScales[tab] = 1.0
+                        tabOffsets[tab] = 0.0
+                    }
+                }
+            }
+            return
+        }
+
+        // Switching tab: compress -> overshoot pop bounce -> settle (Facebook style)
+        tabRipples[tab] = true
+        withAnimation(.spring(response: 0.12, dampingFraction: 0.6)) {
+            tabScales[tab] = 0.82
+            tabOffsets[tab] = 1.5
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.48)) {
+                tabScales[tab] = 1.20
+                tabOffsets[tab] = -3.0
+                selectedTab = tab
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                withAnimation(.spring(response: 0.24, dampingFraction: 0.72)) {
+                    tabScales[tab] = 1.0
+                    tabOffsets[tab] = 0.0
+                    tabRipples[tab] = false
+                }
+            }
+        }
     }
 
     private func tabButton(_ tab: AppTab, _ title: String, _ icon: String) -> some View {
         let isSelected = selectedTab == tab
-        return Button {
-            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
-                selectedTab = tab
-            }
-        } label: {
-            VStack(spacing: 3) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: isSelected ? .bold : .semibold))
-                    .foregroundColor(isSelected ? LiquidTheme.gold : LiquidTheme.textSecondary(for: systemColorScheme))
-                    .scaleEffect(isSelected ? 1.12 : 1.0)
-                    .animation(.spring(response: 0.30, dampingFraction: 0.65), value: isSelected)
+        let scale = tabScales[tab] ?? 1.0
+        let yOffset = tabOffsets[tab] ?? 0.0
+        let isRippling = tabRipples[tab] ?? false
 
-                Text(title)
-                    .font(.system(size: 10, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? LiquidTheme.textPrimary(for: systemColorScheme) : LiquidTheme.textSecondary(for: systemColorScheme))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+        return Button {
+            onTabTapped(tab)
+        } label: {
+            ZStack {
+                if isRippling {
+                    Circle()
+                        .fill(LiquidTheme.gold.opacity(0.35))
+                        .frame(width: 32, height: 32)
+                        .scaleEffect(scale)
+                        .blur(radius: 4)
+                        .transition(.opacity)
+                }
+
+                VStack(spacing: 2) {
+                    Image(systemName: icon)
+                        .font(.system(size: isSelected ? 14 : 13, weight: isSelected ? .bold : .semibold))
+                        .foregroundColor(isSelected ? LiquidTheme.gold : LiquidTheme.textSecondary(for: systemColorScheme))
+                        .offset(y: yOffset)
+
+                    Text(title)
+                        .font(.system(size: 9.5, weight: isSelected ? .bold : .medium))
+                        .foregroundColor(isSelected ? LiquidTheme.textPrimary(for: systemColorScheme) : LiquidTheme.textSecondary(for: systemColorScheme))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .scaleEffect(scale)
             }
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .padding(.vertical, 2)
             .background {
                 if isSelected {
                     ZStack {
@@ -253,8 +362,8 @@ public struct MainView: View {
                             .fill(
                                 LinearGradient(
                                     stops: [
-                                        .init(color: LiquidTheme.gold.opacity(0.42), location: 0.0),
-                                        .init(color: LiquidTheme.gold.opacity(0.18), location: 1.0)
+                                        .init(color: LiquidTheme.gold.opacity(0.40), location: 0.0),
+                                        .init(color: LiquidTheme.gold.opacity(0.16), location: 1.0)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -274,7 +383,7 @@ public struct MainView: View {
                                 lineWidth: 1.0
                             )
                     }
-                    .shadow(color: LiquidTheme.gold.opacity(0.28), radius: 8, x: 0, y: 2)
+                    .shadow(color: LiquidTheme.gold.opacity(0.24), radius: 6, x: 0, y: 2)
                     .matchedGeometryEffect(id: "liquid_active_tab_lens", in: tabNamespace)
                 }
             }
@@ -326,7 +435,7 @@ private struct ActivityOverviewView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16).padding(.top, 68).padding(.bottom, 90)
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 24)
         }
         .background(LiquidTheme.background(for: colorScheme).ignoresSafeArea())
         .refreshable { await api.fetchAll() }

@@ -1272,6 +1272,11 @@ namespace PinayPalBackupManager.UI
                 contentControl.Content = control;
             }
 
+            if (control is SettingsControl settings)
+            {
+                settings.RefreshEmailAlerts();
+            }
+
             _activeTabAccentBrush = GetAccentBrushForControl(control);
         }
 

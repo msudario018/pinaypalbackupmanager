@@ -22,7 +22,7 @@
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <TextBlock Text="Target Version:" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
-                        <TextBlock Name="TxtVersion" Text="v3.7.0" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                        <TextBlock Name="TxtVersion" Text="v3.7.1" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Border Grid.Column="2" Background="#163828" CornerRadius="6" Padding="8,3" BorderBrush="#34D39940" BorderThickness="1">
                         <TextBlock Text="RECOMMENDED" FontSize="9" FontWeight="Bold" Foreground="#34D399" LetterSpacing="0.5"/>
@@ -43,13 +43,25 @@
                 </Grid>
             </Border>
             
-            <!-- Action Buttons -->
-            <Grid Grid.Row="3" ColumnDefinitions="*, Auto, Auto">
-                <TextBlock Grid.Column="0" Text="Do you want to update now?" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Name="BtnNo" Content="Remind Me Later" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Foreground="{DynamicResource AppSubtext}" 
-                        Padding="18,9" CornerRadius="8" FontSize="12" FontWeight="SemiBold" Margin="0,0,10,0" Cursor="Hand"/>
-                <Button Grid.Column="2" Name="BtnYes" Content="Install &amp; Restart" Background="{DynamicResource AccentSuccess}" Foreground="#0D1117" 
-                        Padding="22,9" CornerRadius="8" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+            <!-- Action / Progress Container -->
+            <Grid Grid.Row="3">
+                <!-- Action Buttons -->
+                <Grid Name="PnlActions" ColumnDefinitions="*, Auto, Auto">
+                    <TextBlock Grid.Column="0" Name="TxtActionPrompt" Text="Do you want to update now?" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Name="BtnNo" Content="Remind Me Later" Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Foreground="{DynamicResource AppSubtext}" 
+                            Padding="18,9" CornerRadius="8" FontSize="12" FontWeight="SemiBold" Margin="0,0,10,0" Cursor="Hand"/>
+                    <Button Grid.Column="2" Name="BtnYes" Content="Install &amp; Restart" Background="{DynamicResource AccentSuccess}" Foreground="#0D1117" 
+                            Padding="22,9" CornerRadius="8" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+                </Grid>
+
+                <!-- Download & Installation Progress -->
+                <StackPanel Name="PnlProgress" IsVisible="False" Spacing="8" VerticalAlignment="Center">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Name="TxtProgressStatus" Text="Downloading update (0%)... Please wait" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppText}"/>
+                        <TextBlock Grid.Column="1" Name="TxtProgressPercent" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}"/>
+                    </Grid>
+                    <ProgressBar Name="PrgDownload" Minimum="0" Maximum="100" Value="0" Height="8" CornerRadius="4" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AccentSuccess}"/>
+                </StackPanel>
             </Grid>
         </Grid>
     </Border>

@@ -34,6 +34,7 @@ namespace PinayPalBackupManager
             try
             {
                 ConfigService.Load();
+                NotificationService.LoadSettings();
                 Services.LocalizationService.Load();
                 AuthService.InitializeAsync().GetAwaiter().GetResult();
 

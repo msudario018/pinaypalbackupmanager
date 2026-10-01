@@ -88,9 +88,9 @@ public struct LiveLogsView: View {
                 terminalWindow
                     .padding(.horizontal, 16)
 
-                Spacer().frame(height: 70)
+                Spacer().frame(height: 24)
             }
-            .padding(.top, 68)
+            .padding(.top, 10)
         }
     }
 

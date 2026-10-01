@@ -40,10 +40,10 @@ public struct AutomationsView: View {
                 // Auto-Scan & Maintenance
                 maintenanceCard
 
-                Spacer().frame(height: 80)
+                Spacer().frame(height: 24)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 68)
+            .padding(.top, 10)
         }
         .background(LiquidTheme.background(for: colorScheme).ignoresSafeArea())
         .refreshable {

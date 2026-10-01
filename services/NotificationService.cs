@@ -656,10 +656,16 @@ namespace PinayPalBackupManager.Services
             }
         }
         
+        private static bool _settingsLoaded = false;
+        
         public static NotificationSettings GetSettings()
         {
             lock (_settingsLock)
             {
+                if (!_settingsLoaded)
+                {
+                    LoadSettingsInternal();
+                }
                 return _settings;
             }
         }
@@ -672,31 +678,67 @@ namespace PinayPalBackupManager.Services
                 lock (_settingsLock)
                 {
                     _settings = value;
+                    _settingsLoaded = true;
                 }
             }
         }
 
         public static void SaveSettings()
         {
-            try
+            lock (_settingsLock)
             {
-                var settingsPath = System.IO.Path.Combine(AppDataPaths.CurrentDirectory, "notifications.json");
-                var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-                System.IO.File.WriteAllText(settingsPath, json);
-                
-                LogService.WriteSystemLog("[NOTIFICATION] Settings saved", "Information", "SYSTEM");
-            }
-            catch (Exception ex)
-            {
-                LogService.WriteSystemLog($"[NOTIFICATION] Failed to save settings: {ex.Message}", "Error", "SYSTEM");
+                try
+                {
+                    var settingsPath = AppDataPaths.GetDataPath("notifications.json");
+                    var dir = System.IO.Path.GetDirectoryName(settingsPath);
+                    if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                    {
+                        System.IO.Directory.CreateDirectory(dir);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(_settings.EmailFrom) && !string.IsNullOrWhiteSpace(_settings.SmtpUsername))
+                    {
+                        _settings.EmailFrom = _settings.SmtpUsername;
+                    }
+
+                    var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+                    System.IO.File.WriteAllText(settingsPath, json);
+                    _settingsLoaded = true;
+
+                    // Immediately reconfigure active runtime dispatchers
+                    ConfigureNotifications(_settings);
+                    
+                    LogService.WriteSystemLog($"[NOTIFICATION] Settings saved to {settingsPath} (Recipient: {_settings.RecipientEmail}, Host: {_settings.SmtpHost}:{_settings.SmtpPort})", "Information", "SYSTEM");
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[NOTIFICATION] Failed to save settings: {ex.Message}", "Error", "SYSTEM");
+                }
             }
         }
         
         public static void LoadSettings()
         {
+            lock (_settingsLock)
+            {
+                LoadSettingsInternal();
+            }
+        }
+
+        private static void LoadSettingsInternal()
+        {
             try
             {
-                var settingsPath = System.IO.Path.Combine(AppDataPaths.CurrentDirectory, "notifications.json");
+                var settingsPath = AppDataPaths.GetDataPath("notifications.json");
+                if (!System.IO.File.Exists(settingsPath))
+                {
+                    var fallback = AppDataPaths.GetExistingOrCurrentPath("notifications.json");
+                    if (System.IO.File.Exists(fallback))
+                    {
+                        settingsPath = fallback;
+                    }
+                }
+
                 if (System.IO.File.Exists(settingsPath))
                 {
                     var json = System.IO.File.ReadAllText(settingsPath);
@@ -704,15 +746,18 @@ namespace PinayPalBackupManager.Services
                     
                     if (settings != null)
                     {
-                        lock (_settingsLock)
+                        _settings = settings;
+                        if (string.IsNullOrWhiteSpace(_settings.EmailFrom) && !string.IsNullOrWhiteSpace(_settings.SmtpUsername))
                         {
-                            _settings = settings;
+                            _settings.EmailFrom = _settings.SmtpUsername;
                         }
-                        
+
                         // Reconfigure with loaded settings
                         ConfigureNotifications(settings);
+                        LogService.WriteSystemLog($"[NOTIFICATION] Loaded notification settings (Recipient: {_settings.RecipientEmail}, Host: {_settings.SmtpHost}:{_settings.SmtpPort})", "Information", "SYSTEM");
                     }
                 }
+                _settingsLoaded = true;
             }
             catch (Exception ex)
             {
@@ -724,24 +769,39 @@ namespace PinayPalBackupManager.Services
     public class NotificationSettings
     {
         public bool EmailEnabled { get; set; } = false;
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool EmailAlertsEnabled { get => EmailEnabled; set => EmailEnabled = value; }
+
         public bool SmsEnabled { get; set; } = false;
         public string SmtpHost { get; set; } = string.Empty;
         public int SmtpPort { get; set; } = 587;
         public bool SmtpUseSsl { get; set; } = true;
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool SmtpSsl { get => SmtpUseSsl; set => SmtpUseSsl = value; }
+
         public string SmtpUsername { get; set; } = string.Empty;
         public string SmtpPassword { get; set; } = string.Empty;
         public string EmailFrom { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonIgnore]
         public string SenderEmail { get => EmailFrom; set => EmailFrom = value; }
+
         public List<string> EmailRecipients { get; set; } = new();
+
         public string RecipientEmail
         {
             get => EmailRecipients.FirstOrDefault() ?? string.Empty;
             set
             {
-                EmailRecipients.Clear();
-                if (!string.IsNullOrWhiteSpace(value)) EmailRecipients.Add(value.Trim());
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    var val = value.Trim();
+                    EmailRecipients.Clear();
+                    EmailRecipients.Add(val);
+                }
+                else
+                {
+                    EmailRecipients.Clear();
+                }
             }
         }
         public bool NotifyOnDisconnect { get; set; } = true;

@@ -101,12 +101,10 @@ public struct LiquidDashboardView: View {
                     // Live Activity Logs
                     liveLogsCard
 
-                    Spacer().frame(height: 80)
+                    Spacer().frame(height: 24)
                 }
                 .padding(.horizontal, 16)
-                // The header is an overlay shared by every tab; reserve its full
-                // footprint so the first card is never obscured beneath it.
-                .padding(.top, 68)
+                .padding(.top, 10)
             }
             .refreshable {
                 let haptic = UIImpactFeedbackGenerator(style: .medium)
@@ -158,7 +156,7 @@ public struct LiquidDashboardView: View {
                         )
                     }
                     .padding(.trailing, 16)
-                    .padding(.bottom, 22)
+                    .padding(.bottom, 8)
                 }
             }
 

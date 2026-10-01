@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Net.Http;
+using System.Reflection;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MsBox.Avalonia.Enums;
@@ -13,55 +16,97 @@ namespace PinayPalBackupManager.Services
     public static class UpdateService
     {
         private const string RepoUrl = "https://github.com/msudario018/pinaypalbackupmanager";
+        private const string GithubApiLatestRelease = "https://api.github.com/repos/msudario018/pinaypalbackupmanager/releases/latest";
+        private static readonly HttpClient _httpClient = new HttpClient();
+
+        static UpdateService()
+        {
+            try
+            {
+                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PinayPalBackupManager-Updater/3.7.1");
+                _httpClient.Timeout = TimeSpan.FromSeconds(15);
+            }
+            catch { }
+        }
 
         public static async Task CheckForUpdatesWithUiAsync(bool silentIfNone = false)
         {
             try
             {
-                var mgr = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
-                var update = await mgr.CheckForUpdatesAsync();
-                if (update == null)
+                UpdateManager? mgr = null;
+                bool isInstalled = false;
+
+                try
                 {
-                    if (!silentIfNone)
-                    {
-                        await ShowSimpleDialogAsync("You are up to date.", "Updates", Icon.Info);
-                    }
-                    return;
+                    mgr = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
+                    isInstalled = mgr.IsInstalled;
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[UpdateService] UpdateManager initialization note: {ex.Message}", "Information", "SYSTEM");
                 }
 
-                var target = update.TargetFullRelease;
-                var version = target.Version?.ToString() ?? "(unknown)";
-
-                // Try to get changelog from local CHANGELOG.md first
-                var notes = GetChangelogFromLocalFile();
-                
-                // Fall back to Velopack release notes if local file not available
-                if (string.IsNullOrWhiteSpace(notes))
+                if (isInstalled && mgr != null)
                 {
-                    notes = target.NotesMarkdown;
+                    var update = await mgr.CheckForUpdatesAsync();
+                    if (update == null)
+                    {
+                        if (!silentIfNone)
+                        {
+                            await ShowSimpleDialogAsync("You are up to date.", "Updates", Icon.Info);
+                        }
+                        return;
+                    }
+
+                    var target = update.TargetFullRelease;
+                    var version = target.Version?.ToString() ?? "(unknown)";
+
+                    var notes = GetChangelogFromLocalFile();
                     if (string.IsNullOrWhiteSpace(notes))
                     {
-                        notes = StripHtml(target.NotesHTML);
+                        notes = target.NotesMarkdown;
+                        if (string.IsNullOrWhiteSpace(notes))
+                        {
+                            notes = StripHtml(target.NotesHTML);
+                        }
                     }
-                }
 
-                if (string.IsNullOrWhiteSpace(notes))
+                    if (string.IsNullOrWhiteSpace(notes))
+                    {
+                        notes = "(No release notes provided)";
+                    }
+
+                    await RunInstalledUpdateWorkflowAsync(mgr, update, version, notes);
+                }
+                else
                 {
-                    notes = "(No release notes provided)";
+                    // Portable or unmanaged installation: query GitHub releases API directly
+                    var (hasUpdate, remoteVersion, releaseUrl, releaseNotes) = await CheckGithubReleaseDirectAsync();
+                    if (!hasUpdate)
+                    {
+                        if (!silentIfNone)
+                        {
+                            await ShowSimpleDialogAsync("You are up to date.", "Updates", Icon.Info);
+                        }
+                        return;
+                    }
+
+                    var notes = GetChangelogFromLocalFile();
+                    if (string.IsNullOrWhiteSpace(notes))
+                    {
+                        notes = releaseNotes;
+                    }
+                    if (string.IsNullOrWhiteSpace(notes))
+                    {
+                        notes = "(No release notes provided)";
+                    }
+
+                    await RunPortableUpdateWorkflowAsync(remoteVersion, notes, releaseUrl);
                 }
-
-                // Show custom centered dialog
-                bool install = await ShowUpdateDialogAsync(version, notes);
-                if (!install) return;
-
-                NotificationService.ShowBackupToast("Updates", "Downloading update...", "Info");
-                await mgr.DownloadUpdatesAsync(update);
-
-                NotificationService.ShowBackupToast("Updates", "Installing update...", "Info");
-                mgr.ApplyUpdatesAndRestart(update);
             }
             catch (Exception ex)
             {
+                LogService.WriteSystemLog($"[UpdateService] Update check failed: {ex}", "Warning", "SYSTEM");
                 if (!silentIfNone)
                 {
                     await ShowSimpleDialogAsync($"Update check failed: {ex.Message}", "Updates", Icon.Error);
@@ -73,9 +118,49 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        private static async Task<bool> ShowUpdateDialogAsync(string version, string changelog)
+        private static async Task<(bool hasUpdate, string remoteVersion, string releaseUrl, string notes)> CheckGithubReleaseDirectAsync()
         {
-            var dialog = new UpdateAvailableDialog(version, changelog);
+            try
+            {
+                var response = await _httpClient.GetStringAsync(GithubApiLatestRelease);
+                using var doc = JsonDocument.Parse(response);
+                var root = doc.RootElement;
+
+                var tagName = root.TryGetProperty("tag_name", out var tagElem) ? tagElem.GetString() ?? "" : "";
+                var htmlUrl = root.TryGetProperty("html_url", out var urlElem) ? urlElem.GetString() ?? RepoUrl : RepoUrl;
+                var bodyNotes = root.TryGetProperty("body", out var bodyElem) ? bodyElem.GetString() ?? "" : "";
+
+                var cleanRemote = tagName.TrimStart('v', 'V');
+                var currentVer = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(3, 7, 0);
+
+                if (Version.TryParse(cleanRemote, out var remoteVer))
+                {
+                    if (remoteVer > currentVer)
+                    {
+                        return (true, tagName, htmlUrl, bodyNotes);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(cleanRemote))
+                {
+                    var currentStr = $"{currentVer.Major}.{currentVer.Minor}.{currentVer.Build}";
+                    if (!string.Equals(cleanRemote, currentStr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (true, tagName, htmlUrl, bodyNotes);
+                    }
+                }
+
+                return (false, "", "", "");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[UpdateService] Direct GitHub check failed: {ex.Message}", "Warning", "SYSTEM");
+                return (false, "", "", "");
+            }
+        }
+
+        private static async Task RunInstalledUpdateWorkflowAsync(UpdateManager mgr, UpdateInfo update, string version, string changelog)
+        {
+            var dialog = new UpdateAvailableDialog(version, changelog, isInstalled: true);
             var window = new Window
             {
                 Title = "Update Available",
@@ -90,21 +175,48 @@ namespace PinayPalBackupManager.Services
                 Background = Avalonia.Media.Brushes.Transparent
             };
 
-            var tcs = new TaskCompletionSource<bool>();
+            bool installStarted = false;
 
-            dialog.OnYes += (sender, e) =>
+            dialog.OnYes += async (sender, e) =>
             {
-                window.Close();
-                tcs.SetResult(true);
+                if (installStarted) return;
+                installStarted = true;
+
+                try
+                {
+                    dialog.ShowProgressMode();
+                    NotificationService.ShowBackupToast("Updates", "Downloading update package...", "Info");
+
+                    await mgr.DownloadUpdatesAsync(update, progress =>
+                    {
+                        dialog.SetDownloadProgress(progress, $"Downloading update ({progress}%)... Please wait");
+                    });
+
+                    dialog.SetInstallingMode();
+                    NotificationService.ShowBackupToast("Updates", "Installing update and restarting...", "Info");
+
+                    await Task.Delay(500);
+
+                    // Cleanly stop child daemons and listener to release all locks
+                    try { CloudflareTunnelService.StopQuickTunnel(); } catch { }
+                    try { FileDownloadService.Stop(); } catch { }
+
+                    mgr.ApplyUpdatesAndRestart(update);
+                    Environment.Exit(0);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[UpdateService] Error applying update: {ex.Message}", "Error", "SYSTEM");
+                    await ShowSimpleDialogAsync($"Failed to install update: {ex.Message}", "Update Error", Icon.Error);
+                    window.Close();
+                }
             };
 
             dialog.OnNo += (sender, e) =>
             {
                 window.Close();
-                tcs.SetResult(false);
             };
 
-            // Get the main window as owner
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
                 ? desktop.MainWindow
                 : null;
@@ -117,10 +229,61 @@ namespace PinayPalBackupManager.Services
             {
                 window.WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen;
                 window.Show();
-                return await tcs.Task;
             }
+        }
 
-            return await tcs.Task;
+        private static async Task RunPortableUpdateWorkflowAsync(string remoteVersion, string changelog, string releaseUrl)
+        {
+            var dialog = new UpdateAvailableDialog(remoteVersion, changelog, isInstalled: false);
+            var window = new Window
+            {
+                Title = "Update Available",
+                Content = dialog,
+                Width = 520,
+                Height = 410,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                SystemDecorations = SystemDecorations.BorderOnly,
+                Background = Avalonia.Media.Brushes.Transparent
+            };
+
+            dialog.OnYes += (sender, e) =>
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = releaseUrl,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[UpdateService] Failed to launch browser: {ex.Message}", "Warning", "SYSTEM");
+                }
+                window.Close();
+            };
+
+            dialog.OnNo += (sender, e) =>
+            {
+                window.Close();
+            };
+
+            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (mainWindow != null && mainWindow.IsVisible && mainWindow.WindowState != Avalonia.Controls.WindowState.Minimized)
+            {
+                await window.ShowDialog(mainWindow);
+            }
+            else
+            {
+                window.WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen;
+                window.Show();
+            }
         }
 
         private static async Task ShowSimpleDialogAsync(string message, string title, Icon icon)
@@ -138,7 +301,6 @@ namespace PinayPalBackupManager.Services
                 if (File.Exists(changelogPath))
                 {
                     var content = File.ReadAllText(changelogPath);
-                    // Extract the first version section (latest release)
                     return ExtractLatestChangelog(content);
                 }
             }
@@ -202,7 +364,7 @@ namespace PinayPalBackupManager.Services
             var lines = markdown.Replace("\r\n", "\n").Split('\n');
             var start = -1;
             
-            // Find first version header (e.g., "## v3.7.0" or "## [3.7.0]")
+            // Find first version header (e.g., "## v3.7.1", "## 3.7.1", or "## [3.7.1]")
             for (int i = 0; i < lines.Length; i++)
             {
                 var line = lines[i].Trim();

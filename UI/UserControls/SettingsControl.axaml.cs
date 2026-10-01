@@ -354,6 +354,36 @@ namespace PinayPalBackupManager.UI.UserControls
             InitializeEmailAlerts();
         }
 
+        public void RefreshEmailAlerts()
+        {
+            var chkEmail = this.FindControl<CheckBox>("ChkEmailAlertsEnabled");
+            var txtHost = this.FindControl<TextBox>("TxtSmtpHost");
+            var txtPort = this.FindControl<TextBox>("TxtSmtpPort");
+            var chkSsl = this.FindControl<CheckBox>("ChkSmtpSsl");
+            var txtUser = this.FindControl<TextBox>("TxtSmtpUser");
+            var txtPass = this.FindControl<TextBox>("TxtSmtpPass");
+            var txtRecipient = this.FindControl<TextBox>("TxtRecipientEmail");
+            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
+            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
+            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
+
+            NotificationService.LoadSettings();
+            var s = NotificationService.Settings;
+
+            if (chkEmail != null) chkEmail.IsChecked = s.EmailAlertsEnabled;
+            if (txtHost != null) txtHost.Text = s.SmtpHost;
+            if (txtPort != null) txtPort.Text = s.SmtpPort.ToString();
+            if (chkSsl != null) chkSsl.IsChecked = s.SmtpSsl;
+            if (txtUser != null) txtUser.Text = s.SmtpUsername;
+            if (txtPass != null) txtPass.Text = s.SmtpPassword;
+            if (txtRecipient != null) txtRecipient.Text = s.RecipientEmail;
+            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
+            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
+            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
+            if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
+        }
+
         private void InitializeEmailAlerts()
         {
             var chkEmail = this.FindControl<CheckBox>("ChkEmailAlertsEnabled");
@@ -373,18 +403,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnTest = this.FindControl<Button>("BtnSendTestEmail");
             var txtStatus = this.FindControl<TextBlock>("TxtEmailStatus");
 
-            var s = NotificationService.Settings;
-            if (chkEmail != null) chkEmail.IsChecked = s.EmailAlertsEnabled;
-            if (txtHost != null) txtHost.Text = s.SmtpHost;
-            if (txtPort != null) txtPort.Text = s.SmtpPort.ToString();
-            if (chkSsl != null) chkSsl.IsChecked = s.SmtpSsl;
-            if (txtUser != null) txtUser.Text = s.SmtpUsername;
-            if (txtPass != null) txtPass.Text = s.SmtpPassword;
-            if (txtRecipient != null) txtRecipient.Text = s.RecipientEmail;
-            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
-            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
-            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
-            if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
+            RefreshEmailAlerts();
 
             if (btnGmail != null && txtHost != null && txtPort != null && chkSsl != null)
             {
@@ -412,6 +431,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 btnSave.Click += (_, _) =>
                 {
+                    var s = NotificationService.Settings;
                     s.EmailAlertsEnabled = chkEmail?.IsChecked == true;
                     s.SmtpHost = txtHost?.Text?.Trim() ?? "";
                     if (int.TryParse(txtPort?.Text?.Trim(), out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
@@ -437,6 +457,20 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     if (txtStatus != null) txtStatus.Text = "Sending test email alert...";
                     var target = txtRecipient?.Text?.Trim();
+
+                    // Temporarily stage fields for test run in case user has not saved yet
+                    var s = NotificationService.Settings;
+                    if (!string.IsNullOrWhiteSpace(txtHost?.Text)) s.SmtpHost = txtHost.Text.Trim();
+                    if (int.TryParse(txtPort?.Text?.Trim(), out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
+                    if (chkSsl != null) s.SmtpSsl = chkSsl.IsChecked == true;
+                    if (!string.IsNullOrWhiteSpace(txtUser?.Text))
+                    {
+                        s.SmtpUsername = txtUser.Text.Trim();
+                        s.SenderEmail = txtUser.Text.Trim();
+                    }
+                    if (!string.IsNullOrEmpty(txtPass?.Text)) s.SmtpPassword = txtPass.Text;
+                    if (!string.IsNullOrWhiteSpace(target)) s.RecipientEmail = target;
+
                     var (success, msg) = await NotificationService.SendTestEmailAsync(target);
                     if (txtStatus != null) txtStatus.Text = success ? "Test email sent successfully! Check your inbox." : $"Test failed: {msg}";
                     NotificationService.ShowBackupToast("Email Test", success ? "Test email delivered!" : msg, success ? "Info" : "Error");

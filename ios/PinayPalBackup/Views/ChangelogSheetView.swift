@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.7.0 (Build 23)",
+            version: "v3.7.1 (Build 24)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "In-App Updater Overhaul, Email Alerts Persistence Fix, iOS Navigation Bar Facebook Spring Bounce & Scroll Optimization",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "In-App PC Updater Overhaul",
+                    description: "Added live interactive download progress bar to UpdateAvailableDialog, graceful background worker shutdown before applying updates, and intelligent direct GitHub release fallback for portable installations."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Email Settings Persistence",
+                    description: "Fixed email settings not saving by implementing automatic lazy loading on boot, saving to standard AppData directory, and eliminating duplicate JSON alias properties."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Facebook-Style Tab Bar Animation",
+                    description: "Added tactile Facebook spring pop and bounce animation on tab button taps, with double-pop feedback on active tab re-taps and haptic pulses."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "iOS Sleek Navigation Bar & Scroll Scrims",
+                    description: "Made the navigation bar more compact and added soft gradient background scrims so content scrolls seamlessly beneath floating glass islands."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "AI Assistant Orb Spacing",
+                    description: "Refined vertical padding between the floating AI Assistant orb and the compact navigation bar for perfectly balanced ergonomics."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.7.0 (Build 23)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Conversational AI assistant with Zero-Leak security, floating desktop & iOS widgets, luxury email overhaul, and 24/7 PC stability",
             changes: [
                 ChangelogItem(

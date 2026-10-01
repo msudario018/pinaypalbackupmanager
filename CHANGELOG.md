@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.7.1 (2026-10-02)
+
+### Fixed & Improved
+- **PC In-App Updater Overhaul & Direct Fallback**:
+  - **Live Download Progress Dialog**: Enhanced `UpdateAvailableDialog.axaml` and `UpdateAvailableDialog.axaml.cs` with an interactive progress section featuring a live progress bar, percentage indicator, and dynamic status messages (`Downloading update... 45%`, `Applying update & restarting...`).
+  - **Graceful Shutdown Before Restart**: Before calling `Velopack.UpdateManager.ApplyUpdatesAndRestart()`, `UpdateService.cs` now properly terminates background threads and child services (`CloudflareTunnelService.StopQuickTunnel()`, `FileDownloadService.Stop()`) and invokes `Environment.Exit(0)` to prevent file lock contention or frozen installer wait-pids.
+  - **Intelligent Portable / Unmanaged Fallback**: When running in unmanaged or portable mode where Velopack is not installed (`!mgr.IsInstalled`), `UpdateService.cs` gracefully queries the GitHub Releases API (`https://api.github.com/repos/msudario018/pinaypalbackupmanager/releases/latest`), parses the latest release notes, and offers an instant browser link to download the new version rather than throwing an unhandled `NotInstalledException`.
+
+- **Email Settings Input Persistence Fix**:
+  - **Auto-Loading on App Launch**: Added explicit `NotificationService.LoadSettings()` in `Program.cs` during application startup, and implemented auto-lazy loading within `NotificationService.GetSettings()` to guarantee settings are loaded from disk if not yet initialized.
+  - **Standardized AppData Path**: Settings are now persisted directly into `AppDataPaths.GetDataPath("notifications.json")` (with legacy fallback to the local directory), ensuring configuration survives portable directory moves and Velopack app updates.
+  - **Resolved JSON Collision Anomalies**: Added `[System.Text.Json.Serialization.JsonIgnore]` attributes to computed alias properties (`EmailAlertsEnabled`, `SmtpSsl`, `SenderEmail`) in `NotificationSettings`, preventing serialization collisions and dropped values.
+  - **Dynamic In-Memory Sync**: Saving in `SettingsControl.axaml.cs` immediately invokes `NotificationService.ConfigureNotifications(settings)`, updating the live SMTP dispatcher and alert pipeline in memory without requiring a restart. Opening the Settings tab automatically refreshes inputs from disk with `settings.RefreshEmailAlerts()`.
+
+- **iOS Companion App Navigation Bar & Animations**:
+  - **Tactile Facebook-Style Spring Bounce Animation**: Overhauled tab button interactions in `MainView.swift`. Tapping any tab triggers a snappy ease-in compression (scale 0.82) followed by a spring overshoot bounce (scale 1.20, damping 0.45) settling to 1.0, paired with medium haptic feedback and a subtle golden radial glow pulse. Re-tapping the already active tab performs a signature Facebook-style double-bounce wiggle and heavy haptic feedback.
+  - **Compact Navigation Bar Geometry**: Made the navigation bar slightly smaller and sleeker (reduced button height from 46pt to 38pt, icon font from 15pt to 13.5pt, label font from 10pt to 9.5pt, logo to 26pt, and avatar to 34pt), creating a more refined and unobtrusive bottom bar.
+  - **Smooth Scroll Background Scrims**: Added soft directional gradient scrims to `persistentHeader` and `liquidTabBar` so cards, text, and list items gracefully fade as they roll underneath the floating glass islands, eliminating jarring visual collisions at the edges, status bar, and home indicator.
+  - **Eliminated Phantom Scroll Gaps**: Replaced obsolete `.padding(.top, 68)` in `LiquidDashboardView.swift`, `ActivityOverviewView` (`MainView.swift`), `BackupHistoryView.swift`, `AutomationsView.swift`, and `LiveLogsView.swift` with `.padding(.top, 10)`. Because `safeAreaInset` already reserves header bounds, removing duplicate padding eliminates the 68pt empty gap above the first card and enables immediate, natural scrolling.
+  - **Perfected AI Assistant Spacing**: Tuned the floating AI Assistant orb in `LiquidDashboardView.swift` to `.padding(.bottom, 8)` so it docks proportionally with consistent margin right above the compact navigation bar.
+
+- **Unified Versioning Across Ecosystem**:
+  - Bumped PC Desktop App (`PinayPalBackupManager.csproj`, `MainWindow.axaml`, `UpdateAvailableDialog.axaml`), Web API (`WebDashboardService.cs`), and iOS Companion App (`project.pbxproj`, `Info.plist`, `LoginView.swift`, `SplashScreenView.swift`, `QRScannerView.swift`, `ChangelogSheetView.swift`) to `3.7.1` (iOS Build `24`).
+
 ## v3.7.0 (2026-10-02)
 
 ### Fixed & Improved
