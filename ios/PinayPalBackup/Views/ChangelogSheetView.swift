@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.6.9 (Build 22)",
+            version: "v3.7.0 (Build 23)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "PC registry handle leak elimination, 24/7 background stability, 4-hour auto-update watchdog, iOS route latency diagnostics, and battery saver mode",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "Resolved Long-Run PC Crashing & Exiting",
+                    description: "Eliminated transient PerformanceCounter allocations in RealtimeMonitoringService and PerformanceMetricsService, resolving registry handle thrashing and Perflib unmanaged heap corruption."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Background Auto-Update Watchdog",
+                    description: "Added a recurring 4-hour background update polling timer in UpdateService to automatically notify and update long-running PC instances."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "iOS Multi-Route Ping Diagnostics",
+                    description: "Real-time latency testing across Local LAN, Cloudflare Tunnel, and Tailscale VPN in Settings → Network, with one-tap Route Cache flushing."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Battery Saver & Low Data Mode",
+                    description: "Dynamically relaxes background polling to 10s when idle, significantly reducing iPhone battery drain and mobile data consumption."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Unified Ecosystem Versioning",
+                    description: "Synchronized PC Desktop, Web API, and iOS companion app to v3.7.0 (Build 23), eliminating outdated fallback badges."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.6.9 (Build 22)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "PC 24/7 background stability & tray persistence, Tailscale failover launcher, and Cloudflare tunnel recreate controls",
             changes: [
                 ChangelogItem(

@@ -951,12 +951,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                if (!OperatingSystem.IsWindows())
-                    return 0;
-                    
-                using var proc = Process.GetCurrentProcess();
-                using var counter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
-                return counter.NextValue();
+                return HealthCheckService.GetCpuUsage();
             }
             catch
             {
@@ -968,23 +963,20 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                if (!OperatingSystem.IsWindows())
-                    return 0;
-                    
-                using var proc = Process.GetCurrentProcess();
-                var memory = proc.WorkingSet64;
-                var totalMemory = GC.GetTotalMemory(false);
-                var availableMemory = memory;
-                
-                // Get system memory using Performance Counter
-                using var counter = new System.Diagnostics.PerformanceCounter("Memory", "Available MBytes");
-                var availableMB = counter.NextValue();
-                
-                // Estimate total memory (simplified)
-                var totalMB = availableMB + (memory / 1024 / 1024);
-                var usedMB = totalMB - availableMB;
-                
-                return totalMB > 0 ? (usedMB / totalMB) * 100 : 0;
+                var telemetry = HardwareTelemetryService.GetTelemetrySync();
+                if (telemetry.RamUsagePercent > 0)
+                {
+                    return telemetry.RamUsagePercent;
+                }
+
+                var memInfo = GC.GetGCMemoryInfo();
+                if (memInfo.TotalAvailableMemoryBytes > 0)
+                {
+                    var total = memInfo.TotalAvailableMemoryBytes;
+                    var used = GC.GetTotalMemory(false);
+                    return Math.Round((double)used / total * 100.0, 1);
+                }
+                return 0;
             }
             catch
             {

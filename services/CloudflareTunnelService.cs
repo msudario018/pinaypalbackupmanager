@@ -62,12 +62,19 @@ namespace PinayPalBackupManager.Services
                     _expectedRunning = true;
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(5000);
-                        if (_expectedRunning && !IsRunning && !IsStarting)
+                        try
                         {
-                            LogService.WriteSystemLog("[CloudflareTunnel] Recreating Quick Tunnel from previous session...", "Information", "SYSTEM");
-                            var (ok, _, _) = await StartQuickTunnelAsync();
-                            if (!ok) ScheduleAutoRestart();
+                            await Task.Delay(5000);
+                            if (_expectedRunning && !IsRunning && !IsStarting)
+                            {
+                                LogService.WriteSystemLog("[CloudflareTunnel] Recreating Quick Tunnel from previous session...", "Information", "SYSTEM");
+                                var (ok, _, _) = await StartQuickTunnelAsync();
+                                if (!ok) ScheduleAutoRestart();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[CloudflareTunnel] Resurrection task error: {ex.Message}", "Warning", "SYSTEM");
                         }
                     });
                 }
@@ -86,11 +93,18 @@ namespace PinayPalBackupManager.Services
             LogService.WriteSystemLog("[CloudflareTunnel] Network connection restored. Recreating Cloudflare Quick Tunnel...", "Information", "SYSTEM");
             _ = Task.Run(async () =>
             {
-                await Task.Delay(2000);
-                if (_expectedRunning && !IsRunning && !IsStarting)
+                try
                 {
-                    var (ok, _, _) = await StartQuickTunnelAsync();
-                    if (!ok) ScheduleAutoRestart();
+                    await Task.Delay(2000);
+                    if (_expectedRunning && !IsRunning && !IsStarting)
+                    {
+                        var (ok, _, _) = await StartQuickTunnelAsync();
+                        if (!ok) ScheduleAutoRestart();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[CloudflareTunnel] Connectivity recovery task error: {ex.Message}", "Warning", "SYSTEM");
                 }
             });
         }

@@ -1,5 +1,31 @@
 # Changelog
 
+## v3.7.0 (2026-10-02)
+
+### Fixed & Improved
+- **PC Long-Running Stability & PerformanceCounter Resource Leak Elimination**:
+  - **Eliminated PerformanceCounter Handle Leak**: Removed transient `new PerformanceCounter` allocations from `RealtimeMonitoringService.cs` (`GetCpuUsage`, `GetMemoryUsage`) and `PerformanceMetricsService.cs`. In Windows, instantiating `PerformanceCounter` queries `HKEY_PERFORMANCE_DATA` and allocates unmanaged Perflib heap memory. Replacing this with `HealthCheckService.GetCpuUsage()` (singleton counter) and Win32 `GlobalMemoryStatusEx` eliminated registry handle leaks and Perflib heap corruption that caused silent crashes after long runs.
+  - **Eliminated Blocking Thread Sleep**: Removed `System.Threading.Thread.Sleep(500)` in `PerformanceMetricsService.cs`, restoring asynchronous non-blocking throughput.
+  - **Hardened Scheduler Timer**: Reduced `AdvancedSchedulingService.cs` polling frequency from every 1 second (1000ms) to every 15 seconds (15000ms), and wrapped `CheckScheduledTasks` and its background task dispatchers in top-level try-catch blocks to prevent unhandled timer exceptions.
+  - **Guarded FileDownloadService & Tunnel Watchdogs**: Wrapped `Task.Run` async task runners in `FileDownloadService.cs` and `CloudflareTunnelService.cs` to prevent unobserved task exceptions from destabilizing the process.
+  - **Recurring 4-Hour Background Auto-Update Watchdog**: Added `UpdateService.StartPeriodicBackgroundChecks()` which runs 45 seconds after launch and repeats every 4 hours, ensuring long-running server instances stay updated even when running 24/7 in the tray.
+  - **Fixed Changelog Markdown Parser**: Updated `ExtractLatestChangelog` in `UpdateService.cs` to match any `## ` header rather than only `## [`, guaranteeing release notes populate correctly in update dialogs.
+
+- **Unified Versioning Across Ecosystem**:
+  - **Purged Hardcoded Legacy Fallbacks**: Updated `UpdateAvailableDialog.axaml`, `UpdateAvailableDialog.axaml.cs`, and `MainWindow.axaml` to default to `v3.7.0` instead of `v3.6.7` or `v2.19.0`.
+  - **Synchronized Xcode Targets**: Updated all `MARKETING_VERSION` (3.7.0) and `CURRENT_PROJECT_VERSION` (23) settings in `project.pbxproj` and `Info.plist`.
+  - **Synchronized iOS Views**: Updated version strings in `LoginView.swift`, `QRScannerView.swift`, `SplashScreenView.swift`, and made `ServerConfigSheet.swift` About tab badge read `v\(appVersion)` dynamically from `Bundle.main`.
+  - **Updated Web Dashboard**: Synchronized `ApiVersion = "3.7.0"`, header badge, and connection info to `v3.7.0`.
+
+- **iOS Companion App Addons & Improvements**:
+  - **Multi-Route Ping Diagnostics Panel**: Added interactive Route Latency & Diagnostics card in Settings → Network, displaying live millisecond latencies across Local LAN, Cloudflare Tunnel, and Tailscale VPN mesh.
+  - **Flush Route Cache**: Added one-tap "Flush Route Cache & Re-Probe LAN" action to reset failover memory and latch onto the fastest available route immediately.
+  - **Battery Saver & Low Data Mode**: Added toggle in Settings that dynamically relaxes background polling to 10 seconds when idle, significantly preserving iPhone battery and cellular data.
+  - **In-App Changelog**: Added v3.7.0 (Build 23) release notes to `ChangelogSheetView.swift`.
+
+- **Version Bumps**:
+  - Bumped PC Desktop App, Web Dashboard API, and iOS Companion App to `3.7.0` (iOS Build `23`).
+
 ## v3.6.9 (2026-10-01)
 
 ### Fixed & Improved

@@ -402,14 +402,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
-                {
-                    var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                    cpuCounter.NextValue();
-                    System.Threading.Thread.Sleep(500);
-                    return cpuCounter.NextValue();
-                }
-                return 0;
+                return HealthCheckService.GetCpuUsage();
             }
             catch
             {

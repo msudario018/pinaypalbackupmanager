@@ -150,6 +150,51 @@ namespace PinayPalBackupManager.Services
             return string.Empty;
         }
 
+        private static System.Timers.Timer? _backgroundUpdateTimer;
+        private static readonly object _timerLock = new();
+
+        public static void StartPeriodicBackgroundChecks()
+        {
+            lock (_timerLock)
+            {
+                if (_backgroundUpdateTimer != null) return;
+
+                // Initial delayed check after 45 seconds to let startup and network stabilize
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(45000);
+                        if (UpdatePreferences.LoadAutoCheckOnStartup())
+                        {
+                            await CheckForUpdatesWithUiAsync(silentIfNone: true);
+                        }
+                    }
+                    catch { }
+                });
+
+                // Periodic check every 4 hours (14,400,000 ms)
+                _backgroundUpdateTimer = new System.Timers.Timer(TimeSpan.FromHours(4).TotalMilliseconds);
+                _backgroundUpdateTimer.AutoReset = true;
+                _backgroundUpdateTimer.Elapsed += async (s, e) =>
+                {
+                    try
+                    {
+                        if (UpdatePreferences.LoadAutoCheckOnStartup())
+                        {
+                            await CheckForUpdatesWithUiAsync(silentIfNone: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[UpdateService] Periodic check error: {ex.Message}", "Warning", "SYSTEM");
+                    }
+                };
+                _backgroundUpdateTimer.Start();
+                LogService.WriteSystemLog("[UpdateService] Periodic 4-hour background update watchdog started.", "Information", "SYSTEM");
+            }
+        }
+
         private static string ExtractLatestChangelog(string markdown)
         {
             if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
@@ -157,11 +202,11 @@ namespace PinayPalBackupManager.Services
             var lines = markdown.Replace("\r\n", "\n").Split('\n');
             var start = -1;
             
-            // Find first version header (e.g., "## [2.6.13]")
+            // Find first version header (e.g., "## v3.7.0" or "## [3.7.0]")
             for (int i = 0; i < lines.Length; i++)
             {
                 var line = lines[i].Trim();
-                if (line.StartsWith("## [") && line.Contains("]"))
+                if (line.StartsWith("## ") && !line.StartsWith("### "))
                 {
                     start = i;
                     break;
@@ -175,7 +220,7 @@ namespace PinayPalBackupManager.Services
             {
                 var line = lines[i];
                 // Stop at next version header
-                if (i != start && line.StartsWith("## [")) break;
+                if (i != start && line.Trim().StartsWith("## ") && !line.Trim().StartsWith("### ")) break;
                 sb.AppendLine(line);
             }
 

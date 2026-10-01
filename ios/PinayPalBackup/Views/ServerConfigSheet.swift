@@ -152,7 +152,7 @@ public struct ServerConfigSheet: View {
                 categoryTabItem(title: "Theme", icon: "paintbrush.fill", index: 2, badge: nil)
                 categoryTabItem(title: "Network", icon: "network", index: 3, badge: nil)
                 categoryTabItem(title: "Live Logs", icon: "terminal.fill", index: 4, badge: "\(api.logs.count)")
-                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v3.6.7")
+                categoryTabItem(title: "About", icon: "info.circle.fill", index: 5, badge: "v\(appVersion)")
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
@@ -896,6 +896,20 @@ public struct ServerConfigSheet: View {
 
                 Divider().background(Color.white.opacity(0.08))
 
+                Toggle(isOn: $api.isBatterySaverEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Battery Saver & Low Data Mode")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                        Text("Relaxes background polling to save iPhone battery and cellular data")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                    }
+                }
+                .tint(LiquidTheme.emerald)
+
+                Divider().background(Color.white.opacity(0.08))
+
                 Toggle(isOn: $notifyFailure) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Alert on Backup Failures")
@@ -1011,6 +1025,9 @@ public struct ServerConfigSheet: View {
             }
             .padding(18)
             .liquidGlassCard(cornerRadius: 18, glow: LiquidTheme.cyan.opacity(0.12))
+
+            // Live Route Diagnostics & Failover Latency Card
+            routeDiagnosticsCard
 
             // 3. Network Connection & Failover Configuration
             VStack(spacing: 14) {
@@ -1270,6 +1287,121 @@ public struct ServerConfigSheet: View {
                 .shadow(color: LiquidTheme.gold.opacity(0.35), radius: 10, y: 4)
             }
         }
+    }
+
+    // MARK: - Live Route Latency & Failover Diagnostics Card
+    private var routeDiagnosticsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                    .foregroundColor(LiquidTheme.gold)
+                Text("ROUTE LATENCY & DIAGNOSTICS")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+                Spacer()
+                Button {
+                    Task {
+                        await api.measureAllRouteLatencies()
+                        let haptic = UIImpactFeedbackGenerator(style: .light)
+                        haptic.impactOccurred()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("Ping All")
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(LiquidTheme.gold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(LiquidTheme.gold.opacity(0.12))
+                    .cornerRadius(6)
+                }
+            }
+
+            if api.routeLatencies.isEmpty {
+                Text("Tap 'Ping All' to measure live response times across Local LAN, Cloudflare Tunnel, and Tailscale VPN.")
+                    .font(.system(size: 11))
+                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(api.routeLatencies) { item in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(item.isReachable ? LiquidTheme.emerald : LiquidTheme.coral)
+                                .frame(width: 8, height: 8)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(item.name)
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                                    if item.isCurrent {
+                                        Text("ACTIVE")
+                                            .font(.system(size: 9, weight: .black))
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1.5)
+                                            .background(LiquidTheme.emerald.opacity(0.2))
+                                            .foregroundColor(LiquidTheme.emerald)
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                Text(item.url)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            if let ms = item.latencyMs {
+                                Text("\(ms) ms")
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundColor(ms < 50 ? LiquidTheme.emerald : (ms < 150 ? LiquidTheme.gold : LiquidTheme.coral))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color.white.opacity(0.08))
+                                    .cornerRadius(6)
+                            } else {
+                                Text("Unreachable")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(LiquidTheme.coral)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(LiquidTheme.coral.opacity(0.12))
+                                    .cornerRadius(6)
+                            }
+                        }
+                        .padding(10)
+                        .background(LiquidTheme.card(for: colorScheme))
+                        .cornerRadius(10)
+                    }
+                }
+            }
+
+            Divider().background(Color.white.opacity(0.08))
+
+            Button {
+                Task {
+                    await api.resetRouteCache()
+                    let haptic = UINotificationFeedbackGenerator()
+                    haptic.notificationOccurred(.success)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                    Text("Flush Route Cache & Re-Probe LAN")
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(LiquidTheme.textPrimary(for: colorScheme))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.08))
+                .cornerRadius(10)
+            }
+        }
+        .padding(18)
+        .liquidGlassCard(cornerRadius: 18)
     }
 
     // MARK: - Section 4: About, diagnostics and support

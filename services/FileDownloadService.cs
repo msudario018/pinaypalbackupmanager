@@ -188,7 +188,17 @@ namespace PinayPalBackupManager.Services
                 try
                 {
                     var context = await _listener.GetContextAsync();
-                    _ = Task.Run(() => HandleRequest(context), cancellationToken);
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await HandleRequest(context);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[FileDownloadService] Unhandled request exception: {ex.Message}", "Error", "SYSTEM");
+                        }
+                    }, cancellationToken);
                 }
                 catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                 {

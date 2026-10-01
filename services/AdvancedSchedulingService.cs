@@ -30,7 +30,7 @@ namespace PinayPalBackupManager.Services
             _scheduledTasks = new Dictionary<string, ScheduledTask>();
             _taskDependencies = new Dictionary<string, List<string>>();
             _taskStatuses = new Dictionary<string, TaskExecutionStatus>();
-            _schedulerTimer = new System.Timers.Timer(1000); // Check every second
+            _schedulerTimer = new System.Timers.Timer(15000); // Check every 15 seconds (energy efficient)
             _schedulerTimer.Elapsed += CheckScheduledTasks;
         }
 
@@ -177,41 +177,48 @@ namespace PinayPalBackupManager.Services
 
         private void CheckScheduledTasks(object? sender, ElapsedEventArgs e)
         {
-            if (!_isRunning) return;
-
-            var now = DateTime.UtcNow;
-            var tasksToRun = new List<string>();
-
-            lock (_lock)
+            try
             {
-                foreach (var kvp in _scheduledTasks)
+                if (!_isRunning) return;
+
+                var now = DateTime.UtcNow;
+                var tasksToRun = new List<string>();
+
+                lock (_lock)
                 {
-                    var task = kvp.Value;
-                    if (task.IsEnabled && task.NextRun <= now && task.NextRun != null)
+                    foreach (var kvp in _scheduledTasks)
                     {
-                        // Check dependencies
-                        if (AreDependenciesSatisfied(task.Id))
+                        var task = kvp.Value;
+                        if (task.IsEnabled && task.NextRun <= now && task.NextRun != null)
                         {
-                            tasksToRun.Add(task.Id);
+                            // Check dependencies
+                            if (AreDependenciesSatisfied(task.Id))
+                            {
+                                tasksToRun.Add(task.Id);
+                            }
                         }
                     }
                 }
-            }
 
-            // Execute tasks outside the lock
-            foreach (var taskId in tasksToRun)
-            {
-                _ = Task.Run(async () =>
+                // Execute tasks outside the lock
+                foreach (var taskId in tasksToRun)
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await ExecuteTask(taskId);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogService.WriteSystemLog($"[ADVANCED_SCHEDULER] Task {taskId} execution failed: {ex.Message}", "Error", "SYSTEM");
-                    }
-                });
+                        try
+                        {
+                            await ExecuteTask(taskId);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteSystemLog($"[ADVANCED_SCHEDULER] Task {taskId} execution failed: {ex.Message}", "Error", "SYSTEM");
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[ADVANCED_SCHEDULER] Scheduler check error: {ex.Message}", "Warning", "SYSTEM");
             }
         }
 

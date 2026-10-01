@@ -42,6 +42,13 @@ public class PinayPalAPIService: ObservableObject {
     @Published public var lastErrorMessage: String? = nil
     @Published public var outdatedCount: Int = 0
     @Published public var outdatedServices: [String] = []
+    @Published public var isBatterySaverEnabled: Bool = UserDefaults.standard.bool(forKey: "pp_battery_saver") {
+        didSet {
+            UserDefaults.standard.set(isBatterySaverEnabled, forKey: "pp_battery_saver")
+            startPolling()
+        }
+    }
+    @Published public var routeLatencies: [RouteLatencyInfo] = []
 
     private var pollTimer: AnyCancellable?
     private var lastRecordedBusyService: String? = nil
@@ -370,7 +377,11 @@ public class PinayPalAPIService: ObservableObject {
 
     public func startPolling() {
         pollTimer?.cancel()
-        pollTimer = Timer.publish(every: 2.5, on: .main, in: .common)
+        // Adaptive polling: 10s under Battery Saver / Low Power Mode; otherwise 4s idle and 2s during active backup
+        let interval: Double = (isBatterySaverEnabled || ProcessInfo.processInfo.isLowPowerModeEnabled)
+            ? 10.0
+            : ((status?.activeBackup?.isBusy == true) ? 2.0 : 4.0)
+        pollTimer = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 Task {
@@ -559,6 +570,59 @@ public class PinayPalAPIService: ObservableObject {
         let last = UserDefaults.standard.double(forKey: "pp_tunnel_recreate_last")
         guard now - last > 300 else { return }
         _ = await forceRestartCloudflareTunnel()
+    }
+
+    /// Measures live ping latencies across all configured routes simultaneously.
+    @discardableResult
+    public func measureAllRouteLatencies() async -> [RouteLatencyInfo] {
+        var targets: [(name: String, type: String, url: String, isCurrent: Bool)] = []
+
+        if !serverUrl.isEmpty {
+            targets.append(("Local Network (LAN)", "LAN", serverUrl, !isUsingFallback && !isUsingTailscale))
+        }
+        if !fallbackUrl.isEmpty {
+            targets.append(("Cloudflare Tunnel", "Cloudflare", fallbackUrl, isUsingFallback))
+        }
+        if !tailscaleUrl.isEmpty {
+            targets.append(("Tailscale VPN Mesh", "Tailscale", tailscaleUrl, isUsingTailscale))
+        }
+
+        var results: [RouteLatencyInfo] = []
+        for t in targets {
+            let clean = sanitizeUrl(t.url)
+            guard let url = URL(string: "\(clean)/api/ping") else {
+                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+                continue
+            }
+
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 3.5
+            let start = CFAbsoluteTimeGetCurrent()
+            do {
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                    let ms = max(1, Int((CFAbsoluteTimeGetCurrent() - start) * 1000))
+                    results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: ms, isReachable: true, isCurrent: t.isCurrent))
+                } else {
+                    results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+                }
+            } catch {
+                results.append(RouteLatencyInfo(name: t.name, routeType: t.type, url: t.url, latencyMs: nil, isReachable: false, isCurrent: t.isCurrent))
+            }
+        }
+
+        self.routeLatencies = results
+        return results
+    }
+
+    /// Clears route fallback memories and re-probes LAN first to latch onto the fastest path.
+    public func resetRouteCache() async {
+        isUsingFallback = false
+        isUsingTailscale = false
+        UserDefaults.standard.set(false, forKey: "pp_using_fallback")
+        UserDefaults.standard.set(false, forKey: "pp_using_tailscale")
+        await fetchAll()
+        await measureAllRouteLatencies()
     }
 
     /// Fires the local "Enable Tailscale" reminder when every route is unreachable (e.g. off-site).

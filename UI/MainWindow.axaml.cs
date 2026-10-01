@@ -392,6 +392,7 @@ namespace PinayPalBackupManager.UI
                 {
                     await UpdateService.CheckForUpdatesWithUiAsync(silentIfNone: true);
                 });
+                UpdateService.StartPeriodicBackgroundChecks();
             }
             
             // Handle window closing event

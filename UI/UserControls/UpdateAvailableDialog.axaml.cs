@@ -22,7 +22,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnYes = this.FindControl<Button>("BtnYes");
             var btnNo = this.FindControl<Button>("BtnNo");
 
-            if (txtVersion != null) txtVersion.Text = string.IsNullOrWhiteSpace(version) ? "v3.6.7" : (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}");
+            if (txtVersion != null) txtVersion.Text = string.IsNullOrWhiteSpace(version) ? "v3.7.0" : (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}");
             if (txtChangelog != null) txtChangelog.Text = changelog;
             if (btnYes != null) btnYes.Click += (s, e) => OnYes?.Invoke(this, EventArgs.Empty);
             if (btnNo != null) btnNo.Click += (s, e) => OnNo?.Invoke(this, EventArgs.Empty);
