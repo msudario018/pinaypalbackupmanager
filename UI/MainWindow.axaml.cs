@@ -386,6 +386,14 @@ namespace PinayPalBackupManager.UI
             var txtVer = this.FindControl<TextBlock>("TxtVersionBadge");
             if (txtVer != null) txtVer.Text = versionStr;
 
+            // Proactive AI Assistant greeting on login/startup
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2500); // Allow window layout and telemetry to stabilize
+                var username = AuthService.CurrentUser?.Username ?? Environment.UserName;
+                await AIAssistantService.GenerateLoginGreetingAsync(username);
+            });
+
             if (UpdatePreferences.LoadAutoCheckOnStartup())
             {
                 Dispatcher.UIThread.Post(async () =>

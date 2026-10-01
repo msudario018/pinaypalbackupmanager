@@ -56,8 +56,23 @@ public struct ChangelogSheetView: View {
             version: "v3.7.0 (Build 23)",
             releaseDate: "October 2026",
             isLatest: true,
-            highlight: "PC registry handle leak elimination, 24/7 background stability, 4-hour auto-update watchdog, iOS route latency diagnostics, and battery saver mode",
+            highlight: "Conversational AI assistant with Zero-Leak security, floating desktop & iOS widgets, luxury email overhaul, and 24/7 PC stability",
             changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Smart Conversational AI Engine",
+                    description: "Supports local Ollama, cloud LLMs, and offline heuristics with Zero-Leak credential sanitization and human-in-the-loop action approval."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Floating Assistant Widget (PC & iOS)",
+                    description: "Interactive glassmorphic avatar with login greetings, backup completion popups, and full conversational drawer with action proposal cards."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Luxury Obsidian Email Overhaul",
+                    description: "Executive glassmorphic HTML email alerts with 3-column metric cards, live host PC CPU/RAM/disk telemetry footer, and direct action buttons."
+                ),
                 ChangelogItem(
                     type: .fix,
                     title: "Resolved Long-Run PC Crashing & Exiting",

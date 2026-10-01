@@ -3,6 +3,28 @@
 ## v3.7.0 (2026-10-02)
 
 ### Fixed & Improved
+- **Smart Conversational AI Engine & Zero-Leak Security Boundary**:
+  - **Zero-Leak Data Sanitizer**: Implemented strict regex scrubbers in `AIAssistantService.cs` (`SanitizePrompt`, `SanitizeOutput`, `BuildSanitizedSystemContext`) that strip passwords, pins, connection strings, auth tokens, and raw file payloads before sending context to any AI model, guaranteeing sensitive data never leaks.
+  - **Multi-Provider Dispatcher**: Supports Local Ollama (`http://127.0.0.1:11434`), Cloud LLMs (OpenAI, Gemini, Claude with user-configured API keys), and a built-in offline Smart Heuristics Diagnostic Engine.
+  - **Guarded Action Pipeline with Human-in-the-Loop Confirmation**: Read-only queries (system health, storage capacity, daemon status) execute immediately, while mutating operations (trigger FTP/SQL/Mailchimp backup, recreate Cloudflare tunnel, emergency stop, clear history) generate an interactive Action Proposal Card requiring explicit user approval.
+  - **AI REST Endpoints for Remote Access**: Added `POST /api/ai/chat`, `POST /api/ai/action/execute`, `GET/POST /api/ai/config`, and `POST /api/ai/history/clear` in `WebDashboardService.cs`.
+
+- **PC Desktop Floating Assistant Widget**:
+  - **Floating Avatar Trigger**: Added `AssistantWidgetControl` anchored in the bottom-right corner of `MainWindow.axaml` with a dark glassmorphic badge, gold border glow, and live green status pulse.
+  - **Proactive Speech Bubble Overlay**: Automatically pops up a smart speech bubble above the avatar on login ("Good evening, Wesley...") and on backup completions/warnings.
+  - **Expandable Glassmorphic Chat Drawer**: Modern slide-up drawer with message bubbles, quick prompt chips ("Health Status", "Check Disk Space", "Run FTP Backup", "Tunnel Status", "Test Email"), and inline Action Proposal Cards with `[Approve & Execute]` and `[Cancel]` buttons.
+
+- **iOS Companion App AI Assistant Integration**:
+  - **Floating Assistant Orb**: Added glowing glassmorphic pill button to `LiquidDashboardView.swift` for one-tap AI assistance.
+  - **Liquid AI Assistant Sheet**: Created `LiquidAIAssistantSheet.swift` featuring real-time conversational chat, quick prompt chips, Zero-Leak Shield badges, and native action confirmation cards with haptic feedback.
+  - **API Client Extensions**: Added `sendAIChat(prompt:)`, `executeAIAction(actionId:userApproved:)`, and `clearAIChatHistory()` to `PinayPalAPIService.swift`.
+
+- **Luxury Obsidian Email Template Overhaul**:
+  - **Executive Glassmorphic Design**: Built `EmailTemplateService.cs` replacing old plain emails with a dark obsidian glassmorphism theme (`#06090E` container, `#0E1420` frosted card, gold `#F59E0B` and emerald `#10B981` accents).
+  - **Hero Metrics Grid**: 3-column responsive metric blocks for Backup Size, Duration, and Server Hostname.
+  - **Host Telemetry Snapshot Strip**: Live CPU usage, RAM utilization, and disk space included in the footer of every email alert.
+  - **One-Click Action CTAs**: Direct buttons to open Web Dashboard, Remote Failover, and Health Diagnostics.
+
 - **PC Long-Running Stability & PerformanceCounter Resource Leak Elimination**:
   - **Eliminated PerformanceCounter Handle Leak**: Removed transient `new PerformanceCounter` allocations from `RealtimeMonitoringService.cs` (`GetCpuUsage`, `GetMemoryUsage`) and `PerformanceMetricsService.cs`. In Windows, instantiating `PerformanceCounter` queries `HKEY_PERFORMANCE_DATA` and allocates unmanaged Perflib heap memory. Replacing this with `HealthCheckService.GetCpuUsage()` (singleton counter) and Win32 `GlobalMemoryStatusEx` eliminated registry handle leaks and Perflib heap corruption that caused silent crashes after long runs.
   - **Eliminated Blocking Thread Sleep**: Removed `System.Threading.Thread.Sleep(500)` in `PerformanceMetricsService.cs`, restoring asynchronous non-blocking throughput.

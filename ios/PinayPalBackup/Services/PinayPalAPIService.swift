@@ -1101,4 +1101,154 @@ public class PinayPalAPIService: ObservableObject {
         return (false, "Failed to upload avatar")
     }
 
+    // MARK: - AI Assistant Engine
+
+    public func sendAIChat(prompt: String) async -> (success: Bool, message: AIChatMessage?, error: String?) {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+        guard let url = URL(string: "\(cleanUrl)/api/ai/chat") else {
+            return (false, nil, "Invalid host URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 25
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = ["prompt": prompt]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            return (false, nil, "Failed to encode chat request")
+        }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                return (false, nil, "AI endpoint returned error code \(code)")
+            }
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let content = json["content"] as? String else {
+                return (false, nil, "Malformed AI response")
+            }
+
+            var proposed: AIChatProposedAction? = nil
+            if let pDict = json["proposedAction"] as? [String: Any],
+               let id = pDict["id"] as? String,
+               let title = pDict["title"] as? String,
+               let desc = pDict["description"] as? String,
+               let actionType = pDict["actionType"] as? String {
+                let reqConf = pDict["requiresConfirmation"] as? Bool ?? true
+                let status = pDict["status"] as? String ?? "pending"
+                let params = pDict["parameters"] as? [String: String]
+                proposed = AIChatProposedAction(id: id, title: title, description: desc, actionType: actionType, requiresConfirmation: reqConf, status: status, parameters: params)
+            }
+
+            let chatMsg = AIChatMessage(role: "assistant", content: content, proposedAction: proposed)
+            return (true, chatMsg, nil)
+        } catch {
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    public func executeAIAction(actionId: String, userApproved: Bool) async -> (success: Bool, message: String) {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+        guard let url = URL(string: "\(cleanUrl)/api/ai/action/execute") else {
+            return (false, "Invalid host URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 20
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = [
+            "actionId": actionId,
+            "userApproved": userApproved
+        ]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            return (false, "Failed to encode action payload")
+        }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let msg = json["message"] as? String ?? "Action processed"
+                return (http.statusCode == 200, msg)
+            }
+            return (false, "Failed with HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    public func clearAIChatHistory() async -> Bool {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+        guard let url = URL(string: "\(cleanUrl)/api/ai/history/clear") else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 8
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            return false
+        }
+    }
+
 }
+
+// MARK: - AI Models
+
+public struct AIChatProposedAction: Codable, Identifiable, Equatable {
+    public let id: String
+    public let title: String
+    public let description: String
+    public let actionType: String
+    public let requiresConfirmation: Bool
+    public var status: String
+    public let parameters: [String: String]?
+
+    public init(id: String, title: String, description: String, actionType: String, requiresConfirmation: Bool, status: String, parameters: [String: String]? = nil) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.actionType = actionType
+        self.requiresConfirmation = requiresConfirmation
+        self.status = status
+        self.parameters = parameters
+    }
+}
+
+public struct AIChatMessage: Identifiable, Equatable {
+    public let id: String
+    public let role: String // "user", "assistant"
+    public let content: String
+    public let timestamp: Date
+    public var proposedAction: AIChatProposedAction?
+
+    public init(id: String = UUID().uuidString, role: String, content: String, timestamp: Date = Date(), proposedAction: AIChatProposedAction? = nil) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
+        self.proposedAction = proposedAction
+    }
+}
+

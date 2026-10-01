@@ -276,6 +276,34 @@ namespace PinayPalBackupManager.Services
                 {
                     await ServeConnectionInfoApiAsync(response);
                 }
+                else if (path == "/api/ai/chat" && request.HttpMethod == "POST")
+                {
+                    await HandleAIChatPostAsync(context);
+                }
+                else if (path == "/api/ai/action/execute" && request.HttpMethod == "POST")
+                {
+                    await HandleAIActionExecutePostAsync(context);
+                }
+                else if (path == "/api/ai/config")
+                {
+                    if (request.HttpMethod == "GET")
+                    {
+                        await ServeAIConfigApiAsync(response);
+                    }
+                    else if (request.HttpMethod == "POST")
+                    {
+                        await HandleAIConfigPostAsync(context);
+                    }
+                    else
+                    {
+                        await SendApiErrorAsync(response, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+                    }
+                }
+                else if (path == "/api/ai/history/clear" && request.HttpMethod == "POST")
+                {
+                    AIAssistantService.ClearSessionHistory();
+                    await SendJsonAsync(response, 200, new { success = true, message = "AI conversation history cleared." });
+                }
                 else
                 {
                     await SendApiErrorAsync(response, 404, "NOT_FOUND", "Endpoint was not found.");
@@ -1550,6 +1578,196 @@ namespace PinayPalBackupManager.Services
             {
                 LogService.WriteSystemLog($"[WebDashboard] Error sending test email: {ex.Message}", "Error", "SYSTEM");
                 await SendApiErrorAsync(context.Response, 500, "TEST_EMAIL_FAILED", ex.Message);
+            }
+        }
+
+        // ─── AI Assistant Endpoints ──────────────────────────────────────────────────
+
+        private static async Task HandleAIChatPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    await SendApiErrorAsync(context.Response, 400, "EMPTY_BODY", "Prompt or message is required.");
+                    return;
+                }
+
+                string prompt = "";
+                using (var doc = JsonDocument.Parse(body))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("prompt", out var p) && p.ValueKind == JsonValueKind.String)
+                    {
+                        prompt = p.GetString() ?? "";
+                    }
+                    else if (root.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
+                    {
+                        prompt = m.GetString() ?? "";
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(prompt))
+                {
+                    await SendApiErrorAsync(context.Response, 400, "MISSING_PROMPT", "Prompt cannot be empty.");
+                    return;
+                }
+
+                var chatMessage = await AIAssistantService.ProcessUserMessageAsync(prompt);
+
+                object? proposedActionObj = null;
+                if (chatMessage.ProposedAction != null)
+                {
+                    proposedActionObj = new
+                    {
+                        id = chatMessage.ProposedAction.ActionId,
+                        title = chatMessage.ProposedAction.Title,
+                        description = chatMessage.ProposedAction.Description,
+                        actionType = chatMessage.ProposedAction.ActionType,
+                        requiresConfirmation = chatMessage.ProposedAction.RequiresConfirmation,
+                        status = chatMessage.ProposedAction.IsExecuted ? (chatMessage.ProposedAction.IsApproved ? "approved" : "cancelled") : "pending",
+                        parameters = chatMessage.ProposedAction.Parameters
+                    };
+                }
+
+                await SendJsonAsync(context.Response, 200, new
+                {
+                    success = true,
+                    role = chatMessage.Role,
+                    content = chatMessage.Content,
+                    timestamp = chatMessage.Timestamp.ToString("o"),
+                    proposedAction = proposedActionObj
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] AI Chat failed: {ex.Message}", "Error", "AI");
+                await SendApiErrorAsync(context.Response, 500, "AI_ERROR", ex.Message);
+            }
+        }
+
+        private static async Task HandleAIActionExecutePostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    await SendApiErrorAsync(context.Response, 400, "EMPTY_BODY", "Request body is empty.");
+                    return;
+                }
+
+                string actionId = "";
+                bool userApproved = true;
+
+                using (var doc = JsonDocument.Parse(body))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("actionId", out var idProp) && idProp.ValueKind == JsonValueKind.String)
+                    {
+                        actionId = idProp.GetString() ?? "";
+                    }
+                    if (root.TryGetProperty("userApproved", out var appProp))
+                    {
+                        userApproved = appProp.GetBoolean();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(actionId))
+                {
+                    await SendApiErrorAsync(context.Response, 400, "MISSING_ACTION_ID", "actionId is required.");
+                    return;
+                }
+
+                var (success, resultMessage) = await AIAssistantService.ExecuteActionAsync(actionId, userApproved);
+                await SendJsonAsync(context.Response, success ? 200 : 400, new
+                {
+                    success = success,
+                    message = resultMessage,
+                    output = resultMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] AI Action execution failed: {ex.Message}", "Error", "AI");
+                await SendApiErrorAsync(context.Response, 500, "AI_ACTION_ERROR", ex.Message);
+            }
+        }
+
+        private static async Task ServeAIConfigApiAsync(HttpListenerResponse response)
+        {
+            var cfg = AIAssistantService.Config;
+            await SendJsonAsync(response, 200, new
+            {
+                isEnabled = cfg.IsEnabled,
+                provider = cfg.Provider,
+                ollamaEndpoint = cfg.OllamaEndpoint,
+                ollamaModel = cfg.OllamaModel,
+                cloudEndpoint = cfg.CloudEndpoint,
+                cloudModel = cfg.CloudModel,
+                hasCloudApiKey = !string.IsNullOrEmpty(cfg.CloudApiKey),
+                enableFloatingWidget = cfg.EnableFloatingWidget,
+                enableLoginGreeting = cfg.EnableLoginGreeting,
+                enableSoundChimes = cfg.EnableSoundChimes
+            });
+        }
+
+        private static async Task HandleAIConfigPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    await SendApiErrorAsync(context.Response, 400, "EMPTY_BODY", "Request body is empty.");
+                    return;
+                }
+
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                var cfg = AIAssistantService.Config;
+
+                if (root.TryGetProperty("isEnabled", out var en)) cfg.IsEnabled = en.GetBoolean();
+                if (root.TryGetProperty("provider", out var p) && p.ValueKind == JsonValueKind.String)
+                {
+                    cfg.Provider = p.GetString() ?? cfg.Provider;
+                }
+                if (root.TryGetProperty("ollamaEndpoint", out var oe) && oe.ValueKind == JsonValueKind.String)
+                {
+                    cfg.OllamaEndpoint = oe.GetString() ?? cfg.OllamaEndpoint;
+                }
+                if (root.TryGetProperty("ollamaModel", out var om) && om.ValueKind == JsonValueKind.String)
+                {
+                    cfg.OllamaModel = om.GetString() ?? cfg.OllamaModel;
+                }
+                if (root.TryGetProperty("cloudEndpoint", out var ce) && ce.ValueKind == JsonValueKind.String)
+                {
+                    cfg.CloudEndpoint = ce.GetString() ?? cfg.CloudEndpoint;
+                }
+                if (root.TryGetProperty("cloudModel", out var cm) && cm.ValueKind == JsonValueKind.String)
+                {
+                    cfg.CloudModel = cm.GetString() ?? cfg.CloudModel;
+                }
+                if (root.TryGetProperty("cloudApiKey", out var key) && key.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(key.GetString()))
+                {
+                    cfg.CloudApiKey = key.GetString()!;
+                }
+                if (root.TryGetProperty("enableFloatingWidget", out var fw)) cfg.EnableFloatingWidget = fw.GetBoolean();
+                if (root.TryGetProperty("enableLoginGreeting", out var lg)) cfg.EnableLoginGreeting = lg.GetBoolean();
+                if (root.TryGetProperty("enableSoundChimes", out var sc)) cfg.EnableSoundChimes = sc.GetBoolean();
+
+                AIAssistantService.SaveConfig(cfg);
+
+                await SendJsonAsync(context.Response, 200, new { success = true, message = "AI configuration updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] AI Config update failed: {ex.Message}", "Error", "AI");
+                await SendApiErrorAsync(context.Response, 500, "AI_CONFIG_ERROR", ex.Message);
             }
         }
 

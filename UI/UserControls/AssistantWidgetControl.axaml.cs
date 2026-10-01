@@ -1,0 +1,399 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+using PinayPalBackupManager.Services;
+
+namespace PinayPalBackupManager.UI.UserControls
+{
+    public partial class AssistantWidgetControl : UserControl
+    {
+        private DispatcherTimer? _bubbleTimer;
+        private bool _isProcessing = false;
+
+        public AssistantWidgetControl()
+        {
+            InitializeComponent();
+            InitializeWidget();
+        }
+
+        private void InitializeWidget()
+        {
+            // Subscribe to AI events
+            AIAssistantService.OnNotificationBubble += OnSpeechBubbleTriggered;
+
+            // Wire trigger buttons
+            BtnAvatarTrigger.Click += (s, e) => ToggleDrawer();
+            BtnCloseDrawer.Click += (s, e) => CloseDrawer();
+            BtnCloseBubble.Click += (s, e) => HideSpeechBubble();
+            BtnOpenFromBubble.Click += (s, e) =>
+            {
+                HideSpeechBubble();
+                OpenDrawer();
+            };
+
+            BtnClearChat.Click += (s, e) => ClearChat();
+            BtnSend.Click += async (s, e) => await SendUserMessageAsync();
+
+            TxtInput.KeyDown += async (s, e) =>
+            {
+                if (e.Key == Key.Enter && !_isProcessing)
+                {
+                    e.Handled = true;
+                    await SendUserMessageAsync();
+                }
+            };
+
+            // Wire Quick Prompt Chips
+            ChipHealth.Click += async (s, e) => await SubmitPromptAsync("How is the system health?");
+            ChipDisk.Click += async (s, e) => await SubmitPromptAsync("How much disk space is left?");
+            ChipFtp.Click += async (s, e) => await SubmitPromptAsync("Run Website FTP backup");
+            ChipTunnel.Click += async (s, e) => await SubmitPromptAsync("Check Cloudflare and Tailscale tunnel status");
+            ChipEmail.Click += async (s, e) => await SubmitPromptAsync("Send test email alert");
+
+            UpdateProviderBadge();
+            AddInitialWelcomeMessage();
+        }
+
+        private void UpdateProviderBadge()
+        {
+            var provider = AIAssistantService.Config.Provider?.ToUpperInvariant() ?? "HYBRID";
+            TxtProviderBadge.Text = provider;
+        }
+
+        private void AddInitialWelcomeMessage()
+        {
+            AddAssistantBubble(
+                "Hello! I am your **PinayPal AI Assistant**.\n\n" +
+                "I monitor your backup daemons, server health, and storage in real time. " +
+                "I operate strictly behind a **Zero-Leak Sanitizer** so your credentials and database records are never exposed.\n\n" +
+                "How can I help you today?", null);
+        }
+
+        private void OnSpeechBubbleTriggered(string message)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (ChatDrawerBorder.IsVisible) return; // Don't show popup bubble if chat is already open
+
+                TxtBubbleContent.Text = message;
+                SpeechBubbleBorder.IsVisible = true;
+
+                _bubbleTimer?.Stop();
+                _bubbleTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(8)
+                };
+                _bubbleTimer.Tick += (s, e) =>
+                {
+                    _bubbleTimer.Stop();
+                    SpeechBubbleBorder.IsVisible = false;
+                };
+                _bubbleTimer.Start();
+            });
+        }
+
+        private void HideSpeechBubble()
+        {
+            _bubbleTimer?.Stop();
+            SpeechBubbleBorder.IsVisible = false;
+        }
+
+        public void OpenDrawer()
+        {
+            HideSpeechBubble();
+            ChatDrawerBorder.IsVisible = true;
+            UpdateProviderBadge();
+            MessagesScrollViewer.ScrollToEnd();
+            TxtInput.Focus();
+        }
+
+        public void CloseDrawer()
+        {
+            ChatDrawerBorder.IsVisible = false;
+        }
+
+        private void ToggleDrawer()
+        {
+            if (ChatDrawerBorder.IsVisible)
+            {
+                CloseDrawer();
+            }
+            else
+            {
+                OpenDrawer();
+            }
+        }
+
+        private void ClearChat()
+        {
+            AIAssistantService.ClearSessionHistory();
+            MessagesContainer.Children.Clear();
+            AddInitialWelcomeMessage();
+        }
+
+        private async Task SubmitPromptAsync(string prompt)
+        {
+            if (_isProcessing) return;
+            TxtInput.Text = prompt;
+            await SendUserMessageAsync();
+        }
+
+        private async Task SendUserMessageAsync()
+        {
+            var prompt = TxtInput.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(prompt) || _isProcessing) return;
+
+            TxtInput.Text = "";
+            _isProcessing = true;
+            BtnSend.IsEnabled = false;
+
+            // Render user bubble
+            AddUserBubble(prompt);
+
+            // Add typing indicator
+            var typingBubble = CreateTypingBubble();
+            MessagesContainer.Children.Add(typingBubble);
+            MessagesScrollViewer.ScrollToEnd();
+
+            try
+            {
+                var response = await AIAssistantService.ProcessUserMessageAsync(prompt);
+                MessagesContainer.Children.Remove(typingBubble);
+                AddAssistantBubble(response.Content, response.ProposedAction);
+            }
+            catch (Exception ex)
+            {
+                MessagesContainer.Children.Remove(typingBubble);
+                AddAssistantBubble($"⚠️ An error occurred while processing your request: {ex.Message}", null);
+            }
+            finally
+            {
+                _isProcessing = false;
+                BtnSend.IsEnabled = true;
+                MessagesScrollViewer.ScrollToEnd();
+            }
+        }
+
+        private void AddUserBubble(string text)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#1E293B")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#334155")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14, 14, 2, 14),
+                Padding = new Thickness(12, 9),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MaxWidth = 310,
+                Child = new TextBlock
+                {
+                    Text = text,
+                    Foreground = new SolidColorBrush(Color.Parse("#F8FAFC")),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 17
+                }
+            };
+
+            MessagesContainer.Children.Add(border);
+            MessagesScrollViewer.ScrollToEnd();
+        }
+
+        private Border CreateTypingBubble()
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#101726")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#1E293B")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14, 14, 14, 2),
+                Padding = new Thickness(12, 8),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 6,
+                    Children =
+                    {
+                        new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.Parse("#F59E0B")), VerticalAlignment = VerticalAlignment.Center },
+                        new TextBlock { Text = "Thinking...", Foreground = new SolidColorBrush(Color.Parse("#94A3B8")), FontSize = 11, VerticalAlignment = VerticalAlignment.Center }
+                    }
+                }
+            };
+        }
+
+        private void AddAssistantBubble(string text, AIProposedAction? action)
+        {
+            var container = new StackPanel { Spacing = 6, MaxWidth = 330, HorizontalAlignment = HorizontalAlignment.Left };
+
+            var textBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#101726")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#1E293B")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14, 14, 14, 2),
+                Padding = new Thickness(12, 10),
+                Child = new TextBlock
+                {
+                    Text = text,
+                    Foreground = new SolidColorBrush(Color.Parse("#E2E8F0")),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 17
+                }
+            };
+            container.Children.Add(textBorder);
+
+            // If an action is proposed, render interactive Action Proposal Card
+            if (action != null && !action.IsExecuted)
+            {
+                var actionCard = CreateActionCard(action);
+                container.Children.Add(actionCard);
+            }
+
+            MessagesContainer.Children.Add(container);
+            MessagesScrollViewer.ScrollToEnd();
+        }
+
+        private Border CreateActionCard(AIProposedAction action)
+        {
+            var card = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#080D1A")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(12, 10),
+                BoxShadow = new BoxShadows(new BoxShadow { Blur = 12, Color = Color.Parse("#F59E0B20") })
+            };
+
+            var stack = new StackPanel { Spacing = 8 };
+
+            // Header with badge
+            var headerGrid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("*, Auto")
+            };
+            var title = new TextBlock
+            {
+                Text = "⚡ " + action.Title,
+                FontWeight = FontWeight.Bold,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.Parse("#F59E0B")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(title, 0);
+
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#1E293B")),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(5, 1),
+                Child = new TextBlock
+                {
+                    Text = "REQUIRES CONFIRMATION",
+                    FontSize = 8,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = new SolidColorBrush(Color.Parse("#F59E0B"))
+                }
+            };
+            Grid.SetColumn(badge, 1);
+            headerGrid.Children.Add(title);
+            headerGrid.Children.Add(badge);
+            stack.Children.Add(headerGrid);
+
+            // Description
+            var desc = new TextBlock
+            {
+                Text = action.Description,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(desc);
+
+            // Action Buttons
+            var btnRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var statusText = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.Parse("#38BDF8")),
+                VerticalAlignment = VerticalAlignment.Center,
+                IsVisible = false
+            };
+
+            var btnApprove = new Button
+            {
+                Content = "Approve & Execute",
+                Background = new SolidColorBrush(Color.Parse("#10B981")),
+                Foreground = new SolidColorBrush(Color.Parse("#0A0E18")),
+                FontWeight = FontWeight.Bold,
+                FontSize = 11,
+                Padding = new Thickness(12, 6),
+                CornerRadius = new CornerRadius(6),
+                Cursor = new Cursor(StandardCursorType.Hand)
+            };
+
+            var btnCancel = new Button
+            {
+                Content = "Cancel",
+                Background = new SolidColorBrush(Color.Parse("#1E293B")),
+                Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+                FontSize = 11,
+                Padding = new Thickness(10, 6),
+                CornerRadius = new CornerRadius(6),
+                Cursor = new Cursor(StandardCursorType.Hand)
+            };
+
+            btnApprove.Click += async (s, e) =>
+            {
+                btnApprove.IsEnabled = false;
+                btnCancel.IsEnabled = false;
+                btnApprove.Content = "Executing...";
+
+                var (success, resultMsg) = await AIAssistantService.ExecuteActionAsync(action.ActionId, true);
+                btnApprove.IsVisible = false;
+                btnCancel.IsVisible = false;
+
+                statusText.Text = (success ? "✅ " : "❌ ") + resultMsg;
+                statusText.Foreground = new SolidColorBrush(success ? Color.Parse("#10B981") : Color.Parse("#F43F5E"));
+                statusText.IsVisible = true;
+            };
+
+            btnCancel.Click += async (s, e) =>
+            {
+                btnApprove.IsEnabled = false;
+                btnCancel.IsEnabled = false;
+
+                await AIAssistantService.ExecuteActionAsync(action.ActionId, false);
+                btnApprove.IsVisible = false;
+                btnCancel.IsVisible = false;
+
+                statusText.Text = "Cancelled by user.";
+                statusText.Foreground = new SolidColorBrush(Color.Parse("#94A3B8"));
+                statusText.IsVisible = true;
+            };
+
+            btnRow.Children.Add(statusText);
+            btnRow.Children.Add(btnCancel);
+            btnRow.Children.Add(btnApprove);
+            stack.Children.Add(btnRow);
+
+            card.Child = stack;
+            return card;
+        }
+    }
+}

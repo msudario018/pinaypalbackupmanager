@@ -38,6 +38,7 @@
 		A10029 /* ChangelogSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10030 /* ChangelogSheetView.swift */; };
 		A10030 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10031 /* SplashScreenView.swift */; };
 		A10031 /* AutomationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10032 /* AutomationsView.swift */; };
+		A10032 /* LiquidAIAssistantSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10033 /* LiquidAIAssistantSheet.swift */; };
 		A20001 /* BackupLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001 /* BackupLiveActivityWidget.swift */; };
 		A20002 /* BackupActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024 /* BackupActivityAttributes.swift */; };
 		A30001 /* PinayPalBackupWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B00002 /* PinayPalBackupWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -85,6 +86,7 @@
 		B10030 /* ChangelogSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogSheetView.swift; sourceTree = "<group>"; };
 		B10031 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		B10032 /* AutomationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationsView.swift; sourceTree = "<group>"; };
+		B10033 /* LiquidAIAssistantSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidAIAssistantSheet.swift; sourceTree = "<group>"; };
 		B00002 /* PinayPalBackupWidgets.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = PinayPalBackupWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20001 /* BackupLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupLiveActivityWidget.swift; sourceTree = "<group>"; };
 		B20002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 				B10030 /* ChangelogSheetView.swift */,
 				B10031 /* SplashScreenView.swift */,
 				B10032 /* AutomationsView.swift */,
+				B10033 /* LiquidAIAssistantSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -317,6 +320,7 @@
 				A10029 /* ChangelogSheetView.swift in Sources */,
 				A10030 /* SplashScreenView.swift in Sources */,
 				A10031 /* AutomationsView.swift in Sources */,
+				A10032 /* LiquidAIAssistantSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

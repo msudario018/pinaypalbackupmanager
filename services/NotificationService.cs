@@ -69,6 +69,12 @@ namespace PinayPalBackupManager.Services
             NotificationHistoryService.Add(title, message, type);
             OnToast?.Invoke(title, message, type);
             
+            // Post smart popup bubble on AI floating widget for key operational events
+            if (type.Equals("Success", StringComparison.OrdinalIgnoreCase) || type.Equals("Error", StringComparison.OrdinalIgnoreCase))
+            {
+                AIAssistantService.PostEventBubble(title, message, type.Equals("Error", StringComparison.OrdinalIgnoreCase));
+            }
+            
             // Show visual toast with tea-green color palette only if notifications are enabled
             if (AreNotificationsEnabled())
             {
@@ -461,22 +467,8 @@ namespace PinayPalBackupManager.Services
                 var mailMessage = new MailMessage
                 {
                     From = new MailAddress(_settings.EmailFrom, "PinayPal Backup Manager"),
-                    Subject = "✅ PinayPal Backup Manager - Test Notification",
-                    Body = $@"<html>
-<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
-    <div style=""max-width: 500px; margin: auto; background: #161a23; border: 1px solid #eab308; border-radius: 12px; padding: 24px;"">
-        <h2 style=""color: #eab308; margin-top: 0;"">PinayPal Backup Manager</h2>
-        <p>This is a test notification confirming your email alerting configuration is active and working!</p>
-        <div style=""background: #0f172a; padding: 12px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
-            <div><strong>Host:</strong> {_settings.SmtpHost}:{_settings.SmtpPort}</div>
-            <div><strong>Sender:</strong> {_settings.EmailFrom}</div>
-            <div><strong>Machine:</strong> {Environment.MachineName}</div>
-            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-        </div>
-        <p style=""color: #10b981; font-weight: bold;"">✅ All systems operational</p>
-    </div>
-</body>
-</html>",
+                    Subject = "✅ PinayPal Backup Manager - Verified Email Alerting",
+                    Body = EmailTemplateService.BuildTestEmail(_settings.SmtpHost, _settings.SmtpPort, _settings.EmailFrom),
                     IsBodyHtml = true
                 };
                 mailMessage.To.Add(recipient!);
@@ -501,26 +493,9 @@ namespace PinayPalBackupManager.Services
             _ = Task.Run(async () =>
             {
                 var icon = success ? "✅" : "🚨";
-                var statusColor = success ? "#10b981" : "#ef4444";
-                var statusText = success ? "COMPLETED SUCCESSFULLY" : "FAILED / ERROR";
-                var subject = $"{icon} PinayPal Backup {serviceName.ToUpper()}: {statusText}";
-
-                var htmlBody = $@"<html>
-<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
-    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid {statusColor}; border-radius: 12px; padding: 24px;"">
-        <h2 style=""color: #eab308; margin-top: 0;"">PinayPal Backup Manager</h2>
-        <div style=""font-size: 16px; font-weight: bold; color: {statusColor}; margin-bottom: 12px;"">
-            {icon} {serviceName.ToUpper()} Backup: {statusText}
-        </div>
-        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px; line-height: 1.6;"">
-            <div><strong>Service:</strong> {serviceName.ToUpper()}</div>
-            <div><strong>Host:</strong> {Environment.MachineName}</div>
-            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-            <div style=""margin-top: 8px;""><strong>Details:</strong><br><span style=""color: #cbd5e1;"">{WebUtility.HtmlEncode(details)}</span></div>
-        </div>
-    </div>
-</body>
-</html>";
+                var statusText = success ? "COMPLETED" : "FAILED";
+                var subject = $"{icon} PinayPal Backup [{serviceName.ToUpper()}]: {statusText}";
+                var htmlBody = EmailTemplateService.BuildBackupAlertEmail(serviceName, success, details);
 
                 foreach (var recipient in recipients)
                 {
@@ -538,19 +513,7 @@ namespace PinayPalBackupManager.Services
             _ = Task.Run(async () =>
             {
                 var subject = "⚠️ PinayPal Alert: Local / Cloudflare Disconnected";
-                var htmlBody = $@"<html>
-<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
-    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid #f97316; border-radius: 12px; padding: 24px;"">
-        <h2 style=""color: #f97316; margin-top: 0;"">⚠️ Disconnection Warning</h2>
-        <p>A network connectivity or tunnel disruption was detected on your host machine.</p>
-        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
-            <div><strong>Host:</strong> {Environment.MachineName}</div>
-            <div><strong>Reason:</strong> {WebUtility.HtmlEncode(reason)}</div>
-            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-        </div>
-    </div>
-</body>
-</html>";
+                var htmlBody = EmailTemplateService.BuildDisconnectAlertEmail(reason);
 
                 foreach (var recipient in recipients)
                 {
@@ -568,20 +531,7 @@ namespace PinayPalBackupManager.Services
             _ = Task.Run(async () =>
             {
                 var subject = $"⚠️ PinayPal Backup Outdated: {serviceName.ToUpper()}";
-                var htmlBody = $@"<html>
-<body style=""font-family: Arial, sans-serif; background-color: #0b0c10; color: #f1f5f9; padding: 20px;"">
-    <div style=""max-width: 540px; margin: auto; background: #161a23; border: 1px solid #eab308; border-radius: 12px; padding: 24px;"">
-        <h2 style=""color: #eab308; margin-top: 0;"">⚠️ Outdated Backup Alert</h2>
-        <p>The backup for <strong>{serviceName.ToUpper()}</strong> is outdated or local archive is behind remote.</p>
-        <div style=""background: #0f172a; padding: 14px; border-radius: 8px; margin: 16px 0; font-size: 13px;"">
-            <div><strong>Service:</strong> {serviceName.ToUpper()}</div>
-            <div><strong>Detail:</strong> {WebUtility.HtmlEncode(detail)}</div>
-            <div><strong>Host:</strong> {Environment.MachineName}</div>
-            <div><strong>Timestamp:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-        </div>
-    </div>
-</body>
-</html>";
+                var htmlBody = EmailTemplateService.BuildOutdatedAlertEmail(serviceName, detail);
 
                 foreach (var recipient in recipients)
                 {

@@ -11,6 +11,7 @@ public struct LiquidDashboardView: View {
     @State private var carouselIndex: Int = 0
     @State private var dismissedCompletionId: String? = nil
     @State private var isRecreatingTunnel: Bool = false
+    @State private var showAIAssistantSheet: Bool = false
 
     private enum ServiceDestination: Identifiable {
         case ftp, sql, mailchimp
@@ -113,6 +114,54 @@ public struct LiquidDashboardView: View {
                 await api.fetchAll()
             }
 
+            // Floating AI Assistant Orb Button (Bottom-Right)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        let haptic = UIImpactFeedbackGenerator(style: .medium)
+                        haptic.impactOccurred()
+                        showAIAssistantSheet = true
+                    }) {
+                        HStack(spacing: 7) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [LiquidTheme.gold, Color(hex: "3B82F6")],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 30, height: 30)
+
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("AI Assistant")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(Color(hex: "090D18F2"))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(LiquidTheme.gold.opacity(0.8), lineWidth: 1.5)
+                                )
+                                .shadow(color: LiquidTheme.gold.opacity(0.35), radius: 10, x: 0, y: 4)
+                        )
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 22)
+                }
+            }
+
             // In-App Toast
             if let toast = toastMessage {
                 VStack {
@@ -135,6 +184,9 @@ public struct LiquidDashboardView: View {
         }
         .sheet(item: $selectedService) { destination in
             ServiceDetailView(api: api, serviceKey: destination.key, title: destination.title, icon: destination.icon, accent: destination.accent)
+        }
+        .sheet(isPresented: $showAIAssistantSheet) {
+            LiquidAIAssistantSheet(api: api)
         }
     }
 
