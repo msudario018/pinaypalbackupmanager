@@ -14,6 +14,8 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class AssistantWidgetControl : UserControl
     {
+        public static Action? RequestOpenSettings { get; set; }
+
         private DispatcherTimer? _bubbleTimer;
         private bool _isProcessing = false;
 
@@ -27,6 +29,16 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             // Subscribe to AI events
             AIAssistantService.OnNotificationBubble += OnSpeechBubbleTriggered;
+            AIAssistantService.OnConfigChanged += config =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    IsVisible = config.EnableFloatingWidget;
+                    UpdateProviderBadge();
+                });
+            };
+
+            IsVisible = AIAssistantService.Config.EnableFloatingWidget;
 
             // Wire trigger buttons
             BtnAvatarTrigger.Click += (s, e) => ToggleDrawer();
@@ -50,15 +62,76 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             };
 
-            // Wire Quick Prompt Chips
+            // Wire Quick Settings toggle & actions
+            BtnToggleQuickSettings.Click += (s, e) =>
+            {
+                QuickSettingsBorder.IsVisible = !QuickSettingsBorder.IsVisible;
+            };
+
+            BtnOpenFullSettings.Click += (s, e) =>
+            {
+                CloseDrawer();
+                RequestOpenSettings?.Invoke();
+            };
+
+            BtnProvHybrid.Click += (s, e) => SetProvider("hybrid");
+            BtnProvOllama.Click += (s, e) => SetProvider("ollama");
+            BtnProvCloud.Click += (s, e) => SetProvider("cloud");
+            BtnProvHeuristics.Click += (s, e) => SetProvider("heuristics");
+
+            BtnQuickTestOllama.Click += async (s, e) =>
+            {
+                TxtQuickSettingsStatus.Text = "Testing Ollama connection...";
+                var (ok, msg) = await AIAssistantService.TestOllamaConnectionAsync();
+                TxtQuickSettingsStatus.Text = msg;
+            };
+
+            // Horizontal Chip scrolling (Mouse Wheel & Arrow Buttons)
+            BtnScrollChipsLeft.Click += (s, e) =>
+            {
+                var cur = ChipsScrollViewer.Offset.X;
+                ChipsScrollViewer.Offset = new Vector(Math.Max(0, cur - 140), 0);
+            };
+
+            BtnScrollChipsRight.Click += (s, e) =>
+            {
+                var cur = ChipsScrollViewer.Offset.X;
+                ChipsScrollViewer.Offset = new Vector(cur + 140, 0);
+            };
+
+            ChipsScrollViewer.PointerWheelChanged += (s, e) =>
+            {
+                var cur = ChipsScrollViewer.Offset.X;
+                var delta = e.Delta.Y * 40;
+                ChipsScrollViewer.Offset = new Vector(Math.Max(0, cur - delta), 0);
+                e.Handled = true;
+            };
+
+            // Wire all 12 Quick Prompt Chips
             ChipHealth.Click += async (s, e) => await SubmitPromptAsync("How is the system health?");
             ChipDisk.Click += async (s, e) => await SubmitPromptAsync("How much disk space is left?");
+            ChipHistory.Click += async (s, e) => await SubmitPromptAsync("Show recent backup history");
+            ChipRunAll.Click += async (s, e) => await SubmitPromptAsync("Run all backups now");
             ChipFtp.Click += async (s, e) => await SubmitPromptAsync("Run Website FTP backup");
+            ChipSql.Click += async (s, e) => await SubmitPromptAsync("Run SQL database backup");
+            ChipMailchimp.Click += async (s, e) => await SubmitPromptAsync("Run Mailchimp sync");
             ChipTunnel.Click += async (s, e) => await SubmitPromptAsync("Check Cloudflare and Tailscale tunnel status");
+            ChipTailscale.Click += async (s, e) => await SubmitPromptAsync("Check Tailscale mesh status");
             ChipEmail.Click += async (s, e) => await SubmitPromptAsync("Send test email alert");
+            ChipErrors.Click += async (s, e) => await SubmitPromptAsync("Inspect recent backup errors");
+            ChipEmergency.Click += async (s, e) => await SubmitPromptAsync("Emergency stop all tasks");
 
             UpdateProviderBadge();
             AddInitialWelcomeMessage();
+        }
+
+        private void SetProvider(string provider)
+        {
+            var cfg = AIAssistantService.Config;
+            cfg.Provider = provider;
+            AIAssistantService.SaveConfig(cfg);
+            UpdateProviderBadge();
+            TxtQuickSettingsStatus.Text = $"Active provider set to: {provider.ToUpperInvariant()}";
         }
 
         private void UpdateProviderBadge()

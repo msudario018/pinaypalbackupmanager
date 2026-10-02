@@ -114,6 +114,93 @@
                 </StackPanel>
             </Border>
 
+            <!-- AI Assistant & Automation Engine -->
+            <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Spacing="3">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
+                                          Width="16" Height="16" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
+                                <TextBlock Text="AI ASSISTANT &amp; AUTOMATION ENGINE" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" FontSize="13" VerticalAlignment="Center"/>
+                                <Border Background="#10B98120" BorderBrush="#10B981" BorderThickness="1" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                    <TextBlock Text="ZERO-LEAK SHIELD ACTIVE" FontSize="8.5" FontWeight="Bold" Foreground="#10B981"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Configure local Ollama, cloud LLMs, proactive login greetings, and floating widget controls." Foreground="{DynamicResource AppMuted}" FontSize="11"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Master Toggles -->
+                    <CheckBox Name="ChkAiFloatingWidget" Content="Show Floating AI Assistant Avatar &amp; Chat Drawer" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Name="ChkAiLoginGreeting" Content="Enable Proactive Voice &amp; Speech Bubble Greetings on Login" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Name="ChkAiSoundChimes" Content="Play Subtle Audio Chimes on AI Responses &amp; Action Proposals" Foreground="{DynamicResource AppText}"/>
+
+                    <!-- Provider Selection -->
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="AI Intelligence Provider" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Select inference engine (Hybrid switches between Ollama, Cloud, and Offline automatically)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" Name="CmbAiProvider" Width="220" SelectedIndex="0" VerticalAlignment="Center">
+                            <ComboBoxItem Content="Hybrid (Ollama + Cloud + Heuristic)"/>
+                            <ComboBoxItem Content="Local Ollama (100% Offline &amp; Private)"/>
+                            <ComboBoxItem Content="Cloud LLM (OpenAI / Gemini / Claude)"/>
+                            <ComboBoxItem Content="Smart Offline Diagnostics (Zero Setup)"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- Ollama Configuration Section -->
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,4,0,0">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="LOCAL OLLAMA INFERENCE" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
+                                <Button Name="BtnTestOllamaConnection" Content="Test Ollama Connection" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="2*, *">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                    <TextBlock Text="Ollama API Endpoint" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtOllamaEndpoint" Watermark="http://127.0.0.1:11434" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Model Name" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtOllamaModel" Watermark="llama3.2:latest" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Name="TxtOllamaStatus" Text="Ollama status: Not checked" FontSize="10" Foreground="{DynamicResource AppMuted}" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Cloud LLM Configuration Section -->
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="CLOUD LLM INFERENCE (OPTIONAL)" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="*, *">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                    <TextBlock Text="API Endpoint URL" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtCloudEndpoint" Watermark="https://api.openai.com/v1" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Cloud Model Name" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtCloudModel" Watermark="gpt-4o-mini" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Cloud API Key" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                <TextBox Name="TxtCloudApiKey" PasswordChar="*" Watermark="sk-... (Sanitized &amp; encrypted at rest)" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Action Row -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                        <Button Name="BtnSaveAiSettings" Content="Save AI Configuration" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnResetAiHistory" Content="Reset Chat History" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
+                    <TextBlock Name="TxtAiStatusMessage" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- Web Dashboard & Remote Access -->
             <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="12">

@@ -13,18 +13,21 @@
             <!-- 1. Proactive Speech Bubble Popup -->
             <Border Name="SpeechBubbleBorder"
                     IsVisible="False"
-                    Width="320"
-                    Background="#101726F5"
+                    Width="330"
+                    Background="#0D1526FA"
                     BorderBrush="#F59E0B"
                     BorderThickness="1"
                     CornerRadius="16"
                     Padding="14,12"
-                    BoxShadow="0 8 28 #00000060, 0 2 8 #F59E0B20">
+                    BoxShadow="0 8 32 #00000080, 0 2 12 #F59E0B30">
                 <Grid RowDefinitions="Auto, Auto, Auto">
                     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,6">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Ellipse Width="7" Height="7" Fill="#10B981"/>
+                            <!-- New Twin-Sparkle AI Icon -->
+                            <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
+                                      Width="13" Height="13" Foreground="#F59E0B" VerticalAlignment="Center"/>
                             <TextBlock Text="PINAYPAL AI" FontSize="10" FontWeight="Bold" Foreground="#F59E0B" LetterSpacing="1"/>
+                            <Ellipse Width="6" Height="6" Fill="#10B981" VerticalAlignment="Center" Margin="2,0,0,0"/>
                         </StackPanel>
                         <Button Grid.Column="1" Name="BtnCloseBubble"
                                 Background="Transparent" BorderThickness="0" Padding="4,2" Cursor="Hand">
@@ -50,20 +53,26 @@
             <!-- 2. Expandable Conversational Chat Drawer -->
             <Border Name="ChatDrawerBorder"
                     IsVisible="False"
-                    Width="390" Height="520"
-                    Background="#090D16FA"
-                    BorderBrush="#334155"
+                    Width="410" Height="540"
+                    Background="#070C18FA"
+                    BorderBrush="#2A3850"
                     BorderThickness="1"
                     CornerRadius="18"
-                    BoxShadow="0 16 48 #00000090, 0 4 16 #0284C720">
-                <Grid RowDefinitions="Auto, *, Auto, Auto">
+                    BoxShadow="0 20 60 #000000A0, 0 4 20 #38BDF825">
+                <Grid RowDefinitions="Auto, Auto, *, Auto, Auto">
                     
                     <!-- Drawer Header -->
-                    <Border Grid.Row="0" Background="#0F172AF0" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="14,12" CornerRadius="18,18,0,0">
-                        <Grid ColumnDefinitions="Auto, *, Auto, Auto">
-                            <Border Width="34" Height="34" CornerRadius="10" Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" Margin="0,0,10,0">
-                                <PathIcon Data="M12,2L14.5,8.5L21,9L16,14L17.5,21L12,17.5L6.5,21L8,14L3,9L9.5,8.5L12,2Z" Width="16" Height="16" Foreground="#F59E0B" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <Border Grid.Row="0" Background="#0C1527F0" BorderBrush="#1C283F" BorderThickness="0,0,0,1" Padding="14,12" CornerRadius="18,18,0,0">
+                        <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+                            <!-- Overhauled Luxury AI Squircle Avatar -->
+                            <Border Width="36" Height="36" CornerRadius="11" Background="#111B30" BorderBrush="#F59E0B" BorderThickness="1.5" Margin="0,0,10,0"
+                                    BoxShadow="0 2 10 #F59E0B25">
+                                <Grid>
+                                    <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
+                                              Width="18" Height="18" Foreground="#F59E0B" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Grid>
                             </Border>
+                            
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="PinayPal AI Assistant" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC"/>
@@ -71,45 +80,103 @@
                                         <TextBlock Name="TxtProviderBadge" Text="HYBRID" FontSize="8" FontWeight="Bold" Foreground="#38BDF8"/>
                                     </Border>
                                 </StackPanel>
-                                <TextBlock Text="Guarded &amp; Zero-Leak Sanitized" FontSize="10" Foreground="#94A3B8"/>
+                                <TextBlock Text="Guarded &amp; Zero-Leak Sanitized • Real-Time Daemon Monitor" FontSize="9.5" Foreground="#94A3B8"/>
                             </StackPanel>
-                            <Button Grid.Column="2" Name="BtnClearChat" ToolTip.Tip="Clear conversation"
-                                    Background="Transparent" BorderThickness="0" Padding="6" Margin="0,0,4,0" Cursor="Hand">
-                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="14" Height="14" Foreground="#64748B"/>
+
+                            <!-- Settings Button -->
+                            <Button Grid.Column="2" Name="BtnToggleQuickSettings" ToolTip.Tip="AI Engine &amp; Provider Settings"
+                                    Background="Transparent" BorderThickness="0" Padding="6" Margin="0,0,2,0" Cursor="Hand">
+                                <PathIcon Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.65 15.48,5.32 14.87,5.07L14.49,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.51,2.42L9.13,5.07C8.52,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.52,18.68 9.13,18.93L9.51,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.49,21.58L14.87,18.93C15.48,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"
+                                          Width="14" Height="14" Foreground="#94A3B8"/>
                             </Button>
-                            <Button Grid.Column="3" Name="BtnCloseDrawer" ToolTip.Tip="Close chat"
+
+                            <!-- Clear Chat Button -->
+                            <Button Grid.Column="3" Name="BtnClearChat" ToolTip.Tip="Clear conversation history"
+                                    Background="Transparent" BorderThickness="0" Padding="6" Margin="0,0,2,0" Cursor="Hand">
+                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="14" Height="14" Foreground="#94A3B8"/>
+                            </Button>
+
+                            <!-- Close Drawer Button -->
+                            <Button Grid.Column="4" Name="BtnCloseDrawer" ToolTip.Tip="Minimize assistant drawer"
                                     Background="Transparent" BorderThickness="0" Padding="6" Cursor="Hand">
                                 <TextBlock Text="✕" FontSize="13" Foreground="#94A3B8" FontWeight="Bold"/>
                             </Button>
                         </Grid>
                     </Border>
 
+                    <!-- In-Drawer Quick Settings Dropdown Panel -->
+                    <Border Grid.Row="1" Name="QuickSettingsBorder" IsVisible="False"
+                            Background="#0B1322" BorderBrush="#1E2A3F" BorderThickness="0,0,0,1" Padding="14,10">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="AI INFERENCE PROVIDER" FontSize="10" FontWeight="Bold" Foreground="#38BDF8" LetterSpacing="0.5"/>
+                                <Button Name="BtnOpenFullSettings" Content="Full Settings →" Background="Transparent" Foreground="#F59E0B"
+                                        BorderThickness="0" Padding="0" FontSize="10" Cursor="Hand" FontWeight="SemiBold"/>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button Classes="ProviderChip" Name="BtnProvHybrid" Content="Hybrid"/>
+                                <Button Classes="ProviderChip" Name="BtnProvOllama" Content="Ollama (Local)"/>
+                                <Button Classes="ProviderChip" Name="BtnProvCloud" Content="Cloud LLM"/>
+                                <Button Classes="ProviderChip" Name="BtnProvHeuristics" Content="Offline"/>
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,2,0,0">
+                                <TextBlock Name="TxtQuickSettingsStatus" Text="Provider: Hybrid • Auto-fallback active" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Name="BtnQuickTestOllama" Content="Test Ollama" Background="#1E293B" Foreground="#38BDF8"
+                                        BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="8,3" FontSize="9.5" Cursor="Hand"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Messages ScrollViewer -->
-                    <ScrollViewer Name="MessagesScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10">
+                    <ScrollViewer Name="MessagesScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10">
                         <StackPanel Name="MessagesContainer" Spacing="10"/>
                     </ScrollViewer>
 
-                    <!-- Quick Prompt Chips Row -->
-                    <Border Grid.Row="2" Background="#0C1322" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="10,8">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Button Classes="ChipBtn" Name="ChipHealth" Content="Health Status"/>
-                                <Button Classes="ChipBtn" Name="ChipDisk" Content="Check Disk Space"/>
-                                <Button Classes="ChipBtn" Name="ChipFtp" Content="Run FTP Backup"/>
-                                <Button Classes="ChipBtn" Name="ChipTunnel" Content="Tunnel Status"/>
-                                <Button Classes="ChipBtn" Name="ChipEmail" Content="Test Email"/>
-                            </StackPanel>
-                        </ScrollViewer>
+                    <!-- Overhauled Quick Prompt Chips Row with Horizontal Scroll & Left/Right Arrows -->
+                    <Border Grid.Row="3" Background="#0A111F" BorderBrush="#1C273C" BorderThickness="0,1,0,0" Padding="8,7">
+                        <Grid ColumnDefinitions="Auto, *, Auto">
+                            <!-- Left Scroll Arrow -->
+                            <Button Grid.Column="0" Name="BtnScrollChipsLeft" Classes="ScrollNavBtn" ToolTip.Tip="Scroll options left">
+                                <TextBlock Text="‹" FontSize="16" FontWeight="Bold" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <!-- Horizontally Scrollable Chips Area -->
+                            <ScrollViewer Grid.Column="1" Name="ChipsScrollViewer"
+                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                          Margin="6,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="ChipBtn" Name="ChipHealth" Content="🩺 Health Status"/>
+                                    <Button Classes="ChipBtn" Name="ChipDisk" Content="💾 Disk Space"/>
+                                    <Button Classes="ChipBtn" Name="ChipHistory" Content="📋 Recent Backups"/>
+                                    <Button Classes="ChipBtn" Name="ChipRunAll" Content="⚡ Run All Backups"/>
+                                    <Button Classes="ChipBtn" Name="ChipFtp" Content="🌐 FTP Website Sync"/>
+                                    <Button Classes="ChipBtn" Name="ChipSql" Content="🗄️ SQL Database Dump"/>
+                                    <Button Classes="ChipBtn" Name="ChipMailchimp" Content="✉️ Mailchimp Sync"/>
+                                    <Button Classes="ChipBtn" Name="ChipTunnel" Content="☁️ Cloudflare Tunnel"/>
+                                    <Button Classes="ChipBtn" Name="ChipTailscale" Content="🛡️ Tailscale Mesh"/>
+                                    <Button Classes="ChipBtn" Name="ChipEmail" Content="📧 Test Email Alert"/>
+                                    <Button Classes="ChipBtn" Name="ChipErrors" Content="🔍 Inspect Errors"/>
+                                    <Button Classes="ChipBtn" Name="ChipEmergency" Content="🛑 Emergency Halt"/>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <!-- Right Scroll Arrow -->
+                            <Button Grid.Column="2" Name="BtnScrollChipsRight" Classes="ScrollNavBtn" ToolTip.Tip="Scroll options right">
+                                <TextBlock Text="›" FontSize="16" FontWeight="Bold" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+                        </Grid>
                     </Border>
 
                     <!-- Input Box -->
-                    <Border Grid.Row="3" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="10,10" CornerRadius="0,0,18,18">
+                    <Border Grid.Row="4" Background="#0C1424" BorderBrush="#1C283F" BorderThickness="0,1,0,0" Padding="10,10" CornerRadius="0,0,18,18">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBox Name="TxtInput"
                                      Watermark="Ask anything or request an action..."
-                                     Background="#1E293B"
+                                     Background="#141E33"
                                      Foreground="#F8FAFC"
-                                     BorderBrush="#334155"
+                                     BorderBrush="#253550"
                                      BorderThickness="1"
                                      CornerRadius="10"
                                      Padding="12,9"
@@ -126,33 +193,38 @@
                 </Grid>
             </Border>
 
-            <!-- 3. Floating Avatar Pill Button -->
+            <!-- 3. Overhauled Floating Avatar Pill Button (Bespoke Cybernetic AI Orb) -->
             <Button Name="BtnAvatarTrigger"
                     Background="Transparent"
                     BorderThickness="0"
                     Padding="0"
                     Cursor="Hand"
                     HorizontalAlignment="Right"
-                    ToolTip.Tip="PinayPal AI Assistant">
-                <Border Width="56" Height="56"
-                        CornerRadius="28"
-                        Background="#0F172AF0"
+                    ToolTip.Tip="PinayPal AI Assistant (Click to open chat)">
+                <Border Width="58" Height="58"
+                        CornerRadius="29"
+                        Background="#0D1526"
                         BorderBrush="#F59E0B"
                         BorderThickness="1.5"
-                        BoxShadow="0 8 24 #00000060, 0 0 16 #F59E0B30">
+                        BoxShadow="0 8 28 #00000090, 0 0 16 #F59E0B40, 0 0 30 #38BDF820">
                     <Grid>
-                        <!-- Sparkle Bot Icon -->
-                        <PathIcon Data="M12,2L14.5,8.5L21,9L16,14L17.5,21L12,17.5L6.5,21L8,14L3,9L9.5,8.5L12,2Z"
+                        <!-- Concentric Cyber Orbit Ring -->
+                        <Ellipse Width="46" Height="46" Stroke="#38BDF830" StrokeThickness="1"/>
+
+                        <!-- Overhauled Multi-Point AI Sparkle Glyph -->
+                        <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
                                   Width="22" Height="22"
                                   Foreground="#F59E0B"
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"/>
-                        <!-- Operational Pulse Dot -->
-                        <Ellipse Name="DotPulse" Width="9" Height="9"
-                                 Fill="#10B981"
-                                 Stroke="#0F172A" StrokeThickness="1.5"
-                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                 Margin="0,0,10,10"/>
+
+                        <!-- Operational Pulse Dot with Glowing Shadow -->
+                        <Border Width="11" Height="11" CornerRadius="5.5"
+                                Background="#10B981"
+                                BorderBrush="#0B111F" BorderThickness="2"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Margin="0,0,10,10"
+                                BoxShadow="0 0 8 #10B98180"/>
                     </Grid>
                 </Border>
             </Button>
@@ -161,10 +233,11 @@
     </Grid>
 
     <UserControl.Styles>
+        <!-- Chip Style -->
         <Style Selector="Button.ChipBtn">
-            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Background" Value="#141E33"/>
             <Setter Property="Foreground" Value="#CBD5E1"/>
-            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderBrush" Value="#253550"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="10,5"/>
@@ -173,9 +246,43 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.ChipBtn:pointerover">
-            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Background" Value="#223354"/>
             <Setter Property="Foreground" Value="#F8FAFC"/>
             <Setter Property="BorderBrush" Value="#F59E0B"/>
+        </Style>
+
+        <!-- Scroll Nav Button Style -->
+        <Style Selector="Button.ScrollNavBtn">
+            <Setter Property="Background" Value="#141E33"/>
+            <Setter Property="BorderBrush" Value="#253550"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ScrollNavBtn:pointerover">
+            <Setter Property="Background" Value="#223354"/>
+            <Setter Property="BorderBrush" Value="#38BDF8"/>
+        </Style>
+
+        <!-- Provider Chip Style in Quick Settings -->
+        <Style Selector="Button.ProviderChip">
+            <Setter Property="Background" Value="#141E33"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="BorderBrush" Value="#253550"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="9.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ProviderChip:pointerover">
+            <Setter Property="Background" Value="#223354"/>
+            <Setter Property="Foreground" Value="#38BDF8"/>
+            <Setter Property="BorderBrush" Value="#38BDF8"/>
         </Style>
     </UserControl.Styles>
 </UserControl>

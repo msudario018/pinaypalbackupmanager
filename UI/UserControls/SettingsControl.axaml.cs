@@ -352,6 +352,132 @@ namespace PinayPalBackupManager.UI.UserControls
             }
 
             InitializeEmailAlerts();
+            InitializeAiAssistantSettings();
+        }
+
+        public void RefreshAiSettings()
+        {
+            var chkWidget = this.FindControl<CheckBox>("ChkAiFloatingWidget");
+            var chkGreeting = this.FindControl<CheckBox>("ChkAiLoginGreeting");
+            var chkChimes = this.FindControl<CheckBox>("ChkAiSoundChimes");
+            var cmbProvider = this.FindControl<ComboBox>("CmbAiProvider");
+            var txtOllamaEp = this.FindControl<TextBox>("TxtOllamaEndpoint");
+            var txtOllamaModel = this.FindControl<TextBox>("TxtOllamaModel");
+            var txtCloudEp = this.FindControl<TextBox>("TxtCloudEndpoint");
+            var txtCloudModel = this.FindControl<TextBox>("TxtCloudModel");
+            var txtCloudKey = this.FindControl<TextBox>("TxtCloudApiKey");
+
+            AIAssistantService.LoadConfig();
+            var cfg = AIAssistantService.Config;
+
+            if (chkWidget != null) chkWidget.IsChecked = cfg.EnableFloatingWidget;
+            if (chkGreeting != null) chkGreeting.IsChecked = cfg.EnableLoginGreeting;
+            if (chkChimes != null) chkChimes.IsChecked = cfg.EnableSoundChimes;
+
+            if (cmbProvider != null)
+            {
+                var p = cfg.Provider?.ToLowerInvariant() ?? "hybrid";
+                cmbProvider.SelectedIndex = p switch
+                {
+                    "ollama" => 1,
+                    "cloud" => 2,
+                    "heuristics" => 3,
+                    _ => 0
+                };
+            }
+
+            if (txtOllamaEp != null) txtOllamaEp.Text = cfg.OllamaEndpoint;
+            if (txtOllamaModel != null) txtOllamaModel.Text = cfg.OllamaModel;
+            if (txtCloudEp != null) txtCloudEp.Text = cfg.CloudEndpoint;
+            if (txtCloudModel != null) txtCloudModel.Text = cfg.CloudModel;
+            if (txtCloudKey != null) txtCloudKey.Text = cfg.CloudApiKey;
+        }
+
+        private void InitializeAiAssistantSettings()
+        {
+            var chkWidget = this.FindControl<CheckBox>("ChkAiFloatingWidget");
+            var chkGreeting = this.FindControl<CheckBox>("ChkAiLoginGreeting");
+            var chkChimes = this.FindControl<CheckBox>("ChkAiSoundChimes");
+            var cmbProvider = this.FindControl<ComboBox>("CmbAiProvider");
+            var btnTestOllama = this.FindControl<Button>("BtnTestOllamaConnection");
+            var txtOllamaEp = this.FindControl<TextBox>("TxtOllamaEndpoint");
+            var txtOllamaModel = this.FindControl<TextBox>("TxtOllamaModel");
+            var txtOllamaStatus = this.FindControl<TextBlock>("TxtOllamaStatus");
+            var txtCloudEp = this.FindControl<TextBox>("TxtCloudEndpoint");
+            var txtCloudModel = this.FindControl<TextBox>("TxtCloudModel");
+            var txtCloudKey = this.FindControl<TextBox>("TxtCloudApiKey");
+            var btnSaveAi = this.FindControl<Button>("BtnSaveAiSettings");
+            var btnResetHistory = this.FindControl<Button>("BtnResetAiHistory");
+            var txtAiStatus = this.FindControl<TextBlock>("TxtAiStatusMessage");
+
+            RefreshAiSettings();
+
+            if (btnTestOllama != null && txtOllamaStatus != null)
+            {
+                btnTestOllama.Click += async (_, _) =>
+                {
+                    txtOllamaStatus.Text = "Testing Ollama connection...";
+                    var ep = txtOllamaEp?.Text?.Trim();
+                    var model = txtOllamaModel?.Text?.Trim();
+                    var (ok, msg) = await AIAssistantService.TestOllamaConnectionAsync(ep, model);
+                    txtOllamaStatus.Text = msg;
+                };
+            }
+
+            if (btnResetHistory != null && txtAiStatus != null)
+            {
+                btnResetHistory.Click += (_, _) =>
+                {
+                    AIAssistantService.ClearSessionHistory();
+                    txtAiStatus.Text = "AI conversation history cleared.";
+                    NotificationService.ShowBackupToast("AI Assistant", "Session history reset.", "Info");
+                };
+            }
+
+            if (btnSaveAi != null && txtAiStatus != null)
+            {
+                btnSaveAi.Click += (_, _) =>
+                {
+                    try
+                    {
+                        var cfg = AIAssistantService.Config;
+                        cfg.EnableFloatingWidget = chkWidget?.IsChecked == true;
+                        cfg.EnableLoginGreeting = chkGreeting?.IsChecked == true;
+                        cfg.EnableSoundChimes = chkChimes?.IsChecked == true;
+
+                        cfg.Provider = cmbProvider?.SelectedIndex switch
+                        {
+                            1 => "ollama",
+                            2 => "cloud",
+                            3 => "heuristics",
+                            _ => "hybrid"
+                        };
+
+                        if (txtOllamaEp != null && !string.IsNullOrWhiteSpace(txtOllamaEp.Text))
+                            cfg.OllamaEndpoint = txtOllamaEp.Text.Trim();
+
+                        if (txtOllamaModel != null && !string.IsNullOrWhiteSpace(txtOllamaModel.Text))
+                            cfg.OllamaModel = txtOllamaModel.Text.Trim();
+
+                        if (txtCloudEp != null && !string.IsNullOrWhiteSpace(txtCloudEp.Text))
+                            cfg.CloudEndpoint = txtCloudEp.Text.Trim();
+
+                        if (txtCloudModel != null && !string.IsNullOrWhiteSpace(txtCloudModel.Text))
+                            cfg.CloudModel = txtCloudModel.Text.Trim();
+
+                        if (txtCloudKey != null)
+                            cfg.CloudApiKey = txtCloudKey.Text?.Trim() ?? "";
+
+                        AIAssistantService.SaveConfig(cfg);
+                        txtAiStatus.Text = $"AI settings saved at {DateTime.Now:HH:mm:ss} (Provider: {cfg.Provider.ToUpperInvariant()})";
+                        NotificationService.ShowBackupToast("AI Settings Saved", $"Inference provider: {cfg.Provider.ToUpperInvariant()}", "Success");
+                    }
+                    catch (Exception ex)
+                    {
+                        txtAiStatus.Text = $"Save error: {ex.Message}";
+                    }
+                };
+            }
         }
 
         public void RefreshEmailAlerts()

@@ -67,6 +67,9 @@ namespace PinayPalBackupManager.Services
 
         public static event Action<string>? OnNotificationBubble;
         public static event Action<ChatMessage>? OnMessageReceived;
+        public static event Action<AIAssistantConfig>? OnConfigChanged;
+        public static Func<bool>? IsAnyBackupRunning { get; set; }
+        public static Func<string?>? GetActiveBackupDetails { get; set; }
 
         static AIAssistantService()
         {
@@ -98,11 +101,51 @@ namespace PinayPalBackupManager.Services
                 _config = config;
                 var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(ConfigFilePath, json);
+                OnConfigChanged?.Invoke(_config);
                 LogService.WriteSystemLog("[AIAssistant] Configuration updated successfully", "Information", "AI");
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[AIAssistant] Error saving config: {ex.Message}", "Error", "AI");
+            }
+        }
+
+        public static async Task<(bool ok, string message)> TestOllamaConnectionAsync(string? endpoint = null, string? model = null)
+        {
+            var ep = string.IsNullOrWhiteSpace(endpoint) ? _config.OllamaEndpoint : endpoint.Trim().TrimEnd('/');
+            var targetModel = string.IsNullOrWhiteSpace(model) ? _config.OllamaModel : model.Trim();
+
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(3000);
+                var resp = await _httpClient.GetAsync($"{ep}/api/tags", cts.Token);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return (false, $"Ollama HTTP Error {(int)resp.StatusCode}: {resp.ReasonPhrase}");
+                }
+
+                var jsonStr = await resp.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(jsonStr);
+                if (doc.RootElement.TryGetProperty("models", out var modelsArr))
+                {
+                    var modelNames = new List<string>();
+                    foreach (var m in modelsArr.EnumerateArray())
+                    {
+                        if (m.TryGetProperty("name", out var n)) modelNames.Add(n.GetString() ?? "");
+                    }
+
+                    if (string.IsNullOrEmpty(targetModel) || modelNames.Any(m => m.Equals(targetModel, StringComparison.OrdinalIgnoreCase) || m.StartsWith(targetModel, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return (true, $"🟢 Online! Model '{targetModel}' is ready ({modelNames.Count} models available).");
+                    }
+                    return (true, $"🟡 Reachable, but model '{targetModel}' is not yet pulled. Found: {string.Join(", ", modelNames.Take(2))}");
+                }
+
+                return (true, "🟢 Ollama server is online and operational!");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"🔴 Could not connect to {ep}: {ex.Message}");
             }
         }
 
@@ -406,6 +449,34 @@ namespace PinayPalBackupManager.Services
                 };
             }
 
+            // Clear History
+            if (lower.Contains("clear history") || lower.Contains("delete history") || lower.Contains("reset history") || lower.Contains("wipe history"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "clear_history",
+                    Title = "Clear Local Backup History",
+                    Description = "Purges all recorded historical log entries from the database while preserving raw backup files."
+                };
+            }
+
+            // Retry failed backups
+            if (lower.Contains("retry") || lower.Contains("try again") || lower.Contains("retry failed"))
+            {
+                var recentHistory = BackupHistoryService.GetHistory().Take(5).ToList();
+                var lastFailed = recentHistory.FirstOrDefault(h => h.Status != "Success");
+                var serviceToRetry = lastFailed?.Service.ToLowerInvariant() ?? "all";
+                var serviceName = serviceToRetry == "all" ? "All Services" : serviceToRetry.ToUpper();
+
+                return new AIProposedAction
+                {
+                    ActionType = "run_backup",
+                    Title = $"Retry {serviceName} Backup",
+                    Description = $"Dispatches a retry cycle for {serviceName} to recover from the previous disruption.",
+                    Parameters = new Dictionary<string, string> { { "service", serviceToRetry } }
+                };
+            }
+
             return null;
         }
 
@@ -535,6 +606,58 @@ Assistant:";
                 return $"Hello! I'm your **PinayPal AI Assistant**. I'm monitoring host **{Environment.MachineName}** in real time.\n\nAll systems are operational. You can ask me to check disk space, inspect backup errors, trigger backups, or test remote connections.";
             }
 
+            // Backup History & Recent Records
+            if (lower.Contains("history") || lower.Contains("recent backup") || lower.Contains("last backup") || lower.Contains("when was the last") || lower.Contains("show backups"))
+            {
+                var history = BackupHistoryService.GetHistory().Take(5).ToList();
+                if (!history.Any())
+                {
+                    return "📋 **No backup records found yet.**\n\nWould you like me to trigger an initial backup for **Website FTP**, **SQL Database**, or **Mailchimp**?";
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("### 📋 Recent Backup Records");
+                foreach (var h in history)
+                {
+                    var isSuccess = h.Status.Equals("Success", StringComparison.OrdinalIgnoreCase);
+                    var icon = isSuccess ? "✅" : "⚠️";
+                    var sizeStr = h.SizeBytes > 0 ? (h.SizeBytes > 1024 * 1024 * 1024 ? $"{h.SizeBytes / (1024.0 * 1024 * 1024):F1} GB" : $"{h.SizeBytes / (1024.0 * 1024):F1} MB") : "--";
+                    var durStr = h.Duration.TotalSeconds > 0 ? $"{h.Duration.TotalSeconds:F1}s" : "--";
+                    var err = !string.IsNullOrEmpty(h.ErrorMessage) ? $" (`{h.ErrorMessage}`)" : "";
+                    sb.AppendLine($"- {icon} **{h.Service.ToUpper()}** — {h.Timestamp:MMM dd, HH:mm} | Status: **{h.Status}** | Size: `{sizeStr}` | Duration: `{durStr}`{err}");
+                }
+                return sb.ToString();
+            }
+
+            // Active Backup & Queue Status
+            if (lower.Contains("active") || lower.Contains("running") || lower.Contains("progress") || lower.Contains("queue") || lower.Contains("current backup"))
+            {
+                var isRunning = IsAnyBackupRunning?.Invoke() ?? false;
+                if (isRunning)
+                {
+                    var details = GetActiveBackupDetails?.Invoke() ?? "Processing backup payload...";
+                    return $"⚡ **Backup In Progress!**\n- **Active Services:** {details}\n- Automated watchdogs and safe transaction barriers are currently locking file pointers.";
+                }
+                return "🟢 **Idle & Ready.** No backup operations are currently running. All automated schedulers and watchdogs are actively guarding the system.";
+            }
+
+            // Network & Latency Diagnostics
+            if (lower.Contains("network") || lower.Contains("ping") || lower.Contains("latency") || lower.Contains("ip") || lower.Contains("connection"))
+            {
+                var cfUrl = CloudflareTunnelService.ActiveUrl ?? "Inactive";
+                var tsUrl = TailscaleNetworkService.GetTailscaleUrl();
+                var tsDisplay = string.IsNullOrEmpty(tsUrl) ? "Inactive" : tsUrl;
+                var localIps = FileDownloadService.GetAllLocalIPv4Addresses();
+                var lanIp = localIps.Count > 0 ? string.Join(", ", localIps) : "127.0.0.1";
+                var onlineStr = NetworkConnectivityService.IsOnline ? "🟢 Online" : "🔴 Offline";
+                return $@"### 🌐 Network & Failover Routing
+- **Internet Connectivity:** {onlineStr}
+- **Local LAN IP:** `{lanIp}` (Port 8080)
+- **Cloudflare Tunnel:** {(CloudflareTunnelService.IsRunning ? "🟢 Online" : "🔴 Offline")} (`{cfUrl}`)
+- **Tailscale Mesh IP:** `{tsDisplay}`
+- **Security:** Guarded behind TLS & Zero-Leak Sanitizer";
+            }
+
             // Health & System Specs
             if (lower.Contains("health") || lower.Contains("specs") || lower.Contains("status") || lower.Contains("cpu") || lower.Contains("ram"))
             {
@@ -570,7 +693,7 @@ Assistant:";
             }
 
             // Errors & Troubleshooting
-            if (lower.Contains("error") || lower.Contains("fail") || lower.Contains("why") || lower.Contains("logs"))
+            if (lower.Contains("error") || lower.Contains("fail") || lower.Contains("why") || lower.Contains("logs") || lower.Contains("troubleshoot"))
             {
                 var recentHistory = BackupHistoryService.GetHistory().Take(5).ToList();
                 var lastFailed = recentHistory.FirstOrDefault(h => h.Status != "Success");

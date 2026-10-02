@@ -215,6 +215,17 @@ namespace PinayPalBackupManager.UI
             };
             _settingsControl = new SettingsControl(_backupManager);
             _settingsControl.OnShowSystemInfo += ShowSystemInfoAsync;
+            AssistantWidgetControl.RequestOpenSettings = () => { ShowControl(_settingsControl!); UpdateSidebarSelection("Settings"); };
+            AIAssistantService.IsAnyBackupRunning = () =>
+                _ftpControl?.IsBusy == true || _mailchimpControl?.IsBusy == true || _sqlControl?.IsBusy == true;
+            AIAssistantService.GetActiveBackupDetails = () =>
+            {
+                var active = new List<string>();
+                if (_ftpControl?.IsBusy == true) active.Add("Website FTP");
+                if (_mailchimpControl?.IsBusy == true) active.Add("Mailchimp");
+                if (_sqlControl?.IsBusy == true) active.Add("SQL Database");
+                return active.Count > 0 ? string.Join(", ", active) : null;
+            };
             _profileControl = new ProfileControl();
             _verificationControl = new VerificationControl();
             _statisticsControl = new StatisticsControl();
@@ -1275,6 +1286,7 @@ namespace PinayPalBackupManager.UI
             if (control is SettingsControl settings)
             {
                 settings.RefreshEmailAlerts();
+                settings.RefreshAiSettings();
             }
 
             _activeTabAccentBrush = GetAccentBrushForControl(control);
