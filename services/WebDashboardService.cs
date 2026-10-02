@@ -17,7 +17,7 @@ namespace PinayPalBackupManager.Services
 {
     public static class WebDashboardService
     {
-        public const string ApiVersion = "3.7.1";
+        public const string ApiVersion = "3.7.2";
         /// <summary>Provided by the desktop shell so remote emergency-stop requests cancel real work.</summary>
         public static Action? EmergencyStopExecutor { get; set; }
 
@@ -2147,7 +2147,7 @@ namespace PinayPalBackupManager.Services
         <header>
             <div class=""header-left"">
                 <div class=""logo"" style=""display: flex; align-items: center; gap: 10px;""><img src=""/api/logo"" alt=""PinayPal"" style=""width: 28px; height: 28px; object-fit: contain;"" /><span>PinayPal</span></div>
-                <span class=""version-badge"" id=""app-version"">v3.7.1</span>
+                <span class=""version-badge"" id=""app-version"">v3.7.2</span>
                 <div class=""badge-online"">ONLINE</div>
                 <div class=""sys-badge"" id=""header-sys-info"">Loading system info...</div>
             </div>
@@ -2592,7 +2592,7 @@ namespace PinayPalBackupManager.Services
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Server API Version</div>
-                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.7.1</div>
+                    <div style=""font-size: 14px; font-weight: 700; color: var(--gold); margin-top: 4px;"" id=""conn-api-version"">v3.7.2</div>
                 </div>
                 <div style=""background: var(--inner-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;"">
                     <div style=""font-size: 11px; color: var(--muted); text-transform: uppercase;"">Network State</div>

@@ -289,7 +289,7 @@
                             </Button>
                             <StackPanel VerticalAlignment="Center" Spacing="1">
                                 <TextBlock Text="VERSION" Foreground="{DynamicResource AppMuted}" FontSize="8" FontWeight="Bold" LetterSpacing="0.5"/>
-                                <TextBlock Name="TxtVersionBadge" Text="v3.7.1" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
+                                <TextBlock Name="TxtVersionBadge" Text="v3.7.2" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

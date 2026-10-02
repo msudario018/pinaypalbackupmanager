@@ -1,5 +1,38 @@
 # Changelog
 
+## v3.7.2 (2026-10-03)
+
+### Fixed & Improved
+- **AI Assistant Bespoke Iconography & Cybernetic Launcher Overhaul**:
+  - **Twin-Sparkle AI Intelligence Emblem**: Replaced the generic 5-point star rating icon with a custom geometric twin-sparkle AI insignia (`M12,1.5 C12,7.3...`) with smooth cubic Bezier curves across the floating launcher button, drawer header avatar squircle, and notification bubble.
+  - **Cybernetic Floating Orb**: Upgraded the floating trigger in `AssistantWidgetControl.axaml` into a 58×58 obsidian-midnight orb featuring iridescent metallic gold & cyan border trim, an animated cyber orbit ring, and a live emerald breathing status beacon.
+  - **Matching Squircle Header & Bubble**: The drawer header avatar and speech bubble popup now feature matching gradient squircles with the twin-sparkle glyph.
+
+- **Horizontal Prompt Chips Scroll & Bilateral Glass Navigation**:
+  - **Horizontal Scroll & Wheel Translation**: Placed prompt chips inside an Avalonia `ScrollViewer` (`ChipsScrollViewer`) with `HorizontalScrollBarVisibility="Auto"` and `VerticalScrollBarVisibility="Disabled"`.
+  - **Pointer Wheel Handler**: Added a `PointerWheelChanged` handler in `AssistantWidgetControl.axaml.cs` that converts vertical mouse wheel delta (`e.Delta.Y`) into smooth horizontal scrolling (`Vector(curOffset - delta, 0)`).
+  - **Bilateral Glass Navigation Buttons**: Added glass-morphism left (`‹`) and right (`›`) navigation arrows on both ends of the chip tray (`BtnScrollChipsLeft`, `BtnScrollChipsRight`) for 1-click horizontal exploration.
+  - **12 Categorized Diagnostic Prompt Chips**: Added quick action prompts for `🩺 Health Status`, `💾 Disk Space`, `📋 Recent Backups`, `⚡ Run All Backups`, `🌐 FTP Website Sync`, `🗄️ SQL Database Dump`, `✉️ Mailchimp Sync`, `☁️ Cloudflare Tunnel`, `🛡️ Tailscale Mesh`, `📧 Test Email Alert`, `🔍 Inspect Errors`, and `🛑 Emergency Halt`.
+
+- **Dedicated AI Assistant Settings & In-Drawer Quick Controls**:
+  - **Desktop Settings Integration**: Added an **AI ASSISTANT & AUTOMATION ENGINE** card with Zero-Leak Shield badge to `SettingsControl.axaml` and `SettingsControl.axaml.cs`:
+    - **Interactive Toggles**: Enable Floating Assistant Widget, Greet Admin upon Successful Login, Sound Chimes on AI Notifications.
+    - **Engine Selection**: Hybrid (Auto-Failover), Local Ollama, Cloud LLM (OpenAI/Gemini/Claude), Built-in Heuristics (Offline).
+    - **Local Ollama Config**: Endpoint URL, Model selector, and real-time **Test Connection** button (`AIAssistantService.TestOllamaConnectionAsync`) with animated status feedback.
+    - **Cloud LLM Config**: API Base URL, Model name, API Key.
+    - **Controls**: Save configuration and reset to defaults buttons with confirmation toasts.
+  - **In-Drawer Quick Settings**: Added a gear icon (`⚙️`) in the assistant header in `AssistantWidgetControl.axaml` to allow immediate 1-click provider switching, Ollama connection testing, and a direct link to the full settings tab.
+  - **Dynamic Real-Time Sync**: Implemented `AIAssistantService.OnConfigChanged` static event so modifying settings immediately updates the widget's visibility, provider badge, and behavior in real time without restarting.
+
+- **Expanded Diagnostics, Intelligence & 1-Click Proactive Actions**:
+  - **Recent Backup Records**: Formats the last 5 backup runs into a structured markdown report showing service name, timestamp, status icon, file size, and run duration.
+  - **Active Queue Diagnostics**: Real-time inspection of active FTP, Mailchimp, or SQL backup operations with live status via `AIAssistantService.IsAnyBackupRunning` and `GetActiveBackupDetails`.
+  - **Network & Failover Routing**: Displays LAN IP (`FileDownloadService.GetAllLocalIPv4Addresses()`), Cloudflare Tunnel status & active URL, Tailscale mesh status, and internet status.
+  - **Automated Root Cause Troubleshooting & Retries**: Intelligently analyzes recent error logs, diagnoses underlying causes, and proposes interactive 1-click action cards to retry the failed service or clear history.
+
+- **Unified Versioning Across Ecosystem**:
+  - Bumped PC Desktop App (`PinayPalBackupManager.csproj`, `MainWindow.axaml`, `UpdateAvailableDialog.axaml`), Web API (`WebDashboardService.cs`), and iOS Companion App (`project.pbxproj`, `Info.plist`, `LoginView.swift`, `SplashScreenView.swift`, `QRScannerView.swift`, `ChangelogSheetView.swift`) to `3.7.2` (iOS Build `25`).
+
 ## v3.7.1 (2026-10-02)
 
 ### Fixed & Improved

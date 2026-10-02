@@ -23,7 +23,7 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PinayPalBackupManager-Updater/3.7.1");
+                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PinayPalBackupManager-Updater/3.7.2");
                 _httpClient.Timeout = TimeSpan.FromSeconds(15);
             }
             catch { }

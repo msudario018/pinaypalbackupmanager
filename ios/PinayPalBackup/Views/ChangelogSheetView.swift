@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.7.1 (Build 24)",
+            version: "v3.7.2 (Build 25)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "AI Assistant twin-sparkle emblem overhaul, horizontal scroll prompt chips with bilateral glass arrows, in-drawer & dedicated settings, and intelligent diagnostic actions",
+            changes: [
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Bespoke AI Twin-Sparkle Iconography",
+                    description: "Replaced generic star icons with custom Bezier twin-sparkle AI emblem, and upgraded the floating launcher to a 58x58 cybernetic orb with metallic trim and live emerald status beacon."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Horizontal Prompt Chips Scroll",
+                    description: "Wrapped quick prompt chips in a horizontal ScrollViewer with mouse wheel delta translation and sleek bilateral glass arrow navigation controls for effortless exploration."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Dedicated AI Assistant Settings",
+                    description: "Added comprehensive AI configuration in desktop settings: toggle floating widget, login greetings, sound chimes, switch between Hybrid/Ollama/Cloud/Offline engines, and live Ollama connection tester."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "In-Drawer Quick Settings",
+                    description: "Added header gear button in the assistant drawer for instant 1-click provider switching, connection testing, and direct shortcut to full settings."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Expanded Intelligence & 1-Click Retries",
+                    description: "Added real-time backup run records in markdown tables, active backup queue monitoring, network failover routing diagnostics, and automated error troubleshooting with 1-click retry proposals."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.7.1 (Build 24)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "In-App Updater Overhaul, Email Alerts Persistence Fix, iOS Navigation Bar Facebook Spring Bounce & Scroll Optimization",
             changes: [
                 ChangelogItem(

@@ -36,7 +36,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _txtProgressStatus = this.FindControl<TextBlock>("TxtProgressStatus");
             _txtProgressPercent = this.FindControl<TextBlock>("TxtProgressPercent");
 
-            if (txtVersion != null) txtVersion.Text = string.IsNullOrWhiteSpace(version) ? "v3.7.1" : (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}");
+            if (txtVersion != null) txtVersion.Text = string.IsNullOrWhiteSpace(version) ? "v3.7.2" : (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}");
             if (txtChangelog != null) txtChangelog.Text = changelog;
 
             if (_btnYes != null)
