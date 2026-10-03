@@ -308,6 +308,13 @@ namespace PinayPalBackupManager.Services
                     Telemetry = snap,
                     AvailableActions = GetAvailableActions(node)
                 });
+
+                // Only record samples when we actually re-probed, otherwise a cached
+                // snapshot would be appended on every poll and flatten the sparkline.
+                if (snap != null && (forceRefresh || cached == null))
+                {
+                    RecordSample(node.Id, snap.CpuUsagePercent ?? 0, snap.RamUsagePercent ?? 0, snap.CpuTempC);
+                }
             }
 
             return views;
@@ -780,6 +787,75 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[Computers] Heartbeat probe failed: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+
+        // ==========================================
+        // Telemetry history (for sparklines)
+        // ==========================================
+
+        /// <summary>One recorded sample for a computer.</summary>
+        public class TelemetrySample
+        {
+            public DateTime AtUtc { get; set; } = DateTime.UtcNow;
+            public double CpuUsagePercent { get; set; }
+            public double RamUsagePercent { get; set; }
+            public double? CpuTempC { get; set; }
+        }
+
+        // Per-computer ring buffer. A bounded queue is used instead of an unbounded list so a
+        // long-running daemon cannot grow this without limit.
+        private static readonly Dictionary<string, Queue<TelemetrySample>> _history = new();
+        private static readonly object _historyLock = new();
+
+        /// <summary>How many samples to keep per computer.</summary>
+        private const int MaxSamplesPerComputer = 288;
+
+        /// <summary>Records a sample, evicting the oldest once the buffer is full.</summary>
+        public static void RecordSample(string computerId, double cpuPercent, double ramPercent, double? cpuTempC)
+        {
+            try
+            {
+                lock (_historyLock)
+                {
+                    if (!_history.TryGetValue(computerId, out var queue))
+                    {
+                        queue = new Queue<TelemetrySample>();
+                        _history[computerId] = queue;
+                    }
+
+                    queue.Enqueue(new TelemetrySample
+                    {
+                        CpuUsagePercent = cpuPercent,
+                        RamUsagePercent = ramPercent,
+                        CpuTempC = cpuTempC
+                    });
+
+                    while (queue.Count > MaxSamplesPerComputer) queue.Dequeue();
+                }
+            }
+            catch { /* history is a nice-to-have; never let it break a telemetry probe */ }
+        }
+
+        /// <summary>Returns recent samples oldest-first, downsampled to at most maxPoints.</summary>
+        public static List<TelemetrySample> GetHistory(string computerId, int maxPoints = 48)
+        {
+            lock (_historyLock)
+            {
+                if (!_history.TryGetValue(computerId, out var queue) || queue.Count == 0)
+                    return new List<TelemetrySample>();
+
+                var list = queue.ToList();
+                if (list.Count <= maxPoints) return list;
+
+                // Even spread across the whole window, rather than only the newest N.
+                var step = (double)list.Count / maxPoints;
+                var sampled = new List<TelemetrySample>();
+                for (var i = 0; i < maxPoints; i++)
+                {
+                    sampled.Add(list[(int)(i * step)]);
+                }
+                return sampled;
             }
         }
 

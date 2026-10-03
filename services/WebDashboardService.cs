@@ -369,6 +369,19 @@ namespace PinayPalBackupManager.Services
                     var fleet = await ComputerManagementService.GetFleetAsync(refresh);
                     await SendJsonAsync(response, 200, new { success = true, computers = fleet });
                 }
+                else if (path == "/api/computers/history" && request.HttpMethod == "GET")
+                {
+                    var histId = request.QueryString["id"] ?? "";
+                    if (string.IsNullOrWhiteSpace(histId))
+                    {
+                        await SendJsonAsync(response, 400, new { success = false, message = "id is required" });
+                    }
+                    else
+                    {
+                        var samples = ComputerManagementService.GetHistory(histId);
+                        await SendJsonAsync(response, 200, new { success = true, samples });
+                    }
+                }
                 else if (path == "/api/computers" && request.HttpMethod == "DELETE")
                 {
                     var targetId = request.QueryString["id"] ?? "";

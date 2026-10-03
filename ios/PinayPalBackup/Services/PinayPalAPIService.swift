@@ -45,6 +45,74 @@ public class PinayPalAPIService: ObservableObject {
     /// </summary>
     @Published public var computers: [ComputerSpec] = []
     @Published public var computersError: String? = nil
+
+    /// Recent CPU/RAM history keyed by computer id, used to draw per-PC sparklines.
+    @Published public var computerHistory: [String: [TelemetryPoint]] = [:]
+
+    /// <summary>One telemetry sample for the sparklines.</summary>
+    public struct TelemetryPoint: Identifiable {
+        public let id = UUID()
+        public let cpu: Double
+        public let ram: Double
+    }
+
+    /// <summary>
+    /// Fetches recent history for each online PC. Best-effort: a failure must never blank the
+    /// fleet list, so errors are swallowed and the charts simply stay empty.
+    /// </summary>
+    public func refreshComputerHistory() async {
+        let targets = computers.filter { $0.telemetry.isOnline }
+        guard !targets.isEmpty else {
+            computerHistory = [:]
+            return
+        }
+
+        var collected: [String: [TelemetryPoint]] = [:]
+        await withTaskGroup(of: (String, [TelemetryPoint]).self) { group in
+            for pc in targets {
+                group.addTask { [weak self] in
+                    guard let self, let points = await self.fetchHistory(computerId: pc.id) else { return ("", []) }
+                    return (pc.id, points)
+                }
+            }
+            for await (id, points) in group where !id.isEmpty && !points.isEmpty {
+                collected[id] = points
+            }
+        }
+
+        if !collected.isEmpty { computerHistory = collected }
+    }
+
+    private func fetchHistory(computerId: String) async -> [TelemetryPoint]? {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+
+        guard let encoded = computerId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(cleanUrl)/api/computers/history?id=\(encoded)") else { return nil }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let raw = json["samples"] as? [[String: Any]] else { return nil }
+
+            // The first sample is taken at app start, when there is nothing to compare it
+            // against, so it would render as a misleading flat spike. Drop it.
+            return raw.dropFirst().compactMap { sample in
+                let cpu = (sample["CpuUsagePercent"] ?? sample["cpuUsagePercent"]) as? Double
+                let ram = (sample["RamUsagePercent"] ?? sample["ramUsagePercent"]) as? Double
+                guard let cpu, let ram else { return nil }
+                return TelemetryPoint(cpu: cpu, ram: ram)
+            }
+        } catch {
+            return nil
+        }
+    }
     @Published public var remoteSettings: RemoteSettings? = nil
     @Published public var history: [BackupHistoryItem] = []
     @Published public var logs: [String] = []
@@ -438,6 +506,10 @@ public class PinayPalAPIService: ObservableObject {
         }
         computers = list
         computersError = nil
+
+        // Chart history trails the fleet list slightly, so it is fetched after rather than
+        // blocking the list the user is waiting on.
+        Task { await refreshComputerHistory() }
     }
 
     /// <summary>Removes a computer from the fleet registry on the PC.</summary>

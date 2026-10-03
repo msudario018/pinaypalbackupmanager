@@ -53,9 +53,47 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.8.1 (Build 27)",
+            version: "v3.8.2 (Build 28)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Find every PC on your network automatically, and watch CPU and RAM trends from your phone",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Find Your Computers Automatically",
+                    description: "PinayPal sweeps your home network and finds every PC, then works out which ones are already running PinayPal so you can just tap to add them. MAC addresses fill themselves in."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "CPU and RAM Trends",
+                    description: "Each PC card now shows a small chart of how its processor and memory have been doing, so you can spot the machine that runs hot every night."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Your PC List Updates Itself",
+                    description: "Add, rename or remove a PC in the desktop app and it appears on your phone within seconds. No more pulling to refresh."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "The Chat Bubble Was See-Through",
+                    description: "A colour typo made the AI chat window almost invisible against the page behind it. It is properly solid now, and the same problem was fixed across the whole app."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Schedules Save Correctly",
+                    description: "Backup times were being stored as the text 'ComboBoxItem' instead of the time you picked. They save properly now."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Title No Longer Collides With Content",
+                    description: "Scrolling text could slide under the page title on some iPhones. The header now stays solid so the two never overlap."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.8.1 (Build 27)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Backups that respect your time, your bandwidth and your RAM - with a preview before every sync and a one-tap undo",
             changes: [
                 ChangelogItem(

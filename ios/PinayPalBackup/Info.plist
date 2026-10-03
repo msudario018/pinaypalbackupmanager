@@ -16,10 +16,12 @@
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <!-- Sourced from the build settings so the app version can never drift from the
+         Xcode project again (it previously hardcoded 3.7.2 while the project said 3.8.1). -->
     <key>CFBundleShortVersionString</key>
-    <string>3.7.2</string>
+    <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
-    <string>25</string>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSFaceIDUsageDescription</key>

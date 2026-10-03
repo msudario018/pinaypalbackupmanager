@@ -1,5 +1,28 @@
 # Changelog
 
+## v3.8.2 (2026-10-03)
+
+### Added
+- **Automatic computer discovery** (`NetworkScannerService`):
+  - Sweeps your local subnet in parallel (bounded to 64 concurrent probes) and reports every reachable machine.
+  - Machines already running PinayPal are detected automatically by probing `/api/ping`, so they can be added with one tap and appear ranked first.
+  - Reverse DNS plus ARP-table enrichment resolves hostnames and MAC vendors (`Intel Corporate`, `Realtek`, ...).
+  - Results pre-fill name, MAC and dashboard URL in **Settings → My Computers**.
+  - New REST surface: `POST /api/computers/scan`.
+- **Fleet telemetry history** — bounded per-computer ring buffer (288 samples) backing CPU/RAM sparklines, exposed as `GET /api/computers/history?id=`.
+- **iOS fleet trends** — new `FleetSparkline` view renders per-PC CPU and RAM history on each computer card.
+- **iOS live fleet updates** — the PCs tab polls `/api/computers` every 10 s *while it is on screen* and reflects adds, edits, telemetry changes and deletions from the desktop without manual refresh.
+- `DELETE /api/computers?id=` for removing a machine from the fleet.
+- MAC address fields now auto-format to `A4:BB:6D:11:22:33` as you type or paste.
+- Sticky bottom save bar plus a top-right Save button in Settings; one click persists every card.
+
+### Fixed
+- **Avalonia colour channels were transposed.** Avalonia parses 8-digit hex as `#AARRGGBB`, not CSS `#RRGGBBAA`. The AI chat drawer was `#070C18FA` — read as **3% opaque**, so the panel was effectively invisible. The same mistake appeared in **99 colours across 7 files**, including invisible `#00000000` shadows and orange-tinted blue gradients. All normalised to true ARGB.
+- **Schedule times saved as the literal text `AVALONIA.CONTROLS.COMBOBOXITEM`.** `ComboBoxItem.ToString()` returns the type name rather than `Content`; selections now read `ComboBoxItem.Content`.
+- **AI CPU-thread count spinner was unusable** — replaced the broken `NumericUpDown` with a validated `0–64` TextBox.
+- **iOS `Info.plist` version drift.** The plist hardcoded `3.7.2 / 25` while the Xcode project declared `3.8.1 / 27`, so the shipped binary reported a stale version to the system and to App Store Connect. Both keys now use `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)` so they cannot drift again.
+- **iOS header/tab-content overlap** — the scrim now stays opaque through the title instead of fading to fully transparent.
+
 ## v3.8.1 (2026-10-03)
 
 ### Added

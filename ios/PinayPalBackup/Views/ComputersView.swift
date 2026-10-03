@@ -194,6 +194,12 @@ public struct ComputersView: View {
 
             if pc.isOnline {
                 telemetryGrid(pc)
+
+                // Trend charts only mean anything with real history behind them, and only
+                // for machines that are actually reachable.
+                if pc.telemetry.isOnline, let points = api.computerHistory[pc.id], !points.isEmpty {
+                    sparklineRow(points: points)
+                }
             } else {
                 offlineNotice(pc)
             }
@@ -270,6 +276,14 @@ public struct ComputersView: View {
                           sub: "sensor", color: tempColor(t.gpuTempC))
             telemetryTile("Uptime", t.upTime ?? "—",
                           sub: t.latencyMs.map { "\($0) ms" } ?? "running", color: LiquidTheme.cyan)
+        }
+    }
+
+    private func sparklineRow(points: [PinayPalAPIService.TelemetryPoint]) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            FleetSparkline(points: points, metric: .cpu)
+            FleetSparkline(points: points, metric: .ram)
+            Spacer(minLength: 0)
         }
     }
 
