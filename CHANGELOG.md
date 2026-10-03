@@ -25,7 +25,7 @@
 ### Fixed
 - **FTP / SFTP sync crawling at kilobytes-per-second**:
   - Transfers now use explicit `TransferOptions` with `SpeedLimit = 0` (an inherited throttle could silently cap throughput), **binary** mode, and **smart resume** (`OverwriteMode.Resume` with `ResumeSupport.Smart`, 100 KB threshold). Interrupted uploads continue from where they stopped instead of restarting from byte zero.
-  - Sync criteria is now explicit (`SynchronizationCriteria.Either`) so unchanged files are skipped on both size and timestamp.
+  - Sync criteria is now explicit and pinned to `SynchronizationCriteria.Time`, so a file is only re-uploaded when its modification time actually changed. The previous inherited default (`Either`) re-sent any file whose *size or* timestamp differed, so merely touching a file forced a full re-upload.
   - Both FTP sessions pinned to `FtpMode.Passive` for reliable transfer behind NAT.
   - Progress events are throttled to ~120 ms with the final tick always forwarded, removing UI-thread contention that competed with the transfer itself.
   - Corrected the `SynchronizeDirectories` call to the real `(mode, local, remote, removeFiles, mirror, criteria, options)` overload. Delete/mirror semantics are unchanged: a backup still never removes remote files.

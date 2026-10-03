@@ -339,6 +339,14 @@ namespace PinayPalBackupManager.Services
 
                 if (proposedAction != null)
                 {
+                    // Guard against unbounded growth: proposals the user never approves would
+                    // otherwise sit here for the whole session. Clearing is safe because an
+                    // expired proposal can no longer be executed anyway.
+                    if (_pendingActions.Count > 64)
+                    {
+                        _pendingActions.Clear();
+                    }
+
                     _pendingActions[proposedAction.ActionId] = proposedAction;
                 }
             }
