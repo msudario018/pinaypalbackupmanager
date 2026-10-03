@@ -14,7 +14,7 @@ public struct ComputersView: View {
 
     /// Confirmation state for the destructive actions.
     @State private var pendingPower: PowerRequest?
-    @State private var resultBanner: (text: String, isError: Bool)?
+    @State private var resultBanner: ResultBanner?
 
     public init(api: PinayPalAPIService) {
         self.api = api
@@ -134,7 +134,7 @@ public struct ComputersView: View {
         busyAction = action
 
         let (ok, message) = await api.performComputerAction(computerId: pc.id, action: action)
-        resultBanner = (message.replacingOccurrences(of: "**", with: ""), !ok)
+        resultBanner = ResultBanner(text: message.replacingOccurrences(of: "**", with: ""), isError: !ok)
 
         busyComputerId = nil
         busyAction = nil
@@ -322,7 +322,7 @@ public struct ComputersView: View {
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(LiquidTheme.gold.opacity(0.08)))
     }
 
-    private func resultNotice(_ banner: (text: String, isError: Bool)) -> some View {
+    private func resultNotice(_ banner: ResultBanner) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: banner.isError ? "xmark.octagon.fill" : "checkmark.circle.fill")
                 .foregroundColor(banner.isError ? LiquidTheme.coral : LiquidTheme.emerald)
@@ -415,10 +415,18 @@ public struct ComputersView: View {
     }
 }
 
+/// Result of the last power action, shown as an inline banner.
+///
+/// This is a struct rather than a tuple because Swift does not allow tuple types
+/// to be used as generic arguments, so `@State` cannot hold a tuple.
+struct ResultBanner {
+    let text: String
+    let isError: Bool
+}
+
 /// Identifiable wrapper so `alert(item:)` can present a power confirmation.
 struct PowerRequest: Identifiable {
     let computer: ComputerSpec
     let action: String
     var id: String { "\(computer.id)-\(action)" }
-}
 }
