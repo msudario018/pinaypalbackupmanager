@@ -246,7 +246,7 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="LOCAL OLLAMA INFERENCE" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
-                                <Button Name="BtnTestOllamaConnection" Content="Test Ollama Connection" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
+                                <Button Grid.Column="1" Name="BtnTestOllamaConnection" Content="Test Ollama Connection" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
                             </Grid>
                             <Grid ColumnDefinitions="2*, *">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">

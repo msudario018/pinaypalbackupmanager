@@ -110,7 +110,8 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="AI INFERENCE PROVIDER" FontSize="10" FontWeight="Bold" Foreground="#38BDF8" LetterSpacing="0.5"/>
-                                <Button Name="BtnOpenFullSettings" Content="Full Settings →" Background="Transparent" Foreground="#F59E0B"
+                                <Button Grid.Column="1" Name="BtnOpenFullSettings" Content="Full Settings →" Background="Transparent" Foreground="#F59E0B"
+                                        VerticalAlignment="Center"
                                         BorderThickness="0" Padding="0" FontSize="10" Cursor="Hand" FontWeight="SemiBold"/>
                             </Grid>
 
@@ -133,7 +134,7 @@
                     <!-- Explicit opaque backdrop: without this the list area inherits the
                          drawer's translucency and the page behind bleeds through. -->
                     <Border Grid.Row="2" Background="#F2070C18">
-                    <ScrollViewer Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10">
+                    <ScrollViewer Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10,14,16">
                         <StackPanel Name="MessagesContainer" Spacing="10"/>
                     </ScrollViewer>
                     </Border>

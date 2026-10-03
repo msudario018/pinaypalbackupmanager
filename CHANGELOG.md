@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- **AI chat clipped its newest message.** Every `ScrollToEnd()` in `AssistantWidgetControl` ran *synchronously* right after `Children.Add(...)`. Avalonia had not measured the new content yet, so the scroll was applied against a stale `Extent`/`Viewport` and silently did nothing — leaving the latest reply cut off mid-sentence at the bottom of the drawer. Scrolling is now deferred to `DispatcherPriority.Loaded`, after measure/arrange.
+- Chat auto-scroll is now **sticky**: scroll up to read history and new replies no longer yank you back to the bottom; return to the bottom and it resumes following.
+- **`Full Settings →` button rendered on top of the "AI INFERENCE PROVIDER" heading.** `BtnOpenFullSettings` was missing `Grid.Column="1"`, so it stayed in column 0 and overlapped the label. The neighbouring status row already did this correctly, which is why only this one collided.
+- Extra bottom padding in the message list so the last reply is not flush against the chips row.
+
 ### Added
 - **`TimeFormat` central helper** (`services/TimeFormat.cs`). Every human-readable timestamp now goes through one place instead of each call site interpolating its own format string. Two explicit groups:
   - *User-facing* — 12-hour with a mandatory AM/PM marker (`Clock`, `ClockSeconds`, `Stamp`, `StampSeconds`, `DateTimeShort`, `DateTimeShortSeconds`, `Compact`).

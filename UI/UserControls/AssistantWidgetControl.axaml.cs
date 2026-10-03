@@ -19,6 +19,20 @@ namespace PinayPalBackupManager.UI.UserControls
         private DispatcherTimer? _bubbleTimer;
         private bool _isProcessing = false;
 
+        /// <summary>
+        /// How close (in px) the viewport must be to the end of the message list to
+        /// count as "following along". Small enough to feel instant, large enough
+        /// that a 1-2px rounding gap doesn't flip the flag off.
+        /// </summary>
+        private const double ScrollStickThreshold = 24;
+
+        /// <summary>
+        /// When true, new messages auto-scroll into view. Set from the ScrollViewer
+        /// so scrolling up to read older messages suppresses auto-scroll until the
+        /// user returns to the bottom.
+        /// </summary>
+        private bool _stickToBottom = true;
+
         public AssistantWidgetControl()
         {
             InitializeComponent();
@@ -107,6 +121,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 e.Handled = true;
             };
 
+            // Track whether the user is following the tail of the conversation, so a long
+            // response doesn't yank them away from history they're reading.
+            MessagesScrollViewer.ScrollChanged += (s, e) => _stickToBottom = IsNearBottom();
+
             // Wire all 12 Quick Prompt Chips
             ChipHealth.Click += async (s, e) => await SubmitPromptAsync("How is the system health?");
             ChipDisk.Click += async (s, e) => await SubmitPromptAsync("How much disk space is left?");
@@ -178,12 +196,57 @@ namespace PinayPalBackupManager.UI.UserControls
             SpeechBubbleBorder.IsVisible = false;
         }
 
+        /// <summary>
+        /// Scrolls the message list to the newest message.
+        ///
+        /// This has to be deferred: calling ScrollToEnd() straight after adding a
+        /// child is a no-op, because Avalonia has not measured the new content yet
+        /// so Extent/Viewport still describe the previous layout. Posting at
+        /// DispatcherPriority.Loaded runs after the measure/arrange pass, at which
+        /// point the offset can actually be applied.
+        ///
+        /// Sticky behaviour: if the user has scrolled up to read history we leave
+        /// them where they are instead of yanking them back down.
+        /// </summary>
+        private void ScrollToBottomSoon()
+        {
+            // Capture the intent NOW. Adding a message grows Extent, which fires
+            // ScrollChanged and makes IsNearBottom() report "false" before the
+            // deferred callback ever runs -- so reading the flag inside the callback
+            // would always cancel the scroll and the newest message would stay
+            // clipped. Sample it before the layout pass instead.
+            var shouldScroll = _stickToBottom;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!shouldScroll)
+                    return;
+
+                ScrollMessagesToEnd();
+
+                // Stay pinned, so the next message keeps following down.
+                _stickToBottom = true;
+            }, DispatcherPriority.Loaded);
+        }
+
+        /// <summary>True when the viewport is within a few pixels of the end of the list.</summary>
+        private bool IsNearBottom()
+        {
+            var sv = MessagesScrollViewer;
+            if (double.IsInfinity(sv.Extent.Height) || sv.Viewport.Height <= 0)
+                return true;
+
+            var distanceFromBottom =
+                sv.Extent.Height - sv.Viewport.Height - sv.Offset.Y;
+            return distanceFromBottom <= ScrollStickThreshold;
+        }
+
         public void OpenDrawer()
         {
             HideSpeechBubble();
             ChatDrawerBorder.IsVisible = true;
             UpdateProviderBadge();
-            MessagesScrollViewer.ScrollToEnd();
+            ScrollToBottomSoon();
             TxtInput.Focus();
         }
 
@@ -218,6 +281,21 @@ namespace PinayPalBackupManager.UI.UserControls
             await SendUserMessageAsync();
         }
 
+        /// <summary>
+        /// Scrolls the transcript to the newest message.
+        ///
+        /// Calling ScrollToEnd() synchronously right after adding a bubble does nothing
+        /// useful: Avalonia has not run a layout pass yet, so the ScrollViewer still
+        /// reports the old extent and the new message ends up clipped at the bottom.
+        /// Scroll once immediately, then again once layout has been flushed.
+        /// </summary>
+        private void ScrollMessagesToEnd()
+        {
+            MessagesScrollViewer.ScrollToEnd();
+
+            Dispatcher.UIThread.Post(() => MessagesScrollViewer.ScrollToEnd(), DispatcherPriority.Render);
+            Dispatcher.UIThread.Post(() => MessagesScrollViewer.ScrollToEnd(), DispatcherPriority.Loaded);
+        }
         private async Task SendUserMessageAsync()
         {
             var prompt = TxtInput.Text?.Trim();
@@ -233,7 +311,7 @@ namespace PinayPalBackupManager.UI.UserControls
             // Add typing indicator
             var typingBubble = CreateTypingBubble();
             MessagesContainer.Children.Add(typingBubble);
-            MessagesScrollViewer.ScrollToEnd();
+            ScrollToBottomSoon();
 
             try
             {
@@ -250,7 +328,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 _isProcessing = false;
                 BtnSend.IsEnabled = true;
-                MessagesScrollViewer.ScrollToEnd();
+                ScrollToBottomSoon();
             }
         }
 
@@ -276,7 +354,7 @@ namespace PinayPalBackupManager.UI.UserControls
             };
 
             MessagesContainer.Children.Add(border);
-            MessagesScrollViewer.ScrollToEnd();
+            ScrollToBottomSoon();
         }
 
         private Border CreateTypingBubble()
@@ -332,7 +410,7 @@ namespace PinayPalBackupManager.UI.UserControls
             }
 
             MessagesContainer.Children.Add(container);
-            MessagesScrollViewer.ScrollToEnd();
+            ScrollToBottomSoon();
         }
 
         private Border CreateActionCard(AIProposedAction action)
