@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.8.0 (2026-10-03)
+## v3.8.1 (2026-10-03)
 
 ### Added
 - **Smart Scheduling & Sync Safety** (`BackupPolicyService`, `SyncPreviewService`):
@@ -12,6 +12,15 @@
   - **Computer fleet heartbeat alerts.** Every 2 minutes each managed computer is probed. An alert fires only after a configurable grace period of continuous unreachability, so a brief reboot or Wi-Fi blip does not spam you. Peers with no dashboard URL configured are treated as "not set up", not as outages. Recovery is reported too.
   - New REST surface: `GET /api/sync/plan`, `POST /api/sync/rollback`, `GET /api/policy/status`.
   - New conversational actions: *"preview my sync"*, *"what would change"*, *"dry run"*, *"roll back the sync"*.
+
+### Fixed
+- **Smart-scheduling settings now actually persist.** `ConfigService.SaveOperation` merges into the on-disk config field by field, so the newly added options were being dropped on every restart. All ten new settings and the whole sync-window subtree are now copied explicitly.
+- **Rollback snapshot used the wrong remote root.** Snapshots hardcoded `/` while a sync can target a different remote path, so restores could miss files. The real remote path is now threaded through.
+- **Bounded AI pending-action growth.** Action proposals the user never approves previously stayed in memory for the whole session; they are now capped.
+
+## v3.8.0 (2026-10-03)
+
+### Added
 - **My Computers — Remote Fleet Control**:
   - New `ComputerManagementService` managing every machine you own (`Dev PC`, `Main PC`, auxiliaries) with role, MAC, broadcast address, dashboard URL and access PIN, persisted to `computers.json`.
   - **Wake-on-LAN** magic-packet sender (102-byte packet, configurable broadcast + port).

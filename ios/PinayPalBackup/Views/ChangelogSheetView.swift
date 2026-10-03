@@ -53,9 +53,52 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.8.0 (Build 26)",
+            version: "v3.8.1 (Build 27)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Backups that respect your time, your bandwidth and your RAM - with a preview before every sync and a one-tap undo",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Per-Service Sync Windows",
+                    description: "Tell each backup when it is allowed to run. Mailchimp can stay off during business hours while FTP runs overnight, and windows that cross midnight are handled correctly."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Pauses While You're Busy",
+                    description: "If you start a big upload, game or stream, scheduled backups wait until the link calms down instead of fighting for bandwidth."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Preview Before You Sync",
+                    description: "See exactly which files a sync would upload, and how much data that is, before anything is transferred. Ask the assistant \"what would change?\" and it reads it back to you."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "One-Tap Undo for a Sync",
+                    description: "Before a sync overwrites anything, the previous version is saved automatically. Say \"roll back the sync\" to restore it."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Alerts When a PC Drops Off",
+                    description: "PinayPal quietly watches your Dev PC and Main PC and tells you when one goes offline for more than a couple of minutes, and when it comes back."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "More Room for Backups",
+                    description: "The local AI model is released from memory automatically before a scheduled backup, so a 16 GB machine has plenty of headroom for the transfer."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Smart Scheduling Settings Now Save",
+                    description: "The new scheduling options were not persisting across restarts. They are saved correctly now."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.8.0 (Build 26)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Remote computer control (wake, restart, shutdown), a genuinely conversational AI with multi-turn memory, and major idle-CPU savings",
             changes: [
                 ChangelogItem(
