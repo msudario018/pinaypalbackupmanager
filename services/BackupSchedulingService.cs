@@ -306,6 +306,23 @@ namespace PinayPalBackupManager.Services
             // far more than the model would have. Evicting the model first is cheap insurance.
             await ReclaimMemoryBeforeBackupAsync();
 
+            var decision = BackupPolicyService.Evaluate(service);
+            if (!decision.Allowed)
+            {
+                LogService.WriteSystemLog(
+                    $"[BACKUPSCHEDULE] Deferred {service} backup. Reason={decision.Reason}. {decision.Message}",
+                    "Information", "BACKUPSCHEDULE");
+
+                NotificationService.ShowBackupToast("Backup Paused", decision.Message, "Info");
+
+                // Surface it to the AI too, so asking "why didn't my backup run?" answers itself.
+                AIAssistantService.PostEventBubble($"Backup paused ({decision.Reason})", decision.Message);
+                return false;
+            }
+
+            // Free RAM held by the local AI model before a long transfer.
+            await BackupPolicyService.PrepareMemoryAsync(service);
+
             if (BackupExecutor != null)
             {
                 return await BackupExecutor(service, backupType);

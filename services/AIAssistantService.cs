@@ -526,6 +526,25 @@ namespace PinayPalBackupManager.Services
                         action.ExecutionResult = powerResult.Message;
                         return (powerResult.Success, powerResult.Message);
 
+                    case "sync_preview":
+                        var previewService = action.Parameters.TryGetValue("service", out var ps) ? ps : "ftp";
+                        var plan = await SyncPreviewService.BuildPlanAsync(previewService);
+                        action.ExecutionResult = SyncPreviewService.DescribePlan(plan);
+                        return (true, action.ExecutionResult);
+
+                    case "sync_rollback":
+                        var rollbackService = action.Parameters.TryGetValue("service", out var rs) ? rs : "ftp";
+                        var snapshots = SyncPreviewService.ListSnapshots(rollbackService);
+                        if (snapshots.Count == 0)
+                        {
+                            action.ExecutionResult = $"There is no saved snapshot for {rollbackService.ToUpperInvariant()} yet. A snapshot is taken automatically before each sync that overwrites files.";
+                            return (false, action.ExecutionResult);
+                        }
+
+                        var restored = await SyncPreviewService.RestoreSnapshotAsync(rollbackService, snapshots[0].Id);
+                        action.ExecutionResult = restored.message;
+                        return (restored.ok, restored.message);
+
                     case "unload_model":
                         var (unloadOk, unloadMsg) = await UnloadOllamaModelAsync();
                         action.ExecutionResult = unloadMsg;
@@ -677,6 +696,41 @@ namespace PinayPalBackupManager.Services
                     Title = $"I don't know a computer called \"{target ?? "that"}\"",
                     Description = $"Add it under **Settings → My Computers** with its name, MAC address and dashboard URL, then ask me again.",
                     RequiresConfirmation = false
+                };
+            }
+
+            // Show what a sync would change before running it (read-only, no transfer)
+            if (lower.Contains("preview") || lower.Contains("what would change") || lower.Contains("dry run")
+                || lower.Contains("diff") || lower.Contains("pending changes") || lower.Contains("what will sync"))
+            {
+                var target = lower.Contains("sql") || lower.Contains("database") ? "sql"
+                    : lower.Contains("mailchimp") ? "mailchimp"
+                    : "ftp";
+
+                return new AIProposedAction
+                {
+                    ActionType = "sync_preview",
+                    Title = $"Preview {target.ToUpperInvariant()} Sync Changes",
+                    Description = "Lists the files a sync would upload, without transferring anything.",
+                    RequiresConfirmation = false,
+                    Parameters = new Dictionary<string, string> { { "service", target } }
+                };
+            }
+
+            // Restore the server to a previous state
+            if (lower.Contains("rollback") || lower.Contains("undo the sync") || lower.Contains("revert the sync")
+                || lower.Contains("restore previous") || lower.Contains("undo last sync"))
+            {
+                var target = lower.Contains("sql") || lower.Contains("database") ? "sql"
+                    : lower.Contains("mailchimp") ? "mailchimp"
+                    : "ftp";
+
+                return new AIProposedAction
+                {
+                    ActionType = "sync_rollback",
+                    Title = $"Roll Back {target.ToUpperInvariant()} to Previous Snapshot",
+                    Description = "Restores the most recent saved copy of every file the last sync overwrote.",
+                    Parameters = new Dictionary<string, string> { { "service", target } }
                 };
             }
 

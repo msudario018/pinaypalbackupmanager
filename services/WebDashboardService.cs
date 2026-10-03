@@ -304,6 +304,44 @@ namespace PinayPalBackupManager.Services
                     AIAssistantService.ClearSessionHistory();
                     await SendJsonAsync(response, 200, new { success = true, message = "AI conversation history cleared." });
                 }
+                else if (path == "/api/sync/plan" && request.HttpMethod == "GET")
+                {
+                    var svc = request.QueryString["service"] ?? "ftp";
+                    var plan = await SyncPreviewService.BuildPlanAsync(svc);
+                    await SendJsonAsync(response, 200, new { success = true, plan });
+                }
+                else if (path == "/api/sync/rollback" && request.HttpMethod == "POST")
+                {
+                    var svc = request.QueryString["service"] ?? "ftp";
+                    var snaps = SyncPreviewService.ListSnapshots(svc);
+                    if (snaps.Count == 0)
+                    {
+                        await SendJsonAsync(response, 400, new { success = false, message = "No snapshots available." });
+                        return;
+                    }
+
+                    var restored = await SyncPreviewService.RestoreSnapshotAsync(svc, snaps[0].Id);
+                    await SendJsonAsync(response, restored.ok ? 200 : 400, new { success = restored.ok, message = restored.message });
+                }
+                else if (path == "/api/policy/status" && request.HttpMethod == "GET")
+                {
+                    var op = ConfigService.Current.Operation;
+                    await SendJsonAsync(response, 200, new
+                    {
+                        success = true,
+                        bandwidthGuardEnabled = op.BandwidthGuardEnabled,
+                        bandwidthThresholdKbps = op.BandwidthThresholdKbps,
+                        currentUploadKbps = BackupPolicyService.BandwidthGuard.CurrentKbps,
+                        currentDownloadKbps = BackupPolicyService.BandwidthGuard.CurrentDownKbps,
+                        linkBusy = BackupPolicyService.BandwidthGuard.IsLinkBusy,
+                        evictAiModelBeforeBackup = op.EvictAiModelBeforeBackup,
+                        syncWindowsEnabled = op.SyncWindowsEnabled,
+                        ftpWindow = ConfigService.Current.Windows?.Ftp?.Describe(),
+                        sqlWindow = ConfigService.Current.Windows?.Sql?.Describe(),
+                        mailchimpWindow = ConfigService.Current.Windows?.Mailchimp?.Describe(),
+                        rollbackEnabled = op.EnableSyncRollback
+                    });
+                }
                 else if (path == "/api/computers" && request.HttpMethod == "GET")
                 {
                     var refresh = request.QueryString["refresh"] == "1";

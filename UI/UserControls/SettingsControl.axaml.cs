@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Controls.Shapes;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
@@ -357,6 +358,7 @@ namespace PinayPalBackupManager.UI.UserControls
             InitializeEmailAlerts();
             InitializeAiAssistantSettings();
             InitializeMyComputers();
+            InitializeSmartScheduling();
         }
 
         public void RefreshAiSettings()
@@ -857,6 +859,166 @@ namespace PinayPalBackupManager.UI.UserControls
                 if (res is IBrush b) return b;
             }
             return Brushes.White;
+        }
+
+        private void InitializeSmartScheduling()
+        {
+            var chkEvict = this.FindControl<CheckBox>("ChkEvictAiBeforeBackup");
+            var chkWindows = this.FindControl<CheckBox>("ChkSyncWindowsEnabled");
+            var chkRollback = this.FindControl<CheckBox>("ChkEnableSyncRollback");
+            var chkHeartbeat = this.FindControl<CheckBox>("ChkFleetHeartbeat");
+            var chkBandwidth = this.FindControl<CheckBox>("ChkBandwidthGuard");
+
+            var txtFtpStart = this.FindControl<TextBox>("TxtWindowFtpStart");
+            var txtFtpEnd = this.FindControl<TextBox>("TxtWindowFtpEnd");
+            var txtSqlStart = this.FindControl<TextBox>("TxtWindowSqlStart");
+            var txtSqlEnd = this.FindControl<TextBox>("TxtWindowSqlEnd");
+            var txtMailStart = this.FindControl<TextBox>("TxtWindowMailStart");
+            var txtMailEnd = this.FindControl<TextBox>("TxtWindowMailEnd");
+
+            var txtThreshold = this.FindControl<TextBox>("TxtBandwidthThreshold");
+            var txtStatus = this.FindControl<TextBlock>("TxtSmartSchedulingStatus");
+            var txtPreview = this.FindControl<TextBlock>("TxtSyncPreviewResult");
+            var txtWindowPreview = this.FindControl<TextBlock>("TxtSyncWindowPreview");
+            var txtBandwidthNow = this.FindControl<TextBlock>("TxtBandwidthNow");
+
+            var op = ConfigService.Current.Operation;
+
+            if (chkEvict != null) chkEvict.IsChecked = op.EvictAiModelBeforeBackup;
+            if (chkWindows != null) chkWindows.IsChecked = op.SyncWindowsEnabled;
+            if (chkRollback != null) chkRollback.IsChecked = op.EnableSyncRollback;
+            if (chkHeartbeat != null) chkHeartbeat.IsChecked = op.FleetHeartbeatEnabled;
+            if (chkBandwidth != null) chkBandwidth.IsChecked = op.BandwidthGuardEnabled;
+            if (txtThreshold != null) txtThreshold.Text = op.BandwidthThresholdKbps.ToString();
+
+            var windows = ConfigService.Current.Windows;
+            if (windows != null)
+            {
+                if (txtFtpStart != null) txtFtpStart.Text = windows.Ftp.StartMinute.ToString();
+                if (txtFtpEnd != null) txtFtpEnd.Text = windows.Ftp.EndMinute.ToString();
+                if (txtSqlStart != null) txtSqlStart.Text = windows.Sql.StartMinute.ToString();
+                if (txtSqlEnd != null) txtSqlEnd.Text = windows.Sql.EndMinute.ToString();
+                if (txtMailStart != null) txtMailStart.Text = windows.Mailchimp.StartMinute.ToString();
+                if (txtMailEnd != null) txtMailEnd.Text = windows.Mailchimp.EndMinute.ToString();
+            }
+            // Live feedback: show which services could run right now.
+            void RefreshWindowPreview()
+            {
+                if (txtWindowPreview == null) return;
+
+                var now = DateTime.Now;
+                var parts = new List<string>();
+                foreach (var (name, startTxt, endTxt) in new[]
+                {
+                    ("FTP", txtFtpStart, txtFtpEnd),
+                    ("SQL", txtSqlStart, txtSqlEnd),
+                    ("Mailchimp", txtMailStart, txtMailEnd)
+                })
+                {
+                    if (!int.TryParse(startTxt?.Text, out var s) || !int.TryParse(endTxt?.Text, out var e)) continue;
+                    var probe = new SyncWindowSettings { StartMinute = s, EndMinute = e };
+                    parts.Add($"{name}: {(probe.IsAllDay ? "any time" : probe.Contains(now) ? "open now" : "closed now")}");
+                }
+
+                txtWindowPreview.Text = string.Join("  |  ", parts);
+            }
+
+            foreach (var tb in new[] { txtFtpStart, txtFtpEnd, txtSqlStart, txtSqlEnd, txtMailStart, txtMailEnd })
+            {
+                if (tb != null) tb.TextChanged += (_, _) => RefreshWindowPreview();
+            }
+            RefreshWindowPreview();
+
+            // Keep the live upload readout fresh while the card is open.
+            if (txtBandwidthNow != null)
+            {
+                var bwTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                bwTimer.Tick += (_, _) =>
+                {
+                    txtBandwidthNow.Text = $"Current upload: {BackupPolicyService.BandwidthGuard.CurrentKbps:F0} KB/s" +
+                        (BackupPolicyService.BandwidthGuard.IsLinkBusy ? "  (busy - backups paused)" : "");
+                };
+                bwTimer.Start();
+
+                // Stop it when the card is collapsed so it costs nothing while hidden.
+                var card = this.FindControl<CollapsibleCardControl>("CardSmartScheduling");
+                if (card != null)
+                {
+                    card.ExpansionChanged += (_, expanded) =>
+                    {
+                        if (expanded) bwTimer.Start();
+                        else bwTimer.Stop();
+                    };
+                }
+            }
+            var btnSave = this.FindControl<Button>("BtnSaveSmartScheduling");
+            if (btnSave != null && txtStatus != null)
+            {
+                btnSave.Click += (_, _) =>
+                {
+                    try
+                    {
+                        var cfg = ConfigService.Current.Operation;
+                        cfg.EvictAiModelBeforeBackup = chkEvict?.IsChecked == true;
+                        cfg.SyncWindowsEnabled = chkWindows?.IsChecked == true;
+                        cfg.EnableSyncRollback = chkRollback?.IsChecked == true;
+                        cfg.FleetHeartbeatEnabled = chkHeartbeat?.IsChecked == true;
+                        cfg.BandwidthGuardEnabled = chkBandwidth?.IsChecked == true;
+
+                        if (int.TryParse(txtThreshold?.Text, out var threshold))
+                            cfg.BandwidthThresholdKbps = Math.Clamp(threshold, 1, 1_000_000);
+
+                        ApplyWindow(txtFtpStart, txtFtpEnd, ConfigService.Current.Windows.Ftp);
+                        ApplyWindow(txtSqlStart, txtSqlEnd, ConfigService.Current.Windows.Sql);
+                        ApplyWindow(txtMailStart, txtMailEnd, ConfigService.Current.Windows.Mailchimp);
+
+                        ConfigService.SaveOperation();
+
+                        // Re-evaluate the guard immediately with the new threshold.
+                        BackupPolicyService.BandwidthGuard.Reset();
+
+                        txtStatus.Text = $"Saved at {DateTime.Now:HH:mm:ss}.";
+                        NotificationService.ShowBackupToast("Smart Scheduling", "Settings saved.", "Success");
+                    }
+                    catch (Exception ex)
+                    {
+                        txtStatus.Text = $"Save error: {ex.Message}";
+                    }
+                };
+            }
+
+            var btnPreview = this.FindControl<Button>("BtnPreviewSync");
+            if (btnPreview != null && txtPreview != null && txtStatus != null)
+            {
+                btnPreview.Click += async (_, _) =>
+                {
+                    btnPreview.IsEnabled = false;
+                    txtStatus.Text = "Comparing local files with the server...";
+
+                    try
+                    {
+                        var plan = await SyncPreviewService.BuildPlanAsync("ftp");
+                        txtPreview.Text = SyncPreviewService.DescribePlan(plan);
+                        txtPreview.IsVisible = true;
+                        txtStatus.Text = "Preview complete. Nothing was transferred.";
+                    }
+                    catch (Exception ex)
+                    {
+                        txtStatus.Text = $"Preview failed: {ex.Message}";
+                    }
+                    finally
+                    {
+                        btnPreview.IsEnabled = true;
+                    }
+                };
+            }
+        }
+
+        private static void ApplyWindow(TextBox? startTxt, TextBox? endTxt, SyncWindowSettings? window)
+        {
+            if (window == null) return;
+            if (int.TryParse(startTxt?.Text, out var s)) window.StartMinute = Math.Clamp(s, 0, 1440);
+            if (int.TryParse(endTxt?.Text, out var e)) window.EndMinute = Math.Clamp(e, 0, 1440);
         }
 
         public void RefreshEmailAlerts()

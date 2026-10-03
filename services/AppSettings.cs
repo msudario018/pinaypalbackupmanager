@@ -1,3 +1,5 @@
+using System;
+
 namespace PinayPalBackupManager.Services
 {
     public sealed class AppSettings
@@ -10,6 +12,7 @@ namespace PinayPalBackupManager.Services
         public ScheduleSettings Schedule { get; set; } = new();
         public OperationSettings Operation { get; set; } = new();
         public HttpServerSettings HttpServer { get; set; } = new();
+        public WindowsSettings Windows { get; set; } = new();
     }
 
     public sealed class OperationSettings
@@ -30,6 +33,81 @@ namespace PinayPalBackupManager.Services
         public string Language { get; set; } = "en";
         public bool SetupCompleted { get; set; } = false;
         public int AutoIntervalMinutes { get; set; } = 60;
+
+        // ---- Smart scheduling (see BackupPolicyService) ----
+
+        /// <summary>Evict the local AI model from RAM before a scheduled backup starts.</summary>
+        public bool EvictAiModelBeforeBackup { get; set; } = true;
+
+        /// <summary>Restrict each service to its own allowed time-of-day window.</summary>
+        public bool SyncWindowsEnabled { get; set; } = false;
+
+        /// <summary>Pause scheduled backups while the link is busier than the threshold.</summary>
+        public bool BandwidthGuardEnabled { get; set; } = false;
+
+        /// <summary>Upload threshold in KB/s that counts as "busy" (e.g. while gaming or streaming).</summary>
+        public int BandwidthThresholdKbps { get; set; } = 2000;
+
+        /// <summary>How long a busy link must stay busy before backups are actually deferred.</summary>
+        public int BandwidthGraceSeconds { get; set; } = 20;
+
+        /// <summary>When true, a deferred schedule is retried on the next scheduler tick.</summary>
+        public bool RetryDeferredBackups { get; set; } = true;
+
+        /// <summary>Keep a copy of remote files before overwriting them so a sync can be undone.</summary>
+        public bool EnableSyncRollback { get; set; } = true;
+
+        /// <summary>How many rollback snapshots to keep per service before pruning.</summary>
+        public int RollbackHistoryCount { get; set; } = 5;
+
+        /// <summary>Master switch for the computer fleet heartbeat monitor.</summary>
+        public bool FleetHeartbeatEnabled { get; set; } = true;
+
+        /// <summary>Seconds a computer must stay offline before it counts as a real outage.</summary>
+        public int FleetOfflineGraceSeconds { get; set; } = 120;
+    }
+
+    /// <summary>
+    /// An allowed time-of-day window for one backup service. Minutes are counted from midnight,
+    /// and a window whose end is earlier than its start wraps over midnight (e.g. 22:00-06:00).
+    /// A null/empty window means "any time".
+    /// </summary>
+    public sealed class SyncWindowSettings
+    {
+        /// <summary>Minutes from midnight, inclusive.</summary>
+        public int StartMinute { get; set; } = 0;
+
+        /// <summary>Minutes from midnight, exclusive. Equal to StartMinute means "24 hours".</summary>
+        public int EndMinute { get; set; } = 1440;
+
+        public bool IsAllDay => StartMinute == 0 && EndMinute >= 1440;
+
+        public bool Contains(DateTime localTime)
+        {
+            if (IsAllDay) return true;
+            if (EndMinute >= 1440 && StartMinute == 0) return true;
+
+            var minute = (localTime.Hour * 60) + localTime.Minute;
+
+            if (EndMinute > StartMinute)
+                return minute >= StartMinute && minute < EndMinute;
+
+            // Wraps midnight, e.g. 22:00 -> 06:00
+            return minute >= StartMinute || minute < EndMinute;
+        }
+
+        public string Describe()
+        {
+            if (IsAllDay) return "Any time";
+            return $"{StartMinute / 60:D2}:{StartMinute % 60:D2} - {EndMinute / 60:D2}:{EndMinute % 60:D2}";
+        }
+    }
+
+    public sealed class WindowsSettings
+    {
+        public SyncWindowSettings Ftp { get; set; } = new();
+        public SyncWindowSettings Sql { get; set; } = new();
+        public SyncWindowSettings Mailchimp { get; set; } = new();
     }
 
     public sealed class PathsSettings

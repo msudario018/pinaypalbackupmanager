@@ -3,6 +3,15 @@
 ## v3.8.0 (2026-10-03)
 
 ### Added
+- **Smart Scheduling & Sync Safety** (`BackupPolicyService`, `SyncPreviewService`):
+  - **Auto-evict the local AI model before scheduled backups.** A loaded chat model can hold several GB on a 16 GB machine, so `ExecuteBackupAsync` now asks Ollama to release the model (`keep_alive = 0`) before any transfer starts. Failures are logged and never block the backup.
+  - **Per-service sync windows.** Each of Website FTP, SQL and Mailchimp gets its own allowed time-of-day window. Windows that cross midnight (e.g. 22:00-06:00) are supported, and a deferred backup reports *why* and *when* it will retry. A live "open now / closed now" readout is shown in Settings.
+  - **Bandwidth-aware pausing.** Upload throughput is sampled every 5 s from the OS network counters with exponential smoothing. When it stays above your threshold past a grace period, scheduled backups pause so gaming and streaming stay smooth. The bandwidth readout in Settings stops its timer when the card is collapsed.
+  - **Sync diff / preview before running.** `SyncPreviewService.BuildPlanAsync` compares the local tree against the remote tree and reports what *would* change - new, modified, unchanged and remote-only - without transferring a single byte. Remote-only files are reported but never deleted, preserving backup safety.
+  - **Rollback.** Before a sync overwrites anything, the previous remote version of every changed file is downloaded into `Data/rollback/<service>/<timestamp>/`. Snapshots are pruned to a configurable depth, and the assistant or REST API can restore the newest one.
+  - **Computer fleet heartbeat alerts.** Every 2 minutes each managed computer is probed. An alert fires only after a configurable grace period of continuous unreachability, so a brief reboot or Wi-Fi blip does not spam you. Peers with no dashboard URL configured are treated as "not set up", not as outages. Recovery is reported too.
+  - New REST surface: `GET /api/sync/plan`, `POST /api/sync/rollback`, `GET /api/policy/status`.
+  - New conversational actions: *"preview my sync"*, *"what would change"*, *"dry run"*, *"roll back the sync"*.
 - **My Computers — Remote Fleet Control**:
   - New `ComputerManagementService` managing every machine you own (`Dev PC`, `Main PC`, auxiliaries) with role, MAC, broadcast address, dashboard URL and access PIN, persisted to `computers.json`.
   - **Wake-on-LAN** magic-packet sender (102-byte packet, configurable broadcast + port).

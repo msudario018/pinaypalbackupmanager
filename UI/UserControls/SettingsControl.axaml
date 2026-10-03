@@ -276,6 +276,89 @@
                     </StackPanel>
             </ui:CollapsibleCardControl>
 
+            <!-- Smart Scheduling, Sync Windows & Bandwidth Guard -->
+            <ui:CollapsibleCardControl x:Name="CardSmartScheduling"
+                                       Title="Smart Scheduling &amp; Sync Safety"
+                                       Subtitle="Free memory before backups, keep services inside their own time window, and pause while your link is busy."
+                                       IconData="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,6V11L15,13"
+                                       Accent="#34D399">
+                <StackPanel Spacing="12">
+                    <CheckBox Name="ChkEvictAiBeforeBackup"
+                              Content="Release the local AI model from RAM before each scheduled backup"
+                              Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                    <CheckBox Name="ChkEnableSyncRollback"
+                              Content="Keep a copy of remote files before overwriting them, so a sync can be undone"
+                              Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                    <CheckBox Name="ChkFleetHeartbeat"
+                              Content="Alert me when one of my computers goes offline unexpectedly"
+                              Foreground="{DynamicResource AppText}" IsChecked="True"/>
+
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Per-Service Sync Windows" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                <CheckBox Grid.Column="1" Name="ChkSyncWindowsEnabled" IsChecked="False"/>
+                            </Grid>
+                            <TextBlock Text="Minutes from midnight. Windows crossing midnight are supported. 0 to 1440 means all day."
+                                       Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+
+                            <Grid ColumnDefinitions="90, Auto, Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="Service" Foreground="{DynamicResource AppMuted}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="From" Foreground="{DynamicResource AppMuted}" FontSize="10" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="To" Foreground="{DynamicResource AppMuted}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="90, Auto, Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="Website FTP" Foreground="{DynamicResource AppText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Name="TxtWindowFtpStart" Text="0" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" Margin="0,0,6,0" FontSize="11"/>
+                                <TextBox Grid.Column="2" Name="TxtWindowFtpEnd" Text="1440" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" FontSize="11"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="90, Auto, Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="SQL Database" Foreground="{DynamicResource AppText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Name="TxtWindowSqlStart" Text="0" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" Margin="0,0,6,0" FontSize="11"/>
+                                <TextBox Grid.Column="2" Name="TxtWindowSqlEnd" Text="1440" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" FontSize="11"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="90, Auto, Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="Mailchimp" Foreground="{DynamicResource AppText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Name="TxtWindowMailStart" Text="0" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" Margin="0,0,6,0" FontSize="11"/>
+                                <TextBox Grid.Column="2" Name="TxtWindowMailEnd" Text="1440" Width="62" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" FontSize="11"/>
+                            </Grid>
+
+                            <TextBlock Name="TxtSyncWindowPreview" Text="" Foreground="{DynamicResource AccentSuccess}" FontSize="10" FontStyle="Italic" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Bandwidth-Aware Pausing" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                <CheckBox Grid.Column="1" Name="ChkBandwidthGuard" IsChecked="False"/>
+                            </Grid>
+                            <TextBlock Text="Hold scheduled backups while your upload is busy, so gaming and streaming stay smooth."
+                                       Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,2,0,0">
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Busy threshold" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBlock Name="TxtBandwidthNow" Text="Current upload: --" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBox Name="TxtBandwidthThreshold" Text="2000" Width="70" TextAlignment="Center" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="6,4" FontSize="11"/>
+                                    <TextBlock Text="KB/s" Foreground="{DynamicResource AppMuted}" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                        <Button Name="BtnSaveSmartScheduling" Content="Save Smart Scheduling" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnPreviewSync" Content="Preview Sync Changes" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
+                    <TextBlock Name="TxtSmartSchedulingStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtSyncPreviewResult" Text="" Foreground="{DynamicResource AppText}" FontSize="10.5" TextWrapping="Wrap" MaxHeight="220" IsVisible="False"/>
+                </StackPanel>
+            </ui:CollapsibleCardControl>
+
             <!-- My Computers (Wake on LAN & Remote Power) -->
             <ui:CollapsibleCardControl x:Name="CardMyComputers"
                                        Title="My Computers"

@@ -68,6 +68,7 @@ namespace PinayPalBackupManager.Services
             Current.Schedule      ??= new ScheduleSettings();
             Current.Operation     ??= new OperationSettings();
             Current.HttpServer    ??= new HttpServerSettings();
+            Current.Windows      ??= new WindowsSettings();
         }
 
         private static void MigrateLocalConfigToAppData()
@@ -156,6 +157,23 @@ namespace PinayPalBackupManager.Services
                 existing.Operation.AcceptAnyTlsCert = Current.Operation.AcceptAnyTlsCert;
                 existing.Operation.DailyHealthCheckEnabled = Current.Operation.DailyHealthCheckEnabled;
                 existing.Operation.DailyHealthCheckHour = Current.Operation.DailyHealthCheckHour;
+
+                // Smart scheduling + sync safety. These are copied explicitly because this
+                // method merges into the on-disk file rather than replacing the whole object;
+                // forgetting one here would silently drop the user's setting on restart.
+                existing.Operation.EvictAiModelBeforeBackup = Current.Operation.EvictAiModelBeforeBackup;
+                existing.Operation.SyncWindowsEnabled = Current.Operation.SyncWindowsEnabled;
+                existing.Operation.BandwidthGuardEnabled = Current.Operation.BandwidthGuardEnabled;
+                existing.Operation.BandwidthThresholdKbps = Current.Operation.BandwidthThresholdKbps;
+                existing.Operation.BandwidthGraceSeconds = Current.Operation.BandwidthGraceSeconds;
+                existing.Operation.RetryDeferredBackups = Current.Operation.RetryDeferredBackups;
+                existing.Operation.EnableSyncRollback = Current.Operation.EnableSyncRollback;
+                existing.Operation.RollbackHistoryCount = Current.Operation.RollbackHistoryCount;
+                existing.Operation.FleetHeartbeatEnabled = Current.Operation.FleetHeartbeatEnabled;
+                existing.Operation.FleetOfflineGraceSeconds = Current.Operation.FleetOfflineGraceSeconds;
+
+                // Per-service sync windows (whole subtree).
+                existing.Windows = Current.Windows;
                 var json = JsonSerializer.Serialize(existing, new JsonSerializerOptions { WriteIndented = true });
                 Directory.CreateDirectory(AppDataPaths.CurrentDirectory);
                 File.WriteAllText(appDataPath, json);

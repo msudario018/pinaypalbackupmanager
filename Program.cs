@@ -46,6 +46,11 @@ namespace PinayPalBackupManager
                     PerformanceMetricsService.Initialize();
                     BackupHistoryService.Initialize();
                     BackupSchedulingService.Initialize();
+
+                    // Smart scheduling: bandwidth sampling gates deferred backups,
+                    // and the fleet heartbeat watches your other PCs for unexpected outages.
+                    BackupPolicyService.Start();
+                    ComputerManagementService.StartHeartbeatMonitor();
                     
                     // Initialize additional services that have Initialize methods
                     BackupRetentionService.Initialize();

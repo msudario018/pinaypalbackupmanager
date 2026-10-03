@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using WinSCP;
@@ -237,6 +238,31 @@ namespace PinayPalBackupManager.Services
 
             try
             {
+                // Snapshot the remote copies of anything we are about to overwrite, so the
+                // change can be rolled back. Best effort: a failed snapshot must not stop a
+                // backup, so failures are logged and ignored.
+                if (ConfigService.Current.Operation.EnableSyncRollback)
+                {
+                    try
+                    {
+                        var plan = await BuildInSessionPlanAsync(localPath, remotePath);
+                        if (plan != null && plan.ModifiedCount > 0)
+                        {
+                            var snapshot = await CreateInSessionSnapshotAsync(plan, remotePath);
+                            if (snapshot.FileCount > 0)
+                            {
+                                LogService.WriteSystemLog(
+                                    $"[FtpService] Rollback snapshot '{snapshot.Id}' captured ({snapshot.FileCount} file(s), {SyncPreviewService.FormatBytes(snapshot.TotalBytes)}).",
+                                    "Information", "SYSTEM");
+                            }
+                        }
+                    }
+                    catch (Exception snapEx)
+                    {
+                        LogService.WriteSystemLog($"[FtpService] Rollback snapshot skipped: {snapEx.Message}", "Warning", "SYSTEM");
+                    }
+                }
+
                 await Task.Run(() =>
                 {
                     try
@@ -333,6 +359,116 @@ namespace PinayPalBackupManager.Services
             return _session.ListDirectory(path).Files;
         }
 
+        /// <summary>
+        /// Walks a remote tree and returns every file as a flat, comparable record.
+        /// Used by the sync preview to produce a diff without transferring anything.
+        /// Depth is capped so a symlink loop or a huge tree cannot hang the caller.
+        /// </summary>
+        public List<RemoteFileEntry> ListFilesRecursive(string remotePath, int maxDepth = 8)
+        {
+            var results = new List<RemoteFileEntry>();
+            if (_session == null || !_session.Opened) return results;
+
+            // WinSCP 6.x exposes only a single-level listing, so we walk manually: every
+            // returned file reveals its parent directory, which becomes the next work item.
+            var root = (remotePath ?? "/").Replace('\\', '/').TrimEnd('/');
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { root };
+            var queue = new Queue<(string Dir, int Depth)>();
+            queue.Enqueue((root, 0));
+
+            while (queue.Count > 0)
+            {
+                var (dir, depth) = queue.Dequeue();
+                if (depth > maxDepth) continue;
+
+                RemoteDirectoryInfo info;
+                try
+                {
+                    info = _session.ListDirectory(dir);
+                }
+                catch
+                {
+                    continue; // An unreadable sub-folder must not abort the whole scan.
+                }
+
+                foreach (var file in info.Files)
+                {
+                    // Skip "." and ".." pseudo entries.
+                    if (file.Name == "." || file.Name == "..") continue;
+                    if (file.IsDirectory) continue;
+
+                    var full = (file.FullName ?? "").Replace('\\', '/');
+                    var relative = MakeRelative(root, full);
+                    if (string.IsNullOrEmpty(relative)) continue;
+
+                    results.Add(new RemoteFileEntry
+                    {
+                        RemotePath = full,
+                        RelativePath = relative,
+                        SizeBytes = file.Length,
+                        LastWriteUtc = file.LastWriteTime
+                    });
+
+                    // Register the containing folder for a later listing.
+                    var parent = full.Contains('/') ? full.Substring(0, full.LastIndexOf('/')) : dir;
+                    if (!string.IsNullOrEmpty(parent) && visited.Add(parent))
+                    {
+                        queue.Enqueue((parent, depth + 1));
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        private static string MakeRelative(string root, string fullPath)
+        {
+            var r = (root ?? "/").Replace('\\', '/').TrimEnd('/');
+            var f = (fullPath ?? "").Replace('\\', '/');
+            return f.StartsWith(r, StringComparison.OrdinalIgnoreCase) ? f.Substring(r.Length).TrimStart('/') : f.TrimStart('/');
+        }
+
+        /// <summary>Downloads a single remote file, used to snapshot before an overwrite.</summary>
+        public bool TryDownloadFile(string remotePath, string localPath)
+        {
+            if (_session == null || !_session.Opened) return false;
+            try
+            {
+                var dir = Path.GetDirectoryName(localPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                var transfer = _session.GetFiles(remotePath, localPath, false, new TransferOptions
+                {
+                    TransferMode = TransferMode.Binary
+                });
+                transfer.Check();
+                return File.Exists(localPath);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Uploads a single local file, used to restore a rollback snapshot.</summary>
+        public bool TryUploadFile(string localPath, string remotePath)
+        {
+            if (_session == null || !_session.Opened) return false;
+            try
+            {
+                var transfer = _session.PutFiles(localPath, remotePath, false, new TransferOptions
+                {
+                    TransferMode = TransferMode.Binary
+                });
+                transfer.Check();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public void Abort()
         {
             try
@@ -343,5 +479,103 @@ namespace PinayPalBackupManager.Services
             {
             }
         }
+    /// <summary>
+    /// Builds the diff using the already-open session, so the caller does not pay for a
+    /// second connection. Mirrors SyncPreviewService.BuildPlanAsync.
+    /// </summary>
+    /// <summary>FTP servers report times inconsistently, so normalise the kind before comparing.</summary>
+        private static DateTime ToUtcSafe(DateTime value) => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime()
+        };
+
+        private SyncPlan? BuildInSessionPlan(string localPath, string remotePath)
+        {
+            if (_session == null || !_session.Opened) return null;
+            if (string.IsNullOrWhiteSpace(localPath) || !Directory.Exists(localPath)) return null;
+
+            var remote = ListFilesRecursive(remotePath)
+                            .ToDictionary(r => r.RelativePath, r => r, StringComparer.OrdinalIgnoreCase);
+
+            var plan = new SyncPlan { Service = "ftp" };
+
+            foreach (var file in Directory.EnumerateFiles(localPath, "*", SearchOption.AllDirectories))
+            {
+                var name = Path.GetFileName(file);
+                if (name.EndsWith(".filepart", StringComparison.OrdinalIgnoreCase)) continue;
+                if (name.StartsWith("~$")) continue;
+
+                var relative = Path.GetRelativePath(localPath, file).Replace('\\', '/');
+                var info = new FileInfo(file);
+
+                if (remote.TryGetValue(relative, out var remoteFile))
+                {
+                    var newer = info.LastWriteTimeUtc > ToUtcSafe(remoteFile.LastWriteUtc).AddSeconds(1);
+                    plan.Changes.Add(new SyncChange
+                    {
+                        RelativePath = relative,
+                        Kind = newer ? SyncChangeKind.Modified : SyncChangeKind.Unchanged,
+                        LocalSizeBytes = info.Length,
+                        RemoteSizeBytes = remoteFile.SizeBytes,
+                        LocalWriteUtc = info.LastWriteTimeUtc
+                    });
+                }
+                else
+                {
+                    plan.Changes.Add(new SyncChange
+                    {
+                        RelativePath = relative,
+                        Kind = SyncChangeKind.New,
+                        LocalSizeBytes = info.Length,
+                        LocalWriteUtc = info.LastWriteTimeUtc
+                    });
+                }
+            }
+
+            return plan;
+        }
+
+        private async Task<SyncPlan?> BuildInSessionPlanAsync(string localPath, string remotePath)
+        {
+            return await Task.Run(() => BuildInSessionPlan(localPath, remotePath));
+        }
+
+        /// <summary>Downloads the previous remote version of every file the plan marks Modified.</summary>
+        private async Task<RollbackSnapshot> CreateInSessionSnapshotAsync(SyncPlan plan, string remoteRoot)
+        {
+            return await Task.Run(() =>
+            {
+                var service = "ftp";
+                var snapshot = new RollbackSnapshot
+                {
+                    Id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"),
+                    Service = service
+                };
+
+                var dir = Path.Combine(AppDataPaths.DataDirectory, "rollback", service, snapshot.Id);
+                Directory.CreateDirectory(dir);
+
+                var root = (remoteRoot ?? "/").Replace('\\', '/').TrimEnd('/');
+                foreach (var change in plan.Changes.Where(c => c.Kind == SyncChangeKind.Modified))
+                {
+                    var localCopy = Path.Combine(dir, change.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                    var fullRemote = root.TrimEnd('/') + "/" + change.RelativePath;
+
+                    if (TryDownloadFile(fullRemote, localCopy))
+                    {
+                        snapshot.Files[change.RelativePath] = localCopy;
+                        snapshot.FileCount++;
+                        snapshot.TotalBytes += change.RemoteSizeBytes;
+                    }
+                }
+
+                SyncPreviewService.WriteSnapshotManifest(snapshot, dir);
+                SyncPreviewService.PruneSnapshots(service);
+                return snapshot;
+            });
+        }
+        // ANCHOR_FTP
     }
 }

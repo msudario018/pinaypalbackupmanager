@@ -687,6 +687,103 @@ namespace PinayPalBackupManager.Services
         // ==========================================
 
         // ==========================================
+        // Fleet heartbeat monitoring
+        // ==========================================
+
+        private static System.Threading.Timer? _heartbeatTimer;
+        private static readonly Dictionary<string, DateTime> _offlineSince = new();
+        private static readonly Dictionary<string, bool> _lastKnownState = new();
+        private static readonly object _heartbeatLock = new();
+
+        /// <summary>Raised when a computer changes connectivity, after the grace period.</summary>
+        public static event Action<ComputerNode, bool, string>? OnHeartbeatStateChanged;
+
+        /// <summary>Starts the background fleet monitor. Safe to call repeatedly.</summary>
+        public static void StartHeartbeatMonitor()
+        {
+            if (_heartbeatTimer != null) return;
+            var interval = TimeSpan.FromMinutes(2);
+            _heartbeatTimer = new System.Threading.Timer(async _ => await RunHeartbeatAsync(), null, interval, interval);
+        }
+
+        public static void StopHeartbeatMonitor()
+        {
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+        }
+
+        private static async Task RunHeartbeatAsync()
+        {
+            try
+            {
+                if (!ConfigService.Current.Operation.FleetHeartbeatEnabled) return;
+
+                // Never probe the fleet while a backup is saturating the link.
+                if (AIAssistantService.IsAnyBackupRunning?.Invoke() == true) return;
+
+                var views = await GetFleetAsync(forceRefresh: true);
+                var grace = TimeSpan.FromSeconds(Math.Clamp(ConfigService.Current.Operation.FleetOfflineGraceSeconds, 10, 3600));
+
+                foreach (var view in views)
+                {
+                    // A peer we cannot reach at all (no URL, no dashboard) is "not configured",
+                    // not an outage - reporting it would be noise.
+                    if (!view.Node.IsLocal && string.IsNullOrWhiteSpace(view.Node.ApiBaseUrl)) continue;
+
+                    var isOnline = view.Telemetry.IsOnline;
+                    var key = view.Node.Id;
+
+                    lock (_heartbeatLock)
+                    {
+                        if (_lastKnownState.TryGetValue(key, out var previous) && previous == isOnline)
+                        {
+                            // Stable. Clear any pending outage once it recovers.
+                            if (isOnline) _offlineSince.Remove(key);
+                            continue;
+                        }
+
+                        if (!isOnline)
+                        {
+                            if (!_offlineSince.ContainsKey(key))
+                            {
+                                _offlineSince[key] = DateTime.UtcNow;
+                                continue; // First sighting only starts the grace clock.
+                            }
+
+                            if ((DateTime.UtcNow - _offlineSince[key]) < grace) continue;
+                        }
+
+                        _offlineSince.Remove(key);
+                        _lastKnownState[key] = isOnline;
+                    }
+
+                    var detail = isOnline
+                        ? $"It is back online from {view.Telemetry.Hostname}."
+                        : (string.IsNullOrWhiteSpace(view.Telemetry.Error) ? "It stopped responding." : view.Telemetry.Error);
+
+                    LogService.WriteSystemLog(
+                        $"[Computers] Heartbeat: {view.Node.DisplayName} is now {(isOnline ? "ONLINE" : "OFFLINE")}. {detail}",
+                        isOnline ? "Information" : "Warning", "SYSTEM");
+
+                    NotificationService.ShowBackupToast(
+                        isOnline ? $"{view.Node.DisplayName} Online" : $"{view.Node.DisplayName} Offline",
+                        detail,
+                        isOnline ? "Success" : "Error");
+
+                    AIAssistantService.PostEventBubble(
+                        isOnline ? $"{view.Node.DisplayName} is back online" : $"{view.Node.DisplayName} went offline",
+                        detail);
+
+                    OnHeartbeatStateChanged?.Invoke(view.Node, isOnline, detail);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Computers] Heartbeat probe failed: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+
+        // ==========================================
         // Presentation helpers (kept UI-framework agnostic on purpose)
         // ==========================================
 
