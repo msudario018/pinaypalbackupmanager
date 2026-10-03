@@ -183,7 +183,7 @@ namespace PinayPalBackupManager.Services
                         {
                             Allowed = false,
                             Reason = "window",
-                            Message = $"{Label(service)} is only allowed between {window.Describe()}. Right now it is {now:HH:mm}.",
+                            Message = $"{Label(service)} is only allowed between {window.Describe()}. Right now it is {TimeFormat.Clock(now)}.",
                             RetryAfterUtc = NextWindowStartUtc(window, now)
                         };
                     }

@@ -65,7 +65,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtSummary = this.FindControl<TextBlock>("TxtSummary");
             if (txtSummary != null)
             {
-                txtSummary.Text = $"Generated: {report.GeneratedAt:yyyy-MM-dd HH:mm:ss} | Metrics: {report.Summaries.Count}";
+                txtSummary.Text = $"Generated: {TimeFormat.Stamp(report.GeneratedAt)} | Metrics: {report.Summaries.Count}";
             }
 
             // Update success rates

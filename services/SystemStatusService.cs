@@ -248,7 +248,7 @@ namespace PinayPalBackupManager.Services
             {
                 var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                 var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+                var mnlTimestamp = TimeFormat.Stamp(mnlTime);
 
                 // First, get the current complete system status to preserve everything
                 var currentSnapshot = await _database
@@ -314,7 +314,7 @@ namespace PinayPalBackupManager.Services
             try
             {
                 var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+                var mnlTimestamp = TimeFormat.Stamp(mnlTime);
 
                 // First, get the current complete system status to preserve everything
                 var currentSnapshot = await _database
@@ -380,7 +380,7 @@ namespace PinayPalBackupManager.Services
             try
             {
                 var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                var mnlTimestamp = mnlTime.ToString("yyyy-MM-dd HH:mm:ss");
+                var mnlTimestamp = TimeFormat.Stamp(mnlTime);
 
                 // First, get the current complete system status to preserve everything
                 var currentSnapshot = await _database

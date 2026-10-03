@@ -177,7 +177,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     var timeText = new TextBlock
                     {
-                        Text = report.Timestamp.ToString("MM/dd HH:mm"),
+                        Text = TimeFormat.DateTimeShort(report.Timestamp),
                         FontSize = 10,
                         Foreground = Brush.Parse("#8B949E"),
                         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,

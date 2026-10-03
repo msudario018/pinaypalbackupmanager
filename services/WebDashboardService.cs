@@ -3701,7 +3701,7 @@ namespace PinayPalBackupManager.Services
                 const elLat = document.getElementById('conn-latency');
                 if (elLat) elLat.textContent = `${avgLat} ms`;
                 const elPoll = document.getElementById('conn-last-poll');
-                if (elPoll) elPoll.textContent = new Date().toLocaleTimeString();
+                if (elPoll) elPoll.textContent = new Date().toLocaleTimeString([], { hour12: true });
                 if (sRes.sessionUser) {
                     const elUser = document.getElementById('session-username');
                     if (elUser) elUser.textContent = sRes.sessionUser;
@@ -3983,7 +3983,7 @@ namespace PinayPalBackupManager.Services
                     document.getElementById('health-status').style.color = h.isHealthy ? 'var(--green)' : 'var(--red)';
                     document.getElementById('health-badge').textContent = h.isHealthy ? 'HEALTHY' : 'DEGRADED';
                     document.getElementById('health-badge').className = `tag ${h.isHealthy ? 'tag-success' : 'tag-failed'}`;
-                    document.getElementById('last-check-text').textContent = 'Last check: ' + new Date(h.lastCheck).toLocaleTimeString();
+                    document.getElementById('last-check-text').textContent = 'Last check: ' + new Date(h.lastCheck).toLocaleTimeString([], { hour12: true });
 
                     // CPU
                     const cpu = Math.round(h.cpu || 0);

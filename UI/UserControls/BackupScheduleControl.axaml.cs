@@ -188,7 +188,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     var nextRunText = new TextBlock
                     {
-                        Text = schedule.NextRun.HasValue ? $"Next: {schedule.NextRun.Value:MM/dd HH:mm}" : "Next: Not scheduled",
+                        Text = schedule.NextRun.HasValue ? $"Next: {schedule.NextRun.Value:MM/dd h:mm tt}" : "Next: Not scheduled",
                         FontSize = 10,
                         Foreground = Brush.Parse("#8B949E"),
                         Margin = new Avalonia.Thickness(15, 0, 0, 0)
@@ -218,7 +218,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     var lastRunText = new TextBlock
                     {
-                        Text = schedule.LastRun.HasValue ? $"Last: {schedule.LastRun.Value:MM/dd HH:mm}" : "Last: Never",
+                        Text = schedule.LastRun.HasValue ? $"Last: {schedule.LastRun.Value:MM/dd h:mm tt}" : "Last: Never",
                         FontSize = 10,
                         Foreground = Brush.Parse("#6E7681"),
                         Margin = new Avalonia.Thickness(15, 0, 0, 0)

@@ -156,7 +156,7 @@ namespace PinayPalBackupManager.UI.UserControls
             // --- TIMER RESET & LOGGING ---
             _manager?.ResetSqlTimer();
             var next = BackupManager.GetTzDate().AddHours(2).AddMinutes(15);
-            string resetMsg = $"TIMER: SQL activity detected ({trigger}). Auto-Scan reset to 2h 15m ({next:HH:mm:ss}).";
+            string resetMsg = $"TIMER: SQL activity detected ({trigger}). Auto-Scan reset to 2h 15m ({TimeFormat.ClockSeconds(next)}).";
             LogService.WriteLiveLog(resetMsg, BackupConfig.SqlLogFile, "Information", trigger);
             LogService.WriteLiveLog("SESSION: Starting Full SQL Backup...", BackupConfig.SqlLogFile, "Information", trigger);
             LogService.WriteLiveLog($"SQL BACKUP: Using local path: {BackupConfig.SqlLocalFolder}", BackupConfig.SqlLogFile, "Information", trigger);
@@ -600,7 +600,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (localLatest == null)
                     {
                         statusText = "OUTDATED";
-                        detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC, {remoteLatest.Length:n0} bytes) | Local: none";
+                        detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd h:mm tt} UTC, {remoteLatest.Length:n0} bytes) | Local: none";
                         colorHex = "#F38BA8";
                         toastMessage = "Local folder has no backups. Remote is newer.";
                         toastType = "Warning";
@@ -701,7 +701,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     // If we get here, remote is genuinely newer or different
                     statusText = "OUTDATED";
-                    detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC, {remoteSize:n0} bytes) | Local latest: {localLatest.Name} ({localLatest.LastWriteTimeUtc:MM/dd HH:mm} UTC, {localSize:n0} bytes)";
+                    detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd h:mm tt} UTC, {remoteSize:n0} bytes) | Local latest: {localLatest.Name} ({localLatest.LastWriteTimeUtc:MM/dd h:mm tt} UTC, {localSize:n0} bytes)";
                     colorHex = "#F38BA8";
                     toastMessage = "Remote SQL backup is newer than local.";
                     toastType = "Warning";

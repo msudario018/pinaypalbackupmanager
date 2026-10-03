@@ -181,7 +181,7 @@ namespace PinayPalBackupManager.Services
                         retry.NextRetryTime = DateTime.UtcNow.Add(nextDelay);
                     }
 
-                    LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry in {retry.NextRetryTime:HH:mm:ss} if fails", "Information", "SYSTEM");
+                    LogService.WriteSystemLog($"[RETRY] Triggering retry #{retry.AttemptCount} for {retry.Service}, next retry at {TimeFormat.Clock(retry.NextRetryTime)} local if fails", "Information", "SYSTEM");
                     NotificationService.ShowBackupToast("Auto-Retry", $"Retrying {retry.Service} backup (attempt {retry.AttemptCount}/3)...", "Info");
 
                     try
@@ -211,7 +211,7 @@ namespace PinayPalBackupManager.Services
             lock (_retryQueue)
             {
                 return _retryQueue.Values
-                    .Select(r => (r.Service, r.AttemptCount, r.NextRetryTime.ToLocalTime().ToString("HH:mm:ss")))
+                    .Select(r => (r.Service, r.AttemptCount, TimeFormat.Clock(r.NextRetryTime.ToLocalTime())))
                     .ToList();
             }
         }

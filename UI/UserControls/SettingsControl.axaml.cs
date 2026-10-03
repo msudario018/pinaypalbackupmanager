@@ -387,7 +387,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     AIAssistantService.SaveConfig(AIAssistantService.Config);
                     ComputerManagementService.SaveNodes(ComputerManagementService.GetNodes());
 
-                    if (txtSavedAt != null) txtSavedAt.Text = $"Saved {DateTime.Now:HH:mm:ss}";
+                    if (txtSavedAt != null) txtSavedAt.Text = $"Saved {TimeFormat.ClockSeconds(DateTime.Now)}";
                     if (txtHint != null)
                     {
                         txtHint.Text = "All settings saved.";
@@ -671,7 +671,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             cfg.OllamaThreads = Math.Clamp(threadValue, 0, 64);
 
                         AIAssistantService.SaveConfig(cfg);
-                        txtAiStatus.Text = $"AI settings saved at {DateTime.Now:HH:mm:ss} (Provider: {cfg.Provider.ToUpperInvariant()})";
+                        txtAiStatus.Text = $"AI settings saved at {TimeFormat.ClockSeconds(DateTime.Now)} (Provider: {cfg.Provider.ToUpperInvariant()})";
                         NotificationService.ShowBackupToast("AI Settings Saved", $"Inference provider: {cfg.Provider.ToUpperInvariant()}", "Success");
                     }
                     catch (Exception ex)
@@ -1225,7 +1225,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         // Re-evaluate the guard immediately with the new threshold.
                         BackupPolicyService.BandwidthGuard.Reset();
 
-                        txtStatus.Text = $"Saved at {DateTime.Now:HH:mm:ss}.";
+                        txtStatus.Text = $"Saved at {TimeFormat.ClockSeconds(DateTime.Now)}.";
                         NotificationService.ShowBackupToast("Smart Scheduling", "Settings saved.", "Success");
                     }
                     catch (Exception ex)
@@ -1739,7 +1739,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 bool stale = age.TotalHours > 48;
                 dot.Fill = Avalonia.Media.Brush.Parse(stale ? "#e6c55c" : "#52B788");
                 status.Text = stale ? $"Stale ({(int)age.TotalHours}h ago)" : "OK";
-                time.Text = lastSuccess.Value.ToString("MM/dd HH:mm");
+                time.Text = TimeFormat.DateTimeShort(lastSuccess.Value);
             }
             catch
             {

@@ -231,7 +231,7 @@ namespace PinayPalBackupManager.Services
         [JsonIgnore]
         public double SuccessRate => TotalFiles > 0 ? (double)ValidFiles / TotalFiles * 100 : 0;
         
-        public string FormattedTimestamp => Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
+        public string FormattedTimestamp => TimeFormat.Stamp(Timestamp);
         public string Summary => $"{ValidFiles}/{TotalFiles} valid, {CorruptedFiles} corrupted, {MissingFiles} missing";
     }
 

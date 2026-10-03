@@ -1063,7 +1063,7 @@ namespace PinayPalBackupManager.Services
                     var sizeStr = h.SizeBytes > 0 ? (h.SizeBytes > 1024 * 1024 * 1024 ? $"{h.SizeBytes / (1024.0 * 1024 * 1024):F1} GB" : $"{h.SizeBytes / (1024.0 * 1024):F1} MB") : "--";
                     var durStr = h.Duration.TotalSeconds > 0 ? $"{h.Duration.TotalSeconds:F1}s" : "--";
                     var err = !string.IsNullOrEmpty(h.ErrorMessage) ? $" (`{h.ErrorMessage}`)" : "";
-                    sb.AppendLine($"- {icon} **{h.Service.ToUpper()}** — {h.Timestamp:MMM dd, HH:mm} | Status: **{h.Status}** | Size: `{sizeStr}` | Duration: `{durStr}`{err}");
+                    sb.AppendLine($"- {icon} **{h.Service.ToUpper()}** — {TimeFormat.Compact(h.Timestamp)} | Status: **{h.Status}** | Size: `{sizeStr}` | Duration: `{durStr}`{err}");
                 }
                 return sb.ToString();
             }

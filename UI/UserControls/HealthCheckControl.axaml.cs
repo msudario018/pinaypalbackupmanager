@@ -72,7 +72,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtLastRun = this.FindControl<TextBlock>("TxtLastRun") ?? this.FindControl<TextBlock>("TxtLastCheck");
             if (txtLastRun != null)
             {
-                txtLastRun.Text = $"Last check: {result.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+                txtLastRun.Text = $"Last check: {TimeFormat.StampSeconds(result.Timestamp.ToLocalTime())}";
             }
 
             // Update overall status

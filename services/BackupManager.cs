@@ -252,7 +252,7 @@ namespace PinayPalBackupManager.Services
                         report.Missing = $"Local backup is {(int)age.TotalHours}h old (stale)";
                     }
                     var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(latestLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                    report.LastUpdate = mnlTime.ToString("MM/dd hh:mm:ss");
+                    report.LastUpdate = TimeFormat.DateTimeShortSeconds(mnlTime);
                     report.FileName = latestLocal.Name;
 
                     // --- WEBSITE: FTP COMPARISON ---
@@ -285,7 +285,7 @@ namespace PinayPalBackupManager.Services
                                         report.Color = isMatchFresh ? "LimeGreen" : "Red";
                                         report.NeedsSync = !isMatchFresh;
                                         var mnlTime2 = TimeZoneInfo.ConvertTimeFromUtc(matchingLocal.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                                        report.LastUpdate = mnlTime2.ToString("MM/dd hh:mm:ss");
+                                        report.LastUpdate = TimeFormat.DateTimeShortSeconds(mnlTime2);
                                         report.FileName = matchingLocal.Name;
                                         if (!isMatchFresh)
                                         {
@@ -365,7 +365,9 @@ namespace PinayPalBackupManager.Services
                     if (latest != null)
                     {
                         var freshnessUtc = GetFreshnessUtc(latest);
-                        infoList.Add($"{label} ({freshnessUtc:HH:mm:ss})");
+                        // GetFreshnessUtc returns UTC; convert before display so the value matches the
+            // clock the user is actually looking at.
+                        infoList.Add($"{label} ({TimeFormat.Clock(freshnessUtc.ToLocalTime())})");
                         if (freshnessUtc < freshWindowUtc) missingItems.Add($"{label} (STALE)");
                     }
                     else
@@ -445,7 +447,7 @@ namespace PinayPalBackupManager.Services
 
                     report.FileName = localLatest.Name;
                     var mnlTime = TimeZoneInfo.ConvertTimeFromUtc(localLatest.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                    report.LastUpdate = $"Local latest: {localLatest.Name} ({mnlTime:MM/dd HH:mm})";
+                    report.LastUpdate = $"Local latest: {localLatest.Name} ({TimeFormat.DateTimeShort(mnlTime)})";
 
                     if (!await sql.ConnectAsync())
                     {
@@ -457,7 +459,7 @@ namespace PinayPalBackupManager.Services
                             {
                                 report.Status = "OK (LOCAL ONLY)";
                                 report.Color = "LimeGreen";
-                                report.LastUpdate = $"Local: {localLatest.Name} ({mnlTime:MM/dd HH:mm}) - Remote unreachable";
+                                report.LastUpdate = $"Local: {localLatest.Name} ({TimeFormat.DateTimeShort(mnlTime)}) - Remote unreachable";
                                 return report;
                             }
                         }
@@ -483,7 +485,7 @@ namespace PinayPalBackupManager.Services
                             {
                                 report.Status = "OK (LOCAL ONLY)";
                                 report.Color = "LimeGreen";
-                                report.LastUpdate = $"Local: {localLatest.Name} ({mnlTime:MM/dd HH:mm}) - Remote list failed";
+                                report.LastUpdate = $"Local: {localLatest.Name} ({TimeFormat.DateTimeShort(mnlTime)}) - Remote list failed";
                                 LogService.WriteSystemLog($"HEALTH: SQL remote list failed but local is recent - {ex.Message}", "Warning", "SYSTEM");
                                 return report;
                             }
@@ -524,7 +526,7 @@ namespace PinayPalBackupManager.Services
                         report.NeedsSync = !isSqlFresh;
                         var remoteUtc = DateTime.SpecifyKind(remoteLatest.LastWriteTime, DateTimeKind.Utc);
                         var remoteMnlTime1 = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                        report.LastUpdate = $"Local has latest remote: {remoteLatest.Name} ({remoteMnlTime1:MM/dd HH:mm})";
+                        report.LastUpdate = $"Local has latest remote: {remoteLatest.Name} ({TimeFormat.DateTimeShort(remoteMnlTime1)})";
                         if (!isSqlFresh)
                         {
                             var age = DateTime.UtcNow - localLatest.LastWriteTimeUtc;
@@ -560,7 +562,7 @@ namespace PinayPalBackupManager.Services
                     report.NeedsSync = true;
                     var remoteMnlTime = TimeZoneInfo.ConvertTimeFromUtc(remoteUtc2, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
                     var localMnlTime = TimeZoneInfo.ConvertTimeFromUtc(localLatest.LastWriteTimeUtc, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila"));
-                    report.LastUpdate = $"Remote latest: {remoteLatest.Name} ({remoteMnlTime:MM/dd HH:mm}) | Local latest: {localLatest.Name} ({localMnlTime:MM/dd HH:mm})";
+                    report.LastUpdate = $"Remote latest: {remoteLatest.Name} ({TimeFormat.DateTimeShort(remoteMnlTime)}) | Local latest: {localLatest.Name} ({TimeFormat.DateTimeShort(localMnlTime)})";
                 }
                 catch (Exception ex)
                 {

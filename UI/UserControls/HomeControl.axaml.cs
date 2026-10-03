@@ -1054,7 +1054,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                         var timeTxt = new TextBlock
                         {
-                            Text = ts.ToString("HH:mm"),
+                            Text = TimeFormat.Clock(ts),
                             FontSize = 9,
                             Foreground = Brush.Parse("#6C7086"),
                             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
@@ -1546,7 +1546,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
                     var lastFail = this.FindControl<TextBlock>("TxtLastFailure");
                     if (lastFail != null)
-                        lastFail.Text = lastFailure == null ? "No failures recorded" : $"Last failure: {lastFailure.Value:MMM d, HH:mm}";
+                        lastFail.Text = lastFailure == null ? "No failures recorded" : $"Last failure: {TimeFormat.Compact(lastFailure.Value)}";
 
                     var weekBk = this.FindControl<TextBlock>("TxtWeekBackups");
                     if (weekBk != null) weekBk.Text = total.ToString();

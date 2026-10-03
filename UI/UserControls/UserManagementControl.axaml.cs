@@ -97,7 +97,7 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 if (DateTime.TryParse(dateTimeString, out var dt))
                 {
-                    return dt.ToString("yyyy-MM-dd HH:mm");
+                    return TimeFormat.Stamp(dt);
                 }
             }
             catch { }

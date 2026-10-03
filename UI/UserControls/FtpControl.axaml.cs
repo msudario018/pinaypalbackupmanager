@@ -144,7 +144,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // --- TIMER RESET & LOGGING ---
             _manager?.ResetFtpTimer();
-            string resetMsg = $"TIMER: FTP activity detected ({trigger}). Auto-Scan reset to 3 hours ({BackupManager.GetTzDate().AddHours(3):HH:mm:ss}).";
+            string resetMsg = $"TIMER: FTP activity detected ({trigger}). Auto-Scan reset to 3 hours ({TimeFormat.ClockSeconds(BackupManager.GetTzDate().AddHours(3))}).";
             LogService.WriteLiveLog(resetMsg, BackupConfig.FtpLogFile, "Information", trigger);
             LogService.WriteLiveLog("SESSION: Starting FTP Sync...", BackupConfig.FtpLogFile, "Information", trigger);
 
@@ -487,7 +487,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     if (localLatest == null)
                     {
                         statusText = "OUTDATED";
-                        detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC) | Local: none";
+                        detailText = $"Remote latest: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd h:mm tt} UTC) | Local: none";
                         colorHex = "#F38BA8";
                         toastMessage = "Local folder has no backups. Remote is newer.";
                         toastType = "Warning";
@@ -521,7 +521,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         }
 
                         statusText = "LATEST";
-                        detailText = $"Local has latest remote: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd HH:mm} UTC){GetMirrorStatus(remoteLatest.Name, "FTP")}";
+                        detailText = $"Local has latest remote: {remoteLatest.Name} ({remoteLatest.LastWriteTime:MM/dd h:mm tt} UTC){GetMirrorStatus(remoteLatest.Name, "FTP")}";
                         colorHex = "#6b8e6b";
                         toastMessage = "Local backup is up to date.";
                         toastType = "Info";
@@ -574,7 +574,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
 
                     statusText = "OUTDATED";
-                    detailText = $"Remote latest: {remoteLatest?.Name ?? "unknown"} ({remoteLatest?.LastWriteTime:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd HH:mm} UTC) | Local latest: {localLatest?.Name ?? "unknown"} ({localLatest?.LastWriteTimeUtc:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd HH:mm} UTC)";
+                    detailText = $"Remote latest: {remoteLatest?.Name ?? "unknown"} ({remoteLatest?.LastWriteTime:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd h:mm tt} UTC) | Local latest: {localLatest?.Name ?? "unknown"} ({localLatest?.LastWriteTimeUtc:MM/dd HH:mm ?? DateTime.UtcNow:MM/dd h:mm tt} UTC)";
                     colorHex = "#F38BA8";
                     toastMessage = "Remote backup is newer than local.";
                     toastType = "Warning";

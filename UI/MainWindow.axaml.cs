@@ -1509,8 +1509,8 @@ namespace PinayPalBackupManager.UI
             {
                 var txtUs = this.FindControl<TextBlock>("TxtUsTime");
                 var txtMnl = this.FindControl<TextBlock>("TxtMnlTime");
-                if (txtUs != null) txtUs.Text = usTime.ToString("yyyy-MM-dd hh:mm:sstt");
-                if (txtMnl != null) txtMnl.Text = mnlTime.ToString("yyyy-MM-dd hh:mm:sstt");
+                if (txtUs != null) txtUs.Text = TimeFormat.StampSeconds(usTime);
+                if (txtMnl != null) txtMnl.Text = TimeFormat.StampSeconds(mnlTime);
 
                 DateTime activeNextAuto = nextAuto;
                 DateTime activeNextDailyMnl = nextDaily;

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **`TimeFormat` central helper** (`services/TimeFormat.cs`). Every human-readable timestamp now goes through one place instead of each call site interpolating its own format string. Two explicit groups:
+  - *User-facing* — 12-hour with a mandatory AM/PM marker (`Clock`, `ClockSeconds`, `Stamp`, `StampSeconds`, `DateTimeShort`, `DateTimeShortSeconds`, `Compact`).
+  - *Machine-readable* — 24-hour `UtcStamp`, for logs, CSV exports and email templates where an explicit `UTC` suffix is written alongside.
+- **xunit test project** (`tests/`) with 13 assertions locking the 12-hour convention. `build-test.yml` previously ran `dotnet test` against a repo with **no test project**, so the step was a silent no-op wrapped in `continue-on-error`. It now restores, builds and runs for real, and a failure will block the release.
+
+### Fixed
+- **12-hour formatting finished across all targets.** v3.2.8 converted the web dashboard, `/api/status` and the main iOS views, but left these showing 24-hour values: policy-window warnings, schedule Next/Last Run, retry countdowns, all `BackupManager` freshness strings, `SecurityAuditService` credential timestamps, `SystemStatusService`, verification history, and the AI assistant's chat history rows.
+- **Ambiguous 12-hour timestamps.** `BackupManager` rendered `MM/dd hh:mm:ss` — 12-hour with **no AM/PM marker**, so 3:30 PM displayed as `03:30:22`, and the same `LastUpdate` field was 24-hour eight lines later.
+- **`hh:mm:sstt` in `MainWindow`** produced `03:45:22PM` with no space before the marker — the US/Manila clocks in the window header.
+- **UTC shown as local.** `BackupManager`'s file-freshness list printed `GetFreshnessUtc(...)` (genuinely UTC, despite the display looking local) with no `UTC` marker.
+- **Web dashboard clock followed browser locale**, silently flipping to 24-hour on devices set to a 24-hour region. Now pinned to `hour12: true`.
+- Root project excluded `tests/**` from the default `**/*.cs` glob, which otherwise compiled the test sources into the WinExe and broke the build.
+
 ## v3.8.2 (2026-10-03)
 
 ### Added

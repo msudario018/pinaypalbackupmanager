@@ -193,7 +193,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (_manager != null)
             {
                 _manager.ResetMailchimpTimer();
-                string resetMsg = $"TIMER: Mailchimp activity detected ({trigger}). Auto-Scan reset to 2 hours ({BackupManager.GetTzDate().AddHours(2):HH:mm:ss}).";
+                string resetMsg = $"TIMER: Mailchimp activity detected ({trigger}). Auto-Scan reset to 2 hours ({TimeFormat.ClockSeconds(BackupManager.GetTzDate().AddHours(2))}).";
                 LogService.WriteLiveLog(resetMsg, BackupConfig.McLogFile, "Information", trigger);
             }
             LogService.WriteLiveLog("SESSION: Starting Full Mailchimp Data Export...", BackupConfig.McLogFile, "Information", trigger);
@@ -552,7 +552,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (freshnessUtc < freshWindowUtc)
                         {
                             statusText = "OUTDATED";
-                            detailText = $"Latest data: {freshnessUtc:MM/dd HH:mm} UTC (Older than 24h)";
+                            detailText = $"Latest data: {freshnessUtc:MM/dd h:mm tt} UTC (Older than 24h)";
                             colorHex = "#F38BA8";
                             toastMessage = "Mailchimp data is older than 24 hours.";
                             toastType = "Warning";
@@ -560,7 +560,7 @@ namespace PinayPalBackupManager.UI.UserControls
                         else
                         {
                             statusText = "LATEST";
-                            detailText = $"Local data is fresh: {freshnessUtc:MM/dd HH:mm} UTC{GetMirrorStatus(latestFile.Name, "Mailchimp")}";
+                            detailText = $"Local data is fresh: {freshnessUtc:MM/dd h:mm tt} UTC{GetMirrorStatus(latestFile.Name, "Mailchimp")}";
                             colorHex = "#588157";
                             toastMessage = "Mailchimp data is up to date.";
                             toastType = "Info";

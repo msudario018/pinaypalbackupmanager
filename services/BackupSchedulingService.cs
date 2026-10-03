@@ -641,8 +641,8 @@ namespace PinayPalBackupManager.Services
                     sb.AppendLine($"Service: {schedule.Service}");
                     sb.AppendLine($"Type: {schedule.Type}");
                     sb.AppendLine($"Enabled: {schedule.IsEnabled}");
-                    sb.AppendLine($"Next Run: {schedule.NextRun?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Not scheduled"}");
-                    sb.AppendLine($"Last Run: {schedule.LastRun?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Never"}");
+                    sb.AppendLine($"Next Run: {TimeFormat.StampOr(schedule.NextRun, "Not scheduled")}");
+                    sb.AppendLine($"Last Run: {TimeFormat.StampOr(schedule.LastRun, "Never")}");
                     sb.AppendLine($"Run Count: {schedule.RunCount}");
                     sb.AppendLine();
                 }

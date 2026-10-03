@@ -1278,7 +1278,7 @@ namespace PinayPalBackupManager.UI.UserControls
         public bool IsSelected { get; set; } = false;
         
         public string FileSizeFormatted => FileSize > 1024 * 1024 ? $"{FileSize / 1024.0 / 1024.0:F1} MB" : FileSize > 1024 ? $"{FileSize / 1024.0:F1} KB" : $"{FileSize} B";
-        public string CreatedFormatted => Created == DateTime.MinValue ? "Never" : Created.ToString("yyyy-MM-dd HH:mm");
+        public string CreatedFormatted => Created == DateTime.MinValue ? "Never" : TimeFormat.Stamp(Created);
         public string HashShort => string.IsNullOrEmpty(Hash) ? "N/A" : Hash.Length > 16 ? Hash.Substring(0, 16) + "..." : Hash;
     }
 }

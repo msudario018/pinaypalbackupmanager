@@ -150,7 +150,7 @@ namespace PinayPalBackupManager.Utils
                 IsVerified = true,
                 Hash = storedEntry.Hash,
                 VerifiedAt = storedEntry.VerifiedAt,
-                Message = $"Verified (hash matches, stored {storedEntry.VerifiedAt:MM/dd HH:mm})"
+                Message = $"Verified (hash matches, stored {TimeFormat.DateTimeShort(storedEntry.VerifiedAt)})"
             };
         }
 

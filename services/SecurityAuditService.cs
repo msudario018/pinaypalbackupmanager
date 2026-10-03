@@ -30,7 +30,7 @@ namespace PinayPalBackupManager.Services
         public class CredentialRecord
         {
             public string Service { get; set; } = "";
-            public string LastUpdated { get; set; } = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss");
+            public string LastUpdated { get; set; } = TimeFormat.StampSeconds(DateTime.Now);
             public string LastUpdatedBy { get; set; } = "";
             public int RotationDays { get; set; } = 90;
             public bool RotationEnabled { get; set; } = true;
@@ -85,7 +85,7 @@ namespace PinayPalBackupManager.Services
                 credentials.Add(record);
             }
 
-            record.LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            record.LastUpdated = TimeFormat.StampSeconds(DateTime.Now);
             record.LastUpdatedBy = string.IsNullOrEmpty(updatedBy) ? Environment.UserName : updatedBy;
             record.LastRotationReminder = null; // Reset reminder
 
@@ -159,7 +159,7 @@ namespace PinayPalBackupManager.Services
 
             if (record != null)
             {
-                record.LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                record.LastUpdated = TimeFormat.StampSeconds(DateTime.Now);
                 record.LastUpdatedBy = Environment.UserName;
                 record.LastRotationReminder = null;
                 await SaveCredentialsAsync(credentials);
@@ -267,9 +267,9 @@ namespace PinayPalBackupManager.Services
                     // Initialize with default services
                     var defaults = new List<CredentialRecord>
                     {
-                        new CredentialRecord { Service = "FTP", LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        new CredentialRecord { Service = "SQL", LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                        new CredentialRecord { Service = "Mailchimp", LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
+                        new CredentialRecord { Service = "FTP", LastUpdated = TimeFormat.StampSeconds(DateTime.Now) },
+                        new CredentialRecord { Service = "SQL", LastUpdated = TimeFormat.StampSeconds(DateTime.Now) },
+                        new CredentialRecord { Service = "Mailchimp", LastUpdated = TimeFormat.StampSeconds(DateTime.Now) }
                     };
                     _ = Task.Run(async () =>
                     {
@@ -388,7 +388,7 @@ namespace PinayPalBackupManager.Services
                     credentials.Add(new CredentialRecord 
                     { 
                         Service = service, 
-                        LastUpdated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") 
+                        LastUpdated = TimeFormat.StampSeconds(DateTime.Now) 
                     });
                     updated = true;
                 }

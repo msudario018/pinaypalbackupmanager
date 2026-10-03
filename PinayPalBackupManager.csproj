@@ -39,6 +39,17 @@
     <Folder Include="UI\Styles\" />
   </ItemGroup>
 
+  <!--
+    The default SDK glob (**/*.cs) would otherwise pull the xunit test project
+    into this WinExe, which fails the build. Keep the two projects separate.
+  -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <AvaloniaResource Remove="tests\**" />
+  </ItemGroup>
+
   
   <ItemGroup>
     <None Update="ANIMATION_EXAMPLES.xaml">
