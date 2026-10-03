@@ -237,12 +237,14 @@ public struct MainView: View {
         .liquidGlassNavigationIsland()
         .padding(.horizontal, 14).padding(.top, 2)
         .background(
+            // Opaque near the top, fading out at the bottom. This scrim is what stops
+            // scrolling content from colliding with the title as it passes underneath.
             LinearGradient(
                 stops: [
                     .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.0),
-                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.95), location: 0.50),
-                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.65), location: 0.82),
-                    .init(color: Color.clear, location: 1.0)
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.62),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.92), location: 0.84),
+                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.55), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -257,7 +259,7 @@ public struct MainView: View {
             tabButton(.activity, "Activity", "waveform.path.ecg")
             tabButton(.history, "History", "clock.arrow.circlepath")
             tabButton(.automations, "Automations", "bolt.shield.fill")
-                tabButton(.computers, "PCs", "desktopcomputer")
+            tabButton(.computers, "PCs", "desktopcomputer")
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)

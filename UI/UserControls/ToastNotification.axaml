@@ -14,7 +14,7 @@
             BorderBrush="{DynamicResource AppBorder}" 
             BorderThickness="1"
             Padding="16"
-            BoxShadow="0 4 16 #00000020, 0 8 32 #00000010">
+            BoxShadow="0 4 16 #20000000, 0 8 32 #10000000">
         
         <Grid RowDefinitions="Auto, *" ColumnDefinitions="Auto, *">
             <!-- Premium Icon Badge -->
@@ -22,7 +22,7 @@
                     Width="38" Height="38" 
                     CornerRadius="11" 
                     VerticalAlignment="Center" Margin="0,0,14,0"
-                    BoxShadow="0 4 12 #00000030">
+                    BoxShadow="0 4 12 #30000000">
                 <Grid>
                     <PathIcon Name="IconPath" 
                               Width="18" Height="18" 

@@ -3,11 +3,11 @@
              x:Class="PinayPalBackupManager.UI.UserControls.UpdateAvailableDialog"
              Width="520" Height="410">
     
-    <Border Background="{DynamicResource AppCard}" CornerRadius="16" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="26" BoxShadow="0 16 40 #50000000">
+    <Border Background="{DynamicResource AppCard}" CornerRadius="16" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" Padding="26" BoxShadow="0 16 40 #00500000">
         <Grid RowDefinitions="Auto, Auto, *, Auto">
             <!-- Header with Icon & Title -->
             <Grid Grid.Row="0" ColumnDefinitions="Auto, *" Margin="0,0,0,14">
-                <Border Width="40" Height="40" CornerRadius="10" Background="#1c2d27" BorderBrush="#34D39940" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                <Border Width="40" Height="40" CornerRadius="10" Background="#1c2d27" BorderBrush="#4034D399" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
                     <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,7V13H13V7H11M11,15V17H13V15H11Z" 
                               Width="20" Height="20" Foreground="#34D399" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Border>
@@ -24,7 +24,7 @@
                         <TextBlock Text="Target Version:" FontSize="11" Foreground="{DynamicResource AppSubtext}" VerticalAlignment="Center"/>
                         <TextBlock Name="TxtVersion" Text="v3.7.2" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Border Grid.Column="2" Background="#163828" CornerRadius="6" Padding="8,3" BorderBrush="#34D39940" BorderThickness="1">
+                    <Border Grid.Column="2" Background="#163828" CornerRadius="6" Padding="8,3" BorderBrush="#4034D399" BorderThickness="1">
                         <TextBlock Text="RECOMMENDED" FontSize="9" FontWeight="Bold" Foreground="#34D399" LetterSpacing="0.5"/>
                     </Border>
                 </Grid>

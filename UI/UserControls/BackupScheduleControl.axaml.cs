@@ -346,10 +346,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 var schedule = new BackupSchedulingService.BackupSchedule
                 {
                     Name = txtName.Text ?? "Untitled",
-                    Service = cmbService.SelectedItem?.ToString()?.ToLower() ?? "all",
+                    Service = SelectedComboText(cmbService)?.ToLowerInvariant() ?? "all",
                     Type = GetSelectedType(cmbType.SelectedIndex),
                     IsEnabled = chkEnabled.IsChecked ?? true,
-                    BackupType = cmbBackupType.SelectedItem?.ToString() ?? "Full"
+                    BackupType = SelectedComboText(cmbBackupType) ?? "Full"
                 };
 
                 if (schedule.Type == BackupSchedulingService.ScheduleType.Interval && numInterval != null)
@@ -430,6 +430,19 @@ namespace PinayPalBackupManager.UI.UserControls
 
             panelInterval.IsVisible = cmbType.SelectedIndex == 4; // Interval
             panelOneTime.IsVisible = cmbType.SelectedIndex == 0; // Once
+        }
+
+        /// <summary>
+        /// Reads a ComboBox selection by its <c>Content</c>.
+        ///
+        /// ComboBoxItem.ToString() returns the *type* name ("Avalonia.Controls.ComboBoxItem"),
+        /// not the displayed text, so using it directly persisted garbage into the schedule
+        /// (the Service field literally read "AVALONIA.CONTROLS.COMBOBOXTEM").
+        /// </summary>
+        private static string? SelectedComboText(ComboBox? combo)
+        {
+            if (combo?.SelectedItem == null) return null;
+            return (combo.SelectedItem as ComboBoxItem)?.Content?.ToString();
         }
 
         private int GetServiceIndex(string service)

@@ -14,12 +14,12 @@
             <Border Name="SpeechBubbleBorder"
                     IsVisible="False"
                     Width="330"
-                    Background="#0D1526FA"
+                    Background="#FA0D1526"
                     BorderBrush="#F59E0B"
                     BorderThickness="1"
                     CornerRadius="16"
                     Padding="14,12"
-                    BoxShadow="0 8 32 #00000080, 0 2 12 #F59E0B30">
+                    BoxShadow="0 8 32 #80000000, 0 2 12 #30F59E0B">
                 <Grid RowDefinitions="Auto, Auto, Auto">
                     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,6">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -54,19 +54,19 @@
             <Border Name="ChatDrawerBorder"
                     IsVisible="False"
                     Width="410" Height="540"
-                    Background="#070C18FA"
+                    Background="#FA070C18"
                     BorderBrush="#2A3850"
                     BorderThickness="1"
                     CornerRadius="18"
-                    BoxShadow="0 20 60 #000000A0, 0 4 20 #38BDF825">
+                    BoxShadow="0 20 60 #A0000000, 0 4 20 #2538BDF8">
                 <Grid RowDefinitions="Auto, Auto, *, Auto, Auto">
                     
                     <!-- Drawer Header -->
-                    <Border Grid.Row="0" Background="#0C1527F0" BorderBrush="#1C283F" BorderThickness="0,0,0,1" Padding="14,12" CornerRadius="18,18,0,0">
+                    <Border Grid.Row="0" Background="#F00C1527" BorderBrush="#1C283F" BorderThickness="0,0,0,1" Padding="14,12" CornerRadius="18,18,0,0">
                         <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
                             <!-- Overhauled Luxury AI Squircle Avatar -->
                             <Border Width="36" Height="36" CornerRadius="11" Background="#111B30" BorderBrush="#F59E0B" BorderThickness="1.5" Margin="0,0,10,0"
-                                    BoxShadow="0 2 10 #F59E0B25">
+                                    BoxShadow="0 2 10 #25F59E0B">
                                 <Grid>
                                     <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
                                               Width="18" Height="18" Foreground="#F59E0B" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -130,9 +130,13 @@
                     </Border>
 
                     <!-- Messages ScrollViewer -->
-                    <ScrollViewer Name="MessagesScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10">
+                    <!-- Explicit opaque backdrop: without this the list area inherits the
+                         drawer's translucency and the page behind bleeds through. -->
+                    <Border Grid.Row="2" Background="#F2070C18">
+                    <ScrollViewer Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10">
                         <StackPanel Name="MessagesContainer" Spacing="10"/>
                     </ScrollViewer>
+                    </Border>
 
                     <!-- Overhauled Quick Prompt Chips Row with Horizontal Scroll & Left/Right Arrows -->
                     <Border Grid.Row="3" Background="#0A111F" BorderBrush="#1C273C" BorderThickness="0,1,0,0" Padding="8,7">
@@ -206,10 +210,10 @@
                         Background="#0D1526"
                         BorderBrush="#F59E0B"
                         BorderThickness="1.5"
-                        BoxShadow="0 8 28 #00000090, 0 0 16 #F59E0B40, 0 0 30 #38BDF820">
+                        BoxShadow="0 8 28 #90000000, 0 0 16 #40F59E0B, 0 0 30 #2038BDF8">
                     <Grid>
                         <!-- Concentric Cyber Orbit Ring -->
-                        <Ellipse Width="46" Height="46" Stroke="#38BDF830" StrokeThickness="1"/>
+                        <Ellipse Width="46" Height="46" Stroke="#3038BDF8" StrokeThickness="1"/>
 
                         <!-- Overhauled Multi-Point AI Sparkle Glyph -->
                         <PathIcon Data="M12,1.5 C12,7.3 7.3,12 1.5,12 C7.3,12 12,16.7 12,22.5 C12,16.7 16.7,12 22.5,12 C16.7,12 12,7.3 12,1.5 Z M18.5,2 C18.5,4.5 16.5,6.5 14,6.5 C16.5,6.5 18.5,8.5 18.5,11 C18.5,8.5 20.5,6.5 23,6.5 C20.5,6.5 18.5,4.5 18.5,2 Z"
@@ -224,7 +228,7 @@
                                 BorderBrush="#0B111F" BorderThickness="2"
                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Margin="0,0,10,10"
-                                BoxShadow="0 0 8 #10B98180"/>
+                                BoxShadow="0 0 8 #8010B981"/>
                     </Grid>
                 </Border>
             </Button>

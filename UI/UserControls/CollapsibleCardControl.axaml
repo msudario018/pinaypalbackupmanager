@@ -55,7 +55,7 @@
                                        Foreground="{DynamicResource AppText}"/>
                             <Border Name="HeaderBadge"
                                     IsVisible="False"
-                                    Background="#10B98120"
+                                    Background="#2010B981"
                                     BorderBrush="#10B981"
                                     BorderThickness="1"
                                     CornerRadius="4"

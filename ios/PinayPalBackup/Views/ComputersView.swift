@@ -6,9 +6,11 @@ public struct ComputersView: View {
     @ObservedObject var api: PinayPalAPIService
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var computers: [ComputerSpec] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String? = nil
+    /// Read straight from the service so the tab stays live while it is open.
+    private var computers: [ComputerSpec] { api.computers }
+    private var isLoading: Bool { false }
+    private var errorMessage: String? { api.computersError }
+
     @State private var busyComputerId: String? = nil
     @State private var busyAction: String? = nil
 
@@ -41,8 +43,13 @@ public struct ComputersView: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
-        .refreshable { await loadComputers(refresh: true) }
-        .task { await loadComputers(refresh: true) }
+        .refreshable { await api.refreshComputers(force: true) }
+        .task {
+            // Poll only while this tab is actually on screen.
+            api.setComputerPolling(true)
+            await api.refreshComputers(force: true)
+            await MainActor.run { api.setComputerPolling(false) }
+        }
         .alert(item: $pendingPower) { request in
             Alert(
                 title: Text(confirmTitle(for: request)),
@@ -117,16 +124,7 @@ public struct ComputersView: View {
     // MARK: - Data
 
     private func loadComputers(refresh: Bool) async {
-        isLoading = true
-        defer { isLoading = false }
-
-        let (ok, list, err) = await api.fetchComputers(refresh: refresh)
-        if ok {
-            computers = list
-            errorMessage = nil
-        } else {
-            errorMessage = err ?? "Could not reach the computers list."
-        }
+        await api.refreshComputers(force: refresh)
     }
 
     private func runAction(_ pc: ComputerSpec, _ action: String) async {

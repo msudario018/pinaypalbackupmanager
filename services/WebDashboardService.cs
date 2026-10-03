@@ -342,11 +342,64 @@ namespace PinayPalBackupManager.Services
                         rollbackEnabled = op.EnableSyncRollback
                     });
                 }
+                else if (path == "/api/computers/scan" && request.HttpMethod == "POST")
+                {
+                    var found = await NetworkScannerService.ScanAsync();
+                    await SendJsonAsync(response, 200, new
+                    {
+                        success = true,
+                        discovered = found.Select(h => new
+                        {
+                            h.IpAddress,
+                            h.HostName,
+                            h.MacAddress,
+                            h.Vendor,
+                            h.DashboardPort,
+                            confidence = h.Confidence.ToString(),
+                            h.IsPinayPal,
+                            h.ResponseMs,
+                            h.AppVersion,
+                            h.SuggestedName
+                        })
+                    });
+                }
                 else if (path == "/api/computers" && request.HttpMethod == "GET")
                 {
                     var refresh = request.QueryString["refresh"] == "1";
                     var fleet = await ComputerManagementService.GetFleetAsync(refresh);
                     await SendJsonAsync(response, 200, new { success = true, computers = fleet });
+                }
+                else if (path == "/api/computers" && request.HttpMethod == "DELETE")
+                {
+                    var targetId = request.QueryString["id"] ?? "";
+                    if (string.IsNullOrWhiteSpace(targetId))
+                    {
+                        await SendApiErrorAsync(response, 400, "MISSING_ID", "A computer id is required.");
+                        return;
+                    }
+
+                    var node = ComputerManagementService.FindNode(targetId);
+                    if (node == null)
+                    {
+                        await SendApiErrorAsync(response, 404, "NOT_FOUND", "No computer with that id is registered.");
+                        return;
+                    }
+
+                    // The local machine is registered automatically and must stay reachable.
+                    if (node.IsLocal)
+                    {
+                        await SendApiErrorAsync(response, 400, "CANNOT_REMOVE_LOCAL", "This PC cannot be removed from the fleet.");
+                        return;
+                    }
+
+                    var remaining = ComputerManagementService.GetNodes().Where(n => n.Id != targetId);
+                    ComputerManagementService.SaveNodes(remaining);
+
+                    await SendJsonAsync(response, 200, new
+                    {
+                        success = true,
+                        message = $"{node.DisplayName} was removed."
+                    });
                 }
                 else if (path == "/api/computers" && request.HttpMethod == "POST")
                 {

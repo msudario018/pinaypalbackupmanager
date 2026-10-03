@@ -359,6 +359,82 @@ namespace PinayPalBackupManager.UI.UserControls
             InitializeAiAssistantSettings();
             InitializeMyComputers();
             InitializeSmartScheduling();
+            InitializeSettingsSaveBar();
+        }
+
+        /// <summary>
+        /// Wires the sticky save bar. Every card still saves its own section, but these two
+        /// buttons give one obvious "persist everything" action that is reachable from anywhere
+        /// in Settings, which is what users kept asking for.
+        /// </summary>
+        private void InitializeSettingsSaveBar()
+        {
+            var btnTop = this.FindControl<Button>("BtnSaveSettingsTop");
+            var btnBottom = this.FindControl<Button>("BtnSaveSettingsBottom");
+            var btnReset = this.FindControl<Button>("BtnResetSettings");
+            var txtSavedAt = this.FindControl<TextBlock>("TxtSettingsSavedAt");
+            var txtHint = this.FindControl<TextBlock>("TxtSettingsDirtyHint");
+
+            void SaveAll()
+            {
+                try
+                {
+                    // Re-apply every section that owns its own persistence.
+                    ConfigService.SaveOperation();
+                    NotificationService.LoadSettings();
+                    NotificationService.SaveSettings();
+
+                    AIAssistantService.SaveConfig(AIAssistantService.Config);
+                    ComputerManagementService.SaveNodes(ComputerManagementService.GetNodes());
+
+                    if (txtSavedAt != null) txtSavedAt.Text = $"Saved {DateTime.Now:HH:mm:ss}";
+                    if (txtHint != null)
+                    {
+                        txtHint.Text = "All settings saved.";
+                        txtHint.Foreground = TryBrush("AccentSuccess");
+                    }
+
+                    NotificationService.ShowBackupToast("Settings", "All settings saved.", "Success");
+                    LogService.WriteSystemLog("[Settings] All settings saved via the save bar.", "Information", "SYSTEM");
+                }
+                catch (Exception ex)
+                {
+                    if (txtHint != null)
+                    {
+                        txtHint.Text = $"Save failed: {ex.Message}";
+                        txtHint.Foreground = TryBrush("AccentError");
+                    }
+                    NotificationService.ShowBackupToast("Settings", $"Save failed: {ex.Message}", "Error");
+                }
+            }
+
+            if (btnTop != null) btnTop.Click += (_, _) => SaveAll();
+            if (btnBottom != null) btnBottom.Click += (_, _) => SaveAll();
+
+            if (btnReset != null)
+            {
+                btnReset.Click += (_, _) =>
+                {
+                    RefreshAiSettings();
+                    RefreshEmailAlerts();
+                    RefreshServiceHealthCards();
+                    if (txtSavedAt != null) txtSavedAt.Text = "";
+                    if (txtHint != null)
+                    {
+                        txtHint.Text = "Reloaded the stored values. Nothing was written.";
+                        txtHint.Foreground = TryBrush("AppMuted");
+                    }
+                };
+            }
+        }
+
+        private static IBrush? TryBrush(string key)
+        {
+            if (Application.Current != null && Application.Current.TryFindResource(key, out var res))
+            {
+                return res as IBrush;
+            }
+            return null;
         }
 
         public void RefreshAiSettings()
@@ -422,11 +498,12 @@ namespace PinayPalBackupManager.UI.UserControls
 
             var chkCloudRedact = this.FindControl<CheckBox>("ChkAiCloudRedact");
             var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
-            var nudThreads = this.FindControl<NumericUpDown>("NudAiThreads");
+            var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
 
             if (chkCloudRedact != null) chkCloudRedact.IsChecked = cfg.CloudRedactsContext;
             if (chkKeepModel != null) chkKeepModel.IsChecked = cfg.EnableLocalModelDuringBackups;
-            if (nudThreads != null) nudThreads.Value = Math.Clamp(cfg.OllamaThreads, 0, 64);
+            if (txtThreads != null && int.TryParse(txtThreads.Text, out var parsedThreads))
+            txtThreads.Text = Math.Clamp(parsedThreads, 0, 64).ToString();
         }
 
         private void InitializeAiAssistantSettings()
@@ -462,7 +539,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
             var btnUnload = this.FindControl<Button>("BtnUnloadAiModel");
             var txtResourceStatus = this.FindControl<TextBlock>("TxtAiResourceStatus");
-            var nudThreads = this.FindControl<NumericUpDown>("NudAiThreads");
+            var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
 
             if (btnUnload != null)
             {
@@ -590,7 +667,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (chkZeroLeak != null) cfg.EnableZeroLeakSanitizer = chkZeroLeak.IsChecked == true;
                         if (chkCloudRedact != null) cfg.CloudRedactsContext = chkCloudRedact.IsChecked == true;
                         if (chkKeepModel != null) cfg.EnableLocalModelDuringBackups = chkKeepModel.IsChecked == true;
-                        if (nudThreads != null) cfg.OllamaThreads = (int)(nudThreads.Value ?? 0);
+                        if (txtThreads != null && int.TryParse(txtThreads.Text, out var threadValue))
+                            cfg.OllamaThreads = Math.Clamp(threadValue, 0, 64);
 
                         AIAssistantService.SaveConfig(cfg);
                         txtAiStatus.Text = $"AI settings saved at {DateTime.Now:HH:mm:ss} (Provider: {cfg.Provider.ToUpperInvariant()})";
@@ -602,6 +680,26 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
             }
+        }
+
+        /// <summary>
+        /// Formats a partially typed MAC address into A4:BB:6D:11:22:33 form.
+        /// Strips every non-hex character first, so users can paste in any common style.
+        /// </summary>
+        private static string FormatMacAsYouType(string input)
+        {
+            var hex = new string((input ?? "").Where(Uri.IsHexDigit).Take(12).ToArray());
+
+            var sb = new System.Text.StringBuilder(17);
+            for (var i = 0; i < hex.Length; i++)
+            {
+                if (i > 0 && i % 2 == 0) sb.Append(':');
+                sb.Append(char.ToUpperInvariant(hex[i]));
+            }
+
+            // Don't leave a dangling separator while the user is mid-type.
+            var result = sb.ToString();
+            return result.EndsWith(":") ? result[..^1] : result;
         }
 
         private void InitializeMyComputers()
@@ -625,6 +723,74 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     if (txtStatus != null) txtStatus.Text = "Refreshing telemetry...";
                     await RefreshComputerListAsync();
+                };
+            }
+
+            var btnScan = this.FindControl<Button>("BtnScanNetwork");
+            if (btnScan != null)
+            {
+                btnScan.Click += async (_, _) =>
+                {
+                    var txtScanStatus = this.FindControl<TextBlock>("TxtScanStatus");
+                    var resultsPanel = this.FindControl<StackPanel>("ScanResultsPanel");
+
+                    btnScan.IsEnabled = false;
+                    btnScan.Content = "Scanning...";
+                    if (txtScanStatus != null) txtScanStatus.Text = "Probing your subnet...";
+                    if (resultsPanel != null) resultsPanel.Children.Clear();
+
+                    try
+                    {
+                        var found = await NetworkScannerService.ScanAsync();
+
+                        var pinayPalCount = found.Count(h => h.IsPinayPal);
+                        if (txtScanStatus != null)
+                        {
+                            txtScanStatus.Text = found.Count == 0
+                                ? "No other devices answered on this network."
+                                : $"Found {found.Count} device(s), including {pinayPalCount} PinayPal machine(s).";
+                        }
+
+                        if (resultsPanel != null)
+                        {
+                            foreach (var host in found.Take(30))
+                            {
+                                resultsPanel.Children.Add(
+                                    BuildDiscoveredHostRow(host, txtName, cmbRole, txtMac, txtBroadcast, txtUrl, resultsPanel));
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (txtScanStatus != null) txtScanStatus.Text = $"Scan failed: {ex.Message}";
+                    }
+                    finally
+                    {
+                        btnScan.IsEnabled = true;
+                        btnScan.Content = "Scan Network";
+                    }
+                };
+            }
+
+            // Auto-format the MAC as it is typed: accepts "a4bb6d112233", "a4-bb-6d-11-22-33"
+            // or any mix, and always renders as A4:BB:6D:11:22:33.
+            if (txtMac != null)
+            {
+                var suppress = false;
+                txtMac.TextChanged += (_, _) =>
+                {
+                    if (suppress) return;
+
+                    var formatted = FormatMacAsYouType(txtMac.Text ?? "");
+                    if (formatted == txtMac.Text) return;
+
+                    suppress = true;
+                    var caret = txtMac.CaretIndex;
+                    txtMac.Text = formatted;
+                    // Keep the caret near the end so typing continues naturally.
+                    txtMac.CaretIndex = Math.Min(caret + (formatted.Length - (txtMac.Text?.Length ?? 0)) + 1, formatted.Length);
+                    if (txtMac.CaretIndex < 0) txtMac.CaretIndex = formatted.Length;
+                    suppress = false;
                 };
             }
 
@@ -680,6 +846,88 @@ namespace PinayPalBackupManager.UI.UserControls
             }
 
             _ = RefreshComputerListAsync();
+        }
+
+        /// <summary>
+        /// One row in the scan results. Clicking it pre-fills the add-computer form with
+        /// everything we already know (name, MAC, URL) so the user only has to press Add.
+        /// </summary>
+        private Border BuildDiscoveredHostRow(
+            DiscoveredHost host,
+            TextBox? txtName,
+            ComboBox? cmbRole,
+            TextBox? txtMac,
+            TextBox? txtBroadcast,
+            TextBox? txtUrl,
+            StackPanel resultsPanel)
+        {
+            var badge = host.IsPinayPal ? "PINAYPAL" : (host.Vendor ?? "Unknown");
+            var badgeColor = host.IsPinayPal ? "#10B981" : "#64748B";
+
+            var header = new StackPanel { Spacing = 2 };
+            header.Children.Add(new TextBlock
+            {
+                Text = host.SuggestedName,
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = BrushesFor("AppText")
+            });
+            header.Children.Add(new TextBlock
+            {
+                Text = $"{host.IpAddress} · {badge}" +
+                       (host.DashboardPort > 0 ? $" · port {host.DashboardPort}" : "") +
+                       (host.AppVersion.Length > 0 ? $" · v{host.AppVersion}" : ""),
+                FontSize = 10,
+                Foreground = BrushesFor("AppMuted")
+            });
+
+            var useBtn = MakeActionButton(host.IsPinayPal ? "Use This" : "Fill Details", badgeColor);
+            useBtn.Click += (_, _) =>
+            {
+                if (txtName != null) txtName.Text = host.SuggestedName;
+                if (txtUrl != null && host.DashboardPort > 0)
+                    txtUrl.Text = $"http://{host.IpAddress}:{host.DashboardPort}";
+
+                if (txtMac != null && !string.IsNullOrWhiteSpace(host.MacAddress))
+                    txtMac.Text = ComputerManagementService.FormatMac(host.MacAddress);
+
+                // Nothing here proves the machine is a "Dev PC" vs the "Main PC", so we leave
+                // the role alone rather than guessing.
+                resultsPanel.IsVisible = false;
+
+                var txtScanStatus = this.FindControl<TextBlock>("TxtScanStatus");
+                if (txtScanStatus != null)
+                    txtScanStatus.Text = $"Filled the form with {host.SuggestedName}. Choose a role, then press Add Computer.";
+            };
+
+            var badgeText = new TextBlock
+            {
+                Text = badge,
+                FontSize = 9,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse(badgeColor)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*, Auto, Auto") };
+            Grid.SetColumn(header, 0);
+            Grid.SetColumn(badgeText, 1);
+            Grid.SetColumn(useBtn, 2);
+            grid.Children.Add(header);
+            grid.Children.Add(badgeText);
+            grid.Children.Add(useBtn);
+
+            var border = new Border
+            {
+                Background = BrushesFor("AppCard"),
+                BorderBrush = host.IsPinayPal ? new SolidColorBrush(Color.Parse("#10B981")) : BrushesFor("AppBorder"),
+                BorderThickness = new Thickness(host.IsPinayPal ? 1.5 : 1),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(12, 9),
+                Child = grid
+            };
+
+            return border;
         }
 
         private async Task RefreshComputerListAsync()

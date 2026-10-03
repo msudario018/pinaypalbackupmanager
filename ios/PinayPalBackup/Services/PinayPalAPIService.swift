@@ -37,6 +37,14 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     @Published public var status: StatusResponse? = nil
+
+    /// <summary>
+    /// Live computer fleet. Published here rather than held inside the view so the PCs tab
+    /// keeps updating while it is open, and so an add/edit/delete made on the desktop shows up
+    /// within one poll interval without the user having to pull-to-refresh.
+    /// </summary>
+    @Published public var computers: [ComputerSpec] = []
+    @Published public var computersError: String? = nil
     @Published public var remoteSettings: RemoteSettings? = nil
     @Published public var history: [BackupHistoryItem] = []
     @Published public var logs: [String] = []
@@ -389,6 +397,75 @@ public class PinayPalAPIService: ObservableObject {
         if backgroundTaskID != .invalid {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
+        }
+    }
+
+    /// <summary>
+    /// Whether the PCs tab is currently on screen. Polling only runs while it is, so the fleet
+    /// does not keep hitting the dashboard when the user is looking at something else.
+    /// </summary>
+    private var computerPollingActive: Bool = false
+    private var computerPollTask: Task<Void, Never>?
+
+    /// <summary>Starts or stops fleet polling. Safe to call repeatedly.</summary>
+    public func setComputerPolling(_ active: Bool) {
+        guard active != computerPollingActive else { return }
+        computerPollingActive = active
+
+        computerPollTask?.cancel()
+        computerPollTask = nil
+
+        guard active else { return }
+
+        computerPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshComputers()
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+            }
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the fleet from /api/computers. Used both by the poller and pull-to-refresh,
+    /// so registry edits made on the desktop appear automatically.
+    /// </summary>
+    public func refreshComputers(force: Bool = false) async {
+        let (ok, list, err) = await fetchComputers(refresh: force)
+        guard ok else {
+            // Keep the last good list rather than blanking the tab on a transient failure.
+            computersError = err
+            return
+        }
+        computers = list
+        computersError = nil
+    }
+
+    /// <summary>Removes a computer from the fleet registry on the PC.</summary>
+    public func deleteComputer(id: String) async -> (success: Bool, message: String) {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+
+        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(cleanUrl)/api/computers?id=\(encoded)") else {
+            return (false, "Invalid host URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 10
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            let message = json["message"] as? String ?? "Done"
+            let ok = (response as? HTTPURLResponse)?.statusCode == 200
+            if ok { await refreshComputers() }
+            return (ok, message)
+        } catch {
+            return (false, error.localizedDescription)
         }
     }
 

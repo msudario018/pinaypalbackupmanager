@@ -3,12 +3,22 @@
              xmlns:ui="clr-namespace:PinayPalBackupManager.UI.UserControls"
              x:Class="PinayPalBackupManager.UI.UserControls.SettingsControl">
     <Border Background="Transparent" CornerRadius="12" Padding="0">
-        <Grid RowDefinitions="Auto, *">
+        <Grid RowDefinitions="Auto, *, Auto">
             <!-- Header -->
-            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20">
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20,20,20,10">
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="SETTINGS" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AppText}"/>
                     <TextBlock Text="Configure application preferences and backup options" FontSize="12" Foreground="{DynamicResource AppMuted}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Name="BtnResetSettings" Content="Reset"
+                            Background="Transparent" Foreground="{DynamicResource AppMuted}"
+                            BorderThickness="1" BorderBrush="{DynamicResource AppBorder}"
+                            CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                    <Button Name="BtnSaveSettingsTop" Content="Save Changes"
+                            Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}"
+                            BorderThickness="0" CornerRadius="8" Padding="18,9" FontSize="12"
+                            FontWeight="Bold" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
 
@@ -207,7 +217,13 @@
                                     <TextBlock Text="AI CPU Threads" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                                     <TextBlock Text="Cap on cores the local model may use. 4 keeps backups fast on a 6-core Ryzen 5 5600. 0 = automatic." Foreground="{DynamicResource AppMuted}" FontSize="10"/>
                                 </StackPanel>
-                                <NumericUpDown Grid.Column="1" Name="NudAiThreads" Minimum="0" Maximum="64" Increment="1" Value="0" Width="90" VerticalAlignment="Center" FormatString="0"/>
+                                <TextBox Grid.Column="1" Name="TxtAiThreads" Text="0" Watermark="0"
+                                         Width="90" TextAlignment="Center"
+                                         Background="{DynamicResource AppCard}"
+                                         Foreground="{DynamicResource AppText}"
+                                         BorderBrush="{DynamicResource AppBorder}"
+                                         CornerRadius="6" Padding="8,6" FontSize="11"
+                                         VerticalAlignment="Center"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -369,6 +385,23 @@
                     <TextBlock Text="Wake-on-LAN needs a MAC address. Remote restart/shutdown needs the target PC's dashboard URL and matching access PIN."
                            Foreground="{DynamicResource AppMuted}" FontSize="11" TextWrapping="Wrap"/>
 
+                    <!-- Network scanner: discover PCs on this subnet automatically -->
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="DISCOVER COMPUTERS ON THIS NETWORK" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
+                            <TextBlock Text="Scans your local subnet and lists anything that answers. PinayPal instances are detected automatically and pre-filled."
+                                       Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Name="BtnScanNetwork" Content="Scan Network"
+                                        Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
+                                        BorderThickness="0" CornerRadius="8" Padding="14,7" FontSize="11" Cursor="Hand"/>
+                                <TextBlock Name="TxtScanStatus" Text="" Foreground="{DynamicResource AppMuted}"
+                                           FontSize="10" FontStyle="Italic" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Name="ScanResultsPanel" Spacing="6"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Add a new computer -->
                     <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
                         <StackPanel Spacing="8">
@@ -390,7 +423,7 @@
                             <Grid ColumnDefinitions="*, *" Margin="0,2,0,0">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
                                     <TextBlock Text="MAC Address (for Wake-on-LAN)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
-                                    <TextBox Name="TxtNewComputerMac" Watermark="A4:BB:6D:11:22:33" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                    <TextBox Name="TxtNewComputerMac" Watermark="A4:BB:6D:11:22:33" MaxLength="17" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
                                     <TextBlock Text="Broadcast Address" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
@@ -557,6 +590,32 @@
             </Border>
             </StackPanel>
         </ScrollViewer>
+
+            <!-- Floating save bar: always visible, so Save is reachable from anywhere in Settings -->
+            <Border Grid.Row="2"
+                    Background="{DynamicResource AppCard}"
+                    BorderBrush="{DynamicResource AppBorder}"
+                    BorderThickness="1,1,1,0"
+                    CornerRadius="12,12,0,0"
+                    Padding="20,12">
+                <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Name="TxtSettingsDirtyHint"
+                               Grid.Column="0"
+                               Text="Changes are applied immediately where possible. Use Save to persist everything."
+                               FontSize="11"
+                               Foreground="{DynamicResource AppMuted}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Name="TxtSettingsSavedAt" Text="" FontSize="11" Foreground="{DynamicResource AppMuted}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Button Name="BtnSaveSettingsBottom" Content="Save Changes"
+                                Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}"
+                                BorderThickness="0" CornerRadius="8" Padding="18,9" FontSize="12"
+                                FontWeight="Bold" Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
     </Grid>
 </Border>
 </UserControl>
