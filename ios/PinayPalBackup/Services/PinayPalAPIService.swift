@@ -56,6 +56,15 @@ public class PinayPalAPIService: ObservableObject {
 
     private var pollTimer: AnyCancellable?
     private var lastRecordedBusyService: String? = nil
+
+    /// <summary>Tracks foreground/background so polling can back off aggressively when hidden.</summary>
+    private var isAppActive: Bool = true
+
+    /// <summary>
+    /// Guards against overlapping status requests. Without this, a slow response on a 2s
+    /// timer can stack up concurrent fetches and make the app look slower over time.
+    /// </summary>
+    private var isStatusFetchInFlight: Bool = false
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     private var backgroundSyncTask: Task<Void, Never>? = nil
     private var lifecycleObservers: [NSObjectProtocol] = []
@@ -325,13 +334,17 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     private func handleDidEnterBackground() {
+        isAppActive = false
         let isBusy = self.status?.activeBackup?.isBusy == true || BackupLiveActivityManager.shared.isActivityActive
         if isBusy {
             startBackgroundLiveActivitySync()
         }
+        // Re-arm the timer so the background cadence (20s/45s) takes effect immediately.
+        startPolling()
     }
 
     private func handleWillEnterForeground() {
+        isAppActive = true
         endBackgroundLiveActivitySync()
         startPolling()
         Task {
@@ -381,10 +394,25 @@ public class PinayPalAPIService: ObservableObject {
 
     public func startPolling() {
         pollTimer?.cancel()
-        // Adaptive polling: 10s under Battery Saver / Low Power Mode; otherwise 4s idle and 2s during active backup
-        let interval: Double = (isBatterySaverEnabled || ProcessInfo.processInfo.isLowPowerModeEnabled)
-            ? 10.0
-            : ((status?.activeBackup?.isBusy == true) ? 2.0 : 4.0)
+
+        // Adaptive polling. The dashboard is a "live ops" surface, so it should be
+        // responsive while you are actually looking at it and almost silent when you are not:
+        //  - a backup is running            -> 2s (progress ring must feel live)
+        //  - normal viewing                 -> 5s
+        //  - app is backgrounded            -> 20s (keeps Dynamic Island / widgets warm)
+        //  - battery saver or Low Power Mode -> 15s foreground, 45s background
+        let lowPower = isBatterySaverEnabled || ProcessInfo.processInfo.isLowPowerModeEnabled
+        let busy = status?.activeBackup?.isBusy == true
+
+        let interval: Double
+        if lowPower {
+            interval = isAppActive ? 15.0 : 45.0
+        } else if busy {
+            interval = 2.0
+        } else {
+            interval = isAppActive ? 5.0 : 20.0
+        }
+
         pollTimer = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -414,6 +442,12 @@ public class PinayPalAPIService: ObservableObject {
     }
 
     public func fetchStatus() async {
+        // Skip if a previous poll is still in flight; otherwise a slow response on a short
+        // timer piles up concurrent requests and the UI ends up rendering stale results.
+        guard !isStatusFetchInFlight else { return }
+        isStatusFetchInFlight = true
+        defer { isStatusFetchInFlight = false }
+
         // Fail-back probes: hop to a lower-latency route whenever it becomes reachable again.
         await failBackIfReachable()
 
@@ -423,6 +457,9 @@ public class PinayPalAPIService: ObservableObject {
                 applyRoute(route.mode)
                 applyStatus(decoded)
                 await handleConnectedSideEffects(mode: route.mode)
+
+                // Re-tune the timer: crossing into (or out of) a busy state changes the cadence.
+                if pollTimer != nil { startPolling() }
                 return
             }
         }
@@ -1105,6 +1142,77 @@ public class PinayPalAPIService: ObservableObject {
         return (false, "Failed to upload avatar")
     }
 
+    // MARK: - Managed computers (fleet)
+
+    /// Fetches the fleet of managed computers with live hardware telemetry.
+    public func fetchComputers(refresh: Bool = true) async -> (success: Bool, computers: [ComputerSpec], error: String?) {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+        let suffix = refresh ? "?refresh=1" : ""
+        guard let url = URL(string: "\(cleanUrl)/api/computers\(suffix)") else {
+            return (false, [], "Invalid host URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 12
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                return (false, [], "Computers endpoint returned HTTP \(code)")
+            }
+
+            let decoded = try JSONDecoder().decode(ComputerFleetResponse.self, from: data)
+            return (true, decoded.computers ?? [], nil)
+        } catch {
+            return (false, [], error.localizedDescription)
+        }
+    }
+
+    /// Sends a wake / restart / shutdown / lock / sleep request for one computer.
+    /// Destructive actions use a grace delay so a mis-tap cannot kill a working machine instantly.
+    public func performComputerAction(computerId: String, action: String, delaySeconds: Int = 10) async -> (success: Bool, message: String) {
+        var cleanUrl = activeBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanUrl.hasSuffix("/") { cleanUrl.removeLast() }
+
+        // "wake" has a dedicated endpoint; everything else goes through /api/computers/action.
+        let path = (action == "wake") ? "/api/computers/wake" : "/api/computers/action?action=\(action)"
+
+        guard let url = URL(string: "\(cleanUrl)\(path)") else {
+            return (false, "Invalid host URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 25
+        if let auth = getAuthorizationHeader() {
+            request.addValue(auth, forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = ["computerId": computerId, "delaySeconds": delaySeconds]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            return (false, "Failed to encode the request")
+        }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse,
+               let decoded = try? JSONDecoder().decode(ComputerPowerResponse.self, from: data) {
+                return (http.statusCode == 200 && decoded.success, decoded.message ?? "Done.")
+            }
+            return (false, "Request failed with HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
     // MARK: - AI Assistant Engine
 
     public func sendAIChat(prompt: String) async -> (success: Bool, message: AIChatMessage?, error: String?) {
@@ -1152,7 +1260,13 @@ public class PinayPalAPIService: ObservableObject {
                 proposed = AIChatProposedAction(id: id, title: title, description: desc, actionType: actionType, requiresConfirmation: reqConf, status: status, parameters: params)
             }
 
-            let chatMsg = AIChatMessage(role: "assistant", content: content, proposedAction: proposed)
+            // Tappable next-step chips, when the engine produced any.
+            let suggestions = (json["followUpSuggestions"] as? [String]) ?? []
+
+            let engine = json["engine"] as? String
+
+            let chatMsg = AIChatMessage(role: "assistant", content: content, proposedAction: proposed,
+                                         followUpSuggestions: suggestions, engine: engine)
             return (true, chatMsg, nil)
         } catch {
             return (false, nil, error.localizedDescription)
@@ -1247,12 +1361,20 @@ public struct AIChatMessage: Identifiable, Equatable {
     public let timestamp: Date
     public var proposedAction: AIChatProposedAction?
 
-    public init(id: String = UUID().uuidString, role: String, content: String, timestamp: Date = Date(), proposedAction: AIChatProposedAction? = nil) {
+    /// Tappable next-step chips rendered under the reply.
+    public var followUpSuggestions: [String]
+
+    /// Which engine answered: "ollama", "cloud", or "heuristics".
+    public var engine: String?
+
+    public init(id: String = UUID().uuidString, role: String, content: String, timestamp: Date = Date(), proposedAction: AIChatProposedAction? = nil, followUpSuggestions: [String] = [], engine: String? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.proposedAction = proposedAction
+        self.followUpSuggestions = followUpSuggestions
+        self.engine = engine
     }
 }
 

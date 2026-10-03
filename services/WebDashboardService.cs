@@ -304,6 +304,28 @@ namespace PinayPalBackupManager.Services
                     AIAssistantService.ClearSessionHistory();
                     await SendJsonAsync(response, 200, new { success = true, message = "AI conversation history cleared." });
                 }
+                else if (path == "/api/computers" && request.HttpMethod == "GET")
+                {
+                    var refresh = request.QueryString["refresh"] == "1";
+                    var fleet = await ComputerManagementService.GetFleetAsync(refresh);
+                    await SendJsonAsync(response, 200, new { success = true, computers = fleet });
+                }
+                else if (path == "/api/computers" && request.HttpMethod == "POST")
+                {
+                    await HandleSaveComputersPostAsync(context);
+                }
+                else if (path == "/api/computers/wake" && request.HttpMethod == "POST")
+                {
+                    await HandleComputerActionPostAsync(context, "wake");
+                }
+                else if (path.StartsWith("/api/computers/action") && request.HttpMethod == "POST")
+                {
+                    await HandleComputerActionPostAsync(context, request.QueryString["action"] ?? "");
+                }
+                else if (path.StartsWith("/api/power/") && request.HttpMethod == "POST")
+                {
+                    await HandleLocalPowerPostAsync(context, path.Substring("/api/power/".Length));
+                }
                 else
                 {
                     await SendApiErrorAsync(response, 404, "NOT_FOUND", "Endpoint was not found.");
@@ -811,8 +833,42 @@ namespace PinayPalBackupManager.Services
             await SendJsonAsync(response, 202, new { success = true, message = $"Mailchimp {resolvedTask} export queued." });
         }
 
+        /// <summary>Process start time, captured once. Avoids per-poll Process handle churn.</summary>
+        private static readonly DateTime? AppStartTime = CaptureAppStartTime();
+
+        private static DateTime? CaptureAppStartTime()
+        {
+            try
+            {
+                using var proc = Process.GetCurrentProcess();
+                return proc.StartTime;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Shared 2-second cache for the heavily polled /api/status payload.</summary>
+        private static (DateTime ServedAt, object Payload)? _statusCache;
+
+        private static readonly TimeSpan StatusCacheDuration = TimeSpan.FromSeconds(2);
+
         private static async Task ServeStatusApiAsync(HttpListenerResponse response, HttpListenerRequest request)
         {
+            // ---- Short-lived response cache ----
+            // The dashboard and the iOS app both poll this endpoint every few seconds from
+            // potentially several clients at once. Building the payload means a health check
+            // read, a telemetry read and a website reachability probe, so serving a couple of
+            // identical answers from a 2s window removes a large amount of duplicated work
+            // without making the UI feel stale.
+            var cached = _statusCache;
+            if (cached != null && (DateTime.UtcNow - cached.Value.ServedAt) < StatusCacheDuration && request.QueryString["refresh"] != "1")
+            {
+                await SendJsonAsync(response, 200, cached.Value.Payload);
+                return;
+            }
+
             string? sessionUser = null;
             var cookieToken = request.Cookies["pp_token"]?.Value;
             var authHeader = request.Headers["Authorization"]?.Replace("Bearer ", "").Trim();
@@ -843,7 +899,11 @@ namespace PinayPalBackupManager.Services
             string appUptimeStr = "--";
             try
             {
-                var procUptime = DateTime.Now - Process.GetCurrentProcess().StartTime;
+                // Uptime only needs the start time, so read it once instead of constructing a
+                // Process on every status poll (which would leak a native handle each call).
+                var procUptime = AppStartTime.HasValue
+                    ? DateTime.Now - AppStartTime.Value
+                    : TimeSpan.Zero;
                 appUptimeStr = procUptime.Days > 0 ? $"{procUptime.Days}d {procUptime.Hours}h {procUptime.Minutes}m" : $"{procUptime.Hours}h {procUptime.Minutes}m";
             }
             catch { }
@@ -991,6 +1051,8 @@ namespace PinayPalBackupManager.Services
                 }
             };
 
+            // Publish into the shared cache before writing it out.
+            _statusCache = (DateTime.UtcNow, status);
             await SendJsonAsync(response, 200, status);
         }
 
@@ -1695,6 +1757,194 @@ namespace PinayPalBackupManager.Services
                 LogService.WriteSystemLog($"[WebDashboard] AI Action execution failed: {ex.Message}", "Error", "AI");
                 await SendApiErrorAsync(context.Response, 500, "AI_ACTION_ERROR", ex.Message);
             }
+        }
+
+        // ==========================================
+        // Managed computers (fleet) endpoints
+        // ==========================================
+
+        /// <summary>Persists the computer registry. Peer PINs are never echoed back to clients.</summary>
+        private static async Task HandleSaveComputersPostAsync(HttpListenerContext context)
+        {
+            var response = context.Response;
+            string body;
+
+            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+            {
+                body = await reader.ReadToEndAsync();
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (!doc.RootElement.TryGetProperty("computers", out var arr) || arr.ValueKind != JsonValueKind.Array)
+                {
+                    await SendApiErrorAsync(response, 400, "INVALID_PAYLOAD", "Expected a 'computers' array.");
+                    return;
+                }
+
+                var existing = ComputerManagementService.GetNodes().ToDictionary(n => n.Id, n => n);
+                var parsed = new List<ComputerNode>();
+
+                foreach (var el in arr.EnumerateArray())
+                {
+                    var id = el.TryGetProperty("id", out var i) ? i.GetString() ?? "" : "";
+                    var node = new ComputerNode
+                    {
+                        Id = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N")[..8] : id,
+                        DisplayName = el.TryGetProperty("displayName", out var dn) ? dn.GetString() ?? "" : "",
+                        Role = el.TryGetProperty("role", out var r) && Enum.TryParse<ComputerRole>(r.GetString(), true, out var role) ? role : ComputerRole.Aux,
+                        MacAddress = el.TryGetProperty("macAddress", out var mac) ? mac.GetString() ?? "" : "",
+                        BroadcastAddress = el.TryGetProperty("broadcastAddress", out var b) ? b.GetString() ?? "" : "",
+                        WolPort = el.TryGetProperty("wolPort", out var wp) && wp.TryGetInt32(out var wpi) ? wpi : 9,
+                        ApiBaseUrl = el.TryGetProperty("apiBaseUrl", out var url) ? url.GetString() ?? "" : "",
+                        Enabled = !el.TryGetProperty("enabled", out var en) || en.ValueKind != JsonValueKind.False,
+                        Notes = el.TryGetProperty("notes", out var nt) ? nt.GetString() ?? "" : ""
+                    };
+
+                    // The local machine can never be pointed at a remote URL or be disabled.
+                    if (existing.TryGetValue(node.Id, out var prior) && prior.IsLocal)
+                    {
+                        node.IsLocal = true;
+                        node.ApiBaseUrl = "";
+                        node.Enabled = true;
+                    }
+
+                    // Keep the stored PIN unless a new one was explicitly supplied.
+                    node.Pin = el.TryGetProperty("pin", out var pin) && !string.IsNullOrWhiteSpace(pin.GetString())
+                        ? pin.GetString()!.Trim()
+                        : (existing.TryGetValue(node.Id, out var keep) ? keep.Pin : "");
+
+                    parsed.Add(node);
+                }
+
+                ComputerManagementService.SaveNodes(parsed);
+
+                var fleet = await ComputerManagementService.GetFleetAsync(forceRefresh: false);
+                await SendJsonAsync(response, 200, new
+                {
+                    success = true,
+                    message = "Computer registry saved.",
+                    computers = RedactFleet(fleet)
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Save computers failed: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(response, 400, "INVALID_PAYLOAD", "Could not parse the computer registry.");
+            }
+        }
+
+        /// <summary>Strips peer PINs from any fleet payload before it leaves this machine.</summary>
+        private static List<object> RedactFleet(List<ComputerView> fleet)
+        {
+            return fleet.Select(v => (object)new
+            {
+                v.Node.Id,
+                v.Node.DisplayName,
+                role = v.Node.Role.ToString(),
+                v.Node.MacAddress,
+                v.Node.BroadcastAddress,
+                v.Node.WolPort,
+                v.Node.ApiBaseUrl,
+                v.Node.IsLocal,
+                v.Node.Enabled,
+                v.Node.Notes,
+                v.Telemetry,
+                v.AvailableActions
+            }).ToList();
+        }
+        /// <summary>Handles a wake / restart / shutdown request for a specific managed computer.</summary>
+        private static async Task HandleComputerActionPostAsync(HttpListenerContext context, string action)
+        {
+            var response = context.Response;
+            string body;
+
+            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+            {
+                body = await reader.ReadToEndAsync();
+            }
+
+            try
+            {
+                string computerId = "";
+                var delay = 10;
+
+                if (!string.IsNullOrWhiteSpace(body))
+                {
+                    using var doc = JsonDocument.Parse(body);
+                    if (doc.RootElement.TryGetProperty("computerId", out var idProp))
+                        computerId = idProp.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("delaySeconds", out var dProp) && dProp.TryGetInt32(out var parsedDelay))
+                        delay = parsedDelay;
+                }
+
+                // Fall back to the ?id= query when the body is empty.
+                if (string.IsNullOrWhiteSpace(computerId)) computerId = context.Request.QueryString["id"] ?? "";
+
+                if (string.IsNullOrWhiteSpace(computerId))
+                {
+                    await SendApiErrorAsync(response, 400, "MISSING_COMPUTER", "A computerId is required.");
+                    return;
+                }
+
+                var result = await ComputerManagementService.ExecutePowerAsync(computerId, action, delay);
+                await SendJsonAsync(response, result.Success ? 200 : 400, new
+                {
+                    success = result.Success,
+                    message = result.Message,
+                    result.Action,
+                    result.TargetId
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[WebDashboard] Computer action failed: {ex.Message}", "Error", "SYSTEM");
+                await SendApiErrorAsync(response, 500, "ACTION_FAILED", "The computer action could not be completed.");
+            }
+        }
+
+        /// <summary>
+        /// Lets an authenticated peer (or the mobile app) power down *this* machine.
+        /// This is what ComputerManagementService calls when proxying to a remote PC.
+        /// </summary>
+        private static async Task HandleLocalPowerPostAsync(HttpListenerContext context, string action)
+        {
+            var response = context.Response;
+            string body;
+
+            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+            {
+                body = await reader.ReadToEndAsync();
+            }
+
+            var delay = 10;
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(body);
+                    if (doc.RootElement.TryGetProperty("delaySeconds", out var dProp) && dProp.TryGetInt32(out var parsedDelay))
+                        delay = parsedDelay;
+                }
+                catch { /* fall through to the default grace period */ }
+            }
+
+            var localNode = ComputerManagementService.GetNodes().FirstOrDefault(n => n.IsLocal);
+            if (localNode == null)
+            {
+                await SendApiErrorAsync(response, 500, "NO_LOCAL_NODE", "This machine is not registered as a managed computer.");
+                return;
+            }
+
+            var result = await ComputerManagementService.ExecutePowerAsync(localNode.Id, action, delay);
+            await SendJsonAsync(response, result.Success ? 200 : 400, new
+            {
+                success = result.Success,
+                message = result.Message,
+                result.Action,
+                result.TargetId
+            });
         }
 
         private static async Task ServeAIConfigApiAsync(HttpListenerResponse response)
@@ -2792,11 +3042,25 @@ namespace PinayPalBackupManager.Services
             if (refreshState.dataTimer) clearInterval(refreshState.dataTimer);
             if (refreshState.logsTimer) clearInterval(refreshState.logsTimer);
             refreshState.dataTimer = null;
+            // Polling a hidden tab is pure waste: it keeps the PC awake and burns CPU with
+            // data nobody can see. Both timers are re-armed on visibilitychange.
+            if (document.hidden) return;
             refreshState.logsTimer = setInterval(loadLogs, Math.max(3000, refreshState.interval || 10000));
             if (refreshState.interval) refreshState.dataTimer = setInterval(loadData, refreshState.interval);
             const select = document.getElementById('refresh-interval');
             if (select) select.value = String(refreshState.interval);
         }
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                // Stop the timers entirely while hidden.
+                if (refreshState.dataTimer) { clearInterval(refreshState.dataTimer); refreshState.dataTimer = null; }
+                if (refreshState.logsTimer) { clearInterval(refreshState.logsTimer); refreshState.logsTimer = null; }
+            } else {
+                startRefreshTimers();
+                refreshDashboard();
+            }
+        });
 
         function changeHistoryPage(offset) {
             const next = historyState.page + offset;

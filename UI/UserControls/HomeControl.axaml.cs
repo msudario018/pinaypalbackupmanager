@@ -18,6 +18,24 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class HomeControl : UserControl
     {
+        /// <summary>
+        /// Process start time captured once. Building a new Process on every refresh leaks a
+        /// native handle each time, and this control refreshes on a timer.
+        /// </summary>
+        private static readonly DateTime? AppStartTime = CaptureStartTime();
+
+        private static DateTime? CaptureStartTime()
+        {
+            try
+            {
+                using var proc = Process.GetCurrentProcess();
+                return proc.StartTime;
+            }
+            catch
+            {
+                return null;
+            }
+        }
         private readonly BackupManager _manager;
         private System.Timers.Timer? _healthRefreshTimer;
         private System.Timers.ElapsedEventHandler? _healthRefreshTimerHandler;
@@ -2115,7 +2133,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 string uptimeText = "-";
                 try
                 {
-                    var uptime = DateTime.Now - Process.GetCurrentProcess().StartTime;
+                    // App uptime: use the cached start time rather than building a new Process each poll.
+                var uptime = AppStartTime.HasValue
+                    ? DateTime.Now - AppStartTime.Value
+                    : TimeSpan.Zero;
                     uptimeText = uptime.TotalHours < 1 ? $"{uptime.TotalMinutes:F0}m" :
                                  uptime.TotalHours < 24 ? $"{uptime.TotalHours:F1}h" :
                                  $"{uptime.TotalDays:F1}d";

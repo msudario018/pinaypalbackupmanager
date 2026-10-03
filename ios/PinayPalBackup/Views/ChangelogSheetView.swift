@@ -53,9 +53,52 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.7.2 (Build 25)",
+            version: "v3.8.0 (Build 26)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Remote computer control (wake, restart, shutdown), a genuinely conversational AI with multi-turn memory, and major idle-CPU savings",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "My Computers & Remote Power",
+                    description: "Register your Dev PC and Main PC to see live hardware telemetry and remotely wake, restart, shut down, lock or sleep them. Peer commands are authenticated by the target PC itself."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Conversational AI That Remembers",
+                    description: "The assistant now holds real multi-turn conversations instead of treating every message in isolation, resolves follow-ups like \"run that one\", and suggests tappable next questions after each reply."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Personality & Proactive Updates",
+                    description: "Tune talkativeness, creativity and memory depth, rename your assistant, and let it proactively reach out when a backup fails, memory is tight, or the remote tunnel drops."
+                ),
+                ChangelogItem(
+                    type: .security,
+                    title: "Online AI, Still Private",
+                    description: "Cloud escalation now redacts hostnames, IP addresses, URLs and file paths before anything leaves your PC, and only sends aggregate telemetry."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Collapsible Settings Cards",
+                    description: "Settings are now tidy click-to-expand cards, so the AI options and every other section only take up space when you actually open them."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Faster, Resumable FTP Syncs",
+                    description: "Backups no longer crawl at kilobytes per second. Transfers are unlimited and resumable, so an interrupted upload continues instead of restarting from zero."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Lower Idle CPU & Battery Use",
+                    description: "Hardware temperature and GPU sensors are sampled far less often, the dashboard payload is cached between polls, and the app backs off when backgrounded."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.7.2 (Build 25)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "AI Assistant twin-sparkle emblem overhaul, horizontal scroll prompt chips with bilateral glass arrows, in-drawer & dedicated settings, and intelligent diagnostic actions",
             changes: [
                 ChangelogItem(

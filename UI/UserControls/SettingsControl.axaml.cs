@@ -1,5 +1,8 @@
 using Avalonia.Controls;
+using Avalonia;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Controls.Shapes;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -353,6 +356,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
             InitializeEmailAlerts();
             InitializeAiAssistantSettings();
+            InitializeMyComputers();
         }
 
         public void RefreshAiSettings()
@@ -391,6 +395,36 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtCloudEp != null) txtCloudEp.Text = cfg.CloudEndpoint;
             if (txtCloudModel != null) txtCloudModel.Text = cfg.CloudModel;
             if (txtCloudKey != null) txtCloudKey.Text = cfg.CloudApiKey;
+
+            // Personality & safety
+            var txtName = this.FindControl<TextBox>("TxtAiAssistantName");
+            var sldTalk = this.FindControl<Slider>("SldAiTalkativeness");
+            var sldCreativity = this.FindControl<Slider>("SldAiCreativity");
+            var sldMemory = this.FindControl<Slider>("SldAiMemoryDepth");
+            var sldProactive = this.FindControl<Slider>("SldAiProactiveMinutes");
+            var chkFollowUp = this.FindControl<CheckBox>("ChkAiFollowUpSuggestions");
+            var chkProactive = this.FindControl<CheckBox>("ChkAiProactiveUpdates");
+            var chkRequireApproval = this.FindControl<CheckBox>("ChkAiRequireApproval");
+            var chkZeroLeak = this.FindControl<CheckBox>("ChkAiZeroLeak");
+
+            if (txtName != null) txtName.Text = cfg.AssistantName;
+            if (sldTalk != null) sldTalk.Value = Math.Clamp(cfg.Talkativeness, 0, 100);
+            if (sldCreativity != null) sldCreativity.Value = Math.Clamp(cfg.Creativity, 0.0, 1.5);
+            if (sldMemory != null) sldMemory.Value = Math.Clamp(cfg.ConversationMemoryDepth, 0, 40);
+            if (sldProactive != null) sldProactive.Value = Math.Clamp(cfg.ProactiveIntervalMinutes, 0, 240);
+
+            if (chkFollowUp != null) chkFollowUp.IsChecked = cfg.EnableFollowUpSuggestions;
+            if (chkProactive != null) chkProactive.IsChecked = cfg.EnableProactiveUpdates;
+            if (chkRequireApproval != null) chkRequireApproval.IsChecked = cfg.RequireActionApproval;
+            if (chkZeroLeak != null) chkZeroLeak.IsChecked = cfg.EnableZeroLeakSanitizer;
+
+            var chkCloudRedact = this.FindControl<CheckBox>("ChkAiCloudRedact");
+            var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
+            var nudThreads = this.FindControl<NumericUpDown>("NudAiThreads");
+
+            if (chkCloudRedact != null) chkCloudRedact.IsChecked = cfg.CloudRedactsContext;
+            if (chkKeepModel != null) chkKeepModel.IsChecked = cfg.EnableLocalModelDuringBackups;
+            if (nudThreads != null) nudThreads.Value = Math.Clamp(cfg.OllamaThreads, 0, 64);
         }
 
         private void InitializeAiAssistantSettings()
@@ -409,6 +443,77 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnSaveAi = this.FindControl<Button>("BtnSaveAiSettings");
             var btnResetHistory = this.FindControl<Button>("BtnResetAiHistory");
             var txtAiStatus = this.FindControl<TextBlock>("TxtAiStatusMessage");
+
+            // Personality & safety controls
+            var txtName = this.FindControl<TextBox>("TxtAiAssistantName");
+            var sldTalk = this.FindControl<Slider>("SldAiTalkativeness");
+            var sldCreativity = this.FindControl<Slider>("SldAiCreativity");
+            var sldMemory = this.FindControl<Slider>("SldAiMemoryDepth");
+            var sldProactive = this.FindControl<Slider>("SldAiProactiveMinutes");
+            var chkFollowUp = this.FindControl<CheckBox>("ChkAiFollowUpSuggestions");
+            var chkProactive = this.FindControl<CheckBox>("ChkAiProactiveUpdates");
+            var chkRequireApproval = this.FindControl<CheckBox>("ChkAiRequireApproval");
+            var chkZeroLeak = this.FindControl<CheckBox>("ChkAiZeroLeak");
+
+            // Resource & cloud-privacy controls
+            var chkCloudRedact = this.FindControl<CheckBox>("ChkAiCloudRedact");
+            var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
+            var btnUnload = this.FindControl<Button>("BtnUnloadAiModel");
+            var txtResourceStatus = this.FindControl<TextBlock>("TxtAiResourceStatus");
+            var nudThreads = this.FindControl<NumericUpDown>("NudAiThreads");
+
+            if (btnUnload != null)
+            {
+                btnUnload.Click += async (_, _) =>
+                {
+                    btnUnload.IsEnabled = false;
+                    if (txtResourceStatus != null) txtResourceStatus.Text = "Releasing the local model...";
+
+                    var (ok, msg) = await AIAssistantService.UnloadOllamaModelAsync();
+
+                    if (txtResourceStatus != null) txtResourceStatus.Text = msg;
+                    NotificationService.ShowBackupToast("AI Assistant", msg, ok ? "Success" : "Warning");
+                    btnUnload.IsEnabled = true;
+                };
+            }
+
+            void ShowLiveResourceUsage()
+            {
+                if (txtResourceStatus == null) return;
+                try
+                {
+                    var t = HardwareTelemetryService.GetTelemetrySync();
+                    txtResourceStatus.Text =
+                        $"RAM {t.RamUsagePercent:F0}% used · {t.RamFreeGB:F1} GB free · App {t.AppRamUsageMB:F0} MB";
+                }
+                catch { }
+            }
+
+            ShowLiveResourceUsage();
+
+            var lblTalk = this.FindControl<TextBlock>("TxtAiTalkativenessValue");
+            var lblCreativity = this.FindControl<TextBlock>("TxtAiCreativityValue");
+            var lblMemory = this.FindControl<TextBlock>("TxtAiMemoryDepthValue");
+            var lblProactive = this.FindControl<TextBlock>("TxtAiProactiveMinutesValue");
+
+            // Keep the numeric read-outs beside each slider live.
+            void SyncSliderLabels()
+            {
+                if (lblTalk != null) lblTalk.Text = sldTalk?.Value.ToString("F0") ?? "60";
+                if (lblCreativity != null) lblCreativity.Text = sldCreativity?.Value.ToString("F1") ?? "0.6";
+                if (lblMemory != null) lblMemory.Text = sldMemory?.Value.ToString("F0") ?? "12";
+                if (lblProactive != null)
+                {
+                    var mins = sldProactive?.Value ?? 60;
+                    lblProactive.Text = mins <= 0 ? "Off" : (mins >= 60 ? $"{mins / 60:F0}h" : $"{mins:F0}m");
+                }
+            }
+
+            if (sldTalk != null) sldTalk.ValueChanged += (_, _) => SyncSliderLabels();
+            if (sldCreativity != null) sldCreativity.ValueChanged += (_, _) => SyncSliderLabels();
+            if (sldMemory != null) sldMemory.ValueChanged += (_, _) => SyncSliderLabels();
+            if (sldProactive != null) sldProactive.ValueChanged += (_, _) => SyncSliderLabels();
+            SyncSliderLabels();
 
             RefreshAiSettings();
 
@@ -468,6 +573,23 @@ namespace PinayPalBackupManager.UI.UserControls
                         if (txtCloudKey != null)
                             cfg.CloudApiKey = txtCloudKey.Text?.Trim() ?? "";
 
+                        // Personality & safety
+                        if (txtName != null && !string.IsNullOrWhiteSpace(txtName.Text))
+                            cfg.AssistantName = txtName.Text.Trim();
+
+                        if (sldTalk != null) cfg.Talkativeness = (int)sldTalk.Value;
+                        if (sldCreativity != null) cfg.Creativity = sldCreativity.Value;
+                        if (sldMemory != null) cfg.ConversationMemoryDepth = (int)sldMemory.Value;
+                        if (sldProactive != null) cfg.ProactiveIntervalMinutes = (int)sldProactive.Value;
+
+                        if (chkFollowUp != null) cfg.EnableFollowUpSuggestions = chkFollowUp.IsChecked == true;
+                        if (chkProactive != null) cfg.EnableProactiveUpdates = chkProactive.IsChecked == true;
+                        if (chkRequireApproval != null) cfg.RequireActionApproval = chkRequireApproval.IsChecked == true;
+                        if (chkZeroLeak != null) cfg.EnableZeroLeakSanitizer = chkZeroLeak.IsChecked == true;
+                        if (chkCloudRedact != null) cfg.CloudRedactsContext = chkCloudRedact.IsChecked == true;
+                        if (chkKeepModel != null) cfg.EnableLocalModelDuringBackups = chkKeepModel.IsChecked == true;
+                        if (nudThreads != null) cfg.OllamaThreads = (int)(nudThreads.Value ?? 0);
+
                         AIAssistantService.SaveConfig(cfg);
                         txtAiStatus.Text = $"AI settings saved at {DateTime.Now:HH:mm:ss} (Provider: {cfg.Provider.ToUpperInvariant()})";
                         NotificationService.ShowBackupToast("AI Settings Saved", $"Inference provider: {cfg.Provider.ToUpperInvariant()}", "Success");
@@ -478,6 +600,263 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                 };
             }
+        }
+
+        private void InitializeMyComputers()
+        {
+            var btnAdd = this.FindControl<Button>("BtnAddComputer");
+            var btnRefresh = this.FindControl<Button>("BtnRefreshComputers");
+            var txtName = this.FindControl<TextBox>("TxtNewComputerName");
+            var cmbRole = this.FindControl<ComboBox>("CmbNewComputerRole");
+            var txtMac = this.FindControl<TextBox>("TxtNewComputerMac");
+            var txtBroadcast = this.FindControl<TextBox>("TxtNewComputerBroadcast");
+            var txtUrl = this.FindControl<TextBox>("TxtNewComputerUrl");
+            var txtPin = this.FindControl<TextBox>("TxtNewComputerPin");
+            var txtStatus = this.FindControl<TextBlock>("TxtComputerStatus");
+            var listPanel = this.FindControl<StackPanel>("ComputerListPanel");
+
+            if (listPanel == null) return;
+
+            if (btnRefresh != null)
+            {
+                btnRefresh.Click += async (_, _) =>
+                {
+                    if (txtStatus != null) txtStatus.Text = "Refreshing telemetry...";
+                    await RefreshComputerListAsync();
+                };
+            }
+
+            if (btnAdd != null)
+            {
+                btnAdd.Click += (_, _) =>
+                {
+                    var name = txtName?.Text?.Trim() ?? "";
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        if (txtStatus != null) txtStatus.Text = "Please give the computer a name first.";
+                        return;
+                    }
+
+                    var mac = ComputerManagementService.NormalizeMac(txtMac?.Text);
+                    if (!string.IsNullOrWhiteSpace(txtMac?.Text) && mac.Length != 12)
+                    {
+                        if (txtStatus != null) txtStatus.Text = "That MAC address doesn't look right. Use 12 hex digits, e.g. A4:BB:6D:11:22:33.";
+                        return;
+                    }
+
+                    var role = (cmbRole?.SelectedIndex) switch
+                    {
+                        0 => ComputerRole.Main,
+                        2 => ComputerRole.Aux,
+                        _ => ComputerRole.Dev
+                    };
+
+                    var nodes = ComputerManagementService.GetNodes();
+                    nodes.Add(new ComputerNode
+                    {
+                        DisplayName = name,
+                        Role = role,
+                        MacAddress = mac,
+                        BroadcastAddress = txtBroadcast?.Text?.Trim() is { Length: > 0 } b ? b : "255.255.255.255",
+                        ApiBaseUrl = txtUrl?.Text?.Trim() ?? "",
+                        Pin = txtPin?.Text?.Trim() ?? ""
+                    });
+
+                    ComputerManagementService.SaveNodes(nodes);
+
+                    // Clear the form for the next entry.
+                    if (txtName != null) txtName.Text = "";
+                    if (txtMac != null) txtMac.Text = "";
+                    if (txtUrl != null) txtUrl.Text = "";
+                    if (txtPin != null) txtPin.Text = "";
+
+                    if (txtStatus != null) txtStatus.Text = $"Added {name}.";
+                    NotificationService.ShowBackupToast("My Computers", $"{name} added.", "Success");
+
+                    _ = RefreshComputerListAsync();
+                };
+            }
+
+            _ = RefreshComputerListAsync();
+        }
+
+        private async Task RefreshComputerListAsync()
+        {
+            var listPanel = this.FindControl<StackPanel>("ComputerListPanel");
+            if (listPanel == null) return;
+
+            try
+            {
+                var fleet = await ComputerManagementService.GetFleetAsync(forceRefresh: true);
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    listPanel.Children.Clear();
+
+                    foreach (var view in fleet)
+                    {
+                        listPanel.Children.Add(BuildComputerRow(view));
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[Settings] Computer refresh failed: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+        /// <summary>Builds one telemetry row with wake / restart / shutdown actions for a computer.</summary>
+        private Border BuildComputerRow(ComputerView view)
+        {
+            var node = view.Node;
+            var t = view.Telemetry;
+            var isOnline = t.IsOnline;
+
+            var statusBrush = new SolidColorBrush(Color.Parse(isOnline ? "#10B981" : "#64748B"));
+            var statusText = new TextBlock
+            {
+                Text = isOnline ? "Online" : "Offline",
+                FontSize = 10,
+                FontWeight = FontWeight.Bold,
+                Foreground = statusBrush
+            };
+
+            var dot = new Ellipse { Width = 8, Height = 8, Fill = statusBrush, VerticalAlignment = VerticalAlignment.Center };
+
+            var nameStack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            nameStack.Children.Add(new TextBlock
+            {
+                Text = node.IsLocal ? $"{node.DisplayName}  (This PC)" : node.DisplayName,
+                FontSize = 12.5,
+                FontWeight = FontWeight.Bold,
+                Foreground = BrushesFor("AppText")
+            });
+            nameStack.Children.Add(new TextBlock
+            {
+                Text = isOnline
+                    ? $"{ComputerManagementService.RoleLabel(node.Role)} · {t.Hostname} · {t.LocalIp}"
+                    : (string.IsNullOrWhiteSpace(t.Error) ? ComputerManagementService.RoleLabel(node.Role) : t.Error),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = BrushesFor("AppMuted")
+            });
+
+            var headerRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto, *, Auto") };
+            Grid.SetColumn(dot, 0);
+            Grid.SetColumn(nameStack, 1);
+            Grid.SetColumn(statusText, 2);
+            headerRow.Children.Add(dot);
+            headerRow.Children.Add(nameStack);
+            headerRow.Children.Add(statusText);
+
+            // Telemetry gauges.
+            var metrics = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(0, 8, 0, 0) };
+            metrics.Children.Add(MetricChip("CPU", t.CpuUsagePercent.HasValue ? $"{t.CpuUsagePercent.Value:F0}%" : "--", isOnline));
+            metrics.Children.Add(MetricChip("RAM", t.RamUsagePercent.HasValue ? $"{t.RamUsagePercent.Value:F0}%" : "--", isOnline));
+            metrics.Children.Add(MetricChip("Temp", t.CpuTempC.HasValue ? $"{t.CpuTempC.Value:F0}°C" : "--", isOnline));
+
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
+            AddPowerActionButton(actions, node, "Wake", "wake");
+            if (node.IsLocal || !string.IsNullOrWhiteSpace(node.ApiBaseUrl))
+            {
+                AddPowerActionButton(actions, node, "Restart", "restart");
+                AddPowerActionButton(actions, node, "Shut Down", "shutdown");
+                AddPowerActionButton(actions, node, "Lock", "lock");
+                AddPowerActionButton(actions, node, "Sleep", "sleep");
+            }
+
+            if (!node.IsLocal)
+            {
+                var removeBtn = MakeActionButton("Remove", "AccentError");
+                removeBtn.Click += async (_, _) =>
+                {
+                    var remaining = ComputerManagementService.GetNodes().Where(n => n.Id != node.Id);
+                    ComputerManagementService.SaveNodes(remaining);
+
+                    var txtStatus = this.FindControl<TextBlock>("TxtComputerStatus");
+                    if (txtStatus != null) txtStatus.Text = $"Removed {node.DisplayName}.";
+                    await RefreshComputerListAsync();
+                };
+                actions.Children.Add(removeBtn);
+            }
+
+            var body = new StackPanel();
+            body.Children.Add(headerRow);
+            body.Children.Add(metrics);
+            body.Children.Add(actions);
+
+            return new Border
+            {
+                Background = BrushesFor("AppSurface"),
+                BorderBrush = BrushesFor("AppBorder"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(14),
+                Child = body
+            };
+        }
+        private Button MakeActionButton(string label, string foregroundKey)
+        {
+            return new Button
+            {
+                Content = label,
+                FontSize = 11,
+                Padding = new Thickness(12, 6),
+                CornerRadius = new CornerRadius(7),
+                Background = BrushesFor("AppBorder"),
+                Foreground = BrushesFor(foregroundKey),
+                BorderThickness = new Thickness(0),
+                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            };
+        }
+
+        private void AddPowerActionButton(StackPanel host, ComputerNode node, string label, string action)
+        {
+            var btn = MakeActionButton(label, "AppText");
+            btn.Click += async (_, _) =>
+            {
+                btn.IsEnabled = false;
+                btn.Content = "Working...";
+
+                var result = await ComputerManagementService.ExecutePowerAsync(node.Id, action);
+
+                btn.IsEnabled = true;
+                btn.Content = label;
+
+                var txtStatus = this.FindControl<TextBlock>("TxtComputerStatus");
+                if (txtStatus != null) txtStatus.Text = result.Message;
+
+                NotificationService.ShowBackupToast(
+                    node.DisplayName,
+                    result.Message.Replace("**", ""),
+                    result.Success ? "Success" : "Error");
+
+                if (result.Success) await RefreshComputerListAsync();
+            };
+
+            host.Children.Add(btn);
+        }
+
+        private static StackPanel MetricChip(string label, string value, bool isOnline)
+        {
+            var stack = new StackPanel { Spacing = 1 };
+            stack.Children.Add(new TextBlock { Text = label, FontSize = 9, Foreground = BrushesFor("AppMuted") });
+            stack.Children.Add(new TextBlock
+            {
+                Text = value,
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = BrushesFor(isOnline ? "AppText" : "AppMuted")
+            });
+            return stack;
+        }
+
+        private static IBrush BrushesFor(string resourceKey)
+        {
+            if (Application.Current != null && Application.Current.TryFindResource(resourceKey, out var res))
+            {
+                if (res is IBrush b) return b;
+            }
+            return Brushes.White;
         }
 
         public void RefreshEmailAlerts()

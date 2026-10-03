@@ -19,6 +19,13 @@ namespace PinayPalBackupManager.Services
         private static System.Timers.Timer? _systemMonitoringTimer;
         private static TimeSpan _lastCpuTime = TimeSpan.Zero;
         private static DateTime _lastCpuSampleTime = DateTime.MinValue;
+
+        /// <summary>
+        /// Single long-lived handle for this process. Calling Process.GetCurrentProcess() on every
+        /// sample opens a native handle that is only released by the finalizer, so on a long-running
+        /// daemon that slowly exhausts the process handle table.
+        /// </summary>
+        private static readonly Process CurrentProcess = Process.GetCurrentProcess();
         private static DateTime _appStartTime = DateTime.MinValue;
         
         // Advanced monitoring features
@@ -197,23 +204,27 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                // Use improved CPU measurement with minimal delay
+                // Use improved CPU measurement with minimal delay.
+                // A single cached Process handle is used throughout: Process.GetCurrentProcess()
+                // opens a native handle, and calling it repeatedly without disposing leaks handles
+                // until the process runs out of them. This runs on a sampling timer, so it matters.
                 var startTime = DateTime.UtcNow;
-                var startCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
-                
+                var startCpuUsage = CurrentProcess.TotalProcessorTime;
+
                 await Task.Delay(100); // 100ms delay for accurate measurement
-                
+
                 var endTime = DateTime.UtcNow;
-                var endCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
-                
+                var endCpuUsage = CurrentProcess.TotalProcessorTime;
+
                 var cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds;
                 var totalMsPassed = (endTime - startTime).TotalMilliseconds;
+                if (totalMsPassed <= 0) return "0%";
                 var cpuUsageTotal = cpuUsedMs / (Environment.ProcessorCount * totalMsPassed);
-                
+
                 // Store for fallback
-                _lastCpuTime = Process.GetCurrentProcess().TotalProcessorTime;
+                _lastCpuTime = endCpuUsage;
                 _lastCpuSampleTime = DateTime.UtcNow;
-                
+
                 return $"{Math.Min(cpuUsageTotal * 100, 100):F0}%";
             }
             catch
@@ -226,16 +237,15 @@ namespace PinayPalBackupManager.Services
         {
             try
             {
-                // Get memory usage using WorkingSet64 (process memory)
-                var process = Process.GetCurrentProcess();
-                var workingSetMB = process.WorkingSet64 / (1024 * 1024);
-                
+                // WorkingSet64 from the cached handle; no new Process object per call.
+                var workingSetMB = CurrentProcess.WorkingSet64 / (1024 * 1024);
+
                 // Estimate total system memory using GC
                 var totalMemoryMB = GC.GetTotalMemory(true) / (1024 * 1024);
                 var systemMemoryMB = Math.Max(workingSetMB, totalMemoryMB) * 4; // Rough estimate
-                
+
                 var memoryUsagePercent = (workingSetMB / systemMemoryMB) * 100;
-                
+
                 return $"{Math.Min(memoryUsagePercent, 100):F0}%";
             }
             catch

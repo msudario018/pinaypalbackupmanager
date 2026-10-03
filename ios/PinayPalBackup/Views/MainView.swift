@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct MainView: View {
     private enum AppTab: Hashable {
-        case home, activity, history, automations
+        case home, activity, history, automations, computers
     }
 
     @StateObject private var api = PinayPalAPIService()
@@ -20,19 +20,22 @@ public struct MainView: View {
         .home: 1.0,
         .activity: 1.0,
         .history: 1.0,
-        .automations: 1.0
+        .automations: 1.0,
+        .computers: 1.0
     ]
     @State private var tabOffsets: [AppTab: CGFloat] = [
         .home: 0.0,
         .activity: 0.0,
         .history: 0.0,
-        .automations: 0.0
+        .automations: 0.0,
+        .computers: 0.0
     ]
     @State private var tabRipples: [AppTab: Bool] = [
         .home: false,
         .activity: false,
         .history: false,
-        .automations: false
+        .automations: false,
+        .computers: false
     ]
 
     private var activeColorScheme: ColorScheme? {
@@ -131,6 +134,11 @@ public struct MainView: View {
                 AutomationsView(api: api)
             }
             .tag(AppTab.automations)
+
+            NavigationStack {
+                ComputersView(api: api)
+            }
+            .tag(AppTab.computers)
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .top, spacing: 0) { persistentHeader }
@@ -249,6 +257,7 @@ public struct MainView: View {
             tabButton(.activity, "Activity", "waveform.path.ecg")
             tabButton(.history, "History", "clock.arrow.circlepath")
             tabButton(.automations, "Automations", "bolt.shield.fill")
+                tabButton(.computers, "PCs", "desktopcomputer")
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
@@ -398,6 +407,7 @@ public struct MainView: View {
         case .activity: return "Activity"
         case .history: return "History"
         case .automations: return "Automations"
+        case .computers: return "My Computers"
         }
     }
 }

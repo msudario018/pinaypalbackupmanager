@@ -265,6 +265,113 @@ public struct PingResponse: Codable {
     public let serverTime: String?
 }
 
+// MARK: - Managed computers (fleet)
+
+public struct ComputerNodeSpec: Codable, Equatable {
+    public let id: String
+    public let displayName: String
+    public let role: String
+    public let macAddress: String
+    public let broadcastAddress: String
+    public let wolPort: Int
+    public let apiBaseUrl: String
+    public let isLocal: Bool
+    public let enabled: Bool
+    public let notes: String
+
+    public init(id: String, displayName: String, role: String, macAddress: String, broadcastAddress: String, wolPort: Int, apiBaseUrl: String, isLocal: Bool, enabled: Bool, notes: String) {
+        self.id = id
+        self.displayName = displayName
+        self.role = role
+        self.macAddress = macAddress
+        self.broadcastAddress = broadcastAddress
+        self.wolPort = wolPort
+        self.apiBaseUrl = apiBaseUrl
+        self.isLocal = isLocal
+        self.enabled = enabled
+        self.notes = notes
+    }
+
+    public var roleLabel: String {
+        switch role.lowercased() {
+        case "main": return "Main PC"
+        case "dev": return "Dev PC"
+        default: return "Auxiliary"
+        }
+    }
+
+    /// Whether remote power actions can be dispatched to this node.
+    public var supportsRemotePower: Bool {
+        isLocal || !apiBaseUrl.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+}
+
+public struct ComputerTelemetrySpec: Codable, Equatable {
+    public let isOnline: Bool
+    public let hostname: String?
+    public let osDescription: String?
+    public let localIp: String?
+    public let version: String?
+    public let latencyMs: Int?
+    public let cpuUsagePercent: Double?
+    public let cpuTempC: Double?
+    public let cpuName: String?
+    public let gpuName: String?
+    public let gpuTempC: Double?
+    public let gpuUsagePercent: Double?
+    public let ramUsagePercent: Double?
+    public let ramFreeGB: Double?
+    public let ramTotalGB: Double?
+    public let appRamUsageMB: Double?
+    public let upTime: String?
+    public let lastSeenUtc: String?
+    public let error: String?
+}
+
+public struct ComputerSpec: Codable, Equatable, Identifiable {
+    public let id: String
+    public let displayName: String
+    public let role: String
+    public let macAddress: String
+    public let broadcastAddress: String
+    public let wolPort: Int
+    public let apiBaseUrl: String
+    public let isLocal: Bool
+    public let enabled: Bool
+    public let notes: String
+    public let telemetry: ComputerTelemetrySpec
+    public let availableActions: [String]
+
+    public var node: ComputerNodeSpec {
+        ComputerNodeSpec(id: id, displayName: displayName, role: role, macAddress: macAddress,
+                         broadcastAddress: broadcastAddress, wolPort: wolPort, apiBaseUrl: apiBaseUrl,
+                         isLocal: isLocal, enabled: enabled, notes: notes)
+    }
+
+    public var roleLabel: String { node.roleLabel }
+    public var supportsRemotePower: Bool { node.supportsRemotePower }
+    public var isOnline: Bool { telemetry.isOnline ?? false }
+
+    /// "Online" / "Offline" plus a short reason when we know it.
+    public var statusSummary: String {
+        if isOnline { return "Online" }
+        if let err = telemetry.error, !err.isEmpty { return err }
+        return "Offline"
+    }
+}
+
+public struct ComputerFleetResponse: Codable {
+    public let success: Bool?
+    public let computers: [ComputerSpec]?
+}
+
+public struct ComputerPowerResponse: Codable {
+    public let success: Bool
+    public let message: String?
+    public let action: String?
+    public let targetId: String?
+}
+
 public struct AppUserProfile: Codable, Equatable {
     public var id: Int
     public var username: String

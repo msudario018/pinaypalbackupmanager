@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +12,11 @@ namespace PinayPalBackupManager.Services
         private Session? _session;
         private SessionOptions? _options;
         private Action<FileTransferProgressEventArgs>? _progressCallback;
+
+        /// <summary>Minimum gap between forwarded progress ticks, to keep the UI thread free.</summary>
+        private static readonly TimeSpan MinProgressInterval = TimeSpan.FromMilliseconds(120);
+
+        private DateTime _lastProgressDispatch = DateTime.MinValue;
 
         public void Initialize(string host, string user, string password, string fingerprint = "", int port = 21)
         {
@@ -32,6 +37,11 @@ namespace PinayPalBackupManager.Services
                 PortNumber = port,
                 FtpSecure = useTls ? FtpSecure.Explicit : FtpSecure.None
             };
+
+            // Use passive data connections: this is the only mode that works reliably
+            // behind a home router / NAT, where an active connection from the server
+            // cannot reach this PC.
+            _options.FtpMode = FtpMode.Passive;
             if (ConfigService.Current.Operation.AcceptAnyTlsCert)
             {
                 _options.GiveUpSecurityAndAcceptAnyTlsHostCertificate = true;
@@ -40,6 +50,34 @@ namespace PinayPalBackupManager.Services
             {
                 _options.TlsHostCertificateFingerprint = fingerprint;
             }
+        }
+
+        /// <summary>
+        /// Builds the transfer options shared by every directory sync.
+        ///
+        /// This is the real reason a sync can crawl at kilobytes-per-second:
+        ///  - <see cref="TransferOptions.SpeedLimit"/> is a KB/s cap. 0 means unlimited, and we set
+        ///    it explicitly so a previously persisted throttle can never silently throttle us.
+        ///  - <see cref="TransferOptions.ResumeSupport"/> defaults to off, so an interrupted upload
+        ///    restarts from byte zero. Smart resume lets WinSCP continue partial files instead.
+        ///  - Binary mode avoids a slow ASCII translation path for text and binary alike.
+        /// </summary>
+        internal static TransferOptions BuildTransferOptions()
+        {
+            return new TransferOptions
+            {
+                SpeedLimit = 0, // 0 = unlimited; never throttle a backup
+                TransferMode = TransferMode.Binary,
+
+                // Resume partial uploads instead of restarting from byte zero. Without this an
+                // interrupted file re-transfers in full, which is what "sync stuck in KB/s" looks like.
+                OverwriteMode = OverwriteMode.Resume,
+                ResumeSupport = new TransferResumeSupport
+                {
+                    State = TransferResumeSupportState.Smart,
+                    Threshold = 100 * 1024 // only bother resuming files >= 100 KB
+                }
+            };
         }
 
         public static string ScanTlsFingerprint(string host, int port = 21)
@@ -131,6 +169,12 @@ namespace PinayPalBackupManager.Services
             });
         }
 
+        /// <summary>
+        /// WinSCP raises this event very frequently - often many times per second per file.
+        /// Forwarding every tick to the UI (which then marshals, formats and re-renders) costs
+        /// more than the transfer itself, so intermediate ticks are throttled. The final tick
+        /// (OverallProgress >= 1.0) is always forwarded so the UI settles on "complete".
+        /// </summary>
         private void Session_FileTransferProgress(object sender, FileTransferProgressEventArgs e)
         {
             Action<FileTransferProgressEventArgs>? cb;
@@ -138,7 +182,48 @@ namespace PinayPalBackupManager.Services
             {
                 cb = _progressCallback;
             }
-            cb?.Invoke(e);
+            if (cb == null) return;
+
+            // WinSCP fires this event several times per second per file. Forwarding every tick to the UI
+            // thread costs more than the transfer itself, so we always forward the final tick
+            // (OverallProgress >= 1.0) and throttle the intermediate ones.
+            var isFinalTick = e.OverallProgress >= 1.0;
+
+            if (!isFinalTick)
+            {
+                lock (_progressLock)
+                {
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastProgressDispatch) < MinProgressInterval) return;
+                    _lastProgressDispatch = now;
+                }
+            }
+
+            cb.Invoke(e);
+        }
+
+        /// <summary>
+        /// Synchronises a directory tree.
+        ///
+        /// The real overload is (mode, localPath, remotePath, removeFiles, mirror, criteria, options).
+        /// The old code supplied only the first four, inheriting default criteria and, more
+        /// importantly, default transfer options where <c>ResumeSupport</c> was off — meaning an
+        /// interrupted upload restarted from byte zero, which shows up as a crawl in KB/s.
+        ///
+        /// removeFiles = false and mirror = false are preserved deliberately: a backup must never
+        /// remove remote files because of a bad local scan.
+        /// </summary>
+        private void RunSync(SynchronizationMode mode, string localPath, string remotePath)
+        {
+            var result = _session!.SynchronizeDirectories(
+                mode,
+                localPath,
+                remotePath,
+                removeFiles: false,
+                mirror: false,
+                criteria: SynchronizationCriteria.Time,
+                options: BuildTransferOptions());
+            result.Check();
         }
 
         public async Task SynchronizeLocalAsync(string localPath, string remotePath, Action<FileTransferProgressEventArgs> progressCallback)
@@ -156,8 +241,7 @@ namespace PinayPalBackupManager.Services
                 {
                     try
                     {
-                        var result = _session.SynchronizeDirectories(SynchronizationMode.Local, localPath, remotePath, false);
-                        result.Check();
+                        RunSync(SynchronizationMode.Local, localPath, remotePath);
                     }
                     catch (SessionLocalException ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))
                     {
@@ -193,8 +277,7 @@ namespace PinayPalBackupManager.Services
                 {
                     try
                     {
-                        var result = _session.SynchronizeDirectories(SynchronizationMode.Remote, localPath, remotePath, false);
-                        result.Check();
+                        RunSync(SynchronizationMode.Remote, localPath, remotePath);
                         return true;
                     }
                     catch (SessionLocalException ex) when (ex.Message.Contains("Aborted", StringComparison.OrdinalIgnoreCase))

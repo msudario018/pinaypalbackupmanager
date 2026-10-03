@@ -300,6 +300,12 @@ namespace PinayPalBackupManager.Services
 
         private static async Task<bool> ExecuteBackupAsync(string service, string backupType)
         {
+            // ---- Resource reclamation before a backup ----
+            // On memory-constrained hosts (16 GB) a resident local LLM plus a SQL dump plus a
+            // large FTP scan will happily push the machine into swap, which slows the backup
+            // far more than the model would have. Evicting the model first is cheap insurance.
+            await ReclaimMemoryBeforeBackupAsync();
+
             if (BackupExecutor != null)
             {
                 return await BackupExecutor(service, backupType);
@@ -308,6 +314,35 @@ namespace PinayPalBackupManager.Services
             LogService.WriteSystemLog($"[BACKUPSCHEDULE] No executor registered for scheduled backup {service}", "Warning", "BACKUPSCHEDULE");
             await Task.Delay(500);
             return true;
+        }
+
+        /// <summary>
+        /// Frees the local AI model from RAM when memory is under pressure. Silent and
+        /// best-effort: a failure here must never prevent a backup from running.
+        /// </summary>
+        private static async Task ReclaimMemoryBeforeBackupAsync()
+        {
+            try
+            {
+                if (!AIAssistantService.Config.EnableLocalModelDuringBackups)
+                {
+                    var telemetry = HardwareTelemetryService.GetTelemetrySync();
+
+                    // Only bother when we are genuinely tight, to avoid pointless work.
+                    if (telemetry.RamFreeGB > 0 && telemetry.RamFreeGB < 3.0)
+                    {
+                        var (ok, msg) = await AIAssistantService.UnloadOllamaModelAsync();
+                        if (ok)
+                        {
+                            LogService.WriteSystemLog($"[BACKUPSCHEDULE] {msg}", "Information", "BACKUPSCHEDULE");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[BACKUPSCHEDULE] Memory reclaim skipped: {ex.Message}", "Warning", "BACKUPSCHEDULE");
+            }
         }
 
         public static string CreateSchedule(BackupSchedule schedule)

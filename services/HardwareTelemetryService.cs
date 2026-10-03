@@ -73,7 +73,38 @@ namespace PinayPalBackupManager.Services
         private static readonly SemaphoreSlim _lock = new(1, 1);
         private static HardwareTelemetry? _cachedTelemetry;
         private static DateTime _lastFetchTime = DateTime.MinValue;
+
+        /// <summary>
+        /// How long the full snapshot is reused. Cheap counters (CPU/RAM) only need a short window.
+        /// </summary>
         private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(1.8);
+
+        /// <summary>
+        /// How long the expensive sensor readings (WMI thermal zones, GPU WMI, Win32 lookups) are reused.
+        /// These cost tens of milliseconds each and physically cannot change faster than this, so
+        /// refreshing them on every 2-4s poll was burning a core for no benefit.
+        /// </summary>
+        private static readonly TimeSpan SensorCacheDuration = TimeSpan.FromSeconds(30);
+
+        private static DateTime _lastSensorFetchTime = DateTime.MinValue;
+
+        // Cached sensor values, refreshed on the slow cadence above.
+        private static double? _cachedCpuTempC;
+        private static double? _cachedGpuTempC;
+        private static double? _cachedGpuUsage;
+        private static long? _cachedGpuMemUsedMB;
+        private static long? _cachedGpuMemTotalMB;
+        private static double? _cachedGpuPowerWatts;
+
+        /// <summary>Set while the app is minimised to tray, to back off polling intensity.</summary>
+        public static bool LowPowerMode { get; set; }
+
+        /// <summary>
+        /// Effective sensor cache window. When the app is idle in the tray we back off to 90s,
+        /// which keeps a long-running daemon from spending meaningful CPU on cosmetic gauges.
+        /// </summary>
+        private static TimeSpan EffectiveSensorCache =>
+            LowPowerMode ? TimeSpan.FromSeconds(90) : SensorCacheDuration;
 
         // Static hardware constants cached for lifetime of process
         private static string? _cachedCpuName;
@@ -155,11 +186,17 @@ namespace PinayPalBackupManager.Services
             // 2. CPU Usage
             telemetry.CpuUsagePercent = HealthCheckService.GetCpuUsage();
 
-            // 3. CPU Temperature
-            var cpuTemp = QueryCpuTemperature();
-            if (cpuTemp.HasValue)
+            // 3. CPU Temperature + GPU load sensors share one slow-cadence refresh so we
+            //    never pay for two WMI sweeps in the same collection.
+            var refreshSensors = SensorsAreStale();
+            if (refreshSensors)
             {
-                telemetry.CpuTempC = Math.Round(cpuTemp.Value, 1);
+                _cachedCpuTempC = QueryCpuTemperature();
+            }
+
+            if (_cachedCpuTempC.HasValue)
+            {
+                telemetry.CpuTempC = Math.Round(_cachedCpuTempC.Value, 1);
             }
             else
             {
@@ -171,41 +208,46 @@ namespace PinayPalBackupManager.Services
             telemetry.CpuTempStatus = GetTemperatureStatus(telemetry.CpuTempC ?? 40.0);
 
             // 4. GPU Telemetry (NVIDIA SMI direct or Intel Arc/AMD live telemetry)
-            var gpuData = QueryGpuTelemetry();
-            if (gpuData != null)
+            //    Name/driver/total VRAM are static; live load sensors are cached on the slow cadence.
+            if (refreshSensors)
             {
-                telemetry.GpuName = gpuData.Name;
-                telemetry.GpuTempC = gpuData.TempC;
-                telemetry.GpuTempStatus = gpuData.TempC.HasValue ? GetTemperatureStatus(gpuData.TempC.Value) : "Normal";
-                telemetry.GpuUsagePercent = gpuData.UsagePercent;
-                telemetry.GpuMemoryUsedMB = gpuData.MemoryUsedMB;
-                telemetry.GpuMemoryTotalMB = gpuData.MemoryTotalMB;
-                telemetry.GpuMemoryPercent = gpuData.MemoryPercent;
-                telemetry.GpuPowerWatts = gpuData.PowerWatts;
-                telemetry.GpuDriverVersion = gpuData.DriverVersion;
+                RefreshGpuTelemetry();
             }
-            else
+
+            telemetry.GpuUsagePercent = _cachedGpuUsage;
+            telemetry.GpuMemoryUsedMB = _cachedGpuMemUsedMB;
+            telemetry.GpuMemoryTotalMB = _cachedGpuMemTotalMB;
+            telemetry.GpuTempC = _cachedGpuTempC;
+            telemetry.GpuPowerWatts = _cachedGpuPowerWatts;
+
+            if (_cachedGpuTempC.HasValue)
             {
-                EnsureGpuFallbackInfo();
-                telemetry.GpuName = _cachedGpuFallbackName ?? "Standard Display Adapter";
-                telemetry.GpuDriverVersion = _cachedGpuFallbackDriver;
-                telemetry.GpuMemoryTotalMB = _cachedGpuFallbackVramMB;
+                telemetry.GpuTempStatus = GetTemperatureStatus(_cachedGpuTempC.Value);
+            }
 
-                var (genericUsage, genericMemMB) = QueryGenericGpuLiveTelemetry();
-                telemetry.GpuUsagePercent = genericUsage ?? Math.Round(Math.Max(2.0, telemetry.CpuUsagePercent * 0.18), 1);
-                telemetry.GpuMemoryUsedMB = genericMemMB;
-                if (telemetry.GpuMemoryUsedMB.HasValue && telemetry.GpuMemoryTotalMB.HasValue && telemetry.GpuMemoryTotalMB.Value > 0)
-                {
-                    telemetry.GpuMemoryPercent = Math.Round((double)telemetry.GpuMemoryUsedMB.Value / telemetry.GpuMemoryTotalMB.Value * 100.0, 1);
-                }
+            if (_cachedGpuMemUsedMB.HasValue && _cachedGpuMemTotalMB.HasValue && _cachedGpuMemTotalMB.Value > 0)
+            {
+                telemetry.GpuMemoryPercent = Math.Round((double)_cachedGpuMemUsedMB.Value / _cachedGpuMemTotalMB.Value * 100.0, 1);
+            }
 
+            // Names / driver / total VRAM come from cached WMI lookups.
+            EnsureGpuFallbackInfo();
+            telemetry.GpuName = _cachedGpuFallbackName ?? "Standard Display Adapter";
+            telemetry.GpuDriverVersion = _cachedGpuFallbackDriver;
+            if (_cachedGpuMemTotalMB.HasValue) telemetry.GpuMemoryTotalMB = _cachedGpuMemTotalMB;
+
+            if (_cachedGpuUsage == null)
+            {
+                telemetry.GpuUsagePercent = Math.Round(Math.Max(2.0, telemetry.CpuUsagePercent * 0.18), 1);
+            }
+
+            if (_cachedGpuTempC == null)
+            {
                 // Dynamic thermal calculation for Intel Arc / AMD when sensor is restricted
                 double baseTemp = 42.0;
                 double loadFactor = (telemetry.GpuUsagePercent ?? 5.0) * 0.22;
                 telemetry.GpuTempC = Math.Round(Math.Min(82.0, Math.Max(36.0, baseTemp + loadFactor)), 1);
                 telemetry.GpuTempStatus = GetTemperatureStatus(telemetry.GpuTempC.Value);
-
-                // Estimated power draw for Intel Arc / discrete GPU
                 telemetry.GpuPowerWatts = Math.Round(22.0 + (telemetry.GpuUsagePercent ?? 5.0) * 0.52, 1);
             }
 
@@ -278,6 +320,52 @@ namespace PinayPalBackupManager.Services
             if (_cachedPhysicalCores <= 0)
             {
                 _cachedPhysicalCores = Math.Max(1, Environment.ProcessorCount / 2);
+            }
+        }
+
+        /// <summary>True when the expensive sensor readings are due for a refresh.</summary>
+        private static bool SensorsAreStale()
+        {
+            return (DateTime.UtcNow - _lastSensorFetchTime) >= EffectiveSensorCache;
+        }
+
+        /// <summary>
+        /// Refreshes GPU load/thermal sensors on the slow cadence. Static identity fields
+        /// (name, driver, total VRAM) are handled separately by EnsureGpuFallbackInfo.
+        /// </summary>
+        private static void RefreshGpuTelemetry()
+        {
+            _lastSensorFetchTime = DateTime.UtcNow;
+
+            try
+            {
+                var gpuData = QueryGpuTelemetry();
+                if (gpuData != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(gpuData.Name)) _cachedGpuFallbackName = gpuData.Name;
+                    if (!string.IsNullOrWhiteSpace(gpuData.DriverVersion)) _cachedGpuFallbackDriver = gpuData.DriverVersion;
+                    if (gpuData.MemoryTotalMB.HasValue) _cachedGpuFallbackVramMB = gpuData.MemoryTotalMB;
+
+                    _cachedGpuTempC = gpuData.TempC;
+                    _cachedGpuUsage = gpuData.UsagePercent;
+                    _cachedGpuMemUsedMB = gpuData.MemoryUsedMB;
+                    _cachedGpuMemTotalMB = gpuData.MemoryTotalMB ?? _cachedGpuFallbackVramMB;
+                    _cachedGpuPowerWatts = gpuData.PowerWatts;
+                    return;
+                }
+
+                // No vendor-specific path: fall back to the generic counters once per cadence.
+                var (genericUsage, genericMemMB) = QueryGenericGpuLiveTelemetry();
+                _cachedGpuUsage = genericUsage;
+                _cachedGpuMemUsedMB = genericMemMB;
+                if (genericMemMB.HasValue && _cachedGpuFallbackVramMB.HasValue && _cachedGpuFallbackVramMB.Value > 0)
+                {
+                    _cachedGpuMemTotalMB = _cachedGpuFallbackVramMB;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[HardwareTelemetry] GPU sensor refresh failed: {ex.Message}", "Warning", "SYSTEM");
             }
         }
 

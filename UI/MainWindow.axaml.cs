@@ -1218,6 +1218,7 @@ namespace PinayPalBackupManager.UI
                         {
                             this.ShowInTaskbar = false;
                             this.Hide();
+                            HardwareTelemetryService.LowPowerMode = true;
                             NotificationService.ShowBackupToast(
                                 "Minimized to Tray", 
                                 "PinayPal is running in background. Click the tray icon near the clock to restore.", 
@@ -1687,6 +1688,7 @@ namespace PinayPalBackupManager.UI
                         {
                             this.ShowInTaskbar = false;
                             this.Hide();
+                            HardwareTelemetryService.LowPowerMode = true;
                             NotificationService.ShowBackupToast("Minimized to Tray", "PinayPal Backup Manager is still running in background.", "Info");
                         }
                         catch { }
@@ -1836,6 +1838,8 @@ namespace PinayPalBackupManager.UI
                 {
                     this.ShowInTaskbar = true;
                     this.Show();
+                    // Resume normal sensor polling now that the UI is visible again.
+                    HardwareTelemetryService.LowPowerMode = false;
                     if (this.WindowState == WindowState.Minimized)
                     {
                         this.WindowState = WindowState.Normal;

@@ -22,6 +22,12 @@ namespace PinayPalBackupManager.Services
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public AIProposedAction? ProposedAction { get; set; }
         public bool IsActionExecuted { get; set; }
+
+        /// <summary>Tappable next-step prompts shown as chips under the reply.</summary>
+        public List<string> FollowUpSuggestions { get; set; } = new();
+
+        /// <summary>Which engine actually produced this reply (ollama / cloud / heuristics).</summary>
+        public string? Engine { get; set; }
     }
 
     public class AIProposedAction
@@ -39,13 +45,75 @@ namespace PinayPalBackupManager.Services
 
     public class AIAssistantConfig
     {
+        // ---- Core engine ----
         public bool IsEnabled { get; set; } = true;
-        public string Provider { get; set; } = "hybrid"; // "hybrid", "ollama", "cloud", "heuristics"
+
+        /// <summary>
+        /// hybrid | ollama | cloud | heuristics. "hybrid" is the recommended default:
+        /// it prefers the local Ollama model and only escalates to the cloud when the
+        /// local engine is unreachable or the question needs stronger reasoning.
+        /// </summary>
+        public string Provider { get; set; } = "hybrid";
+
+        /// <summary>
+        /// When true, only aggregated operational metadata (telemetry rollups, backup
+        /// status, disk figures) is ever attached to a cloud request. Identifiers and
+        /// error strings are stripped. This is the "online but still secure" mode.
+        /// </summary>
+        public bool CloudRedactsContext { get; set; } = true;
+
+        /// <summary>Hard ceiling on how many past turns are sent to a cloud provider.</summary>
+        public int CloudMaxHistoryTurns { get; set; } = 6;
+
         public string OllamaEndpoint { get; set; } = "http://127.0.0.1:11434";
-        public string OllamaModel { get; set; } = "llama3.2:latest";
+
+        /// <summary>
+        /// Defaults to a small, fast model. On a 6-core Ryzen 5 5600 with 16 GB of RAM a
+        /// 3B-class model keeps replies snappy without starving the backup engine.
+        /// </summary>
+        public string OllamaModel { get; set; } = "qwen2.5:3b-instruct-q4_K_M";
+
+        /// <summary>
+        /// Number of CPU threads Ollama may use. Defaults to 0 (auto). Set it to 4 on a
+        /// 6-core/12-thread part so backup transfers and telemetry keep a headroom.
+        /// </summary>
+        public int OllamaThreads { get; set; } = 0;
+
+        /// <summary>
+        /// Keep the local Ollama model resident during backups. Leave this off on a
+        /// 16 GB host so the model is evicted automatically before each backup runs.
+        /// </summary>
+        public bool EnableLocalModelDuringBackups { get; set; } = false;
+
         public string CloudApiKey { get; set; } = "";
         public string CloudEndpoint { get; set; } = "https://api.openai.com/v1";
         public string CloudModel { get; set; } = "gpt-4o-mini";
+
+        // ---- Experience / personality ----
+        /// <summary>How conversational and warm the assistant sounds. 0 = terse, 100 = chatty.</summary>
+        public int Talkativeness { get; set; } = 60;
+        /// <summary>0.0 (deterministic) to 1.5 (creative). Higher means more personality in phrasing.</summary>
+        public double Creativity { get; set; } = 0.6;
+        /// <summary>Name the assistant replies to. "Antigravity" is the default persona name.</summary>
+        public string AssistantName { get; set; } = "Antigravity";
+        /// <summary>How many prior turns are replayed to the LLM so it can hold a real conversation.</summary>
+        public int ConversationMemoryDepth { get; set; } = 12;
+
+        // ---- Conversation behaviour ----
+        /// <summary>Show tappable follow-up suggestion chips after each reply.</summary>
+        public bool EnableFollowUpSuggestions { get; set; } = true;
+        /// <summary>Allow the assistant to proactively post status bubbles and scheduled briefings.</summary>
+        public bool EnableProactiveUpdates { get; set; } = true;
+        /// <summary>Minutes between proactive health briefings. 0 disables the scheduler.</summary>
+        public int ProactiveIntervalMinutes { get; set; } = 60;
+
+        // ---- Safety ----
+        /// <summary>Require an explicit tap on the action card before any state-changing command runs.</summary>
+        public bool RequireActionApproval { get; set; } = true;
+        /// <summary>Master kill switch for the Zero-Leak sanitizer. Should stay on.</summary>
+        public bool EnableZeroLeakSanitizer { get; set; } = true;
+
+        // ---- UI ----
         public bool EnableFloatingWidget { get; set; } = true;
         public bool EnableLoginGreeting { get; set; } = true;
         public bool EnableSoundChimes { get; set; } = false;
@@ -71,9 +139,15 @@ namespace PinayPalBackupManager.Services
         public static Func<bool>? IsAnyBackupRunning { get; set; }
         public static Func<string?>? GetActiveBackupDetails { get; set; }
 
+        /// <summary>Last backup service the user discussed, so "run that one" resolves correctly.</summary>
+        private static string? _lastDiscussedService;
+
+        private static System.Threading.Timer? _proactiveTimer;
+
         static AIAssistantService()
         {
             LoadConfig();
+            StartProactiveScheduler();
         }
 
         public static AIAssistantConfig Config => _config;
@@ -99,6 +173,8 @@ namespace PinayPalBackupManager.Services
             try
             {
                 _config = config;
+                // Apply the new proactive cadence immediately without a restart.
+                StartProactiveScheduler();
                 var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(ConfigFilePath, json);
                 OnConfigChanged?.Invoke(_config);
@@ -211,30 +287,40 @@ namespace PinayPalBackupManager.Services
             lock (_historyLock)
             {
                 _sessionHistory.Add(userMsg);
-                if (_sessionHistory.Count > 40) _sessionHistory.RemoveAt(0);
+                if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
             }
 
             ChatMessage assistantMsg;
 
             try
             {
-                // 1. Check for immediate guarded actions intent
+                // 1. Detect a guarded action intent.
                 var proposedAction = DetectActionIntent(sanitizedUserMessage);
 
-                // 2. Dispatch to chosen or hybrid provider
+                // Remember which service we last discussed so follow-ups like "run that one" work.
+                TrackDiscussedService(sanitizedUserMessage);
+
+                // 2. Dispatch to the chosen or hybrid provider.
                 string replyText = "";
+                var engineUsed = "heuristics";
+
                 if (_config.Provider.Equals("ollama", StringComparison.OrdinalIgnoreCase) ||
                     (_config.Provider.Equals("hybrid", StringComparison.OrdinalIgnoreCase) && await IsOllamaReachableAsync()))
                 {
                     replyText = await QueryOllamaAsync(sanitizedUserMessage, proposedAction);
-                }
-                else if ((_config.Provider.Equals("cloud", StringComparison.OrdinalIgnoreCase) || _config.Provider.Equals("hybrid", StringComparison.OrdinalIgnoreCase))
-                         && !string.IsNullOrWhiteSpace(_config.CloudApiKey))
-                {
-                    replyText = await QueryCloudLlmAsync(sanitizedUserMessage, proposedAction);
+                    if (!string.IsNullOrWhiteSpace(replyText)) engineUsed = "ollama";
                 }
 
-                // 3. Fallback to smart diagnostic engine if LLM is unavailable or empty
+                if (string.IsNullOrWhiteSpace(replyText) &&
+                    (_config.Provider.Equals("cloud", StringComparison.OrdinalIgnoreCase) ||
+                     _config.Provider.Equals("hybrid", StringComparison.OrdinalIgnoreCase)) &&
+                    !string.IsNullOrWhiteSpace(_config.CloudApiKey))
+                {
+                    replyText = await QueryCloudLlmAsync(sanitizedUserMessage, proposedAction);
+                    if (!string.IsNullOrWhiteSpace(replyText)) engineUsed = "cloud";
+                }
+
+                // 3. Fall back to the offline diagnostic engine when no LLM could answer.
                 if (string.IsNullOrWhiteSpace(replyText))
                 {
                     replyText = await QueryHeuristicEngineAsync(sanitizedUserMessage, proposedAction);
@@ -243,8 +329,12 @@ namespace PinayPalBackupManager.Services
                 assistantMsg = new ChatMessage
                 {
                     Role = "assistant",
-                    Content = SanitizeOutput(replyText),
-                    ProposedAction = proposedAction
+                    Content = ApplyVerbosity(SanitizeOutput(replyText)),
+                    ProposedAction = proposedAction,
+                    Engine = engineUsed,
+                    FollowUpSuggestions = proposedAction != null
+                        ? new List<string>()
+                        : BuildFollowUpSuggestions(sanitizedUserMessage)
                 };
 
                 if (proposedAction != null)
@@ -258,18 +348,114 @@ namespace PinayPalBackupManager.Services
                 assistantMsg = new ChatMessage
                 {
                     Role = "assistant",
-                    Content = $"I encountered an issue processing that query: {ex.Message}. I have automatically switched to local diagnostic mode."
+                    Content = $"I hit a snag processing that one: {ex.Message}. I have switched to local diagnostic mode, so I can still help.",
+                    Engine = "heuristics"
                 };
             }
 
             lock (_historyLock)
             {
                 _sessionHistory.Add(assistantMsg);
-                if (_sessionHistory.Count > 40) _sessionHistory.RemoveAt(0);
+                if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
             }
 
             OnMessageReceived?.Invoke(assistantMsg);
             return assistantMsg;
+        }
+
+        /// <summary>Remembers the most recently discussed service so pronoun follow-ups resolve.</summary>
+        private static void TrackDiscussedService(string prompt)
+        {
+            var lower = prompt.ToLowerInvariant();
+            if (lower.Contains("sql") || lower.Contains("database") || lower.Contains("mysql"))
+                _lastDiscussedService = "sql";
+            else if (lower.Contains("ftp") || lower.Contains("website") || lower.Contains("files"))
+                _lastDiscussedService = "ftp";
+            else if (lower.Contains("mailchimp") || lower.Contains("audience") || lower.Contains("campaign"))
+                _lastDiscussedService = "mailchimp";
+        }
+
+        /// <summary>Resolves "that one" / "it again" against the last discussed service.</summary>
+        private static string ResolveServiceFromPronoun(string prompt)
+        {
+            var lower = prompt.ToLowerInvariant();
+            if (lower.Contains("that one") || lower.Contains("that service")
+                || lower.Contains("it again") || lower.Contains("same one") || lower.Contains("again"))
+            {
+                return _lastDiscussedService ?? "all";
+            }
+            return "all";
+        }
+
+        /// <summary>
+        /// Warms up terse prose answers according to the configured Talkativeness.
+        /// Structured markdown reports and action prompts are left untouched.
+        /// </summary>
+        private static string ApplyVerbosity(string reply)
+        {
+            if (string.IsNullOrWhiteSpace(reply)) return reply;
+            var talk = Math.Clamp(_config.Talkativeness, 0, 100);
+            if (talk < 30) return reply;
+
+            // Never decorate bullet/markdown reports or approval prompts.
+            if (reply.Contains("###") || reply.Contains("- **") || reply.Contains("Approve"))
+                return reply;
+
+            var opener = talk > 70
+                ? "Good question — here's the full picture. "
+                : "Here's what I found. ";
+
+            return opener + reply;
+        }
+
+        /// <summary>Produces contextual next-step chips based on what was just asked.</summary>
+        private static List<string> BuildFollowUpSuggestions(string prompt)
+        {
+            if (!_config.EnableFollowUpSuggestions) return new List<string>();
+
+            var lower = prompt.ToLowerInvariant();
+            var chips = new List<string>();
+
+            if (lower.Contains("health") || lower.Contains("cpu") || lower.Contains("ram") || lower.Contains("temp"))
+            {
+                chips.Add("Check disk space");
+                chips.Add("Show my computers");
+                chips.Add("Run a health check");
+            }
+            else if (lower.Contains("disk") || lower.Contains("storage") || lower.Contains("space"))
+            {
+                chips.Add("Show recent backups");
+                chips.Add("Check system health");
+            }
+            else if (lower.Contains("computer") || lower.Contains("devpc") || lower.Contains("dev pc")
+                     || lower.Contains("mainpc") || lower.Contains("main pc") || lower.Contains("pc "))
+            {
+                chips.Add("How is the system health?");
+                chips.Add("Run all backups");
+            }
+            else if (lower.Contains("backup") || lower.Contains("history") || lower.Contains("run"))
+            {
+                chips.Add("How is the system health?");
+                chips.Add("Check disk space");
+                chips.Add("Inspect recent errors");
+            }
+            else if (lower.Contains("tunnel") || lower.Contains("remote") || lower.Contains("network"))
+            {
+                chips.Add("Recreate the Cloudflare tunnel");
+                chips.Add("Test email alert");
+            }
+            else if (lower.Contains("error") || lower.Contains("fail") || lower.Contains("why"))
+            {
+                chips.Add("Retry the failed backup");
+                chips.Add("Show recent backups");
+            }
+            else
+            {
+                chips.Add("How is the system health?");
+                chips.Add("Show my computers");
+            }
+
+            return chips.Distinct().Take(3).ToList();
         }
 
         /// <summary>
@@ -289,6 +475,14 @@ namespace PinayPalBackupManager.Services
                 action.IsApproved = false;
                 action.ExecutionResult = "Action cancelled by user.";
                 return (false, "Action cancelled.");
+            }
+
+            // Safety rail: even an "approved" call is refused when the guard is switched on
+            // and the action still demands explicit confirmation.
+            if (_config.RequireActionApproval && action.RequiresConfirmation && !action.IsApproved)
+            {
+                action.ExecutionResult = "Blocked: this action requires explicit confirmation.";
+                return (false, action.ExecutionResult);
             }
 
             action.IsApproved = true;
@@ -316,6 +510,18 @@ namespace PinayPalBackupManager.Services
                             action.ExecutionResult = ok ? $"{service.ToUpper()} backup task started successfully." : $"Failed to start {service.ToUpper()} backup.";
                         }
                         return (true, action.ExecutionResult);
+
+                    case "computer_power":
+                        var computerId = action.Parameters.TryGetValue("computerId", out var cid) ? cid : "";
+                        var pcAction = action.Parameters.TryGetValue("action", out var pa) ? pa : "wake";
+                        var powerResult = await ComputerManagementService.ExecutePowerAsync(computerId, pcAction);
+                        action.ExecutionResult = powerResult.Message;
+                        return (powerResult.Success, powerResult.Message);
+
+                    case "unload_model":
+                        var (unloadOk, unloadMsg) = await UnloadOllamaModelAsync();
+                        action.ExecutionResult = unloadMsg;
+                        return (unloadOk, unloadMsg);
 
                     case "recreate_tunnel":
                         var (tunOk, _, tunMsg) = await CloudflareTunnelService.RestartQuickTunnelAsync();
@@ -356,12 +562,128 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        private static string? FirstMatch(string haystack, params string[] needles)
+        {
+            foreach (var n in needles)
+            {
+                if (haystack.Contains(n)) return n;
+            }
+            return null;
+        }
+
+        /// <summary>True when the prompt clearly refers to a machine rather than a backup.</summary>
+        private static bool MentionsComputer(string lower)
+        {
+            if (lower.Contains("computer") || lower.Contains("pc") || lower.Contains("desktop")
+                || lower.Contains("laptop") || lower.Contains("machine") || lower.Contains("devpc")
+                || lower.Contains("mainpc") || lower.Contains("dev pc") || lower.Contains("main pc"))
+                return true;
+
+            // A bare registered computer name (e.g. "restart devpc") also counts.
+            return ComputerManagementService.GetNodes()
+                .Any(n => lower.Contains(n.DisplayName.ToLowerInvariant()));
+        }
+
+        /// <summary>Pulls a quoted computer name out of the prompt, if present.</summary>
+        private static string? ExtractComputerName(string lower)
+        {
+            var quoted = System.Text.RegularExpressions.Regex.Match(lower, @"[""']([^""']+)[""']");
+            if (quoted.Success) return quoted.Groups[1].Value;
+
+            // Otherwise, look for a registered name mentioned anywhere in the sentence.
+            var node = ComputerManagementService.GetNodes()
+                .FirstOrDefault(n => lower.Contains(n.DisplayName.ToLowerInvariant()));
+            return node?.DisplayName;
+        }
+
+        private static string HumanizeAction(string action) => action switch
+        {
+            "wake" => "Wake",
+            "restart" => "Restart",
+            "shutdown" => "Shut down",
+            "lock" => "Lock",
+            "sleep" => "Sleep",
+            "signout" => "Sign out of",
+            _ => action
+        };
+
         // ==========================================
         // Action Intent Recognition
         // ==========================================
         private static AIProposedAction? DetectActionIntent(string prompt)
         {
             var lower = prompt.ToLowerInvariant();
+
+            // ---- Computer fleet power intents (wake / restart / shutdown / lock / sleep) ----
+            var powerVerb = FirstMatch(lower, "wake", "boot", "power on")
+                          ?? FirstMatch(lower, "restart", "reboot")
+                          ?? FirstMatch(lower, "shut down", "shutdown", "power off", "turn off")
+                          ?? FirstMatch(lower, "lock", "lock screen")
+                          ?? FirstMatch(lower, "sleep", "standby", "hibernate");
+
+            // "wake" must not be confused with "wake up the backup".
+            if (powerVerb != null && MentionsComputer(lower))
+            {
+                var verb = powerVerb;
+                var target = ExtractComputerName(lower);
+                var node = ComputerManagementService.FindNodeByName(target);
+
+                if (node != null)
+                {
+                    var actionName = verb switch
+                    {
+                        "wake" or "boot" or "power on" => "wake",
+                        "restart" or "reboot" => "restart",
+                        "shut down" or "shutdown" or "power off" or "turn off" => "shutdown",
+                        "lock" or "lock screen" => "lock",
+                        _ => "sleep"
+                    };
+
+                    var description = actionName switch
+                    {
+                        "wake" => $"Sends a Wake-on-LAN magic packet to {node.DisplayName} using MAC {ComputerManagementService.FormatMac(node.MacAddress)}.",
+                        "restart" => $"{node.DisplayName} will restart after a 10 second grace delay.",
+                        "shutdown" => $"{node.DisplayName} will shut down after a 10 second grace delay.",
+                        "lock" => $"Locks the {node.DisplayName} workstation.",
+                        _ => $"Puts {node.DisplayName} to sleep."
+                    };
+
+                    return new AIProposedAction
+                    {
+                        ActionType = "computer_power",
+                        Title = $"{HumanizeAction(actionName)} {node.DisplayName}",
+                        Description = description,
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "computerId", node.Id },
+                            { "computerName", node.DisplayName },
+                            { "action", actionName }
+                        }
+                    };
+                }
+
+                // A computer was named but isn't registered yet.
+                return new AIProposedAction
+                {
+                    ActionType = "none",
+                    Title = $"I don't know a computer called \"{target ?? "that"}\"",
+                    Description = $"Add it under **Settings → My Computers** with its name, MAC address and dashboard URL, then ask me again.",
+                    RequiresConfirmation = false
+                };
+            }
+
+            // Free up RAM by evicting the local LLM (useful before a big backup on a 16 GB box)
+            if (lower.Contains("free memory") || lower.Contains("free up ram") || lower.Contains("unload model")
+                || lower.Contains("free up memory") || lower.Contains("release memory")
+                || lower.Contains("stop using ram") || lower.Contains("ollama memory"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "unload_model",
+                    Title = "Free Memory (Unload Local AI Model)",
+                    Description = "Asks Ollama to evict the loaded model from RAM so backups get the full 16 GB."
+                };
+            }
 
             // Run backup intents
             if (lower.Contains("run backup") || lower.Contains("start backup") || lower.Contains("backup now") || lower.Contains("do backup") || lower.Contains("trigger backup"))
@@ -396,12 +718,20 @@ namespace PinayPalBackupManager.Services
                         Parameters = new Dictionary<string, string> { { "service", "mailchimp" } }
                     };
                 }
+
+                // Resolve "run that one" against the last service we discussed.
+                var resolved = ResolveServiceFromPronoun(lower);
+
                 return new AIProposedAction
                 {
                     ActionType = "run_backup",
-                    Title = "Run All Backups (Parallel)",
-                    Description = "Executes FTP Website, SQL Database, and Mailchimp backups concurrently.",
-                    Parameters = new Dictionary<string, string> { { "service", "all" } }
+                    Title = resolved == "all"
+                        ? "Run All Backups (Parallel)"
+                        : $"Run {resolved.ToUpperInvariant()} Backup",
+                    Description = resolved == "all"
+                        ? "Executes FTP Website, SQL Database, and Mailchimp backups concurrently."
+                        : $"Executes the {resolved} backup on its own.",
+                    Parameters = new Dictionary<string, string> { { "service", resolved } }
                 };
             }
 
@@ -497,36 +827,88 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        /// <summary>
+        /// Asks Ollama to evict the model from RAM. Useful before a heavy backup starts so
+        /// the 16 GB of system memory is not held hostage by an idle chat model.
+        /// </summary>
+        public static async Task<(bool ok, string message)> UnloadOllamaModelAsync()
+        {
+            var ep = _config.OllamaEndpoint.TrimEnd('/');
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(4000);
+                using var req = new HttpRequestMessage(HttpMethod.Post, $"{ep}/api/generate")
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(new
+                        {
+                            model = _config.OllamaModel,
+                            keep_alive = 0
+                        }),
+                        Encoding.UTF8, "application/json")
+                };
+
+                using var resp = await _httpClient.SendAsync(req, cts.Token);
+                if (resp.IsSuccessStatusCode)
+                {
+                    return (true, $"Released the local model. Memory is now free for backups.");
+                }
+
+                return (false, $"Ollama responded HTTP {(int)resp.StatusCode}.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Could not reach Ollama: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Ollama runtime options. The thread cap matters on a 6-core part: leaving it on
+        /// "auto" lets the model saturate every core and starve the backup engine and
+        /// telemetry timers, which is what makes a local agent feel like it "eats the PC".
+        /// </summary>
+        private static Dictionary<string, object> BuildOllamaOptions()
+        {
+            var options = new Dictionary<string, object>
+            {
+                ["temperature"] = Math.Clamp(_config.Creativity, 0.0, 1.5),
+                ["num_ctx"] = 2048
+            };
+
+            var threads = Math.Clamp(_config.OllamaThreads, 0, 64);
+            if (threads > 0) options["num_thread"] = threads;
+
+            return options;
+        }
+
         private static async Task<string> QueryOllamaAsync(string prompt, AIProposedAction? action)
         {
             try
             {
-                var systemContext = BuildSanitizedSystemContext();
-                var fullPrompt = $@"System instructions: You are Antigravity, the smart executive AI assistant for PinayPal Backup Manager on Windows.
-Be concise, helpful, friendly, and accurate. Use clear markdown formatting.
-If the user wants to execute an action, advise them to click the action button provided.
-Never ask for passwords, credentials, or private keys.
-
-Live Telemetry Context:
-{systemContext}
-
-User Query: {prompt}
-Assistant:";
-
                 var requestBody = new
                 {
                     model = _config.OllamaModel,
-                    prompt = fullPrompt,
-                    stream = false
+                    messages = BuildChatMessages(prompt, action),
+                    stream = false,
+                    keep_alive = "5m",
+                    options = BuildOllamaOptions()
                 };
 
                 var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint}/api/generate", content);
+                var response = await _httpClient.PostAsync($"{_config.OllamaEndpoint.TrimEnd('/')}/api/chat", content);
 
                 if (!response.IsSuccessStatusCode) return "";
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return "";
 
                 var jsonStr = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(jsonStr);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp) &&
+                    msgProp.TryGetProperty("content", out var contentProp))
+                {
+                    return contentProp.GetString() ?? "";
+                }
+
+                // Tolerate older Ollama builds that only expose /api/generate semantics.
                 if (doc.RootElement.TryGetProperty("response", out var respProp))
                 {
                     return respProp.GetString() ?? "";
@@ -547,19 +929,14 @@ Assistant:";
         {
             try
             {
-                var systemContext = BuildSanitizedSystemContext();
                 var endpoint = _config.CloudEndpoint.TrimEnd('/') + "/chat/completions";
 
                 var requestBody = new
                 {
                     model = _config.CloudModel,
-                    messages = new[]
-                    {
-                        new { role = "system", content = $"You are Antigravity, the executive AI assistant for PinayPal Backup Manager. Be concise, precise, and polite. Never disclose or ask for secrets.\n\nLive Telemetry:\n{systemContext}" },
-                        new { role = "user", content = prompt }
-                    },
-                    temperature = 0.4,
-                    max_tokens = 500
+                    messages = BuildChatMessages(prompt, action, isCloud: true),
+                    temperature = Math.Clamp(_config.Creativity, 0.0, 1.5),
+                    max_tokens = 800
                 };
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
@@ -719,6 +1096,16 @@ Assistant:";
 - **Watchdog Auto-Restart:** {(CloudflareTunnelService.IsAutoManaged ? "Enabled (Self-Healing)" : "Disabled")}";
             }
 
+            // Managed computers fleet
+            if (lower.Contains("computer") || lower.Contains("devpc") || lower.Contains("dev pc")
+                || lower.Contains("mainpc") || lower.Contains("main pc") || lower.Contains("my pc")
+                || lower.Contains("other pc") || lower.Contains("fleet"))
+            {
+                var fleet = await ComputerManagementService.GetFleetAsync(forceRefresh: true);
+                return ComputerManagementService.DescribeFleet(fleet)
+                    + "\n\nYou can ask me to **wake**, **restart**, **shut down**, **lock**, or **sleep** any of them by name.";
+            }
+
             // Privacy & Security
             if (lower.Contains("privacy") || lower.Contains("security") || lower.Contains("password") || lower.Contains("credential") || lower.Contains("leak"))
             {
@@ -737,17 +1124,259 @@ Here are some things you can ask me:
         }
 
         // ==========================================
+        // Conversation memory / prompt assembly
+        // ==========================================
+
+        /// <summary>
+        /// Builds a full OpenAI/Ollama-compatible message array: a rich system persona,
+        /// the recent conversation turns (so follow-ups like "yes" or "that one" resolve),
+        /// and finally the new user message.
+        /// </summary>
+        private static List<Dictionary<string, string>> BuildChatMessages(string prompt, AIProposedAction? action, bool isCloud = false)
+        {
+            var messages = new List<Dictionary<string, string>>
+            {
+                new() { ["role"] = "system", ["content"] = BuildSystemPersona(isCloud) }
+            };
+
+            var depth = isCloud
+                ? Math.Clamp(_config.CloudMaxHistoryTurns, 0, 20)
+                : Math.Clamp(_config.ConversationMemoryDepth, 0, 40);
+
+            if (depth > 0)
+            {
+                List<ChatMessage> recent;
+                lock (_historyLock)
+                {
+                    // Drop turns that already carry an action card; the card itself speaks for them.
+                    recent = _sessionHistory
+                        .Where(m => m.ProposedAction == null && !string.IsNullOrWhiteSpace(m.Content))
+                        .Skip(Math.Max(0, _sessionHistory.Count - depth - 1))
+                        .Take(depth)
+                        .ToList();
+                }
+
+                foreach (var m in recent)
+                {
+                    var text = SanitizeOutput(m.Content);
+
+                    // Cloud mode never receives machine names, IPs or raw error text.
+                    if (isCloud && _config.CloudRedactsContext) text = RedactForCloud(text);
+
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    if (text.Length > 1200) text = text[..1200];
+                    messages.Add(new Dictionary<string, string>
+                    {
+                        ["role"] = m.Role == "user" ? "user" : "assistant",
+                        ["content"] = text
+                    });
+                }
+            }
+
+            var userText = prompt;
+            if (isCloud && _config.CloudRedactsContext) userText = RedactForCloud(userText);
+
+            messages.Add(new Dictionary<string, string> { ["role"] = "user", ["content"] = userText });
+
+            if (action != null)
+            {
+                messages.Add(new Dictionary<string, string>
+                {
+                    ["role"] = "system",
+                    ["content"] = $"An action card is already shown to the user for '{action.Title}'. Tell them what it will do and ask them to tap Approve. Do not claim it already ran."
+                });
+            }
+
+            return messages;
+        }
+
+        /// <summary>
+        /// Strips identifying details before anything is sent to a cloud provider:
+        /// hostnames, IP addresses, URLs, file paths and computer names are replaced
+        /// with neutral placeholders. Aggregate numbers (percentages, sizes, statuses)
+        /// survive, because they are what the assistant actually reasons about.
+        /// </summary>
+        private static string RedactForCloud(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // URLs (incl. tunnel URLs) -> neutral marker
+            var redacted = Regex.Replace(text, @"https?://[^\s`\)\]]+", "[link]");
+
+            // IPv4 addresses -> neutral marker
+            redacted = Regex.Replace(redacted, @"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[address]");
+
+            // MAC addresses -> neutral marker
+            redacted = Regex.Replace(redacted, @"\b([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}\b", "[device]");
+
+            // This machine's hostname and any registered computer names
+            redacted = Regex.Replace(redacted, Regex.Escape(Environment.MachineName), "[host]", RegexOptions.IgnoreCase);
+            foreach (var node in ComputerManagementService.GetNodes())
+            {
+                if (!string.IsNullOrWhiteSpace(node.DisplayName) && node.DisplayName.Length > 2)
+                {
+                    redacted = Regex.Replace(redacted, Regex.Escape(node.DisplayName), "[computer]", RegexOptions.IgnoreCase);
+                }
+            }
+
+            // Windows user directories
+            redacted = Regex.Replace(redacted, @"(?i)[a-z]:\\users\\[^\\]+", @"[user-path]");
+            redacted = Regex.Replace(redacted, @"(?i)[a-z]:\\(?!users)[^\s`\)\]]*", "[path]");
+
+            // Drive letters like "C:" on their own
+            redacted = Regex.Replace(redacted, @"\b[A-Z]:\\", "[drive]");
+
+            return redacted;
+        }
+
+        /// <summary>The assistant's standing persona, capabilities and hard security rules.</summary>
+        private static string BuildSystemPersona(bool isCloud = false)
+        {
+            var name = string.IsNullOrWhiteSpace(_config.AssistantName) ? "Antigravity" : _config.AssistantName.Trim();
+            var verbosity = _config.Talkativeness switch
+            {
+                < 30 => "Answer in one or two crisp sentences.",
+                < 70 => "Be concise but friendly, using short markdown when helpful.",
+                _ => "Be warm and conversational, and add useful context or a next step."
+            };
+
+            return $@"You are {name}, the assistant built into PinayPal Backup Manager on Windows.
+
+PERSONALITY
+{verbosity} You are encouraging, precise, and honest. When something is wrong, say so plainly and
+propose the fix. Never invent data — only report what is in the CONTEXT below.
+
+WHAT YOU CAN DO
+- Answer questions about backup health, disk space, schedules, and network/tunnel status.
+- Inspect hardware telemetry (CPU, GPU, RAM, temperatures) for every managed computer.
+- Propose actions the user can approve with one tap: run backups, recreate the Cloudflare tunnel,
+  send a test email, wake a PC over the network, or restart / shut down one of their computers.
+
+HARD SECURITY RULES
+- You never see, echo, or request passwords, PINs, API keys, connection strings, or database dumps.
+- Every state-changing action requires explicit user approval first. Never imply you already did it.
+- If asked for a secret, politely decline and explain the Zero-Leak Sanitizer.
+{(isCloud && _config.CloudRedactsContext ? @"
+PRIVACY NOTE FOR THIS REQUEST
+This conversation is handled by an online provider. Hostnames, IP addresses, URLs, file paths
+and computer names have been replaced with placeholders like [host], [address] and [computer].
+Refer to computers by their role (""the Dev PC"", ""the Main PC"") rather than by name.
+Never ask the user to repeat identifying details, and never suggest that you can see them." : string.Empty)}
+
+LIVE CONTEXT
+{BuildSanitizedSystemContext(isCloud)}";
+        }
+        // ANCHOR_PROACTIVE
+        // ==========================================
+        // Proactive updates
+        // ==========================================
+
+        private static void StartProactiveScheduler()
+        {
+            try
+            {
+                _proactiveTimer?.Dispose();
+                _proactiveTimer = null;
+
+                if (!_config.EnableProactiveUpdates || _config.ProactiveIntervalMinutes <= 0) return;
+
+                var period = TimeSpan.FromMinutes(Math.Clamp(_config.ProactiveIntervalMinutes, 5, 1440));
+                _proactiveTimer = new System.Threading.Timer(async _ => await RunProactiveTickAsync(), null, period, period);
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AIAssistant] Proactive scheduler failed to start: {ex.Message}", "Warning", "AI");
+            }
+        }
+
+        /// <summary>Restarts the proactive timer after configuration changes.</summary>
+        public static void RestartProactiveScheduler() => StartProactiveScheduler();
+
+        private static async Task RunProactiveTickAsync()
+        {
+            try
+            {
+                // Never interrupt an in-flight backup with a notification.
+                if (!_config.EnableProactiveUpdates || IsAnyBackupRunning?.Invoke() == true) return;
+
+                var briefing = await BuildProactiveBriefingAsync();
+                if (!string.IsNullOrWhiteSpace(briefing))
+                {
+                    OnNotificationBubble?.Invoke(briefing);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AIAssistant] Proactive tick failed: {ex.Message}", "Warning", "AI");
+            }
+        }
+
+        /// <summary>Summarises fleet health and backup outcomes; returns null when nothing is notable.</summary>
+        public static async Task<string?> BuildProactiveBriefingAsync()
+        {
+            try
+            {
+                await Task.Yield();
+
+                var history = BackupHistoryService.GetHistory().Take(5).ToList();
+                var failures = history.Where(h => !h.Status.Equals("Success", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                var telemetry = HardwareTelemetryService.GetTelemetrySync();
+                var alerts = new List<string>();
+
+                if (failures.Any())
+                {
+                    var names = string.Join(", ", failures.Take(2).Select(f => f.Service));
+                    alerts.Add($"{failures.Count} of the last {history.Count} backups did not succeed ({names}).");
+                }
+
+                if (telemetry.RamUsagePercent > 90)
+                    alerts.Add($"Memory is at {telemetry.RamUsagePercent:F0}%.");
+
+                if (telemetry.CpuTempC.HasValue && telemetry.CpuTempC.Value >= 85)
+                    alerts.Add($"CPU temperature is high at {telemetry.CpuTempC.Value:F0}°C.");
+
+                if (!CloudflareTunnelService.IsRunning)
+                    alerts.Add("The Cloudflare remote-access tunnel is offline.");
+
+                if (alerts.Count == 0) return null;
+
+                return $"🔔 **Status update** — {string.Join(" ", alerts)} Tap me if you want me to fix any of it.";
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AIAssistant] Briefing build failed: {ex.Message}", "Warning", "AI");
+                return null;
+            }
+        }
+
+        // ==========================================
         // Zero-Leak Sanitizer
         // ==========================================
         public static string SanitizePrompt(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
+            if (!_config.EnableZeroLeakSanitizer) return input;
 
-            // Redact passwords & keys
-            var sanitized = Regex.Replace(input, @"(?i)(password|pwd|secret|pin|token|apikey)\s*[:=]\s*\S+", "$1=[REDACTED]");
-            sanitized = Regex.Replace(sanitized, @"Bearer\s+[A-Za-z0-9_\-\.]+", "Bearer [REDACTED]");
+            // Redact passwords, keys and secrets regardless of separator style.
+            var sanitized = Regex.Replace(
+                input,
+                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key|authorization|auth|credential)\b\s*[:=]\s*\S+",
+                "$1=[REDACTED]");
 
-            // Obfuscate Windows user directories
+            // Redact bearer / basic authorization headers.
+            sanitized = Regex.Replace(sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9_\-\.\+/=]{8,}", "$1 [REDACTED]");
+
+            // Redact provider-style API keys that appear bare in text.
+            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,})\b", "[REDACTED_KEY]");
+
+            // Redact database connection strings.
+            sanitized = Regex.Replace(
+                sanitized,
+                @"(?i)\b(server|data source|host)\s*=\s*[^;]+;(?:[^;]*;)*[^;]*(password|pwd)\s*=\s*[^;]+;?",
+                "[REDACTED_CONNECTION_STRING]");
+
+            // Obfuscate Windows user directories.
             sanitized = Regex.Replace(sanitized, @"(?i)[a-z]:\\users\\[^\\]+\\", @"C:\Users\[User]\");
 
             return sanitized;
@@ -756,10 +1385,20 @@ Here are some things you can ask me:
         public static string SanitizeOutput(string output)
         {
             if (string.IsNullOrEmpty(output)) return "";
-            return Regex.Replace(output, @"(?i)(password|pwd|secret|pin)\s*[:=]\s*\S+", "$1=[REDACTED]");
+            if (!_config.EnableZeroLeakSanitizer) return output;
+
+            // Never let a model echo a secret back to the user, even if it was injected.
+            var sanitized = Regex.Replace(
+                output,
+                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key)\b\s*[:=]\s*\S+",
+                "$1=[REDACTED]");
+            sanitized = Regex.Replace(sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9_\-\.\+/=]{8,}", "$1 [REDACTED]");
+            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,})\b", "[REDACTED_KEY]");
+
+            return sanitized;
         }
 
-        private static string BuildSanitizedSystemContext()
+        private static string BuildSanitizedSystemContext(bool isCloud = false)
         {
             try
             {
@@ -767,16 +1406,48 @@ Here are some things you can ask me:
                 var history = BackupHistoryService.GetHistory().Take(3);
                 var recentSummaries = string.Join("; ", history.Select(h => $"{h.Service}:{h.Status}({h.Duration.TotalSeconds:F0}s)"));
 
-                return $@"Host: {Environment.MachineName}
+                // Managed computers (name, online state, headline load) for fleet-aware answers.
+                var fleet = ComputerManagementService.GetNodes()
+                    .Where(n => n.Enabled)
+                    .Select(n =>
+                    {
+                        var isLocal = n.IsLocal;
+                        return isLocal
+                            ? $"- {n.DisplayName} (this PC): online, CPU {telemetry.CpuUsagePercent:F0}%, RAM {telemetry.RamUsagePercent:F0}%"
+                            : $"- {n.DisplayName}: peer at {(string.IsNullOrWhiteSpace(n.ApiBaseUrl) ? "no URL configured" : n.ApiBaseUrl)}";
+                    })
+                    .ToList();
+
+                var fleetBlock = fleet.Count > 0 ? string.Join("\n", fleet) : "- (none registered)";
+
+                // In cloud mode we send rollups only: no hostnames, no peer URLs, no paths.
+                var context = isCloud
+                    ? $@"Host: [host]
+OS: {RuntimeInformation.OSDescription}
+CPU Load: {telemetry.CpuUsagePercent:F0}% across {telemetry.CpuLogicalCores} threads
+RAM: {telemetry.RamUsagePercent:F0}% used ({telemetry.RamFreeGB:F1} GB free)
+GPU Load: {telemetry.GpuUsagePercent?.ToString("F0") ?? "n/a"}%, Temp: {telemetry.GpuTempC?.ToString("F0") ?? "n/a"}°C
+Tunnel: {(CloudflareTunnelService.IsRunning ? "Active" : "Offline")}
+Recent Backups: {recentSummaries}
+Managed Computers: {fleet.Count} registered ({string.Join(", ", ComputerManagementService.GetNodes().Where(n => n.Enabled).Select(n => ComputerManagementService.RoleLabel(n.Role)))})"
+                    : $@"Host: {Environment.MachineName}
 OS: {RuntimeInformation.OSDescription}
 CPU: {telemetry.CpuName} ({telemetry.CpuUsagePercent:F0}% load)
 RAM: {telemetry.RamUsagePercent:F0}% used ({telemetry.RamFreeGB:F1} GB free)
+GPU: {telemetry.GpuName} ({telemetry.GpuTempC?.ToString("F0") ?? "n/a"}°C)
 Tunnel: {(CloudflareTunnelService.IsRunning ? "Active" : "Offline")}
-Recent Backups: {recentSummaries}";
+Recent Backups: {recentSummaries}
+Managed Computers:
+{fleetBlock}";
+
+                // Belt and braces: run the whole block through the cloud scrubber too.
+                return isCloud && _config.CloudRedactsContext ? RedactForCloud(context) : context;
             }
             catch
             {
-                return $"Host: {Environment.MachineName}, App: PinayPal v{BackupConfig.AppVersion}";
+                return isCloud
+                    ? $"Host: [host], App: PinayPal v{BackupConfig.AppVersion}"
+                    : $"Host: {Environment.MachineName}, App: PinayPal v{BackupConfig.AppVersion}";
             }
         }
     }

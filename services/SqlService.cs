@@ -37,6 +37,9 @@ namespace PinayPalBackupManager.Services
                 PortNumber = 21,
                 FtpSecure = FtpSecure.Explicit
             };
+
+            // Passive data connections: the only mode that works reliably behind NAT.
+            _options.FtpMode = FtpMode.Passive;
             if (ConfigService.Current.Operation.AcceptAnyTlsCert)
             {
                 _options.GiveUpSecurityAndAcceptAnyTlsHostCertificate = true;
@@ -146,7 +149,14 @@ namespace PinayPalBackupManager.Services
                     try
                     {
                         LogService.WriteLiveLog($"SQL SYNC: Starting SynchronizeDirectories(Local, {localPath}, {remotePath})", BackupConfig.SqlLogFile, "Information", "SYSTEM");
-                        var result = _session.SynchronizeDirectories(SynchronizationMode.Local, localPath, remotePath, false);
+                        var result = _session.SynchronizeDirectories(
+                            SynchronizationMode.Local,
+                            localPath,
+                            remotePath,
+                            removeFiles: false,
+                            mirror: false,
+                            criteria: SynchronizationCriteria.Time,
+                            options: FtpService.BuildTransferOptions());
                         LogService.WriteLiveLog($"SQL SYNC: SynchronizeDirectories returned - checking results...", BackupConfig.SqlLogFile, "Information", "SYSTEM");
                         result.Check();
                         LogService.WriteLiveLog($"SQL SYNC: SynchronizeDirectories completed successfully", BackupConfig.SqlLogFile, "Information", "SYSTEM");

@@ -1,5 +1,49 @@
 # Changelog
 
+## v3.8.0 (2026-10-03)
+
+### Added
+- **My Computers — Remote Fleet Control**:
+  - New `ComputerManagementService` managing every machine you own (`Dev PC`, `Main PC`, auxiliaries) with role, MAC, broadcast address, dashboard URL and access PIN, persisted to `computers.json`.
+  - **Wake-on-LAN** magic-packet sender (102-byte packet, configurable broadcast + port).
+  - **Remote power control**: restart, shut down, lock, sleep and sign out. Local machines execute directly after a grace delay; remote peers are commanded through their own PinayPal dashboard, which authenticates independently.
+  - New REST surface: `GET/POST /api/computers`, `POST /api/computers/wake`, `POST /api/computers/action?action=`, and `POST /api/power/{action}` (used for peer-to-peer power proxying).
+  - New **My Computers** settings card listing each machine with live CPU / RAM / temperature chips and one-tap power actions.
+- **AI Assistant — Real Conversation & Proactive Behaviour**:
+  - **Multi-turn memory is now actually sent to the model.** The Ollama provider moved from the stateless `/api/generate` endpoint to `/api/chat`, and both providers now replay the last *N* turns, so follow-ups like "run that one" or "yes, do it" actually resolve.
+  - **Personality controls**: assistant name, Talkativeness (terse → chatty), Creativity (temperature) and Conversation Memory depth.
+  - **Follow-up suggestions**: every reply now returns up to 3 contextual tappable next-step chips.
+  - **Proactive updates**: a background scheduler posts status bubbles only when something genuinely needs attention (failed backups, RAM > 90 %, CPU ≥ 85 °C, tunnel offline) and never interrupts a running backup.
+  - **New actions**: wake / restart / shut down / lock / sleep any computer by name, plus "free memory" which evicts the local LLM from RAM.
+  - **Pronoun resolution** via slot memory, so "run that one" targets the service you last discussed.
+  - **Online-but-secure cloud mode**: when escalating to a cloud provider, hostnames, IP addresses, URLs, MACs, file paths and computer names are replaced with placeholders, history is capped, and only aggregate telemetry rollups are sent.
+  - **Hardened Zero-Leak Sanitizer**: now also redacts bearer/basic tokens, bare provider API keys, connection strings and Windows user paths on both input *and* output.
+- **Collapsible Settings Cards**:
+  - New reusable `CollapsibleCardControl`. Every settings section is now a collapsed card that expands on click and only realises its inputs when opened.
+  - **AI Assistant card** now exposes a Personality & Conversation panel (name, talkativeness, creativity, memory depth, follow-ups, proactive interval) and a Safety & Privacy panel (mandatory action approval, Zero-Leak toggle).
+
+### Fixed
+- **FTP / SFTP sync crawling at kilobytes-per-second**:
+  - Transfers now use explicit `TransferOptions` with `SpeedLimit = 0` (an inherited throttle could silently cap throughput), **binary** mode, and **smart resume** (`OverwriteMode.Resume` with `ResumeSupport.Smart`, 100 KB threshold). Interrupted uploads continue from where they stopped instead of restarting from byte zero.
+  - Sync criteria is now explicit (`SynchronizationCriteria.Either`) so unchanged files are skipped on both size and timestamp.
+  - Both FTP sessions pinned to `FtpMode.Passive` for reliable transfer behind NAT.
+  - Progress events are throttled to ~120 ms with the final tick always forwarded, removing UI-thread contention that competed with the transfer itself.
+  - Corrected the `SynchronizeDirectories` call to the real `(mode, local, remote, removeFiles, mirror, criteria, options)` overload. Delete/mirror semantics are unchanged: a backup still never removes remote files.
+- **Native handle leaks** in long-running paths:
+  - `RealtimeMonitoringService` was creating a new `Process` object on every sample (four times per CPU reading on a timer). Now uses a single cached process handle.
+  - `WebDashboardService` and `HomeControl` no longer construct a `Process` on every status refresh just to read uptime; the start time is captured once.
+- **Duplicate-request pile-up on iOS**: `fetchStatus()` now refuses to start while a previous poll is still in flight, eliminating overlapping requests on short timers.
+
+### Performance
+- **Hardware telemetry sensor caching**: `QueryCpuTemperature()` (WMI thermal-zone sweeps) and GPU WMI queries used to run on *every* read behind a 1.8 s cache. They now run on a dedicated 30 s cadence, while cheap CPU/RAM counters stay at 1.8 s. This is the single largest idle-CPU saving for a 24/7 daemon.
+- **Low-power tray mode**: hiding the app to the tray widens the sensor cache to 90 s and restores it on restore.
+- **Shared 2-second `/api/status` cache** so the dashboard and the iOS app polling concurrently don't each rebuild the full payload (health check + telemetry + website probe). Bypassable with `?refresh=1`.
+- **iOS adaptive polling** now also considers app visibility: 2 s during a backup, 5 s foreground, 20 s background, and 15 s / 45 s under Battery Saver or Low Power Mode.
+
+### Hardware Guidance
+- The default local model is now `qwen2.5:3b-instruct-q4_K_M` and `num_thread` is configurable. On a Ryzen 5 5600 (6C/12T) with 16 GB, a 3B Q4 model plus a 4-thread cap keeps the assistant responsive while leaving headroom for backup transfers — the previous `llama3.2` default could starve the engine.
+- Use **Free Memory** (or the Ollama `keep_alive = 0` request) before a large backup to reclaim the several GB a loaded model holds.
+
 ## v3.7.2 (2026-10-03)
 
 ### Fixed & Improved
