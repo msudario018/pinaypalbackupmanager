@@ -67,9 +67,8 @@ namespace PinayPalBackupManager.Services
             {
                 try
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                    var pullTask = Task.Run(async () => await FirebaseUserService.PullUsersFromFirebaseToLocalAsync(), cts.Token);
-                    pullTask.Wait(cts.Token);
+                    var pullTask = FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
+                    await Task.WhenAny(pullTask, Task.Delay(3000));
                 }
                 catch (Exception ex)
                 {
@@ -170,10 +169,18 @@ namespace PinayPalBackupManager.Services
 
         public static bool HasAnyUsers()
         {
-            using var conn = DatabaseService.GetConnection();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT 1 FROM Users LIMIT 1";
-            return cmd.ExecuteReader().HasRows;
+            try
+            {
+                using var conn = DatabaseService.GetConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT 1 FROM Users LIMIT 1";
+                var result = cmd.ExecuteScalar();
+                return result != null && result != DBNull.Value;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -247,23 +254,20 @@ namespace PinayPalBackupManager.Services
                 LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {(isPrivileged ? "Admin" : "User")}, Status: {(isPrivileged ? "Active" : "Pending")}");
 
                 // Sync to Firebase (fire-and-forget, don't block registration)
-                if (!isFirstUser)
+                var newUser = GetUserByUsername(usernameValidation.sanitized);
+                if (newUser != null)
                 {
-                    var newUser = GetUserByUsername(usernameValidation.sanitized);
-                    if (newUser != null)
+                    _ = Task.Run(async () =>
                     {
-                        _ = Task.Run(async () =>
+                        try
                         {
-                            try
-                            {
-                                await FirebaseUserService.SyncUserAsync(newUser);
-                            }
-                            catch (Exception ex)
-                            {
-                                LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
-                            }
-                        });
-                    }
+                            await FirebaseUserService.SyncUserAsync(newUser);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogService.WriteLiveLog($"[AuthService] Firebase sync failed: {ex.Message}", "", "Debug", "SYSTEM");
+                        }
+                    });
                 }
 
                 if (isPrivileged)

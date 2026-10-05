@@ -230,14 +230,18 @@ namespace PinayPalBackupManager.Services
                     var modelNames = new List<string>();
                     foreach (var m in modelsArr.EnumerateArray())
                     {
-                        if (m.TryGetProperty("name", out var n)) modelNames.Add(n.GetString() ?? "");
+                        if (m.TryGetProperty("name", out var n))
+                        {
+                            var name = n.GetString();
+                            if (!string.IsNullOrWhiteSpace(name)) modelNames.Add(name);
+                        }
                     }
 
                     if (string.IsNullOrEmpty(targetModel) || modelNames.Any(m => m.Equals(targetModel, StringComparison.OrdinalIgnoreCase) || m.StartsWith(targetModel, StringComparison.OrdinalIgnoreCase)))
                     {
                         return (true, $"🟢 Online! Model '{targetModel}' is ready ({modelNames.Count} models available).");
                     }
-                    return (true, $"🟡 Reachable, but model '{targetModel}' is not yet pulled. Found: {string.Join(", ", modelNames.Take(2))}");
+                    return (true, $"🟡 Reachable, but model '{targetModel}' is not yet pulled. Found: {string.Join(", ", modelNames.Take(3))}");
                 }
 
                 return (true, "🟢 Ollama server is online and operational!");
@@ -246,6 +250,98 @@ namespace PinayPalBackupManager.Services
             {
                 return (false, $"🔴 Could not connect to {ep}: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Probes the local Ollama instance for all downloaded LLM models/agents.
+        /// </summary>
+        public static async Task<(bool success, List<string> models, string message)> GetInstalledOllamaModelsAsync(string? endpoint = null)
+        {
+            var ep = string.IsNullOrWhiteSpace(endpoint) ? _config.OllamaEndpoint : endpoint.Trim().TrimEnd('/');
+
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(4000);
+                var resp = await _httpClient.GetAsync($"{ep}/api/tags", cts.Token);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return (false, new List<string>(), $"Ollama HTTP Error {(int)resp.StatusCode}: {resp.ReasonPhrase}");
+                }
+
+                var jsonStr = await resp.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(jsonStr);
+                if (doc.RootElement.TryGetProperty("models", out var modelsArr))
+                {
+                    var modelNames = new List<string>();
+                    foreach (var m in modelsArr.EnumerateArray())
+                    {
+                        if (m.TryGetProperty("name", out var n))
+                        {
+                            var name = n.GetString();
+                            if (!string.IsNullOrWhiteSpace(name))
+                                modelNames.Add(name);
+                        }
+                    }
+
+                    if (modelNames.Count == 0)
+                    {
+                        return (true, modelNames, $"🟡 Ollama server is running at {ep}, but 0 models are downloaded. Pull one using 'ollama pull qwen2.5:3b' in terminal.");
+                    }
+
+                    var recommended = SelectBestModel(modelNames, _config.OllamaModel);
+                    return (true, modelNames, $"🟢 Auto-detected {modelNames.Count} downloaded model(s). Recommended: '{recommended}'");
+                }
+
+                return (false, new List<string>(), "Could not read model list from Ollama server.");
+            }
+            catch (Exception ex)
+            {
+                return (false, new List<string>(), $"🔴 Ollama is offline or unreachable at {ep}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Selects the best recommended local model from a list of installed models.
+        /// </summary>
+        public static string SelectBestModel(List<string> models, string currentModel = "")
+        {
+            if (models == null || models.Count == 0) return currentModel ?? "";
+
+            // 1. If currently configured model matches an installed model, preserve it
+            if (!string.IsNullOrWhiteSpace(currentModel))
+            {
+                var exact = models.FirstOrDefault(m => m.Equals(currentModel, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(exact)) return exact;
+
+                var prefix = models.FirstOrDefault(m => m.StartsWith(currentModel, StringComparison.OrdinalIgnoreCase) || currentModel.StartsWith(m, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(prefix)) return prefix;
+            }
+
+            // 2. High-performance, lightweight instruction-tuned models optimized for system SRE and backups
+            string[] preferredFamilies = { "qwen2.5", "llama3.2", "phi3", "mistral", "gemma2", "llama3", "deepseek" };
+            foreach (var fam in preferredFamilies)
+            {
+                var match = models.FirstOrDefault(m => m.Contains(fam, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(match)) return match;
+            }
+
+            // 3. Fallback to first available model
+            return models[0];
+        }
+
+        /// <summary>
+        /// Auto-detects downloaded models and saves the best matching model into configuration.
+        /// </summary>
+        public static async Task<(bool success, string detectedModel, string message)> AutoDetectAndConfigureOllamaModelAsync(string? endpoint = null)
+        {
+            var (ok, models, msg) = await GetInstalledOllamaModelsAsync(endpoint);
+            if (!ok || models.Count == 0)
+                return (false, string.Empty, msg);
+
+            var best = SelectBestModel(models, _config.OllamaModel);
+            _config.OllamaModel = best;
+            SaveConfig(_config);
+            return (true, best, $"🟢 Auto-detected and configured '{best}' ({models.Count} model(s) available).");
         }
 
         public static List<ChatMessage> GetSessionHistory()

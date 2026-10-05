@@ -54,16 +54,19 @@ namespace PinayPalBackupManager.UI
                         {
                             // Admin already created on dev PC! Pull users and redirect directly to Login
                             await FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
-                            await Dispatcher.UIThread.InvokeAsync(() =>
+                            if (AuthService.HasAnyUsers())
                             {
-                                var login = new LoginWindow();
-                                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                                await Dispatcher.UIThread.InvokeAsync(() =>
                                 {
-                                    desktop.MainWindow = login;
-                                }
-                                login.Show();
-                                this.Close();
-                            });
+                                    var login = new LoginWindow();
+                                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                                    {
+                                        desktop.MainWindow = login;
+                                    }
+                                    login.Show();
+                                    this.Close();
+                                });
+                            }
                         }
                     }
                     catch { /* Firebase unreachable — keep non-dev user registration */ }

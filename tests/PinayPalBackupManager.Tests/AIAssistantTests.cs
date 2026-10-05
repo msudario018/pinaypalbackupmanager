@@ -140,5 +140,29 @@ namespace PinayPalBackupManager.Tests
             Assert.Contains("Hello", msg.Content);
             Assert.DoesNotContain("Good question — here's the full picture", msg.Content);
         }
+
+        [Fact]
+        public void SelectBestModel_PreservesCurrentModel_WhenInstalled()
+        {
+            var models = new List<string> { "llama3.2:3b", "qwen2.5:3b-instruct-q4_K_M", "deepseek-r1:1.5b" };
+            var best = AIAssistantService.SelectBestModel(models, "llama3.2:3b");
+            Assert.Equal("llama3.2:3b", best);
+        }
+
+        [Fact]
+        public void SelectBestModel_PrefersQwenAndLlama_WhenNoCurrentModel()
+        {
+            var models = new List<string> { "phi3:mini", "qwen2.5:3b-instruct-q4_K_M", "random-custom:latest" };
+            var best = AIAssistantService.SelectBestModel(models, "");
+            Assert.Equal("qwen2.5:3b-instruct-q4_K_M", best);
+        }
+
+        [Fact]
+        public void SelectBestModel_HandlesEmptyListGracefully()
+        {
+            var empty = new List<string>();
+            var best = AIAssistantService.SelectBestModel(empty, "default-model");
+            Assert.Equal("default-model", best);
+        }
     }
 }

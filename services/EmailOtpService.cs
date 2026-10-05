@@ -98,7 +98,7 @@ If you did not request this information, you can safely ignore this email.
             await PasswordResetService.InvalidateUserTokensAsync(user.Id);
 
             // Save OTP to DB
-            var conn = DatabaseService.GetConnection();
+            using var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 INSERT INTO PasswordResetTokens (UserId, Token, ExpiresAt, Used, CreatedAt)
@@ -152,7 +152,7 @@ If you did not request a password reset, please secure your account immediately.
             if (clean.Length != 6 || !int.TryParse(clean, out _))
                 return (false, "Verification code must be 6 digits.");
 
-            var conn = DatabaseService.GetConnection();
+            using var conn = DatabaseService.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT ExpiresAt, Used FROM PasswordResetTokens

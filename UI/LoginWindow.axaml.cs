@@ -32,20 +32,6 @@ namespace PinayPalBackupManager.UI
             this.Opened += (s, e) =>
             {
                 AppIconHelper.SetNativeWindowIcon(this);
-                if (!AuthService.HasAnyUsers())
-                {
-                    var wizard = new SetupWizardWindow();
-                    wizard.OnSetupComplete += () =>
-                    {
-                        OnLoginSuccess?.Invoke();
-                    };
-                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                    {
-                        desktop.MainWindow = wizard;
-                    }
-                    wizard.Show();
-                    this.Close();
-                }
             };
 
             // Note: First-run setup is now handled by SetupWizardWindow

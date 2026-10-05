@@ -53,9 +53,32 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.3 (Build 32)",
+            version: "v3.9.4 (Build 33)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "One-click auto-detect downloaded local Ollama models in Settings, plus resilient startup lifecycle and database connection pooling to eliminate launch exits",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Auto-Detect Downloaded Local AI Models",
+                    description: "Instantly probes local Ollama /api/tags for downloaded models, auto-populates model dropdown, and selects the optimal agent."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Resolved Desktop Startup Exit / Window Loop",
+                    description: "Fixed window close loop between SetupWizard and LoginWindow, hardened SQLite connection pooling, and made Firebase sync non-blocking."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Safe Pooled Database Access",
+                    description: "Eliminated connection disposal collisions and open reader contention during concurrent service startup."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.3 (Build 32)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Cloud account auto-detection for non-dev PCs, birthday as-you-type formatting, circular AI button polish, natural casual greetings, and bottom scroll clearance",
             changes: [
                 ChangelogItem(

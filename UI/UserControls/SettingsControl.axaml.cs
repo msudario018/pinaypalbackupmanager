@@ -470,6 +470,12 @@ namespace PinayPalBackupManager.UI.UserControls
 
             if (txtOllamaEp != null) txtOllamaEp.Text = cfg.OllamaEndpoint;
             if (txtOllamaModel != null) txtOllamaModel.Text = cfg.OllamaModel;
+
+            var cmbDetectedModels = this.FindControl<ComboBox>("CmbDetectedOllamaModels");
+            if (cmbDetectedModels != null && cmbDetectedModels.ItemsSource != null)
+            {
+                cmbDetectedModels.SelectedItem = cfg.OllamaModel;
+            }
             if (txtCloudEp != null) txtCloudEp.Text = cfg.CloudEndpoint;
             if (txtCloudModel != null) txtCloudModel.Text = cfg.CloudModel;
             if (txtCloudKey != null) txtCloudKey.Text = cfg.CloudApiKey;
@@ -527,6 +533,9 @@ namespace PinayPalBackupManager.UI.UserControls
             var chkChimes = this.FindControl<CheckBox>("ChkAiSoundChimes");
             var cmbProvider = this.FindControl<ComboBox>("CmbAiProvider");
             var btnTestOllama = this.FindControl<Button>("BtnTestOllamaConnection");
+            var btnAutoDetect = this.FindControl<Button>("BtnAutoDetectAiModels");
+            var cmbDetectedModels = this.FindControl<ComboBox>("CmbDetectedOllamaModels");
+            var txtDetectedCount = this.FindControl<TextBlock>("TxtDetectedModelCount");
             var txtOllamaEp = this.FindControl<TextBox>("TxtOllamaEndpoint");
             var txtOllamaModel = this.FindControl<TextBox>("TxtOllamaModel");
             var txtOllamaStatus = this.FindControl<TextBlock>("TxtOllamaStatus");
@@ -634,6 +643,74 @@ namespace PinayPalBackupManager.UI.UserControls
             SyncSliderLabels();
 
             RefreshAiSettings();
+
+            if (btnAutoDetect != null && txtOllamaStatus != null)
+            {
+                btnAutoDetect.Click += async (_, _) =>
+                {
+                    btnAutoDetect.IsEnabled = false;
+                    btnAutoDetect.Content = "Detecting...";
+                    txtOllamaStatus.Text = "Scanning local Ollama for downloaded models...";
+
+                    var ep = txtOllamaEp?.Text?.Trim();
+                    var (ok, models, msg) = await AIAssistantService.GetInstalledOllamaModelsAsync(ep);
+
+                    txtOllamaStatus.Text = msg;
+
+                    if (ok && models.Count > 0)
+                    {
+                        if (cmbDetectedModels != null)
+                        {
+                            cmbDetectedModels.ItemsSource = models;
+                            cmbDetectedModels.IsVisible = true;
+
+                            var best = AIAssistantService.SelectBestModel(models, txtOllamaModel?.Text?.Trim() ?? "");
+                            cmbDetectedModels.SelectedItem = best;
+                            if (txtOllamaModel != null) txtOllamaModel.Text = best;
+                        }
+
+                        if (txtDetectedCount != null)
+                        {
+                            txtDetectedCount.Text = $"{models.Count} model{(models.Count > 1 ? "s" : "")}";
+                        }
+
+                        // Auto-save the detected model
+                        var cfg = AIAssistantService.Config;
+                        if (txtOllamaModel != null && !string.IsNullOrWhiteSpace(txtOllamaModel.Text))
+                        {
+                            cfg.OllamaModel = txtOllamaModel.Text.Trim();
+                            AIAssistantService.SaveConfig(cfg);
+                        }
+
+                        NotificationService.ShowBackupToast("AI Agent Detected", $"Auto-selected '{txtOllamaModel?.Text}' as your local agent.", "Success");
+                    }
+                    else
+                    {
+                        if (txtDetectedCount != null) txtDetectedCount.Text = "";
+                        NotificationService.ShowBackupToast("AI Detection", msg, ok ? "Info" : "Warning");
+                    }
+
+                    btnAutoDetect.IsEnabled = true;
+                    btnAutoDetect.Content = "🔍 Auto-Detect Models";
+                };
+            }
+
+            if (cmbDetectedModels != null)
+            {
+                cmbDetectedModels.SelectionChanged += (_, _) =>
+                {
+                    if (cmbDetectedModels.SelectedItem is string selectedModel && !string.IsNullOrWhiteSpace(selectedModel))
+                    {
+                        if (txtOllamaModel != null)
+                        {
+                            txtOllamaModel.Text = selectedModel;
+                        }
+                        var cfg = AIAssistantService.Config;
+                        cfg.OllamaModel = selectedModel;
+                        AIAssistantService.SaveConfig(cfg);
+                    }
+                };
+            }
 
             if (btnTestOllama != null && txtOllamaStatus != null)
             {

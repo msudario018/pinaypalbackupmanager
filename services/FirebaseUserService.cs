@@ -22,8 +22,6 @@ namespace PinayPalBackupManager.Services
         }
         
         private static bool _isInitialized = false;
-        private static bool _initAttempted = false;
-        private static readonly object _initLock = new object();
         private static readonly RateLimitedHttpClient _rateLimitedClient;
         private static readonly CancellationTokenSource _cancellationTokenSource = new();
         
@@ -35,25 +33,18 @@ namespace PinayPalBackupManager.Services
         
         private static async Task<bool> EnsureInitializedAsync()
         {
-            // Fast path - return immediately if already initialized or attempted
+            // Fast path - return immediately if already initialized
             if (_isInitialized) return true;
-            if (_initAttempted) return false;
-            
-            lock (_initLock)
-            {
-                if (_isInitialized || _initAttempted) return _isInitialized;
-                _initAttempted = true;
-            }
-            
+
             try
             {
-                var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}.json", _cancellationTokenSource.Token);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                var response = await _rateLimitedClient.GetAsync($"{FirebaseUrl}.json?shallow=true", cts.Token);
                 _isInitialized = response.IsSuccessStatusCode;
                 return _isInitialized;
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("[FirebaseUser] Initialization cancelled");
                 return false;
             }
             catch

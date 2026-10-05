@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.9.4 (2026-10-05)
+
+### Added
+- **Auto-Detect Downloaded Local AI Models & Agents**:
+  - Added "🔍 Auto-Detect Models" in Settings -> AI Assistant & Automation Engine (`BtnAutoDetectAiModels`).
+  - Probes local Ollama instance (`/api/tags`) via `AIAssistantService.GetInstalledOllamaModelsAsync()` to query all downloaded models on the machine.
+  - Automatically populates the model selector dropdown (`CmbDetectedOllamaModels`), recommends the optimal agent family (e.g., `qwen2.5`, `llama3.2`, `phi3`), and saves the selection directly to configuration.
+  - Added unit tests covering model selection heuristics and graceful fallbacks.
+
+### Fixed & Hardened
+- **Resolved Startup Launch Exit / Window Ping-Pong Close Loop**:
+  - Removed window-closing self-destruction in `LoginWindow.Opened` (`!AuthService.HasAnyUsers() -> wizard.Show(); this.Close();`) which caused rapid open/close bouncing against `SetupWizardWindow` on secondary installations.
+  - Guarded `SetupWizardWindow` so it only redirects to `LoginWindow` if users were successfully pulled into the local SQLite database.
+  - Switched synchronous `Task.Run().Wait()` in `AuthService.InitializeAsync()` to safe non-blocking `await Task.WhenAny(pullTask, Task.Delay(3000))` preventing thread pool starvation and unhandled aggregate cancellations.
+- **SQLite Connection Pooling & Concurrency Safety**:
+  - Refactored `DatabaseService.GetConnection()` to return scoped pooled connections instead of a single shared mutable connection instance.
+  - Eliminated open reader contention (`SqliteDataReader`) and accidental connection disposal across concurrent background services and UI threads.
+  - Replaced unclosed reader check in `AuthService.HasAnyUsers()` with thread-safe `cmd.ExecuteScalar()`.
+- **Firebase Initialization Hardening**:
+  - Changed `FirebaseUserService.EnsureInitializedAsync()` from querying the entire database root (`/.json`) to lightweight shallow probing (`/.json?shallow=true`), removing 401/timeout failures.
+  - Ensured initial dev PC admin registration syncs to Firebase so non-dev installations can discover the administrator account.
+
 ## v3.9.3 (2026-10-05)
 
 ### Fixed & Improved

@@ -14,10 +14,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task InitializeAsync()
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 CREATE TABLE IF NOT EXISTS PasswordResetTokens (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,10 +37,8 @@ namespace PinayPalBackupManager.Services
             var expiresAt = DateTime.UtcNow.AddHours(TokenExpirationHours);
             var createdAt = DateTime.UtcNow;
 
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO PasswordResetTokens (UserId, Token, ExpiresAt, Used, CreatedAt)
                 VALUES (@UserId, @Token, @ExpiresAt, 0, @CreatedAt);
@@ -61,10 +57,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<bool> ValidateTokenAsync(string token)
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT ExpiresAt, Used FROM PasswordResetTokens
                 WHERE Token = @Token
@@ -100,10 +94,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task<int?> GetUserIdByTokenAsync(string token)
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT UserId FROM PasswordResetTokens
                 WHERE Token = @Token AND Used = 0
@@ -123,10 +115,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task MarkTokenAsUsedAsync(string token)
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 UPDATE PasswordResetTokens
                 SET Used = 1
@@ -141,10 +131,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task CleanupExpiredTokensAsync()
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 DELETE FROM PasswordResetTokens
                 WHERE ExpiresAt < @Now OR Used = 1;
@@ -161,10 +149,8 @@ namespace PinayPalBackupManager.Services
 
         public static async Task InvalidateUserTokensAsync(int userId)
         {
-            var connection = DatabaseService.GetConnection();
-            // Connection is already opened by GetConnection()
-
-            var command = connection.CreateCommand();
+            using var connection = DatabaseService.GetConnection();
+            using var command = connection.CreateCommand();
             command.CommandText = @"
                 UPDATE PasswordResetTokens
                 SET Used = 1
