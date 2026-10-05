@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -37,10 +40,10 @@ namespace PinayPalBackupManager.UI
             }
             else
             {
-                _isAdminPC = true; // Default: assume admin PC until confirmed otherwise
+                _isAdminPC = false;
                 UpdateAdminUserText();
 
-                // Only for non-dev PCs: Check Firebase asynchronously to confirm if an admin already exists on another PC
+                // Only for non-dev PCs: Check Firebase to confirm if an admin already exists on the dev PC
                 _ = Task.Run(async () =>
                 {
                     try
@@ -49,11 +52,21 @@ namespace PinayPalBackupManager.UI
                         bool hasAdmin = users.Any(u => u.Role == "Admin");
                         if (hasAdmin)
                         {
-                            _isAdminPC = false;
-                            Dispatcher.UIThread.Post(() => UpdateAdminUserText());
+                            // Admin already created on dev PC! Pull users and redirect directly to Login
+                            await FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
+                            await Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                var login = new LoginWindow();
+                                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                                {
+                                    desktop.MainWindow = login;
+                                }
+                                login.Show();
+                                this.Close();
+                            });
                         }
                     }
-                    catch { /* Firebase unreachable — keep admin PC assumption */ }
+                    catch { /* Firebase unreachable — keep non-dev user registration */ }
                 });
             }
         }
@@ -85,6 +98,26 @@ namespace PinayPalBackupManager.UI
             
             passwordBox.TextChanged += (_, _) => ValidatePasswordMatch();
             confirmPasswordBox.TextChanged += (_, _) => ValidatePasswordMatch();
+
+            // Birthday auto-formatting as user types
+            var birthDateBox = this.FindControl<TextBox>("TxtAdminBirthDate");
+            if (birthDateBox != null)
+            {
+                var suppress = false;
+                birthDateBox.TextChanged += (_, _) =>
+                {
+                    if (suppress) return;
+                    var formatted = FormatBirthdayAsYouType(birthDateBox.Text ?? "");
+                    if (formatted == birthDateBox.Text) return;
+
+                    suppress = true;
+                    var caret = birthDateBox.CaretIndex;
+                    birthDateBox.Text = formatted;
+                    birthDateBox.CaretIndex = Math.Min(caret + (formatted.Length - (birthDateBox.Text?.Length ?? 0)) + 1, formatted.Length);
+                    if (birthDateBox.CaretIndex < 0) birthDateBox.CaretIndex = formatted.Length;
+                    suppress = false;
+                };
+            }
 
             // Update summary when entering step 6
             this.FindControl<StackPanel>("Step6Security")!.PropertyChanged += (_, e) =>
@@ -343,13 +376,24 @@ namespace PinayPalBackupManager.UI
                 valid = false;
             }
 
-            var birthDate = this.FindControl<TextBox>("TxtAdminBirthDate")?.Text?.Trim() ?? "";
+            var birthDateBox = this.FindControl<TextBox>("TxtAdminBirthDate");
+            var birthDate = birthDateBox?.Text?.Trim() ?? "";
             if (!string.IsNullOrWhiteSpace(birthDate))
             {
-                if (!DateTime.TryParse(birthDate, out _))
+                if (!DateTime.TryParseExact(birthDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) &&
+                    !DateTime.TryParse(birthDate, out dt))
                 {
-                    ShowError("ErrorAdminBirthDate", "Birthday format should be YYYY-MM-DD");
+                    ShowError("ErrorAdminBirthDate", "Birthday must be in YYYY-MM-DD format (e.g. 1990-05-15)");
                     valid = false;
+                }
+                else if (dt.Year < 1900 || dt > DateTime.Today)
+                {
+                    ShowError("ErrorAdminBirthDate", "Please enter a valid birthday between 1900 and today");
+                    valid = false;
+                }
+                else if (birthDateBox != null)
+                {
+                    birthDateBox.Text = dt.ToString("yyyy-MM-dd");
                 }
             }
 
@@ -1045,6 +1089,38 @@ namespace PinayPalBackupManager.UI
             btn.Click += (_, _) => dialog.Close();
 
             await dialog.ShowDialog(this);
+        }
+
+        public static string FormatBirthdayAsYouType(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+
+            // Replace slashes or dots with hyphens
+            var cleaned = raw.Replace('/', '-').Replace('.', '-').Trim();
+
+            var digitsOnly = new StringBuilder();
+            foreach (var ch in cleaned)
+            {
+                if (char.IsDigit(ch) && digitsOnly.Length < 8)
+                {
+                    digitsOnly.Append(ch);
+                }
+            }
+
+            var digits = digitsOnly.ToString();
+            if (digits.Length == 0) return "";
+
+            var sb = new StringBuilder();
+            for (int i = 0; i < digits.Length; i++)
+            {
+                if (i == 4 || i == 6)
+                {
+                    sb.Append('-');
+                }
+                sb.Append(digits[i]);
+            }
+
+            return sb.ToString();
         }
     }
 }

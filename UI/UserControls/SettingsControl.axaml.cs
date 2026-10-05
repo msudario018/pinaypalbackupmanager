@@ -1156,11 +1156,25 @@ namespace PinayPalBackupManager.UI.UserControls
 
         private static IBrush BrushesFor(string resourceKey)
         {
-            if (Application.Current != null && Application.Current.TryFindResource(resourceKey, out var res))
+            var theme = Application.Current?.ActualThemeVariant ?? Avalonia.Styling.ThemeVariant.Dark;
+            if (Application.Current != null && Application.Current.TryGetResource(resourceKey, theme, out var res))
             {
                 if (res is IBrush b) return b;
             }
-            return Brushes.White;
+
+            // Dark-mode fallbacks so dynamically created telemetry controls never render white-on-white
+            return resourceKey switch
+            {
+                "AppSurface" => new SolidColorBrush(Color.Parse("#1A2332")),
+                "AppCard" => new SolidColorBrush(Color.Parse("#111827")),
+                "AppBorder" => new SolidColorBrush(Color.Parse("#1E293B")),
+                "AppText" => new SolidColorBrush(Color.Parse("#F1F5F9")),
+                "AppSubtext" => new SolidColorBrush(Color.Parse("#94A3B8")),
+                "AppMuted" => new SolidColorBrush(Color.Parse("#64748B")),
+                "AccentWebsite" => new SolidColorBrush(Color.Parse("#38BDF8")),
+                "AccentError" => new SolidColorBrush(Color.Parse("#EF4444")),
+                _ => new SolidColorBrush(Color.Parse("#1E293B"))
+            };
         }
 
         private void InitializeSmartScheduling()

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using System.Threading;
 using System.Threading.Tasks;
 using PinayPalBackupManager.Models;
 using BCrypt.Net;
@@ -61,8 +62,20 @@ namespace PinayPalBackupManager.Services
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
 
-            // Note: Automatic user restore from Firebase on empty database is disabled
-            // so resetting the user database properly triggers the Initial Setup Wizard.
+            // On non-dev PCs with an empty local database, check Firebase for an existing admin account created on the dev PC
+            if (!HasAnyUsers() && !IsDevPC())
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    var pullTask = Task.Run(async () => await FirebaseUserService.PullUsersFromFirebaseToLocalAsync(), cts.Token);
+                    pullTask.Wait(cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[AuthService] Non-dev PC initial Firebase user pull skipped: {ex.Message}", "Info", "AUTH");
+                }
+            }
 
             // Initialize password reset service
             await PasswordResetService.InitializeAsync();

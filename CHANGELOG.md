@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.9.3 (2026-10-05)
+
+### Fixed & Improved
+- **Non-Dev PC Cloud Admin Detection**: When installed on a non-dev PC with an empty local database, the startup pipeline now queries Firebase for existing admin and user accounts created on the Dev PC. If an admin account exists, users are pulled directly to local SQLite and the app transitions straight to `LoginWindow`, eliminating the redundant "Create Administrator Account" setup wizard on secondary machines.
+- **Birthday Format As You Type (`YYYY-MM-DD`)**: Added real-time auto-formatting as users type in `SetupWizardWindow` and `LoginWindow` (converting slashes, dots, and unformatted digits into `YYYY-MM-DD`), alongside explicit format indicators and strict date range validation (1900 to present).
+- **Floating AI Orb Button Hover/Press Square Artifact**: Replaced default FluentTheme button template styles on `BtnAvatarTrigger` to remove the square bounding rectangle on hover, click, and focus. Added `CornerRadius="29"` and glowing cybernetic hover/press micro-animations.
+- **Natural Conversational AI & Casual Greeting Handling**: Eliminated robotic canned openers (`"Good question — here's the full picture."`) and removed unsolicited status dumping or action proposal cards when the user merely says "hi", "hello", or "how are you".
+- **Chat Drawer Scroll Clearance & Action Card Cutoff**: Removed restrictive `ScrollViewer.Padding` that prevented scrolling to the true bottom in Avalonia. Added dedicated bottom margin to `MessagesContainer` and expanded drawer height so action cards and approve/cancel buttons are never clipped.
+- **Computer Telemetry Card White-on-White Render**: Fixed `BrushesFor` in `SettingsControl.axaml.cs` which previously queried resources outside `ThemeDictionaries` and fell back to `Brushes.White`, resulting in a solid white box with invisible white text in dark mode. Implemented `TryGetResource` with dark-theme fallbacks.
+
 ## v3.9.2 (2026-10-05)
 
 ### Fixed

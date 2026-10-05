@@ -113,8 +113,11 @@
                                 </StackPanel>
 
                                 <StackPanel Spacing="6">
-                                    <TextBlock Text="Birthday (for Security Verification)" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
-                                    <TextBox x:Name="TxtAdminBirthDate" Watermark="YYYY-MM-DD (e.g. 1990-05-15)"/>
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBlock Text="Birthday (for Security Verification)" Foreground="#A6ADC8" FontSize="13" FontWeight="Medium"/>
+                                        <TextBlock Grid.Column="1" Text="Format: YYYY-MM-DD" Foreground="#89B4FA" FontSize="11" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <TextBox x:Name="TxtAdminBirthDate" Watermark="YYYY-MM-DD (e.g. 1990-05-15)" MaxLength="10"/>
                                     <TextBlock x:Name="ErrorAdminBirthDate" Classes="error" Text="" IsVisible="False"/>
                                 </StackPanel>
 

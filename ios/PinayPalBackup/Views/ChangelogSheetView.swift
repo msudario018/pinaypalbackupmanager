@@ -53,9 +53,37 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.2 (Build 31)",
+            version: "v3.9.3 (Build 32)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Cloud account auto-detection for non-dev PCs, birthday as-you-type formatting, circular AI button polish, natural casual greetings, and bottom scroll clearance",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Cloud Admin Auto-Sync on Non-Dev PCs",
+                    description: "Automatically pulls existing admin accounts from Firebase on secondary PCs to eliminate duplicate setup wizards."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Birthday As-You-Type Formatting",
+                    description: "Enforces YYYY-MM-DD formatting seamlessly as digits are typed in setup and login screens."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Natural AI Conversation & Greetings",
+                    description: "Responds warmly to greetings without unsolicited diagnostic error dumps or robotic canned prefixes."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "UI Polish & Scroll Clearance",
+                    description: "Eliminated square hover background on circular AI button and guaranteed scroll clearance for chat action cards."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.2 (Build 31)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Hotfix for desktop stability: fixed thread-safety crash on session timeout and Avalonia window startup lifecycle",
             changes: [
                 ChangelogItem(

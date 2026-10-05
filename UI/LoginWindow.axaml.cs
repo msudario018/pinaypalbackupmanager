@@ -90,6 +90,10 @@ namespace PinayPalBackupManager.UI
             var btnBackRecovery = this.FindControl<Button>("BtnBackFromRecovery");
             if (btnBackRecovery != null) btnBackRecovery.Click += (_, _) => ShowLoginPanel();
 
+            // Birthday auto-formatting for Registration and Forgot Username
+            AttachBirthdayFormatter(this.FindControl<TextBox>("TxtRegBirthDate"));
+            AttachBirthdayFormatter(this.FindControl<TextBox>("TxtForgotBirthDate"));
+
             // Emergency admin button — dev-only, visible on login screen for recovery
             var btnEmergency = this.FindControl<Button>("BtnEmergencyAdmin");
             if (btnEmergency != null)
@@ -657,6 +661,25 @@ namespace PinayPalBackupManager.UI
                 statusTxt.Foreground = GetBrush("AccentError");
                 statusTxt.Text = message;
             }
+        }
+
+        private static void AttachBirthdayFormatter(TextBox? box)
+        {
+            if (box == null) return;
+            var suppress = false;
+            box.TextChanged += (_, _) =>
+            {
+                if (suppress) return;
+                var formatted = SetupWizardWindow.FormatBirthdayAsYouType(box.Text ?? "");
+                if (formatted == box.Text) return;
+
+                suppress = true;
+                var caret = box.CaretIndex;
+                box.Text = formatted;
+                box.CaretIndex = Math.Min(caret + (formatted.Length - (box.Text?.Length ?? 0)) + 1, formatted.Length);
+                if (box.CaretIndex < 0) box.CaretIndex = formatted.Length;
+                suppress = false;
+            };
         }
     }
 }

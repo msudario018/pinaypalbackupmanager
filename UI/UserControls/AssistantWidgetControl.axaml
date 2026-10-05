@@ -53,7 +53,7 @@
             <!-- 2. Expandable Conversational Chat Drawer -->
             <Border Name="ChatDrawerBorder"
                     IsVisible="False"
-                    Width="410" Height="540"
+                    Width="410" Height="560"
                     Background="#FA070C18"
                     BorderBrush="#2A3850"
                     BorderThickness="1"
@@ -130,13 +130,11 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Messages ScrollViewer -->
-                    <!-- Explicit opaque backdrop: without this the list area inherits the
-                         drawer's translucency and the page behind bleeds through. -->
+                    <!-- Messages ScrollViewer with guaranteed bottom margin -->
                     <Border Grid.Row="2" Background="#F2070C18">
-                    <ScrollViewer Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10,14,16">
-                        <StackPanel Name="MessagesContainer" Spacing="10"/>
-                    </ScrollViewer>
+                        <ScrollViewer Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Name="MessagesContainer" Spacing="10" Margin="14,10,14,32"/>
+                        </ScrollViewer>
                     </Border>
 
                     <!-- Overhauled Quick Prompt Chips Row with Horizontal Scroll & Left/Right Arrows -->
@@ -187,10 +185,10 @@
                                      Padding="12,9"
                                      FontSize="12"/>
                             <Button Grid.Column="1" Name="BtnSend"
-                                    Background="#F59E0B" Foreground="#0A0E18"
-                                    BorderThickness="0" CornerRadius="10"
-                                    Width="36" Height="36" Margin="8,0,0,0"
-                                    Cursor="Hand" ToolTip.Tip="Send message">
+                                     Background="#F59E0B" Foreground="#0A0E18"
+                                     BorderThickness="0" CornerRadius="10"
+                                     Width="36" Height="36" Margin="8,0,0,0"
+                                     Cursor="Hand" ToolTip.Tip="Send message">
                                 <PathIcon Data="M2,21L23,12L2,3V10L17,12L2,14V21Z" Width="14" Height="14" Foreground="#0A0E18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                             </Button>
                         </Grid>
@@ -200,17 +198,22 @@
 
             <!-- 3. Overhauled Floating Avatar Pill Button (Bespoke Cybernetic AI Orb) -->
             <Button Name="BtnAvatarTrigger"
+                    Classes="AvatarOrbBtn"
+                    Width="58" Height="58"
+                    CornerRadius="29"
                     Background="Transparent"
                     BorderThickness="0"
                     Padding="0"
+                    ClipToBounds="False"
                     Cursor="Hand"
                     HorizontalAlignment="Right"
                     ToolTip.Tip="PinayPal AI Assistant (Click to open chat)">
-                <Border Width="58" Height="58"
+                <Border Classes="avatar-orb" Width="58" Height="58"
                         CornerRadius="29"
                         Background="#0D1526"
                         BorderBrush="#F59E0B"
                         BorderThickness="1.5"
+                        ClipToBounds="True"
                         BoxShadow="0 8 28 #90000000, 0 0 16 #40F59E0B, 0 0 30 #2038BDF8">
                     <Grid>
                         <!-- Concentric Cyber Orbit Ring -->
@@ -238,6 +241,52 @@
     </Grid>
 
     <UserControl.Styles>
+        <!-- Floating Avatar Orb Button Style (Completely Eliminates Square Corners on Hover/Press) -->
+        <Style Selector="Button.AvatarOrbBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="29"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ClipToBounds" Value="False"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="29"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="29"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="29"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn:focus /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="29"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn:pointerover Border.avatar-orb">
+            <Setter Property="BorderBrush" Value="#FBBF24"/>
+            <Setter Property="BoxShadow" Value="0 10 32 #B0000000, 0 0 22 #60F59E0B, 0 0 36 #4038BDF8"/>
+            <Setter Property="RenderTransform" Value="scale(1.06)"/>
+        </Style>
+        <Style Selector="Button.AvatarOrbBtn:pressed Border.avatar-orb">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+        <Style Selector="Border.avatar-orb">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
         <!-- Chip Style -->
         <Style Selector="Button.ChipBtn">
             <Setter Property="Background" Value="#141E33"/>

@@ -486,6 +486,29 @@ namespace PinayPalBackupManager.Services
                     }
                 }
 
+                // Check for casual greetings (hi, hello, etc.) to respond naturally without unsolicited diagnostics or action cards
+                if (IsCasualGreeting(sanitizedUserMessage))
+                {
+                    var name = string.IsNullOrWhiteSpace(_config.AssistantName) ? "PinayPal AI" : _config.AssistantName.Trim();
+                    var greeting = $"Hello! I'm {name}, ready to assist you. All automated backup schedules and system monitors are running normally on {Environment.MachineName}. How can I help you today?";
+                    assistantMsg = new ChatMessage
+                    {
+                        Role = "assistant",
+                        Content = greeting,
+                        Engine = "conversational",
+                        FollowUpSuggestions = new List<string> { "How is the system health?", "Show recent backups", "Check disk space" }
+                    };
+
+                    lock (_historyLock)
+                    {
+                        _sessionHistory.Add(assistantMsg);
+                        if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                    }
+
+                    OnMessageReceived?.Invoke(assistantMsg);
+                    return assistantMsg;
+                }
+
                 // 1. Detect a guarded action intent.
                 var proposedAction = DetectActionIntent(sanitizedUserMessage);
 
@@ -598,25 +621,22 @@ namespace PinayPalBackupManager.Services
             return "all";
         }
 
+        private static bool IsCasualGreeting(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt)) return false;
+            var cleaned = Regex.Replace(prompt.Trim().ToLowerInvariant(), @"[^\w\s]", "").Trim();
+            return cleaned is "hi" or "hello" or "hey" or "good morning" or "good afternoon" or "good evening"
+                or "how are you" or "hows it going" or "sup" or "yo" or "hi there" or "hello there"
+                or "greetings" or "hey there";
+        }
+
         /// <summary>
-        /// Warms up terse prose answers according to the configured Talkativeness.
-        /// Structured markdown reports and action prompts are left untouched.
+        /// Applies verbosity and natural formatting without inserting robotic canned openers.
         /// </summary>
         private static string ApplyVerbosity(string reply)
         {
             if (string.IsNullOrWhiteSpace(reply)) return reply;
-            var talk = Math.Clamp(_config.Talkativeness, 0, 100);
-            if (talk < 30) return reply;
-
-            // Never decorate bullet/markdown reports or approval prompts.
-            if (reply.Contains("###") || reply.Contains("- **") || reply.Contains("Approve"))
-                return reply;
-
-            var opener = talk > 70
-                ? "Good question — here's the full picture. "
-                : "Here's what I found. ";
-
-            return opener + reply;
+            return reply.Trim();
         }
 
         /// <summary>Produces contextual next-step chips based on what was just asked.</summary>
@@ -1759,6 +1779,7 @@ ACTIVE AGENT ROLE: {_config.GetProfileTitle()}
 PERSONALITY
 {verbosity} You are encouraging, precise, and honest. When something is wrong, say so plainly and
 propose the fix. Never invent data — only report what is in the CONTEXT below.
+GREETINGS & CASUAL MESSAGES: When the user simply greets you (e.g., 'hi', 'hello', 'hey', 'how are you'), reply naturally, warmly, and concisely in 1-2 sentences. Do NOT diagnose system errors, do NOT dump unsolicited status logs, and do NOT attach [ACTION: ...] tags to simple greetings. Only suggest actions when the user explicitly asks for them or reports a problem.
 
 WHAT YOU CAN DO
 - Answer questions about backup health, disk space, schedules, and network/tunnel status.

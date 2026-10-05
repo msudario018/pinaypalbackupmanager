@@ -115,5 +115,30 @@ namespace PinayPalBackupManager.Tests
             Assert.Contains("Speedy", cfg.GetProfileTitle());
             Assert.Contains("Speedy Minimalist Assistant", cfg.GetProfileInstructions());
         }
+
+        [Theory]
+        [InlineData("19900515", "1990-05-15")]
+        [InlineData("1990/05/15", "1990-05-15")]
+        [InlineData("1990.05.15", "1990-05-15")]
+        [InlineData("1990-05-15", "1990-05-15")]
+        [InlineData("19851231", "1985-12-31")]
+        public void BirthdayFormat_FormatsAsYouTypeCorrectly(string input, string expected)
+        {
+            var formatted = PinayPalBackupManager.UI.SetupWizardWindow.FormatBirthdayAsYouType(input);
+            Assert.Equal(expected, formatted);
+        }
+
+        [Theory]
+        [InlineData("hi")]
+        [InlineData("hello")]
+        [InlineData("hey there")]
+        [InlineData("good morning")]
+        public async Task ProcessUserMessage_CasualGreeting_RespondsNaturallyWithoutActions(string greeting)
+        {
+            var msg = await AIAssistantService.ProcessUserMessageAsync(greeting);
+            Assert.Null(msg.ProposedAction);
+            Assert.Contains("Hello", msg.Content);
+            Assert.DoesNotContain("Good question — here's the full picture", msg.Content);
+        }
     }
 }

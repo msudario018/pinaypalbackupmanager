@@ -295,6 +295,11 @@ namespace PinayPalBackupManager.UI.UserControls
 
             Dispatcher.UIThread.Post(() => MessagesScrollViewer.ScrollToEnd(), DispatcherPriority.Render);
             Dispatcher.UIThread.Post(() => MessagesScrollViewer.ScrollToEnd(), DispatcherPriority.Loaded);
+            Dispatcher.UIThread.Post(async () =>
+            {
+                await Task.Delay(60);
+                MessagesScrollViewer.ScrollToEnd();
+            }, DispatcherPriority.Background);
         }
         private async Task SendUserMessageAsync()
         {
@@ -475,7 +480,8 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 8,
-                HorizontalAlignment = HorizontalAlignment.Right
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 4)
             };
 
             var statusText = new TextBlock
