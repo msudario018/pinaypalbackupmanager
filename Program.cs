@@ -10,20 +10,90 @@ namespace PinayPalBackupManager
 {
     class Program
     {
+        /// <summary>
+        /// Resolves the startup log path without throwing. AppDataPaths touches the
+        /// filesystem, which is exactly what can be broken right after an update, so
+        /// this must never be allowed to fail the boot.
+        /// </summary>
+        private static string SafeStartupLogPath()
+        {
+            try
+            {
+                return AppDataPaths.GetLogPath("startup.log");
+            }
+            catch
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "pinaypal-startup.log");
+            }
+        }
+
+        /// <summary>Best-effort append that never throws, so logging can't become the crash.</summary>
+        private static void AppendStartupLog(string path, string message)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.AppendAllText(path, $"[{DateTime.Now}] {message}\n");
+            }
+            catch { }
+        }
+
         [STAThread]
         public static void Main(string[] args)
         {
             // Velopack lifecycle/install hooks must run first before mutexes, single instance checks, or UI
-            VelopackApp.Build().Run();
+            //
+            // These used to run completely unguarded, above every try/catch, so any
+            // exception here terminated the process with nothing written to startup.log.
+            // That is exactly the cold-launch-and-after-update crash signature:
+            // VelopackApp.Run() is what services the install/update hooks and re-launch
+            // after an update, and MigrateKnownFiles() runs on every start.
+            var logPathEarly = SafeStartupLogPath();
 
-            AppIconHelper.EnsureAppUserModelId();
-            if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
+            try
             {
-                return;
+                VelopackApp.Build().Run();
+            }
+            catch (Exception ex)
+            {
+                AppendStartupLog(logPathEarly, $"Velopack lifecycle hooks failed (continuing): {ex}");
             }
 
-            AppDataPaths.MigrateKnownFiles();
-            var logPath = AppDataPaths.GetLogPath("startup.log");
+            try
+            {
+                AppIconHelper.EnsureAppUserModelId();
+            }
+            catch (Exception ex)
+            {
+                // Cosmetic only - a missing taskbar icon must never stop the app booting.
+                AppendStartupLog(logPathEarly, $"AppUserModelId setup failed (continuing): {ex}");
+            }
+
+            try
+            {
+                if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendStartupLog(logPathEarly, $"Single-instance check failed (continuing): {ex}");
+            }
+
+            try
+            {
+                AppDataPaths.MigrateKnownFiles();
+            }
+            catch (Exception ex)
+            {
+                AppendStartupLog(logPathEarly, $"Data migration failed (continuing): {ex}");
+            }
+
+            var logPath = logPathEarly;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
@@ -71,7 +141,9 @@ namespace PinayPalBackupManager
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllText(logPath, $"[{DateTime.Now}] Service initialization error: {ex}\n");
+                    // Was an unguarded File.AppendAllText, so a failed write here threw
+                    // straight into the outer handler, which then tried to log again.
+                    AppendStartupLog(logPath, $"Service initialization error: {ex}");
                 }
 
                 var services = new ServiceCollection();
