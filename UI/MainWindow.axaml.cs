@@ -1930,10 +1930,53 @@ namespace PinayPalBackupManager.UI
                     (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
                 };
 
+                // Pause / Resume automatic backups. The header is kept in a variable so it
+                // can reflect the live state rather than lying when the app starts paused.
+                var pauseItem = new Avalonia.Controls.NativeMenuItem
+                {
+                    Header = BackupManager.Current?.IsPaused == true ? "Resume Automatic Backups" : "Pause Automatic Backups"
+                };
+                pauseItem.Click += (_, _) =>
+                {
+                    var mgr = BackupManager.Current;
+                    if (mgr == null) return;
+                    mgr.IsPaused = !mgr.IsPaused;
+                    pauseItem.Header = mgr.IsPaused ? "Resume Automatic Backups" : "Pause Automatic Backups";
+                    LogService.WriteSystemLog(
+                        $"[TRAY] Automatic backups {(mgr.IsPaused ? "paused" : "resumed")} from the tray menu.",
+                        "Information", "SYSTEM");
+                };
+
+                // Restart, for when the tray icon or window ends up in a bad state without
+                // the user needing to hunt for a process in Task Manager.
+                var restartItem = new Avalonia.Controls.NativeMenuItem { Header = "Restart PinayPal" };
+                restartItem.Click += (_, _) =>
+                {
+                    try
+                    {
+                        var exe = Environment.ProcessPath;
+                        if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+                        {
+                            LogService.WriteSystemLog("[TRAY] Restart skipped: executable path not found.", "Warning", "SYSTEM");
+                            return;
+                        }
+
+                        _allowClose = true;
+                        (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.WriteSystemLog($"[TRAY] Restart failed: {ex.Message}", "Error", "SYSTEM");
+                    }
+                };
+
                 menu.Items.Add(showItem);
                 menu.Items.Add(dashboardItem);
                 menu.Items.Add(quickBackupItem);
                 menu.Items.Add(backupItem);
+                menu.Items.Add(pauseItem);
+                menu.Items.Add(restartItem);
                 menu.Items.Add(new Avalonia.Controls.NativeMenuItemSeparator());
                 menu.Items.Add(exitItem);
 
