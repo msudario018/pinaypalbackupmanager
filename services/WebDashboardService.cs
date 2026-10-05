@@ -272,6 +272,18 @@ namespace PinayPalBackupManager.Services
                 {
                     await HandleTestEmailPostAsync(context);
                 }
+                else if (path == "/api/settings/notifications/test-telegram" && request.HttpMethod == "POST")
+                {
+                    await HandleTestTelegramPostAsync(context);
+                }
+                else if (path == "/api/settings/notifications/detect-telegram-chat" && request.HttpMethod == "POST")
+                {
+                    await HandleDetectTelegramChatPostAsync(context);
+                }
+                else if (path == "/api/settings/notifications/send-qr-telegram" && request.HttpMethod == "POST")
+                {
+                    await HandleSendQrTelegramPostAsync(context);
+                }
                 else if (path == "/api/connection-info" && request.HttpMethod == "GET")
                 {
                     await ServeConnectionInfoApiAsync(response);
@@ -1657,6 +1669,14 @@ namespace PinayPalBackupManager.Services
             var s = NotificationService.Settings;
             await SendJsonAsync(response, 200, new
             {
+                telegramEnabled = s.TelegramEnabled,
+                telegramBotToken = s.TelegramBotToken ?? "",
+                telegramChatId = s.TelegramChatId ?? "",
+                notifyOnBackupStart = s.NotifyOnBackupStart,
+                notifyOnBackupSuccess = s.NotifyOnBackupSuccess,
+                notifyOnBackupFailure = s.NotifyOnBackupFailure,
+                notifyOnDisconnect = s.NotifyOnDisconnect,
+                notifyOnOutdated = s.NotifyOnOutdated,
                 emailAlertsEnabled = s.EmailAlertsEnabled,
                 smtpHost = s.SmtpHost ?? "",
                 smtpPort = s.SmtpPort,
@@ -1664,11 +1684,7 @@ namespace PinayPalBackupManager.Services
                 smtpUsername = s.SmtpUsername ?? "",
                 senderEmail = s.SenderEmail ?? "",
                 recipientEmail = s.RecipientEmail ?? "",
-                hasPassword = !string.IsNullOrEmpty(s.SmtpPassword),
-                notifyOnDisconnect = s.NotifyOnDisconnect,
-                notifyOnBackupSuccess = s.NotifyOnBackupSuccess,
-                notifyOnBackupFailure = s.NotifyOnBackupFailure,
-                notifyOnOutdated = s.NotifyOnOutdated
+                hasPassword = !string.IsNullOrEmpty(s.SmtpPassword)
             });
         }
 
@@ -1688,6 +1704,15 @@ namespace PinayPalBackupManager.Services
                 var root = doc.RootElement;
                 var s = NotificationService.Settings;
 
+                if (root.TryGetProperty("telegramEnabled", out var te)) s.TelegramEnabled = te.GetBoolean();
+                if (root.TryGetProperty("telegramBotToken", out var tt)) s.TelegramBotToken = tt.GetString() ?? "";
+                if (root.TryGetProperty("telegramChatId", out var tc)) s.TelegramChatId = tc.GetString() ?? "";
+                if (root.TryGetProperty("notifyOnBackupStart", out var nbs)) s.NotifyOnBackupStart = nbs.GetBoolean();
+                if (root.TryGetProperty("notifyOnBackupSuccess", out var ns)) s.NotifyOnBackupSuccess = ns.GetBoolean();
+                if (root.TryGetProperty("notifyOnBackupFailure", out var nf)) s.NotifyOnBackupFailure = nf.GetBoolean();
+                if (root.TryGetProperty("notifyOnDisconnect", out var nd)) s.NotifyOnDisconnect = nd.GetBoolean();
+                if (root.TryGetProperty("notifyOnOutdated", out var no)) s.NotifyOnOutdated = no.GetBoolean();
+
                 if (root.TryGetProperty("emailAlertsEnabled", out var ee)) s.EmailAlertsEnabled = ee.GetBoolean();
                 if (root.TryGetProperty("smtpHost", out var sh)) s.SmtpHost = sh.GetString() ?? "";
                 if (root.TryGetProperty("smtpPort", out var sp) && sp.TryGetInt32(out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
@@ -1696,21 +1721,90 @@ namespace PinayPalBackupManager.Services
                 if (root.TryGetProperty("smtpPassword", out var pw) && !string.IsNullOrEmpty(pw.GetString())) s.SmtpPassword = pw.GetString() ?? "";
                 if (root.TryGetProperty("senderEmail", out var se)) s.SenderEmail = se.GetString() ?? "";
                 if (root.TryGetProperty("recipientEmail", out var re)) s.RecipientEmail = re.GetString() ?? "";
-                if (root.TryGetProperty("notifyOnDisconnect", out var nd)) s.NotifyOnDisconnect = nd.GetBoolean();
-                if (root.TryGetProperty("notifyOnBackupSuccess", out var ns)) s.NotifyOnBackupSuccess = ns.GetBoolean();
-                if (root.TryGetProperty("notifyOnBackupFailure", out var nf)) s.NotifyOnBackupFailure = nf.GetBoolean();
-                if (root.TryGetProperty("notifyOnOutdated", out var no)) s.NotifyOnOutdated = no.GetBoolean();
 
                 NotificationService.SaveSettings();
 
-                LogService.WriteSystemLog($"[WebDashboard] Email alert settings updated (Recipient: {s.RecipientEmail}, Host: {s.SmtpHost}:{s.SmtpPort})", "Information", "SYSTEM");
+                LogService.WriteSystemLog($"[WebDashboard] Notification settings updated (Telegram: {s.TelegramEnabled}, ChatId: {s.TelegramChatId})", "Information", "SYSTEM");
 
-                await SendJsonAsync(context.Response, 200, new { success = true, message = "Email notification settings saved." });
+                await SendJsonAsync(context.Response, 200, new { success = true, message = "Notification settings saved." });
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[WebDashboard] Error saving notification settings: {ex.Message}", "Error", "SYSTEM");
                 await SendApiErrorAsync(context.Response, 500, "SETTINGS_ERROR", ex.Message);
+            }
+        }
+
+        private static async Task HandleTestTelegramPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                string? customToken = null;
+                string? customChat = null;
+                if (context.Request.HasEntityBody)
+                {
+                    using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(body);
+                            if (doc.RootElement.TryGetProperty("telegramBotToken", out var tt)) customToken = tt.GetString();
+                            if (doc.RootElement.TryGetProperty("telegramChatId", out var tc)) customChat = tc.GetString();
+                        }
+                        catch { }
+                    }
+                }
+
+                var (success, msg) = await TelegramService.SendTestMessageAsync(customToken, customChat);
+                await SendJsonAsync(context.Response, success ? 200 : 500, new { success, message = msg });
+            }
+            catch (Exception ex)
+            {
+                await SendJsonAsync(context.Response, 500, new { success = false, message = ex.Message });
+            }
+        }
+
+        private static async Task HandleDetectTelegramChatPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                string? customToken = null;
+                if (context.Request.HasEntityBody)
+                {
+                    using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(body);
+                            if (doc.RootElement.TryGetProperty("telegramBotToken", out var tt)) customToken = tt.GetString();
+                        }
+                        catch { }
+                    }
+                }
+
+                var (success, chatId, msg) = await TelegramService.DetectChatIdAsync(customToken);
+                await SendJsonAsync(context.Response, success ? 200 : 400, new { success, chatId, message = msg });
+            }
+            catch (Exception ex)
+            {
+                await SendJsonAsync(context.Response, 500, new { success = false, message = ex.Message });
+            }
+        }
+
+        private static async Task HandleSendQrTelegramPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                var (success, msg) = await TelegramService.SendConnectionQrAsync();
+                await SendJsonAsync(context.Response, success ? 200 : 500, new { success, message = msg });
+            }
+            catch (Exception ex)
+            {
+                await SendJsonAsync(context.Response, 500, new { success = false, message = ex.Message });
             }
         }
 
@@ -1743,7 +1837,7 @@ namespace PinayPalBackupManager.Services
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[WebDashboard] Error sending test email: {ex.Message}", "Error", "SYSTEM");
-                await SendApiErrorAsync(context.Response, 500, "TEST_EMAIL_FAILED", ex.Message);
+                await SendJsonAsync(context.Response, 500, new { success = false, message = ex.Message });
             }
         }
 
@@ -2519,7 +2613,7 @@ namespace PinayPalBackupManager.Services
                 <button class=""btn-secondary"" onclick=""refreshDashboard()"">↻ Refresh</button>
                 <button class=""btn-secondary"" id=""theme-btn"" onclick=""toggleTheme()"">☀️ Light</button>
                 <button class=""btn-secondary"" id=""btn-header-tunnel"" onclick=""openTunnelModal()"">☁️ Tunnel</button>
-                <button class=""btn-secondary"" onclick=""openEmailModal()"">📧 Alerts</button>
+                <button class=""btn-secondary"" onclick=""openTelegramModal()"">🤖 Telegram</button>
                 <button class=""btn-secondary"" onclick=""openQrModal()"">📱 Pair iOS App</button>
                 <button class=""btn-secondary"" onclick=""runHealthCheck()"">⚡ Diagnostics</button>
                 <button class=""btn-primary"" onclick=""backupAll()"">🚀 Run All Backups</button>
@@ -3072,50 +3166,51 @@ namespace PinayPalBackupManager.Services
             <div style=""display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"">
                 <div style=""font-size: 18px; font-weight: 800; color: var(--gold); display:flex; align-items:center; gap:8px;"">
                     <span>📧 Email &amp; Disconnect Alerts</span>
+    <!-- Telegram Settings Modal -->
+    <div class=""modal-overlay"" id=""telegram-modal"">
+        <div class=""modal-card"" style=""max-width: 520px; text-align: left;"">
+            <div style=""display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;"">
+                <div style=""font-weight: 700; font-size: 14px; color: #29b6f6; display: flex; align-items: center; gap: 8px;"">
+                    <span>🤖 TELEGRAM BOT &amp; REMOTE NOTIFICATIONS</span>
                 </div>
+                <div style=""cursor: pointer; font-size: 18px; color: var(--muted);"" onclick=""closeTelegramModal()"">✕</div>
             </div>
             <p style=""font-size: 12px; color: var(--muted); margin-bottom: 14px;"">
-                Configure SMTP to receive automated emails when backups succeed or fail, when backups become outdated (&gt;24h), or when connection drops.
+                Get real-time alerts when backups start, complete, or fail. Remotely trigger full or individual backups and request iOS pairing QR codes.
             </p>
-            <div style=""display:flex; gap:6px; margin-bottom:12px;"">
-                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('gmail')"">Gmail</button>
-                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('outlook')"">Outlook</button>
-                <button type=""button"" class=""btn-secondary"" style=""font-size:11px; padding:3px 8px;"" onclick=""applySmtpPreset('custom')"">Custom</button>
-            </div>
-            <div style=""display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:8px;"">
-                <div>
-                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Host</label>
-                    <input id=""email-smtp-host"" type=""text"" placeholder=""smtp.gmail.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
-                </div>
-                <div>
-                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Port</label>
-                    <input id=""email-smtp-port"" type=""number"" placeholder=""587"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
-                </div>
+            <div style=""display:flex; align-items:center; gap:8px; margin-bottom:12px;"">
+                <label style=""display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:700;"">
+                    <input type=""checkbox"" id=""tg-enabled"" checked /> Enable Telegram Bot &amp; Notifications
+                </label>
             </div>
             <div style=""margin-bottom:8px;"">
-                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Username / Sender Email</label>
-                <input id=""email-smtp-user"" type=""email"" placeholder=""admin@example.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
-            </div>
-            <div style=""margin-bottom:8px;"">
-                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">SMTP Password / App Password</label>
-                <input id=""email-smtp-pass"" type=""password"" placeholder=""Leave blank to keep unchanged"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Bot API Token (from @BotFather)</label>
+                <input id=""tg-token"" type=""password"" placeholder=""e.g. 1234567890:ABCdefGHIjkl..."" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
             </div>
             <div style=""margin-bottom:12px;"">
-                <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Recipient Notification Email</label>
-                <input id=""email-recipient"" type=""email"" placeholder=""notify-me@example.com"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box;"" />
+                <div style=""display:flex; justify-content:space-between; align-items:center;"">
+                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Telegram Chat ID</label>
+                    <button type=""button"" class=""btn-secondary"" style=""font-size:10px; padding:2px 8px;"" onclick=""detectTelegramChat()"">🔍 Detect Chat ID</button>
+                </div>
+                <input id=""tg-chat-id"" type=""text"" placeholder=""e.g. 123456789"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box; margin-top:4px;"" />
+                <div style=""font-size:10px; color:var(--muted); margin-top:2px;"">Tip: Send any message or /start to your bot in Telegram, then click Detect Chat ID.</div>
             </div>
             <div style=""background:var(--inner-bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:14px; font-size:12px;"">
                 <div style=""font-weight:700; margin-bottom:6px; font-size:11px; color:var(--muted); text-transform:uppercase;"">Notification Triggers</div>
-                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-disconnect"" checked /> Alert on Network / Cloudflare Disconnect</label>
-                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-failure"" checked /> Alert on Backup Failure</label>
-                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-outdated"" checked /> Alert when Backup is Outdated (&gt;24h)</label>
-                <label style=""display:flex; align-items:center; gap:8px; cursor:pointer;""><input type=""checkbox"" id=""email-trig-success"" /> Alert on Backup Success</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""tg-trig-start"" checked /> Alert on Backup Started (FTP, SQL, Mailchimp)</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""tg-trig-success"" checked /> Alert on Backup Completed Successfully</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""tg-trig-failure"" checked /> Alert on Backup Failure</label>
+                <label style=""display:flex; align-items:center; gap:8px; margin-bottom:4px; cursor:pointer;""><input type=""checkbox"" id=""tg-trig-disconnect"" checked /> Alert on Network / Cloudflare Disconnect</label>
+                <label style=""display:flex; align-items:center; gap:8px; cursor:pointer;""><input type=""checkbox"" id=""tg-trig-outdated"" checked /> Alert when Backup is Outdated (&gt;24h)</label>
             </div>
-            <div style=""display:flex; gap:8px;"">
-                <button class=""btn-primary"" onclick=""saveEmailSettings()"" style=""flex:1;"">💾 Save Email Config</button>
-                <button class=""btn-secondary"" onclick=""sendTestEmail()"">✉️ Send Test Email</button>
-                <button class=""btn-secondary"" onclick=""closeEmailModal()"">Close</button>
+            <div style=""display:flex; gap:8px; flex-wrap:wrap;"">
+                <button class=""btn-primary"" onclick=""saveTelegramSettings()"" style=""flex:1; min-width:140px; background:#29b6f6; color:#000; font-weight:700;"">💾 Save Telegram Config</button>
+                <button class=""btn-secondary"" onclick=""sendTestTelegram()"">✉️ Test Alert</button>
+                <button class=""btn-secondary"" onclick=""sendQrTelegram()"">📱 Send QR</button>
+                <button class=""btn-secondary"" onclick=""closeTelegramModal()"">Close</button>
             </div>
+        </div>
+    </div>
         </div>
     </div>
 
@@ -3386,59 +3481,72 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        // ── Email Settings & Notifications ──────────────────
-        function applySmtpPreset(type) {
-            if (type === 'gmail') {
-                document.getElementById('email-smtp-host').value = 'smtp.gmail.com';
-                document.getElementById('email-smtp-port').value = 587;
-                showToast('Applied Gmail preset (use App Password)');
-            } else if (type === 'outlook') {
-                document.getElementById('email-smtp-host').value = 'smtp-mail.outlook.com';
-                document.getElementById('email-smtp-port').value = 587;
-                showToast('Applied Outlook preset');
-            } else {
-                document.getElementById('email-smtp-host').value = '';
-                document.getElementById('email-smtp-port').value = 587;
-            }
-        }
-
-        async function openEmailModal() {
-            document.getElementById('email-modal').style.display = 'flex';
+        // ── Telegram Settings & Notifications ──────────────────
+        async function openTelegramModal() {
+            document.getElementById('telegram-modal').style.display = 'flex';
             try {
                 const res = await fetch('/api/settings/notifications');
                 const s = await res.json();
-                document.getElementById('email-smtp-host').value = s.smtpHost || '';
-                document.getElementById('email-smtp-port').value = s.smtpPort || 587;
-                document.getElementById('email-smtp-user').value = s.smtpUsername || '';
-                document.getElementById('email-recipient').value = s.recipientEmail || '';
-                document.getElementById('email-trig-disconnect').checked = s.notifyOnDisconnect ?? true;
-                document.getElementById('email-trig-failure').checked = s.notifyOnBackupFailure ?? true;
-                document.getElementById('email-trig-outdated').checked = s.notifyOnOutdated ?? true;
-                document.getElementById('email-trig-success').checked = s.notifyOnBackupSuccess ?? false;
+                document.getElementById('tg-enabled').checked = s.telegramEnabled ?? false;
+                document.getElementById('tg-token').value = s.telegramBotToken || '';
+                document.getElementById('tg-chat-id').value = s.telegramChatId || '';
+                document.getElementById('tg-trig-start').checked = s.notifyOnBackupStart ?? true;
+                document.getElementById('tg-trig-success').checked = s.notifyOnBackupSuccess ?? true;
+                document.getElementById('tg-trig-failure').checked = s.notifyOnBackupFailure ?? true;
+                document.getElementById('tg-trig-disconnect').checked = s.notifyOnDisconnect ?? true;
+                document.getElementById('tg-trig-outdated').checked = s.notifyOnOutdated ?? true;
             } catch (e) {
                 console.error(e);
             }
         }
 
-        function closeEmailModal() {
-            document.getElementById('email-modal').style.display = 'none';
+        const openEmailModal = openTelegramModal;
+
+        function closeTelegramModal() {
+            document.getElementById('telegram-modal').style.display = 'none';
         }
 
-        async function saveEmailSettings() {
-            showToast('Saving email settings...');
+        const closeEmailModal = closeTelegramModal;
+
+        async function detectTelegramChat() {
+            const token = document.getElementById('tg-token').value.trim();
+            if (!token) {
+                showToast('Please enter your Telegram Bot Token first');
+                return;
+            }
+            showToast('Querying recent messages to detect Chat ID...');
+            try {
+                const res = await fetch('/api/settings/notifications/detect-telegram-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramBotToken: token })
+                });
+                const d = await res.json();
+                if (d.success && d.chatId) {
+                    document.getElementById('tg-chat-id').value = d.chatId;
+                    showToast('Detected Chat ID: ' + d.chatId);
+                    playChime('success');
+                } else {
+                    showToast(d.message || 'No messages found.');
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            }
+        }
+
+        async function saveTelegramSettings() {
+            showToast('Saving Telegram settings...');
             const payload = {
-                emailAlertsEnabled: true,
-                smtpHost: document.getElementById('email-smtp-host').value.trim(),
-                smtpPort: parseInt(document.getElementById('email-smtp-port').value) || 587,
-                smtpSsl: true,
-                smtpUsername: document.getElementById('email-smtp-user').value.trim(),
-                smtpPassword: document.getElementById('email-smtp-pass').value,
-                senderEmail: document.getElementById('email-smtp-user').value.trim(),
-                recipientEmail: document.getElementById('email-recipient').value.trim(),
-                notifyOnDisconnect: document.getElementById('email-trig-disconnect').checked,
-                notifyOnBackupFailure: document.getElementById('email-trig-failure').checked,
-                notifyOnOutdated: document.getElementById('email-trig-outdated').checked,
-                notifyOnBackupSuccess: document.getElementById('email-trig-success').checked
+                telegramEnabled: document.getElementById('tg-enabled').checked,
+                telegramBotToken: document.getElementById('tg-token').value.trim(),
+                telegramChatId: document.getElementById('tg-chat-id').value.trim(),
+                notifyOnBackupStart: document.getElementById('tg-trig-start').checked,
+                notifyOnBackupSuccess: document.getElementById('tg-trig-success').checked,
+                notifyOnBackupFailure: document.getElementById('tg-trig-failure').checked,
+                notifyOnDisconnect: document.getElementById('tg-trig-disconnect').checked,
+                notifyOnOutdated: document.getElementById('tg-trig-outdated').checked
             };
             try {
                 const res = await fetch('/api/settings/notifications', {
@@ -3448,7 +3556,7 @@ namespace PinayPalBackupManager.Services
                 });
                 const d = await res.json();
                 if (d.success) {
-                    showToast('Email settings saved successfully');
+                    showToast('Telegram settings saved successfully');
                     playChime('success');
                 } else {
                     showToast('Failed to save: ' + (d.message || 'Error'));
@@ -3460,20 +3568,25 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        async function sendTestEmail() {
-            showToast('Sending test email alert...');
+        const saveEmailSettings = saveTelegramSettings;
+
+        async function sendTestTelegram() {
+            showToast('Sending test Telegram alert...');
             try {
-                const res = await fetch('/api/settings/notifications/test-email', {
+                const res = await fetch('/api/settings/notifications/test-telegram', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ targetEmail: document.getElementById('email-recipient').value.trim() })
+                    body: JSON.stringify({
+                        telegramBotToken: document.getElementById('tg-token').value.trim(),
+                        telegramChatId: document.getElementById('tg-chat-id').value.trim()
+                    })
                 });
                 const d = await res.json();
                 if (d.success) {
-                    showToast('Test email sent successfully! Check inbox.');
+                    showToast('Test alert sent to Telegram! Check your app.');
                     playChime('success');
                 } else {
-                    showToast('Failed to send test email: ' + (d.message || 'Error'));
+                    showToast('Failed to send: ' + (d.message || 'Error'));
                     playChime('error');
                 }
             } catch (e) {
@@ -3481,6 +3594,29 @@ namespace PinayPalBackupManager.Services
                 playChime('error');
             }
         }
+
+        async function sendQrTelegram() {
+            showToast('Sending iOS pairing QR code to Telegram...');
+            try {
+                const res = await fetch('/api/settings/notifications/send-qr-telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast('Pairing QR code sent to Telegram!');
+                    playChime('success');
+                } else {
+                    showToast('Failed: ' + (d.message || 'Error'));
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            }
+        }
+
+        const sendTestEmail = sendTestTelegram;
 
         function showToast(msg) {
             const t = document.getElementById('toast');

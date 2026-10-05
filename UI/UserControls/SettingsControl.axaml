@@ -146,6 +146,17 @@
                             <TextBlock Text="PERSONALITY &amp; CONVERSATION" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
                             <Grid ColumnDefinitions="*, Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Agent Profile &amp; Role" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Text="Choose specialization: SRE Guardian (Health &amp; Recovery), Specialist (Backups), or Speedy." Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" Name="CmbAiAgentProfile" Width="170" SelectedIndex="0" VerticalAlignment="Center" FontSize="11">
+                                    <ComboBoxItem Content="🛡️ SRE Guardian"/>
+                                    <ComboBoxItem Content="💾 Backup Specialist"/>
+                                    <ComboBoxItem Content="⚡ Speedy Assistant"/>
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Assistant Name" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                                     <TextBlock Text="What the assistant calls itself in conversation." Foreground="{DynamicResource AppMuted}" FontSize="10"/>
                                 </StackPanel>
@@ -183,6 +194,10 @@
                             </Grid>
                             <CheckBox Name="ChkAiFollowUpSuggestions" Content="Suggest tappable next questions after each reply" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                             <CheckBox Name="ChkAiProactiveUpdates" Content="Let the AI proactively message me when something needs attention" Foreground="{DynamicResource AppText}"/>
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                                <CheckBox Grid.Column="0" Name="ChkAiLearningMemory" Content="Enable AI Learning &amp; Persistent Memory (learns preferences &amp; notes)" Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                                <Button Grid.Column="1" Name="BtnClearAiMemories" Content="Clear Memory" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
+                            </Grid>
                             <Grid ColumnDefinitions="*, Auto">
                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Proactive Update Interval" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
@@ -286,6 +301,7 @@
                     <!-- Action Row -->
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
                         <Button Name="BtnSaveAiSettings" Content="Save AI Configuration" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnAutoTuneAi" Content="Auto-Tune for My PC" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
                         <Button Name="BtnResetAiHistory" Content="Reset Chat History" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
                     <TextBlock Name="TxtAiStatusMessage" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
@@ -474,60 +490,68 @@
                 </StackPanel>
             </Border>
 
-            <!-- Email & Disconnect Alerts -->
+            <!-- Telegram Bot & Remote Alerts -->
             <Border Background="{DynamicResource AppCard}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="EMAIL &amp; DISCONNECT ALERTS" FontWeight="Bold" Foreground="{DynamicResource AccentWarning}" Margin="0,0,0,6"/>
-                    <TextBlock Text="Receive instant email notifications on backup success/failure, outdated backups, or network/tunnel disconnects." Foreground="{DynamicResource AppMuted}" FontSize="11"/>
-                    
-                    <CheckBox Name="ChkEmailAlertsEnabled" Content="Enable Email Notifications" Foreground="{DynamicResource AppText}"/>
-
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                        <Button Name="BtnPresetGmail" Content="Gmail Preset" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,5" FontSize="11" Cursor="Hand"/>
-                        <Button Name="BtnPresetOutlook" Content="Outlook Preset" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,5" FontSize="11" Cursor="Hand"/>
-                    </StackPanel>
-
-                    <Grid ColumnDefinitions="2*, *" Margin="0,4,0,0">
-                        <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                            <TextBlock Text="SMTP Host" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBox Name="TxtSmtpHost" Watermark="e.g. smtp.gmail.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M17.64,8.44L15.46,18.72C15.3,19.46 14.86,19.64 14.24,19.29L10.92,16.84L9.32,18.38C9.14,18.56 9,18.71 8.64,18.71L8.88,15.31L15.06,9.73C15.33,9.49 15,9.35 14.64,9.59L7,14.41L3.71,13.38C3,13.16 2.98,12.67 3.86,12.33L16.71,7.38C17.31,7.16 17.83,7.52 17.64,8.44Z" Width="20" Height="20" Foreground="#29B6F6"/>
+                                <TextBlock Text="TELEGRAM BOT &amp; REMOTE ALERTS" FontWeight="Bold" Foreground="{DynamicResource AppText}" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock Text="Get real-time alerts on backup start, complete, and fail. Remotely trigger full or individual backups and request iOS reconnect QR codes." Foreground="{DynamicResource AppMuted}" FontSize="11"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Port" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBox Name="TxtSmtpPort" Text="587" TextAlignment="Center" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
-                        </StackPanel>
+                        <Border Grid.Column="1" Background="#1A29B6F6" BorderBrush="#3329B6F6" BorderThickness="1" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+                            <TextBlock Text="ACTIVE TWO-WAY BOT" Foreground="#29B6F6" FontSize="10" FontWeight="Bold"/>
+                        </Border>
                     </Grid>
 
-                    <CheckBox Name="ChkSmtpSsl" Content="Use SSL / TLS (Recommended)" IsChecked="True" Foreground="{DynamicResource AppText}" Margin="0,2,0,0"/>
+                    <CheckBox Name="ChkTelegramEnabled" Content="Enable Telegram Bot &amp; Notifications" Foreground="{DynamicResource AppText}" FontWeight="SemiBold"/>
 
+                    <!-- Token -->
                     <StackPanel Spacing="4" Margin="0,4,0,0">
-                        <TextBlock Text="Sender Email / SMTP Username" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
-                        <TextBox Name="TxtSmtpUser" Watermark="e.g. your-email@gmail.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Telegram Bot API Token" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Column="1" Text="Obtain via @BotFather on Telegram" Foreground="{DynamicResource AppMuted}" FontSize="10" FontStyle="Italic"/>
+                        </Grid>
+                        <TextBox Name="TxtTelegramToken" PasswordChar="*" Watermark="e.g. 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
                     </StackPanel>
 
+                    <!-- Chat ID with Detect helper -->
                     <StackPanel Spacing="4" Margin="0,4,0,0">
-                        <TextBlock Text="SMTP App Password" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
-                        <TextBox Name="TxtSmtpPass" PasswordChar="*" Watermark="App password (generated from Google/Microsoft account)" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Telegram Chat ID" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
+                            <Button Name="BtnDetectChatId" Content="🔍 Detect Chat ID" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,3" FontSize="10" Cursor="Hand"/>
+                        </Grid>
+                        <TextBox Name="TxtTelegramChatId" Watermark="e.g. 123456789 (user or channel ID)" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
+                        <TextBlock Text="Tip: Open your bot in Telegram, tap Start or send any message, then click 'Detect Chat ID' above." Foreground="{DynamicResource AppMuted}" FontSize="10"/>
                     </StackPanel>
 
-                    <StackPanel Spacing="4" Margin="0,4,0,0">
-                        <TextBlock Text="Recipient Notification Email" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold"/>
-                        <TextBox Name="TxtRecipientEmail" Watermark="e.g. alert-receiver@example.com" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
-                    </StackPanel>
-
+                    <!-- Notification Triggers -->
                     <StackPanel Spacing="6" Margin="0,6,0,0">
                         <TextBlock Text="NOTIFICATION TRIGGERS" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
-                        <CheckBox Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupStart" Content="Alert on Backup Started (FTP, SQL, Mailchimp)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Completed Successfully" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                         <CheckBox Name="ChkNotifyBackupFailure" Content="Alert on Backup Failure" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                         <CheckBox Name="ChkNotifyOutdated" Content="Alert when Backup is Outdated (&gt;24h)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Success" Foreground="{DynamicResource AppText}"/>
                     </StackPanel>
 
+                    <!-- Telegram Interactive Bot Commands Guide -->
+                    <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,4,0,0">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="SUPPORTED TELEGRAM BOT COMMANDS" Foreground="#29B6F6" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Text="• /help — Show interactive command manual&#x0a;• /qr or /connect — Receive iOS app pairing QR code instantly&#x0a;• /backup full — Run full backup across all services&#x0a;• /backup ftp | sql | mailchimp — Run individual service backup&#x0a;• /backup mailchimp members | campaigns | reports | merge_fields | tags&#x0a;• /status — Current health, last syncs, &amp; tunnel URLs" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Actions -->
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                        <Button Name="BtnSaveEmailSettings" Content="Save Email Settings" Background="{DynamicResource AccentWarning}" Foreground="#000000" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
-                        <Button Name="BtnSendTestEmail" Content="Send Test Email" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnSaveTelegramSettings" Content="Save Telegram Config" Background="#29B6F6" Foreground="#000000" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
+                        <Button Name="BtnSendTestTelegram" Content="✉️ Send Test Alert" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnSendQrTelegram" Content="📱 Send iOS QR Code" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
-                    <TextBlock Name="TxtEmailStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtTelegramStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 

@@ -46,8 +46,11 @@ namespace PinayPalBackupManager.Services
         public static DateTime NextMailchimpDailySyncMnl => GetNextDailyMnl(BackupConfig.MailchimpDailySyncHourMnl, BackupConfig.MailchimpDailySyncMinuteMnl);
         public static DateTime NextSqlDailySyncMnl => GetNextDailyMnl(BackupConfig.SqlDailySyncHourMnl, BackupConfig.SqlDailySyncMinuteMnl);
 
+        public static BackupManager? Current { get; internal set; }
+
         public BackupManager()
         {
+            Current = this;
             _mainTimer = new Timer(1000);
             _mainTimer.Elapsed += MainTimer_Elapsed;
             var now = GetTzDate();

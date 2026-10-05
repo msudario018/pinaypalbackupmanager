@@ -171,6 +171,10 @@ namespace PinayPalBackupManager.Services
                     SaveHistory();
 
                     LogService.WriteSystemLog($"Backup started: {service} ({type})", "Information", "BACKUPHISTORY");
+
+                    // Trigger automated Telegram alert on backup start
+                    NotificationService.SendBackupTelegramAlert(service, "Started", $"Trigger: {type} | Started at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
                     return entry.Id;
                 }
                 catch (Exception ex)
@@ -206,8 +210,8 @@ namespace PinayPalBackupManager.Services
 
                         OnBackupCompleted?.Invoke(entry);
 
-                        // Trigger automated email alert if configured
-                        NotificationService.SendBackupEmailAlert(entry.Service, true, $"Duration: {duration.TotalSeconds:F1}s | Size: {sizeBytes / 1024 / 1024} MB | File: {Path.GetFileName(filePath)}");
+                        // Trigger automated Telegram alert on backup completion
+                        NotificationService.SendBackupTelegramAlert(entry.Service, "Completed", $"Duration: {duration.TotalSeconds:F1}s | Size: {sizeBytes / 1024 / 1024} MB ({sizeBytes:n0} bytes) | File: {Path.GetFileName(filePath)}");
                     }
                 }
                 catch (Exception ex)
@@ -239,8 +243,8 @@ namespace PinayPalBackupManager.Services
 
                         OnBackupCompleted?.Invoke(entry);
 
-                        // Trigger automated email alert if configured
-                        NotificationService.SendBackupEmailAlert(entry.Service, false, errorMessage);
+                        // Trigger automated Telegram alert on backup failure
+                        NotificationService.SendBackupTelegramAlert(entry.Service, "Failed", errorMessage);
                     }
                 }
                 catch (Exception ex)

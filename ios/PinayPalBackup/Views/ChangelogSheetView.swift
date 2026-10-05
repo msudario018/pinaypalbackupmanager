@@ -53,9 +53,47 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.8.2 (Build 28)",
+            version: "v3.9.0 (Build 29)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Telegram Bot remote control, instant QR code reconnection, persistent AI memory & learning, and Zero-Leak shield v2",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Telegram Bot Integration & Alerts",
+                    description: "Control backups, receive real-time start/complete/failure notifications, and check status directly inside Telegram without opening ports."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Reconnection QR Code via Telegram",
+                    description: "Whenever disconnected, type /qr or /connect in Telegram to immediately receive a pairing QR code with your PC's active LAN and tunnel credentials."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "AI Persistent Memory & Learning",
+                    description: "The AI assistant learns and remembers your preferences, backup habits, and notes across sessions. Strictly kept local to your PC."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Agent Profiles & Hardware Auto-Tune",
+                    description: "Switch between SRE Guardian, Backup Specialist, or Speedy Assistant. Auto-tune configures optimal threads and memory retention."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Zero-Leak Sanitizer v2",
+                    description: "Strips Telegram bot tokens, Cloudflare tunnel tokens, URL passwords, API keys, and database strings before anything leaves your device."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Superseded Gmail with Telegram",
+                    description: "Replaced legacy email/SMTP alerts with instant Telegram notifications for backup starts, completions, errors, and disconnects."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.8.2 (Build 28)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Find every PC on your network automatically, and watch CPU and RAM trends from your phone",
             changes: [
                 ChangelogItem(

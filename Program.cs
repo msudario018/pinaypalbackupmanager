@@ -35,6 +35,7 @@ namespace PinayPalBackupManager
             {
                 ConfigService.Load();
                 NotificationService.LoadSettings();
+                TelegramService.Initialize();
                 Services.LocalizationService.Load();
                 AuthService.InitializeAsync().GetAwaiter().GetResult();
 

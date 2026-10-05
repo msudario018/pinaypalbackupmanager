@@ -1,20 +1,54 @@
 # Changelog
 
-## Unreleased
+## v3.9.0 (2026-10-05)
+
+### Added
+- **AI Persistent Memory & Autonomous Learning** (`services/AIMemoryStore.cs`):
+  - Local JSON-backed, thread-safe memory store (`ai_memory.json`) persisting operational preferences, system facts, and guidelines across sessions.
+  - Natural conversation memory triggers: "remember that...", "what do you remember?", "forget that...", and "clear memories".
+  - Strictly sandboxed memory bounded to 50 key items with proactive credential rejection (passwords, tokens, and secrets are barred from storage).
+- **AI Agent Profiles & One-Click Hardware Auto-Tuning** (`services/AIAssistantService.cs`):
+  - Selectable agent roles in desktop Settings:
+    - **Guardian / Sentinel**: Security-first, conservative actions, strict compliance checks.
+    - **Specialist / Operator**: Tailored for automated backup orchestration and SQL/FTP diagnostics.
+    - **Speedy / Assistant**: Low latency, lightweight, and concise responses.
+  - **Auto-Tune for My PC**: One-click telemetry engine detecting logical CPU cores and physical RAM to configure thread pools and memory quotas for optimal inference speed.
+- **Dynamic AI Action Execution Engine**:
+  - Replaces rigid canned text with dynamic intent parsing (`[ACTION: type(param="val")]`).
+  - Capable of invoking system operations: `start_backup`, `verify_backups`, `check_health`, `switch_agent_profile`, `test_telegram`, `send_telegram_qr`, `forget_memory`, `clear_memories`.
+  - Built-in safety gate (`RequireActionApproval = true`) ensuring state-modifying actions prompt the user for explicit confirmation before running.
+- **Zero-Leak Security Shield v2**:
+  - Comprehensive regex-based real-time redaction before prompt transmission.
+  - Automatically redacts Telegram Bot tokens, Cloudflare tunnel tokens, database credentials in connection strings, URL-embedded secrets, Bearer tokens, and generic API keys.
+  - Negative lookahead protection `(?!\[REDACTED)` prevents double-redaction clobbering.
+- **Telegram Bot Integration & Remote Control** (`services/TelegramService.cs`):
+  - **Two-way bidirectional Bot**: Provides background long-polling so users can control backups directly from Telegram without needing open inbound router ports or public webhooks.
+  - **Automated Telegram Alerts**: Real-time notifications for backup started (🚀), completed (✅ with duration, size, file name), failed (🚨 with diagnostic error details), network/tunnel disconnects, and outdated backups (>24h). Replaces legacy Gmail/SMTP notifications.
+  - **iOS Reconnection QR Code via Telegram**: Command `/qr` or `/connect` generates and uploads a high-density pairing QR code image with connection PIN, local IP, and Cloudflare tunnel credentials directly into the Telegram chat so users can reconnect their iOS app immediately when disconnected.
+  - **Interactive Backup Commands**:
+    - `/backup full` (or `/backup all`) — Triggers parallel backup across Website (FTP), Database (SQL), and Mailchimp.
+    - `/backup ftp` | `/backup sql` | `/backup mailchimp` — Triggers individual service backups.
+    - `/backup mailchimp members` | `campaigns` | `reports` | `merge_fields` | `tags` — Triggers granular Mailchimp exports.
+    - `/status` — Live summary of backup freshness, last timestamps, active processes, and tunnel state.
+    - `/health` — On-demand health check across all services.
+    - `/pause` & `/resume` — Pause or resume automatic scheduler.
+    - `/help` — Comprehensive interactive command manual. Supports both `/command` and natural typing without slashes.
+  - **Settings UI**: Replaced old Gmail card with a dedicated **TELEGRAM BOT & REMOTE ALERTS** card in desktop Settings (`SettingsControl.axaml`) and Web Dashboard modal (`WebDashboardService.cs`), featuring Bot Token input, Chat ID auto-detection (`🔍 Detect Chat ID`), trigger toggles, instant test alert button, and "Send iOS QR Code" button.
+  - **Security & Authorization**: Binds bot command execution strictly to the configured Telegram Chat ID, rejecting unauthorized messages while welcoming new users with their personal Chat ID for easy setup.
+- **iOS Companion App v3.9.0 (Build 29)**:
+  - Synchronized version across all 4 build targets (`MARKETING_VERSION = 3.9.0; CURRENT_PROJECT_VERSION = 29`).
+  - Added new AI quick action chips in `LiquidAIAssistantSheet.swift` for Telegram status, Cloudflare tunnel health, system metrics, and memory queries.
+  - Added interactive release notes card in `ChangelogSheetView.swift`.
+- **`TimeFormat` central helper** (`services/TimeFormat.cs`). Every human-readable timestamp now goes through one place instead of each call site interpolating its own format string. Two explicit groups:
+  - *User-facing* — 12-hour with a mandatory AM/PM marker (`Clock`, `ClockSeconds`, `Stamp`, `StampSeconds`, `DateTimeShort`, `DateTimeShortSeconds`, `Compact`).
+  - *Machine-readable* — 24-hour `UtcStamp`, for logs, CSV exports and email templates where an explicit `UTC` suffix is written alongside.
+- **xunit test project** (`tests/`) with 26 assertions locking the 12-hour convention, Zero-Leak v2 sanitization, memory storage, agent switching, action parsing, and Telegram QR generation.
 
 ### Fixed
 - **AI chat clipped its newest message.** Every `ScrollToEnd()` in `AssistantWidgetControl` ran *synchronously* right after `Children.Add(...)`. Avalonia had not measured the new content yet, so the scroll was applied against a stale `Extent`/`Viewport` and silently did nothing — leaving the latest reply cut off mid-sentence at the bottom of the drawer. Scrolling is now deferred to `DispatcherPriority.Loaded`, after measure/arrange.
 - Chat auto-scroll is now **sticky**: scroll up to read history and new replies no longer yank you back to the bottom; return to the bottom and it resumes following.
 - **`Full Settings →` button rendered on top of the "AI INFERENCE PROVIDER" heading.** `BtnOpenFullSettings` was missing `Grid.Column="1"`, so it stayed in column 0 and overlapped the label. The neighbouring status row already did this correctly, which is why only this one collided.
 - Extra bottom padding in the message list so the last reply is not flush against the chips row.
-
-### Added
-- **`TimeFormat` central helper** (`services/TimeFormat.cs`). Every human-readable timestamp now goes through one place instead of each call site interpolating its own format string. Two explicit groups:
-  - *User-facing* — 12-hour with a mandatory AM/PM marker (`Clock`, `ClockSeconds`, `Stamp`, `StampSeconds`, `DateTimeShort`, `DateTimeShortSeconds`, `Compact`).
-  - *Machine-readable* — 24-hour `UtcStamp`, for logs, CSV exports and email templates where an explicit `UTC` suffix is written alongside.
-- **xunit test project** (`tests/`) with 13 assertions locking the 12-hour convention. `build-test.yml` previously ran `dotnet test` against a repo with **no test project**, so the step was a silent no-op wrapped in `continue-on-error`. It now restores, builds and runs for real, and a failure will block the release.
-
-### Fixed
 - **12-hour formatting finished across all targets.** v3.2.8 converted the web dashboard, `/api/status` and the main iOS views, but left these showing 24-hour values: policy-window warnings, schedule Next/Last Run, retry countdowns, all `BackupManager` freshness strings, `SecurityAuditService` credential timestamps, `SystemStatusService`, verification history, and the AI assistant's chat history rows.
 - **Ambiguous 12-hour timestamps.** `BackupManager` rendered `MM/dd hh:mm:ss` — 12-hour with **no AM/PM marker**, so 3:30 PM displayed as `03:30:22`, and the same `LastUpdate` field was 24-hour eight lines later.
 - **`hh:mm:sstt` in `MainWindow`** produced `03:45:22PM` with no space before the marker — the US/Manila clocks in the window header.

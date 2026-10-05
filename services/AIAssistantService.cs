@@ -107,6 +107,29 @@ namespace PinayPalBackupManager.Services
         /// <summary>Minutes between proactive health briefings. 0 disables the scheduler.</summary>
         public int ProactiveIntervalMinutes { get; set; } = 60;
 
+        // ---- Agent Profiles & Learning Memory ----
+        /// <summary>
+        /// guardian (SRE reliability & recovery) | specialist (backup integrity & data) | speedy (crisp & immediate)
+        /// </summary>
+        public string AgentProfile { get; set; } = "guardian";
+
+        /// <summary>Enables persistent memory store for learned facts and user preferences.</summary>
+        public bool EnableLearningMemory { get; set; } = true;
+
+        public string GetProfileTitle() => (AgentProfile ?? "guardian").ToLowerInvariant() switch
+        {
+            "specialist" => "💾 Backup & Data Specialist",
+            "speedy" => "⚡ Speedy Minimalist Assistant",
+            _ => "🛡️ SRE Guardian & Auto-Healer"
+        };
+
+        public string GetProfileInstructions() => (AgentProfile ?? "guardian").ToLowerInvariant() switch
+        {
+            "specialist" => "You are the Backup & Data Integrity Specialist. Focus on database schemas, incremental file synchronization, snapshot verification, storage runway forecasting, and Mailchimp audience exports. Prioritize data consistency above all.",
+            "speedy" => "You are the Speedy Minimalist Assistant. Keep responses ultra-crisp (1-2 sentences), directly answer the prompt, and prepare requested actions without unnecessary explanation.",
+            _ => "You are the SRE Guardian & System Auto-Healer. Focus on system stability, CPU/RAM/Disk health, Cloudflare tunnel resilience, proactive disaster prevention, and prompt recovery recommendations."
+        };
+
         // ---- Safety ----
         /// <summary>Require an explicit tap on the action card before any state-changing command runs.</summary>
         public bool RequireActionApproval { get; set; } = true;
@@ -277,6 +300,150 @@ namespace PinayPalBackupManager.Services
         }
 
         /// <summary>
+        /// Automatically inspects host CPU and RAM to set optimal thread count, memory retention, and provider mode.
+        /// </summary>
+        public static async Task<(bool ok, string message)> AutoOptimizeForHardwareAsync()
+        {
+            await Task.Yield();
+            try
+            {
+                var telemetry = HardwareTelemetryService.GetTelemetrySync();
+                var logicalCores = Environment.ProcessorCount;
+                var ramGB = telemetry.RamFreeGB + (telemetry.RamUsagePercent > 0 ? (telemetry.RamFreeGB / (1.0 - (telemetry.RamUsagePercent / 100.0))) * (telemetry.RamUsagePercent / 100.0) : 16);
+
+                // Optimal threads: cores / 2 capped between 2 and 8
+                var optimalThreads = Math.Clamp(logicalCores / 2, 2, 8);
+                _config.OllamaThreads = optimalThreads;
+
+                // Memory policy: if host has <= 24 GB, evict local model during backups to prevent starvation
+                _config.EnableLocalModelDuringBackups = (ramGB > 24);
+
+                // Test if local Ollama is active
+                var (ollamaOk, _) = await TestOllamaConnectionAsync();
+                if (ollamaOk)
+                {
+                    _config.Provider = "hybrid";
+                }
+                else if (!string.IsNullOrWhiteSpace(_config.CloudApiKey))
+                {
+                    _config.Provider = "cloud";
+                }
+                else
+                {
+                    _config.Provider = "heuristics";
+                }
+
+                SaveConfig(_config);
+                return (true, $"Optimized for {logicalCores} CPU threads ({optimalThreads} AI threads) & ~{ramGB:F0}GB RAM. Engine: {_config.Provider.ToUpper()}. Model retention during backup: {(_config.EnableLocalModelDuringBackups ? "ON" : "OFF")}.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Auto-tune error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles explicit memory learning, retrieval, or deletion commands.
+        /// </summary>
+        private static string? TryHandleMemoryCommand(string prompt)
+        {
+            var lower = prompt.Trim().ToLowerInvariant();
+
+            // 1. Inquire about memory
+            if (lower == "what do you remember?" || lower == "what do you remember" ||
+                lower == "show memories" || lower == "show memory" ||
+                lower == "list memories" || lower == "what have you learned?")
+            {
+                var all = AIMemoryStore.GetAll();
+                if (all.Count == 0)
+                {
+                    return "🧠 **My memory is currently clear.**\n\nI haven't recorded any custom preferences or facts yet. You can teach me things by saying:\n- *\"Remember that my preferred backup time is 11 PM\"*\n- *\"Remember that I prefer alerts via Telegram\"*\n- *\"Note: Server FTP has a 10s connection timeout\"*";
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("### 🧠 Learned Memories & User Preferences");
+                foreach (var m in all)
+                {
+                    var icon = m.Category == "preference" ? "⭐" : m.Category == "instruction" ? "📌" : "💡";
+                    sb.AppendLine($"- {icon} **{char.ToUpper(m.Category[0]) + m.Category.Substring(1)}** (`{m.Key}`): {m.Content} *(updated {m.UpdatedAt:MMM dd})*");
+                }
+                sb.AppendLine("\n*Tip: Say \"forget [topic]\" to remove an entry, or \"clear memories\" to reset all.*");
+                return sb.ToString();
+            }
+
+            // 2. Clear all memories
+            if (lower == "clear memories" || lower == "clear memory" || lower == "forget everything" || lower == "reset memories")
+            {
+                AIMemoryStore.ClearAll();
+                return "🧹 **Memory Cleared**: I have reset all learned user preferences and notes.";
+            }
+
+            // 3. Forget specific memory
+            if (lower.StartsWith("forget memory") || lower.StartsWith("forget that") || lower.StartsWith("forget "))
+            {
+                var target = prompt.Substring(prompt.IndexOf(' ') + 1).Trim();
+                if (target.StartsWith("that ", StringComparison.OrdinalIgnoreCase)) target = target.Substring(5).Trim();
+                if (target.StartsWith("memory ", StringComparison.OrdinalIgnoreCase)) target = target.Substring(7).Trim();
+
+                var forgot = AIMemoryStore.Forget(target);
+                return forgot
+                    ? $"🗑️ **Forgot Memory**: I've removed knowledge related to \"{target}\"."
+                    : $"❓ I couldn't find any memory matching \"{target}\". Say *\"what do you remember\"* to view active memories.";
+            }
+
+            // 4. Remember / Learn statements
+            string? factToRemember = null;
+            string category = "preference";
+            string key = "general";
+
+            if (Regex.IsMatch(prompt, @"^(?i)(?:please\s+)?remember\s+(?:that\s+)?(.+)"))
+            {
+                var m = Regex.Match(prompt, @"^(?i)(?:please\s+)?remember\s+(?:that\s+)?(.+)");
+                factToRemember = m.Groups[1].Value.Trim();
+            }
+            else if (Regex.IsMatch(prompt, @"^(?i)(?:please\s+)?(?:note\s+down|note|keep\s+in\s+mind)\s+(?:that\s+)?(.+)"))
+            {
+                var m = Regex.Match(prompt, @"^(?i)(?:please\s+)?(?:note\s+down|note|keep\s+in\s+mind)\s+(?:that\s+)?(.+)");
+                factToRemember = m.Groups[1].Value.Trim();
+                category = "instruction";
+            }
+            else if (Regex.IsMatch(prompt, @"^(?i)my\s+preferred\s+([a-zA-Z0-9_\s]+)\s+is\s+(.+)"))
+            {
+                var m = Regex.Match(prompt, @"^(?i)my\s+preferred\s+([a-zA-Z0-9_\s]+)\s+is\s+(.+)");
+                key = m.Groups[1].Value.Trim().Replace(" ", "_");
+                factToRemember = m.Groups[2].Value.Trim();
+                category = "preference";
+            }
+
+            if (!string.IsNullOrWhiteSpace(factToRemember))
+            {
+                if (key == "general")
+                {
+                    var fl = factToRemember.ToLowerInvariant();
+                    if (fl.Contains("telegram")) key = "telegram_alert";
+                    else if (fl.Contains("time") || fl.Contains("pm") || fl.Contains("am") || fl.Contains("schedule")) key = "schedule_time";
+                    else if (fl.Contains("sql") || fl.Contains("database")) key = "sql_preference";
+                    else if (fl.Contains("ftp") || fl.Contains("website")) key = "ftp_preference";
+                    else if (fl.Contains("mailchimp")) key = "mailchimp_preference";
+                    else if (fl.Contains("name is") || fl.Contains("call me")) key = "user_name";
+                    else key = "note_" + DateTime.UtcNow.ToString("MMdd");
+                }
+
+                var (ok, msg) = AIMemoryStore.Remember(category, key, factToRemember);
+                if (ok)
+                {
+                    return $"🧠 **Learned & Remembered!**\n\nI have saved this to my persistent memory:\n- **Category:** {char.ToUpper(category[0]) + category.Substring(1)}\n- **Topic:** `{key}`\n- **Fact:** {factToRemember}\n\nI will remember this across sessions and keep it in mind during our operations.";
+                }
+                else
+                {
+                    return $"⚠️ **Could Not Store Memory**: {msg}";
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Core conversational chat entry point with multi-provider dispatch and Zero-Leak sanitization.
         /// </summary>
         public static async Task<ChatMessage> ProcessUserMessageAsync(string userMessage)
@@ -294,6 +461,31 @@ namespace PinayPalBackupManager.Services
 
             try
             {
+                // Check for explicit memory store commands first if learning memory is enabled
+                if (_config.EnableLearningMemory)
+                {
+                    var memoryResponse = TryHandleMemoryCommand(sanitizedUserMessage);
+                    if (!string.IsNullOrWhiteSpace(memoryResponse))
+                    {
+                        assistantMsg = new ChatMessage
+                        {
+                            Role = "assistant",
+                            Content = memoryResponse,
+                            Engine = "memory_store",
+                            FollowUpSuggestions = new List<string> { "What do you remember?", "How is the system health?", "Run all backups" }
+                        };
+
+                        lock (_historyLock)
+                        {
+                            _sessionHistory.Add(assistantMsg);
+                            if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                        }
+
+                        OnMessageReceived?.Invoke(assistantMsg);
+                        return assistantMsg;
+                    }
+                }
+
                 // 1. Detect a guarded action intent.
                 var proposedAction = DetectActionIntent(sanitizedUserMessage);
 
@@ -318,6 +510,17 @@ namespace PinayPalBackupManager.Services
                 {
                     replyText = await QueryCloudLlmAsync(sanitizedUserMessage, proposedAction);
                     if (!string.IsNullOrWhiteSpace(replyText)) engineUsed = "cloud";
+                }
+
+                // If LLM returned action tags [ACTION: ...], extract it
+                if (!string.IsNullOrWhiteSpace(replyText))
+                {
+                    var (cleanReply, extractedAction) = ExtractActionFromReply(replyText);
+                    if (proposedAction == null && extractedAction != null)
+                    {
+                        proposedAction = extractedAction;
+                        replyText = cleanReply;
+                    }
                 }
 
                 // 3. Fall back to the offline diagnostic engine when no LLM could answer.
@@ -565,6 +768,34 @@ namespace PinayPalBackupManager.Services
                         var (mailOk, mailMsg) = await NotificationService.SendTestEmailAsync();
                         action.ExecutionResult = mailOk ? "Verified email test delivered successfully!" : $"Email dispatch failed: {mailMsg}";
                         return (mailOk, action.ExecutionResult);
+
+                    case "test_telegram":
+                        var (tgOk, tgMsg) = await TelegramService.SendTestMessageAsync();
+                        action.ExecutionResult = tgOk ? "Test alert successfully delivered to Telegram!" : $"Telegram delivery failed: {tgMsg}";
+                        return (tgOk, action.ExecutionResult);
+
+                    case "send_telegram_qr":
+                        var (qrOk, qrMsg) = await TelegramService.SendConnectionQrAsync();
+                        action.ExecutionResult = qrOk ? "iOS pairing QR code uploaded to Telegram!" : $"QR upload failed: {qrMsg}";
+                        return (qrOk, action.ExecutionResult);
+
+                    case "switch_agent_profile":
+                        var targetProfile = action.Parameters.TryGetValue("profile", out var prof) ? prof : "guardian";
+                        _config.AgentProfile = targetProfile;
+                        SaveConfig(_config);
+                        action.ExecutionResult = $"Agent profile switched to: {_config.GetProfileTitle()}";
+                        return (true, action.ExecutionResult);
+
+                    case "forget_memory":
+                        var targetKey = action.Parameters.TryGetValue("key", out var tk) ? tk : "";
+                        var forgot = AIMemoryStore.Forget(targetKey);
+                        action.ExecutionResult = forgot ? $"Successfully removed memory for '{targetKey}'." : $"Could not find memory '{targetKey}'.";
+                        return (forgot, action.ExecutionResult);
+
+                    case "clear_memories":
+                        AIMemoryStore.ClearAll();
+                        action.ExecutionResult = "All learned AI memories have been cleared.";
+                        return (true, action.ExecutionResult);
 
                     case "emergency_stop":
                         WebDashboardService.EmergencyStopExecutor?.Invoke();
@@ -819,6 +1050,60 @@ namespace PinayPalBackupManager.Services
                 };
             }
 
+            // Test Telegram Alert
+            if (lower.Contains("test telegram") || lower.Contains("send telegram test") || lower.Contains("check telegram alert") || lower.Contains("telegram test"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "test_telegram",
+                    Title = "Dispatch Telegram Test Alert",
+                    Description = "Sends an alert verification message to your configured Telegram Chat ID."
+                };
+            }
+
+            // Send iOS QR Code to Telegram
+            if (lower.Contains("send qr") || lower.Contains("qr to telegram") || lower.Contains("telegram qr") || lower.Contains("send ios qr"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "send_telegram_qr",
+                    Title = "Send iOS QR Code to Telegram",
+                    Description = "Generates and sends the iOS pairing QR code photo to your Telegram chat."
+                };
+            }
+
+            // Switch Agent Profile
+            if (lower.Contains("switch to guardian") || lower.Contains("set guardian agent"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "switch_agent_profile",
+                    Title = "Switch to SRE Guardian Agent",
+                    Description = "Switches AI persona to system health, reliability, and proactive watchdogs.",
+                    Parameters = new Dictionary<string, string> { { "profile", "guardian" } }
+                };
+            }
+            if (lower.Contains("switch to specialist") || lower.Contains("switch to backup specialist") || lower.Contains("set specialist agent"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "switch_agent_profile",
+                    Title = "Switch to Backup Specialist Agent",
+                    Description = "Switches AI persona to database integrity, backup snapshots, and storage runway.",
+                    Parameters = new Dictionary<string, string> { { "profile", "specialist" } }
+                };
+            }
+            if (lower.Contains("switch to speedy") || lower.Contains("set speedy agent") || lower.Contains("fast mode"))
+            {
+                return new AIProposedAction
+                {
+                    ActionType = "switch_agent_profile",
+                    Title = "Switch to Speedy Minimalist Agent",
+                    Description = "Switches AI persona to ultra-crisp, immediate answers with minimal token overhead.",
+                    Parameters = new Dictionary<string, string> { { "profile", "speedy" } }
+                };
+            }
+
             // Test Email Alert
             if (lower.Contains("test email") || lower.Contains("send test email") || lower.Contains("check email alert"))
             {
@@ -870,6 +1155,127 @@ namespace PinayPalBackupManager.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Creates an AIProposedAction from a structured action type and parameter dictionary.
+        /// </summary>
+        public static AIProposedAction? CreateActionFromType(string actionType, Dictionary<string, string> parameters)
+        {
+            var cleanType = actionType.Trim().ToLowerInvariant();
+            switch (cleanType)
+            {
+                case "run_backup":
+                    var service = parameters.TryGetValue("service", out var s) ? s.ToLowerInvariant() : "all";
+                    return new AIProposedAction
+                    {
+                        ActionType = "run_backup",
+                        Title = service == "all" ? "Run All Backups (Parallel)" : $"Run {service.ToUpperInvariant()} Backup",
+                        Description = service == "all" ? "Executes FTP Website, SQL Database, and Mailchimp backups concurrently." : $"Executes {service.ToUpperInvariant()} backup task.",
+                        Parameters = new Dictionary<string, string> { { "service", service } }
+                    };
+
+                case "test_telegram":
+                    return new AIProposedAction
+                    {
+                        ActionType = "test_telegram",
+                        Title = "Send Telegram Test Alert",
+                        Description = "Sends an alert verification message to your configured Telegram Chat ID."
+                    };
+
+                case "send_telegram_qr":
+                    return new AIProposedAction
+                    {
+                        ActionType = "send_telegram_qr",
+                        Title = "Send iOS QR Code to Telegram",
+                        Description = "Generates and sends the iOS pairing QR code photo to your Telegram chat."
+                    };
+
+                case "recreate_tunnel":
+                    return new AIProposedAction
+                    {
+                        ActionType = "recreate_tunnel",
+                        Title = "Recreate Cloudflare Quick Tunnel",
+                        Description = "Generates a fresh public trycloudflare.com URL and restarts cloudflared."
+                    };
+
+                case "run_health_check":
+                    return new AIProposedAction
+                    {
+                        ActionType = "run_health_check",
+                        Title = "Run System Health Diagnostics",
+                        Description = "Tests disk readiness, network interfaces, and database connectivity."
+                    };
+
+                case "unload_model":
+                    return new AIProposedAction
+                    {
+                        ActionType = "unload_model",
+                        Title = "Free Memory (Unload Local AI Model)",
+                        Description = "Asks Ollama to evict the loaded model from RAM so backups get full host memory."
+                    };
+
+                case "emergency_stop":
+                    return new AIProposedAction
+                    {
+                        ActionType = "emergency_stop",
+                        Title = "Emergency Stop All Tasks",
+                        Description = "Immediately halts all running and queued backup operations."
+                    };
+
+                case "clear_history":
+                    return new AIProposedAction
+                    {
+                        ActionType = "clear_history",
+                        Title = "Clear Local Backup History",
+                        Description = "Purges all recorded historical log entries while preserving raw backup archives."
+                    };
+
+                case "switch_agent_profile":
+                    var prof = parameters.TryGetValue("profile", out var pr) ? pr : "guardian";
+                    return new AIProposedAction
+                    {
+                        ActionType = "switch_agent_profile",
+                        Title = $"Switch Agent Profile ({prof})",
+                        Description = $"Changes active AI personality to {prof}.",
+                        Parameters = new Dictionary<string, string> { { "profile", prof } }
+                    };
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Scans LLM reply text for [ACTION: action_type(param="val")] and extracts the typed action.
+        /// </summary>
+        public static (string cleanText, AIProposedAction? action) ExtractActionFromReply(string rawReply)
+        {
+            if (string.IsNullOrWhiteSpace(rawReply)) return (rawReply, null);
+
+            var match = Regex.Match(rawReply, @"\[ACTION:\s*([a-zA-Z0-9_]+)(?:\((.*?)\))?\]");
+            if (!match.Success) return (rawReply, null);
+
+            var actionType = match.Groups[1].Value.ToLowerInvariant();
+            var paramsStr = match.Groups[2].Success ? match.Groups[2].Value : "";
+            var parameters = new Dictionary<string, string>();
+
+            if (!string.IsNullOrWhiteSpace(paramsStr))
+            {
+                var paramMatches = Regex.Matches(paramsStr, @"([a-zA-Z0-9_]+)\s*=\s*(?:""([^""]*)""|'([^']*)'|(\S+))");
+                foreach (Match pm in paramMatches)
+                {
+                    var pKey = pm.Groups[1].Value.ToLowerInvariant();
+                    var pVal = pm.Groups[2].Success && !string.IsNullOrEmpty(pm.Groups[2].Value) ? pm.Groups[2].Value
+                             : pm.Groups[3].Success && !string.IsNullOrEmpty(pm.Groups[3].Value) ? pm.Groups[3].Value
+                             : pm.Groups[4].Value;
+                    parameters[pKey] = pVal;
+                }
+            }
+
+            var clean = rawReply.Replace(match.Value, "").Trim();
+            var action = CreateActionFromType(actionType, parameters);
+            return (clean, action);
         }
 
         // ==========================================
@@ -1039,10 +1445,50 @@ namespace PinayPalBackupManager.Services
                 return $"I have prepared the action for you: **{action.Title}**.\n\n{action.Description}\n\nPlease click **Approve** on the action card below to start execution.";
             }
 
+            // Memory queries
+            if (_config.EnableLearningMemory && (lower.Contains("remember") || lower.Contains("memory") || lower.Contains("learned")))
+            {
+                var mem = TryHandleMemoryCommand(prompt);
+                if (!string.IsNullOrWhiteSpace(mem)) return mem;
+            }
+
+            // Telegram status and commands
+            if (lower.Contains("telegram") || lower.Contains("tg bot"))
+            {
+                var tokenConfigured = !string.IsNullOrWhiteSpace(TelegramService.BotToken);
+                var chatConfigured = !string.IsNullOrWhiteSpace(TelegramService.ChatId);
+                var maskedChat = chatConfigured ? TelegramService.ChatId : "(Not configured yet)";
+                return $@"### 🤖 Telegram Bot & Remote Alert Pipeline
+- **Status:** {(tokenConfigured && chatConfigured ? "🟢 Active & Operational" : "⚠️ Needs Setup")}
+- **Bot Token:** {(tokenConfigured ? "Guarded behind Zero-Leak Sanitizer" : "Missing (Configure in Settings)")}
+- **Authorized Chat ID:** `{maskedChat}`
+- **Alert Triggers:** Backup Start (🚀), Complete (✅), Failure (🚨), Outdated (⏰), Disconnect (⚠️)
+- **iOS App Recovery:** Ready (say *""Send QR code to Telegram""* or type `/qr` in Telegram)
+
+*Tip: You can also chat with me or trigger backups directly in Telegram by typing `/ai [question]` or `/backup full`.*";
+            }
+
+            // Agent Profile & Capabilities
+            if (lower.Contains("agent") || lower.Contains("profile") || lower.Contains("who are you") || lower.Contains("your role") || lower.Contains("what can you do"))
+            {
+                return $@"### 🤖 AI Agent Profile: {_config.GetProfileTitle()}
+- **Current Role:** {_config.GetProfileInstructions()}
+- **Active Engine:** `{_config.Provider.ToUpper()}`
+- **Memory Store:** {(_config.EnableLearningMemory ? $"🟢 Active ({AIMemoryStore.GetAll().Count} facts learned)" : "🔴 Disabled")}
+- **Security:** Guarded behind PinayPal Zero-Leak Shield & Action Confirmation Rail
+
+*To switch personas, say:*
+- *""Switch to SRE Guardian""* — System stability, temperatures, and watchdogs.
+- *""Switch to Backup Specialist""* — Database integrity, snapshot diffs, and Mailchimp.
+- *""Switch to Speedy""* — Fast, terse answers.";
+            }
+
             // Greetings
             if (lower.Contains("hello") || lower.Contains("hi") || lower.Contains("hey") || lower.Contains("good morning") || lower.Contains("good evening"))
             {
-                return $"Hello! I'm your **PinayPal AI Assistant**. I'm monitoring host **{Environment.MachineName}** in real time.\n\nAll systems are operational. You can ask me to check disk space, inspect backup errors, trigger backups, or test remote connections.";
+                var memCount = AIMemoryStore.GetAll().Count;
+                var memoryNote = memCount > 0 ? $" I remember your {memCount} custom preferences." : "";
+                return $"Hello! I'm your **PinayPal AI Assistant** operating as **{_config.GetProfileTitle()}** on **{Environment.MachineName}**.{memoryNote}\n\nAll watchdogs and backup schedulers are active. You can ask me to inspect health, trigger backups, check Telegram alerts, or manage your fleet of computers.";
             }
 
             // Backup History & Recent Records
@@ -1302,7 +1748,13 @@ Here are some things you can ask me:
                 _ => "Be warm and conversational, and add useful context or a next step."
             };
 
-            return $@"You are {name}, the assistant built into PinayPal Backup Manager on Windows.
+            var memoryBlock = _config.EnableLearningMemory
+                ? AIMemoryStore.FormatMemoriesForPrompt()
+                : "- (Persistent memory is disabled)";
+
+            return $@"You are {name}, the intelligent AI assistant built into PinayPal Backup Manager on Windows.
+ACTIVE AGENT ROLE: {_config.GetProfileTitle()}
+{_config.GetProfileInstructions()}
 
 PERSONALITY
 {verbosity} You are encouraging, precise, and honest. When something is wrong, say so plainly and
@@ -1311,12 +1763,35 @@ propose the fix. Never invent data — only report what is in the CONTEXT below.
 WHAT YOU CAN DO
 - Answer questions about backup health, disk space, schedules, and network/tunnel status.
 - Inspect hardware telemetry (CPU, GPU, RAM, temperatures) for every managed computer.
+- Control Telegram notifications and generate iOS reconnection QR codes.
+- Learn and remember user preferences, custom instructions, and operational facts across sessions.
 - Propose actions the user can approve with one tap: run backups, recreate the Cloudflare tunnel,
-  send a test email, wake a PC over the network, or restart / shut down one of their computers.
+  test Telegram alerts, send iOS QR codes, wake a PC over the network, or restart/shut down computers.
+
+ACTION PROPOSALS & CAPABILITIES
+When the user asks you to perform an operational task, or when an issue requires remediation, explain what you will do and append the structured action tag:
+[ACTION: action_type(param1=""value1"")]
+Permitted action types:
+- run_backup(service=""all"" | ""ftp"" | ""sql"" | ""mailchimp"" | ""members"" | ""campaigns"" | ""reports"" | ""merge_fields"" | ""tags"")
+- recreate_tunnel()
+- run_health_check()
+- test_telegram()
+- send_telegram_qr()
+- computer_power(computerId=""..."", action=""wake"" | ""restart"" | ""shutdown"" | ""lock"" | ""sleep"")
+- sync_preview(service=""ftp"" | ""sql"" | ""mailchimp"")
+- sync_rollback(service=""ftp"" | ""sql"" | ""mailchimp"")
+- unload_model()
+- clear_history()
+- emergency_stop()
+- switch_agent_profile(profile=""guardian"" | ""specialist"" | ""speedy"")
+Never claim you already ran the action — tell the user what will happen and that they can tap Approve on the action card.
+
+LEARNED USER PREFERENCES & MEMORIES
+{memoryBlock}
 
 HARD SECURITY RULES
 - You never see, echo, or request passwords, PINs, API keys, connection strings, or database dumps.
-- Every state-changing action requires explicit user approval first. Never imply you already did it.
+- Every state-changing action requires explicit user approval first. Never bypass confirmation.
 - If asked for a secret, politely decline and explain the Zero-Leak Sanitizer.
 {(isCloud && _config.CloudRedactsContext ? @"
 PRIVACY NOTE FOR THIS REQUEST
@@ -1420,23 +1895,36 @@ LIVE CONTEXT
             if (string.IsNullOrEmpty(input)) return "";
             if (!_config.EnableZeroLeakSanitizer) return input;
 
-            // Redact passwords, keys and secrets regardless of separator style.
-            var sanitized = Regex.Replace(
-                input,
-                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key|authorization|auth|credential)\b\s*[:=]\s*\S+",
-                "$1=[REDACTED]");
-
-            // Redact bearer / basic authorization headers.
-            sanitized = Regex.Replace(sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9_\-\.\+/=]{8,}", "$1 [REDACTED]");
-
-            // Redact provider-style API keys that appear bare in text.
-            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,})\b", "[REDACTED_KEY]");
+            // Redact Telegram Bot API tokens first (e.g. 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz1234567)
+            var sanitized = Regex.Replace(input, @"\b\d{8,12}:[A-Za-z0-9_-]{30,45}\b", "[REDACTED_TELEGRAM_TOKEN]");
 
             // Redact database connection strings.
             sanitized = Regex.Replace(
                 sanitized,
                 @"(?i)\b(server|data source|host)\s*=\s*[^;]+;(?:[^;]*;)*[^;]*(password|pwd)\s*=\s*[^;]+;?",
                 "[REDACTED_CONNECTION_STRING]");
+
+            // Redact credentials embedded in URLs (e.g. ftp://user:pass@host or https://user:pass@host)
+            sanitized = Regex.Replace(sanitized, @"(?i)(https?|ftp|sftp)://([^:\s]+):([^@\s]+)@", "$1://$2:[REDACTED]@");
+
+            // Redact bearer / basic authorization headers.
+            sanitized = Regex.Replace(sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9_\-\.\+/=]{8,}", "$1 [REDACTED]");
+
+            // Redact Cloudflare Tunnel tokens & JWTs
+            sanitized = Regex.Replace(sanitized, @"\beyJ[A-Za-z0-9_-]{30,}\b", "[REDACTED_TUNNEL_TOKEN]");
+
+            // Redact provider-style API keys that appear bare in text (OpenAI, Google Gemini, Anthropic, Mailchimp)
+            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,}|[0-9a-f]{32}-us\d+)\b", "[REDACTED_KEY]");
+
+            // Redact SSH/PEM private keys
+            sanitized = Regex.Replace(sanitized, @"(?s)-----BEGIN[ A-Z0-9_-]+KEY-----.*?-----END[ A-Z0-9_-]+KEY-----", "[REDACTED_PRIVATE_KEY]");
+
+            // Redact passwords, keys and secrets regardless of separator style (e.g. password: 123, password = 123, password is 123).
+            // Uses negative lookahead (?!\[REDACTED) to avoid clobbering specific redaction tags already applied.
+            sanitized = Regex.Replace(
+                sanitized,
+                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key|authorization|auth|credential)\b\s*(?:[:=]|\bis\b)\s*(?!\[REDACTED)\S+",
+                "$1=[REDACTED]");
 
             // Obfuscate Windows user directories.
             sanitized = Regex.Replace(sanitized, @"(?i)[a-z]:\\users\\[^\\]+\\", @"C:\Users\[User]\");
@@ -1450,12 +1938,16 @@ LIVE CONTEXT
             if (!_config.EnableZeroLeakSanitizer) return output;
 
             // Never let a model echo a secret back to the user, even if it was injected.
-            var sanitized = Regex.Replace(
-                output,
-                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key)\b\s*[:=]\s*\S+",
-                "$1=[REDACTED]");
+            var sanitized = Regex.Replace(output, @"\b\d{8,12}:[A-Za-z0-9_-]{30,45}\b", "[REDACTED_TELEGRAM_TOKEN]");
+            sanitized = Regex.Replace(sanitized, @"(?i)(https?|ftp|sftp)://([^:\s]+):([^@\s]+)@", "$1://$2:[REDACTED]@");
             sanitized = Regex.Replace(sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9_\-\.\+/=]{8,}", "$1 [REDACTED]");
-            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,})\b", "[REDACTED_KEY]");
+            sanitized = Regex.Replace(sanitized, @"\beyJ[A-Za-z0-9_-]{30,}\b", "[REDACTED_TUNNEL_TOKEN]");
+            sanitized = Regex.Replace(sanitized, @"\b(sk-[A-Za-z0-9_\-]{12,}|AIza[0-9A-Za-z_\-]{20,}|[0-9a-f]{32}-us\d+)\b", "[REDACTED_KEY]");
+            sanitized = Regex.Replace(sanitized, @"(?s)-----BEGIN[ A-Z0-9_-]+KEY-----.*?-----END[ A-Z0-9_-]+KEY-----", "[REDACTED_PRIVATE_KEY]");
+            sanitized = Regex.Replace(
+                sanitized,
+                @"(?i)\b(password|passwd|pwd|secret|pin|token|apikey|api[_-]?key)\b\s*(?:[:=]|\bis\b)\s*(?!\[REDACTED)\S+",
+                "$1=[REDACTED]");
 
             return sanitized;
         }

@@ -18,9 +18,10 @@ public struct LiquidAIAssistantSheet: View {
     private let quickPrompts = [
         "System Health",
         "Check Storage",
-        "Run FTP Backup",
-        "Tunnel Status",
-        "Test Email Alert"
+        "Run All Backups",
+        "Telegram Status",
+        "What do you remember?",
+        "Tunnel Status"
     ]
 
     public init(api: PinayPalAPIService) {

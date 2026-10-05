@@ -481,8 +481,55 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        public static void SendBackupTelegramAlert(string serviceName, string status, string details)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await TelegramService.SendBackupAlertAsync(serviceName, status, details);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Failed to send backup alert: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        public static void SendDisconnectTelegramAlert(string reason)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await TelegramService.SendDisconnectAlertAsync(reason);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Failed to send disconnect alert: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        public static void SendOutdatedTelegramAlert(string serviceName, string detail)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await TelegramService.SendOutdatedAlertAsync(serviceName, detail);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Failed to send outdated alert: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
+        }
+
         public static void SendBackupEmailAlert(string serviceName, bool success, string details)
         {
+            SendBackupTelegramAlert(serviceName, success ? "Completed" : "Failed", details);
+
             if (!_settings.EmailEnabled) return;
             if (success && !_settings.NotifyOnBackupSuccess) return;
             if (!success && !_settings.NotifyOnBackupFailure) return;
@@ -506,6 +553,8 @@ namespace PinayPalBackupManager.Services
 
         public static void SendDisconnectAlertEmail(string reason)
         {
+            SendDisconnectTelegramAlert(reason);
+
             if (!_settings.EmailEnabled || !_settings.NotifyOnDisconnect) return;
             var recipients = _settings.EmailRecipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
             if (recipients.Count == 0) return;
@@ -524,6 +573,8 @@ namespace PinayPalBackupManager.Services
 
         public static void SendOutdatedAlertEmail(string serviceName, string detail)
         {
+            SendOutdatedTelegramAlert(serviceName, detail);
+
             if (!_settings.EmailEnabled || !_settings.NotifyOnOutdated) return;
             var recipients = _settings.EmailRecipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
             if (recipients.Count == 0) return;
@@ -707,8 +758,9 @@ namespace PinayPalBackupManager.Services
 
                     // Immediately reconfigure active runtime dispatchers
                     ConfigureNotifications(_settings);
+                    TelegramService.Restart();
                     
-                    LogService.WriteSystemLog($"[NOTIFICATION] Settings saved to {settingsPath} (Recipient: {_settings.RecipientEmail}, Host: {_settings.SmtpHost}:{_settings.SmtpPort})", "Information", "SYSTEM");
+                    LogService.WriteSystemLog($"[NOTIFICATION] Settings saved to {settingsPath} (Telegram: {_settings.TelegramEnabled}, Recipient: {_settings.RecipientEmail})", "Information", "SYSTEM");
                 }
                 catch (Exception ex)
                 {
@@ -754,7 +806,8 @@ namespace PinayPalBackupManager.Services
 
                         // Reconfigure with loaded settings
                         ConfigureNotifications(settings);
-                        LogService.WriteSystemLog($"[NOTIFICATION] Loaded notification settings (Recipient: {_settings.RecipientEmail}, Host: {_settings.SmtpHost}:{_settings.SmtpPort})", "Information", "SYSTEM");
+                        TelegramService.Restart();
+                        LogService.WriteSystemLog($"[NOTIFICATION] Loaded notification settings (Telegram: {_settings.TelegramEnabled}, Recipient: {_settings.RecipientEmail})", "Information", "SYSTEM");
                     }
                 }
                 _settingsLoaded = true;
@@ -768,6 +821,16 @@ namespace PinayPalBackupManager.Services
     
     public class NotificationSettings
     {
+        // Telegram Bot Alerting & Remote Control
+        public bool TelegramEnabled { get; set; } = false;
+        public string TelegramBotToken { get; set; } = string.Empty;
+        public string TelegramChatId { get; set; } = string.Empty;
+        public bool NotifyOnBackupStart { get; set; } = true;
+        public bool NotifyOnBackupSuccess { get; set; } = true;
+        public bool NotifyOnBackupFailure { get; set; } = true;
+        public bool NotifyOnDisconnect { get; set; } = true;
+        public bool NotifyOnOutdated { get; set; } = true;
+
         public bool EmailEnabled { get; set; } = false;
         [System.Text.Json.Serialization.JsonIgnore]
         public bool EmailAlertsEnabled { get => EmailEnabled; set => EmailEnabled = value; }
@@ -804,10 +867,6 @@ namespace PinayPalBackupManager.Services
                 }
             }
         }
-        public bool NotifyOnDisconnect { get; set; } = true;
-        public bool NotifyOnBackupSuccess { get; set; } = true;
-        public bool NotifyOnBackupFailure { get; set; } = true;
-        public bool NotifyOnOutdated { get; set; } = true;
         public List<string> SmsRecipients { get; set; } = new();
         public string SmsApiKey { get; set; } = string.Empty;
         public string SmsProvider { get; set; } = "Twilio"; // Twilio, AWS SNS, etc.

@@ -355,7 +355,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnResetAllUsers.Click += async (_, _) => await ShowResetAllUsersConfirmationAsync();
             }
 
-            InitializeEmailAlerts();
+            InitializeTelegramAlerts();
             InitializeAiAssistantSettings();
             InitializeMyComputers();
             InitializeSmartScheduling();
@@ -500,6 +500,20 @@ namespace PinayPalBackupManager.UI.UserControls
             var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
             var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
 
+            var cmbAgentProfile = this.FindControl<ComboBox>("CmbAiAgentProfile");
+            var chkLearningMemory = this.FindControl<CheckBox>("ChkAiLearningMemory");
+
+            if (cmbAgentProfile != null)
+            {
+                cmbAgentProfile.SelectedIndex = (cfg.AgentProfile ?? "guardian").ToLowerInvariant() switch
+                {
+                    "specialist" => 1,
+                    "speedy" => 2,
+                    _ => 0
+                };
+            }
+            if (chkLearningMemory != null) chkLearningMemory.IsChecked = cfg.EnableLearningMemory;
+
             if (chkCloudRedact != null) chkCloudRedact.IsChecked = cfg.CloudRedactsContext;
             if (chkKeepModel != null) chkKeepModel.IsChecked = cfg.EnableLocalModelDuringBackups;
             if (txtThreads != null && int.TryParse(txtThreads.Text, out var parsedThreads))
@@ -525,6 +539,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Personality & safety controls
             var txtName = this.FindControl<TextBox>("TxtAiAssistantName");
+            var cmbAgentProfile = this.FindControl<ComboBox>("CmbAiAgentProfile");
+            var chkLearningMemory = this.FindControl<CheckBox>("ChkAiLearningMemory");
+            var btnClearMemories = this.FindControl<Button>("BtnClearAiMemories");
+            var btnAutoTune = this.FindControl<Button>("BtnAutoTuneAi");
             var sldTalk = this.FindControl<Slider>("SldAiTalkativeness");
             var sldCreativity = this.FindControl<Slider>("SldAiCreativity");
             var sldMemory = this.FindControl<Slider>("SldAiMemoryDepth");
@@ -540,6 +558,27 @@ namespace PinayPalBackupManager.UI.UserControls
             var btnUnload = this.FindControl<Button>("BtnUnloadAiModel");
             var txtResourceStatus = this.FindControl<TextBlock>("TxtAiResourceStatus");
             var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
+
+            if (btnClearMemories != null)
+            {
+                btnClearMemories.Click += (_, _) =>
+                {
+                    AIMemoryStore.ClearAll();
+                    NotificationService.ShowBackupToast("AI Memory", "All learned preferences & facts have been cleared.", "Info");
+                };
+            }
+
+            if (btnAutoTune != null)
+            {
+                btnAutoTune.Click += async (_, _) =>
+                {
+                    btnAutoTune.IsEnabled = false;
+                    var (ok, msg) = await AIAssistantService.AutoOptimizeForHardwareAsync();
+                    RefreshAiSettings();
+                    NotificationService.ShowBackupToast("AI Auto-Tune", msg, ok ? "Success" : "Warning");
+                    btnAutoTune.IsEnabled = true;
+                };
+            }
 
             if (btnUnload != null)
             {
@@ -636,6 +675,21 @@ namespace PinayPalBackupManager.UI.UserControls
                             3 => "heuristics",
                             _ => "hybrid"
                         };
+
+                        if (cmbAgentProfile != null)
+                        {
+                            cfg.AgentProfile = cmbAgentProfile.SelectedIndex switch
+                            {
+                                1 => "specialist",
+                                2 => "speedy",
+                                _ => "guardian"
+                            };
+                        }
+
+                        if (chkLearningMemory != null)
+                        {
+                            cfg.EnableLearningMemory = chkLearningMemory.IsChecked == true;
+                        }
 
                         if (txtOllamaEp != null && !string.IsNullOrWhiteSpace(txtOllamaEp.Text))
                             cfg.OllamaEndpoint = txtOllamaEp.Text.Trim();
@@ -1269,126 +1323,132 @@ namespace PinayPalBackupManager.UI.UserControls
             if (int.TryParse(endTxt?.Text, out var e)) window.EndMinute = Math.Clamp(e, 0, 1440);
         }
 
-        public void RefreshEmailAlerts()
+        public void RefreshTelegramAlerts()
         {
-            var chkEmail = this.FindControl<CheckBox>("ChkEmailAlertsEnabled");
-            var txtHost = this.FindControl<TextBox>("TxtSmtpHost");
-            var txtPort = this.FindControl<TextBox>("TxtSmtpPort");
-            var chkSsl = this.FindControl<CheckBox>("ChkSmtpSsl");
-            var txtUser = this.FindControl<TextBox>("TxtSmtpUser");
-            var txtPass = this.FindControl<TextBox>("TxtSmtpPass");
-            var txtRecipient = this.FindControl<TextBox>("TxtRecipientEmail");
-            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
-            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
-            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var chkTelegram = this.FindControl<CheckBox>("ChkTelegramEnabled");
+            var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
+            var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
+            var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
             var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
+            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
+            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
+            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
 
             NotificationService.LoadSettings();
             var s = NotificationService.Settings;
 
-            if (chkEmail != null) chkEmail.IsChecked = s.EmailAlertsEnabled;
-            if (txtHost != null) txtHost.Text = s.SmtpHost;
-            if (txtPort != null) txtPort.Text = s.SmtpPort.ToString();
-            if (chkSsl != null) chkSsl.IsChecked = s.SmtpSsl;
-            if (txtUser != null) txtUser.Text = s.SmtpUsername;
-            if (txtPass != null) txtPass.Text = s.SmtpPassword;
-            if (txtRecipient != null) txtRecipient.Text = s.RecipientEmail;
-            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
-            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
-            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
+            if (chkTelegram != null) chkTelegram.IsChecked = s.TelegramEnabled;
+            if (txtToken != null) txtToken.Text = s.TelegramBotToken;
+            if (txtChatId != null) txtChatId.Text = s.TelegramChatId;
+            if (chkStart != null) chkStart.IsChecked = s.NotifyOnBackupStart;
             if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
+            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
+            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
+            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
         }
 
-        private void InitializeEmailAlerts()
+        // Backward compatibility
+        public void RefreshEmailAlerts() => RefreshTelegramAlerts();
+
+        private void InitializeTelegramAlerts()
         {
-            var chkEmail = this.FindControl<CheckBox>("ChkEmailAlertsEnabled");
-            var btnGmail = this.FindControl<Button>("BtnPresetGmail");
-            var btnOutlook = this.FindControl<Button>("BtnPresetOutlook");
-            var txtHost = this.FindControl<TextBox>("TxtSmtpHost");
-            var txtPort = this.FindControl<TextBox>("TxtSmtpPort");
-            var chkSsl = this.FindControl<CheckBox>("ChkSmtpSsl");
-            var txtUser = this.FindControl<TextBox>("TxtSmtpUser");
-            var txtPass = this.FindControl<TextBox>("TxtSmtpPass");
-            var txtRecipient = this.FindControl<TextBox>("TxtRecipientEmail");
-            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
-            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
-            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var chkTelegram = this.FindControl<CheckBox>("ChkTelegramEnabled");
+            var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
+            var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
+            var btnDetect = this.FindControl<Button>("BtnDetectChatId");
+            var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
             var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
-            var btnSave = this.FindControl<Button>("BtnSaveEmailSettings");
-            var btnTest = this.FindControl<Button>("BtnSendTestEmail");
-            var txtStatus = this.FindControl<TextBlock>("TxtEmailStatus");
+            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
+            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
+            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var btnSave = this.FindControl<Button>("BtnSaveTelegramSettings");
+            var btnTest = this.FindControl<Button>("BtnSendTestTelegram");
+            var btnSendQr = this.FindControl<Button>("BtnSendQrTelegram");
+            var txtStatus = this.FindControl<TextBlock>("TxtTelegramStatus");
 
-            RefreshEmailAlerts();
+            RefreshTelegramAlerts();
 
-            if (btnGmail != null && txtHost != null && txtPort != null && chkSsl != null)
+            // Detect Chat ID helper
+            if (btnDetect != null && txtToken != null && txtChatId != null)
             {
-                btnGmail.Click += (_, _) =>
+                btnDetect.Click += async (_, _) =>
                 {
-                    txtHost.Text = "smtp.gmail.com";
-                    txtPort.Text = "587";
-                    chkSsl.IsChecked = true;
-                    NotificationService.ShowBackupToast("Preset", "Applied Gmail preset. Ensure you use an App Password.", "Info");
+                    if (txtStatus != null) txtStatus.Text = "Querying recent messages to detect Chat ID...";
+                    var (success, detectedChatId, msg) = await TelegramService.DetectChatIdAsync(txtToken.Text);
+                    if (success && !string.IsNullOrWhiteSpace(detectedChatId))
+                    {
+                        txtChatId.Text = detectedChatId;
+                        if (txtStatus != null) txtStatus.Text = msg;
+                        NotificationService.ShowBackupToast("Chat ID Detected", $"Found: {detectedChatId}", "Success");
+                    }
+                    else
+                    {
+                        if (txtStatus != null) txtStatus.Text = msg;
+                        NotificationService.ShowBackupToast("Chat ID Detection", msg, "Warning");
+                    }
                 };
             }
 
-            if (btnOutlook != null && txtHost != null && txtPort != null && chkSsl != null)
-            {
-                btnOutlook.Click += (_, _) =>
-                {
-                    txtHost.Text = "smtp-mail.outlook.com";
-                    txtPort.Text = "587";
-                    chkSsl.IsChecked = true;
-                    NotificationService.ShowBackupToast("Preset", "Applied Outlook preset.", "Info");
-                };
-            }
-
+            // Save Telegram Settings
             if (btnSave != null)
             {
                 btnSave.Click += (_, _) =>
                 {
                     var s = NotificationService.Settings;
-                    s.EmailAlertsEnabled = chkEmail?.IsChecked == true;
-                    s.SmtpHost = txtHost?.Text?.Trim() ?? "";
-                    if (int.TryParse(txtPort?.Text?.Trim(), out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
-                    s.SmtpSsl = chkSsl?.IsChecked == true;
-                    s.SmtpUsername = txtUser?.Text?.Trim() ?? "";
-                    if (!string.IsNullOrEmpty(txtPass?.Text)) s.SmtpPassword = txtPass.Text;
-                    s.SenderEmail = txtUser?.Text?.Trim() ?? "";
-                    s.RecipientEmail = txtRecipient?.Text?.Trim() ?? "";
-                    s.NotifyOnDisconnect = chkDisc?.IsChecked == true;
-                    s.NotifyOnBackupFailure = chkFail?.IsChecked == true;
-                    s.NotifyOnOutdated = chkOut?.IsChecked == true;
+                    s.TelegramEnabled = chkTelegram?.IsChecked == true;
+                    s.TelegramBotToken = txtToken?.Text?.Trim() ?? "";
+                    s.TelegramChatId = txtChatId?.Text?.Trim() ?? "";
+                    s.NotifyOnBackupStart = chkStart?.IsChecked == true;
                     s.NotifyOnBackupSuccess = chkSucc?.IsChecked == true;
+                    s.NotifyOnBackupFailure = chkFail?.IsChecked == true;
+                    s.NotifyOnDisconnect = chkDisc?.IsChecked == true;
+                    s.NotifyOnOutdated = chkOut?.IsChecked == true;
 
                     NotificationService.SaveSettings();
-                    if (txtStatus != null) txtStatus.Text = "Notification settings saved successfully.";
-                    NotificationService.ShowBackupToast("Email Alerts", "Email notification settings saved.", "Info");
+
+                    if (txtStatus != null)
+                    {
+                        txtStatus.Text = s.TelegramEnabled
+                            ? "Telegram Bot settings saved. Bot polling engine active."
+                            : "Telegram settings saved (Bot disabled).";
+                    }
+
+                    NotificationService.ShowBackupToast("Telegram Bot", "Telegram settings saved successfully.", "Success");
                 };
             }
 
+            // Send Test Telegram Alert
             if (btnTest != null)
             {
                 btnTest.Click += async (_, _) =>
                 {
-                    if (txtStatus != null) txtStatus.Text = "Sending test email alert...";
-                    var target = txtRecipient?.Text?.Trim();
+                    if (txtStatus != null) txtStatus.Text = "Sending verification test message to Telegram...";
+                    var token = txtToken?.Text?.Trim();
+                    var chat = txtChatId?.Text?.Trim();
 
-                    // Temporarily stage fields for test run in case user has not saved yet
-                    var s = NotificationService.Settings;
-                    if (!string.IsNullOrWhiteSpace(txtHost?.Text)) s.SmtpHost = txtHost.Text.Trim();
-                    if (int.TryParse(txtPort?.Text?.Trim(), out int portVal)) s.SmtpPort = Math.Clamp(portVal, 1, 65535);
-                    if (chkSsl != null) s.SmtpSsl = chkSsl.IsChecked == true;
-                    if (!string.IsNullOrWhiteSpace(txtUser?.Text))
+                    var (success, msg) = await TelegramService.SendTestMessageAsync(token, chat);
+                    if (txtStatus != null) txtStatus.Text = success ? "Test message delivered to Telegram! Check your app." : $"Test failed: {msg}";
+                    NotificationService.ShowBackupToast("Telegram Test", success ? "Test message delivered!" : msg, success ? "Success" : "Error");
+                };
+            }
+
+            // Send iOS QR Code to Telegram
+            if (btnSendQr != null)
+            {
+                btnSendQr.Click += async (_, _) =>
+                {
+                    var chat = txtChatId?.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(chat))
                     {
-                        s.SmtpUsername = txtUser.Text.Trim();
-                        s.SenderEmail = txtUser.Text.Trim();
+                        NotificationService.ShowBackupToast("Telegram QR", "Please configure and save your Telegram Chat ID first.", "Warning");
+                        return;
                     }
-                    if (!string.IsNullOrEmpty(txtPass?.Text)) s.SmtpPassword = txtPass.Text;
-                    if (!string.IsNullOrWhiteSpace(target)) s.RecipientEmail = target;
 
-                    var (success, msg) = await NotificationService.SendTestEmailAsync(target);
-                    if (txtStatus != null) txtStatus.Text = success ? "Test email sent successfully! Check your inbox." : $"Test failed: {msg}";
-                    NotificationService.ShowBackupToast("Email Test", success ? "Test email delivered!" : msg, success ? "Info" : "Error");
+                    if (txtStatus != null) txtStatus.Text = "Generating pairing QR code and sending to Telegram...";
+                    var (success, msg) = await TelegramService.SendConnectionQrAsync(chat);
+
+                    if (txtStatus != null) txtStatus.Text = success ? "Pairing QR code sent to your Telegram!" : $"Failed to send QR: {msg}";
+                    NotificationService.ShowBackupToast("Telegram QR", success ? "QR code sent to Telegram!" : msg, success ? "Success" : "Error");
                 };
             }
         }
