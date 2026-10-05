@@ -2097,8 +2097,11 @@ namespace PinayPalBackupManager.UI
             // Listen for auth changes
             AuthService.OnUserChanged += (user) => 
             {
-                UpdateProfileDisplay();
-                UpdateUserManagementButtonVisibility();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateProfileDisplay();
+                    UpdateUserManagementButtonVisibility();
+                });
             };
         }
 

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using PinayPalBackupManager.Models;
@@ -38,6 +39,10 @@ namespace PinayPalBackupManager.UI
                     {
                         OnLoginSuccess?.Invoke();
                     };
+                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                    {
+                        desktop.MainWindow = wizard;
+                    }
                     wizard.Show();
                     this.Close();
                 }

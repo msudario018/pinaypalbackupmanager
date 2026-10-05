@@ -53,9 +53,27 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.1 (Build 30)",
+            version: "v3.9.2 (Build 31)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Hotfix for desktop stability: fixed thread-safety crash on session timeout and Avalonia window startup lifecycle",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "Fixed Session Timeout Thread-Safety Crash",
+                    description: "Resolved fatal InvalidOperationException on background session timeout checks by marshaling user change events to the UI thread."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Desktop Startup Lifecycle & Setup Wizard",
+                    description: "Eliminated async void race during Avalonia initialization and preserved MainWindow reference during setup wizard redirection."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.1 (Build 30)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Hotfix for FTP/SQL auto-sync: resolved WinSCP 'Unknown switch resume' error",
             changes: [
                 ChangelogItem(

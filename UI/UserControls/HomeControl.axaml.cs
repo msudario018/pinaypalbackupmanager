@@ -211,7 +211,7 @@ namespace PinayPalBackupManager.UI.UserControls
             ConfigService.OnScheduleChanged += OnScheduleChangedFromFirebase;
 
             // Update greeting when user changes
-            AuthService.OnUserChanged += (_) => UpdateGreeting();
+            AuthService.OnUserChanged += (_) => Dispatcher.UIThread.Post(UpdateGreeting);
 
             // Load system logs
             FireAndForget(LoadSystemLogsAsync(), nameof(LoadSystemLogsAsync));

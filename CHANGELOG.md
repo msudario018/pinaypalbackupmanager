@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.9.2 (2026-10-05)
+
+### Fixed
+- **Fatal `InvalidOperationException: Call from invalid thread` on Session Inactivity Timeout**: When `SessionTimeoutService` fired on a background `TimerQueueTimer` thread, `AuthService.HandleSessionTimeout()` raised `OnUserChanged` directly on the background thread. Subscribers in `MainWindow` (`UpdateUserManagementButtonVisibility`) and `HomeControl` (`UpdateGreeting`) invoked `FindControl` without dispatching to Avalonia's UI thread, causing an immediate crash with `Dispatcher.VerifyAccess ThrowVerifyAccess`. Event dispatching in `AuthService` now automatically marshals to `Dispatcher.UIThread`, and UI event handlers now verify thread access.
+- **Avalonia Application Startup Race Condition**: In `App.axaml.cs`, `Initialize()` was using `async void` with an unneeded asynchronous call, causing Avalonia's framework initialization to proceed out of sequence before XAML resources were fully bound. Switched `Initialize()` to synchronous with explicit `AvaloniaXamlLoader.Load(this)`.
+- **Application Exiting During Setup Wizard Launch**: When a fresh install or unconfigured instance launched without existing users, `LoginWindow` opened `SetupWizardWindow` and closed itself without updating `desktop.MainWindow`, triggering premature application lifetime termination. `desktop.MainWindow` is now explicitly reassigned to `SetupWizardWindow` prior to closing `LoginWindow`.
+
 ## v3.9.1 (2026-10-05)
 
 ### Fixed

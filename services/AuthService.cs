@@ -36,6 +36,21 @@ namespace PinayPalBackupManager.Services
         }
         public static event Action<AppUser?>? OnUserChanged;
 
+        private static void NotifyUserChanged(AppUser? user)
+        {
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+            {
+                OnUserChanged?.Invoke(user);
+            }
+            else
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try { OnUserChanged?.Invoke(user); } catch { }
+                });
+            }
+        }
+
         public static async Task InitializeAsync()
         {
             AppDataPaths.MigrateKnownFiles();
@@ -342,7 +357,7 @@ namespace PinayPalBackupManager.Services
             ClearFailedLoginAttempts(user.Username);
             
             CurrentUser = user;
-            OnUserChanged?.Invoke(user);
+            NotifyUserChanged(user);
             
             // Track successful login
             await LoginHistoryService.AddLoginAsync(user.Username, true).ConfigureAwait(false);
@@ -372,7 +387,7 @@ namespace PinayPalBackupManager.Services
             var user = GetUserById(userId);
             if (user == null || user.Status != "Active") return false;
             CurrentUser = user;
-            OnUserChanged?.Invoke(user);
+            NotifyUserChanged(user);
             return true;
         }
 
@@ -424,7 +439,7 @@ namespace PinayPalBackupManager.Services
         public static void SetCurrentUserFor2FA(AppUser user)
         {
             CurrentUser = user;
-            OnUserChanged?.Invoke(user);
+            NotifyUserChanged(user);
             _ = LoginHistoryService.AddLoginAsync(user.Username, true);
         }
 
@@ -435,7 +450,7 @@ namespace PinayPalBackupManager.Services
             SessionTimeoutService.OnSessionTimeout -= HandleSessionTimeout;
             
             CurrentUser = null;
-            OnUserChanged?.Invoke(null);
+            NotifyUserChanged(null);
         }
 
         private static void HandleSessionTimeout()
@@ -445,7 +460,7 @@ namespace PinayPalBackupManager.Services
             
             // Perform logout
             CurrentUser = null;
-            OnUserChanged?.Invoke(null);
+            NotifyUserChanged(null);
         }
 
         public static bool IsAdmin => CurrentUser?.Role == "Admin";
@@ -876,7 +891,7 @@ namespace PinayPalBackupManager.Services
             if (updated && CurrentUser != null && CurrentUser.Id == userId)
             {
                 CurrentUser.Email = email.Trim();
-                OnUserChanged?.Invoke(CurrentUser);
+                NotifyUserChanged(CurrentUser);
             }
             return updated;
         }
@@ -894,7 +909,7 @@ namespace PinayPalBackupManager.Services
             {
                 CurrentUser.Email = email?.Trim();
                 CurrentUser.BirthDate = birthDate?.Trim();
-                OnUserChanged?.Invoke(CurrentUser);
+                NotifyUserChanged(CurrentUser);
             }
             return updated;
         }
@@ -930,7 +945,7 @@ namespace PinayPalBackupManager.Services
                 if (CurrentUser != null && CurrentUser.Id == userId)
                 {
                     CurrentUser.Username = sanitized;
-                    OnUserChanged?.Invoke(CurrentUser);
+                    NotifyUserChanged(CurrentUser);
                 }
 
                 // Sync to Firebase: remove old entry, add new entry
@@ -971,7 +986,7 @@ namespace PinayPalBackupManager.Services
                 if (result && CurrentUser != null && CurrentUser.Id == userId)
                 {
                     CurrentUser.AvatarPath = avatarPath;
-                    OnUserChanged?.Invoke(CurrentUser);
+                    NotifyUserChanged(CurrentUser);
                 }
 
                 return result;
@@ -1369,7 +1384,7 @@ namespace PinayPalBackupManager.Services
                 try { cmd.ExecuteNonQuery(); } catch { }
                 
                 CurrentUser = null;
-                OnUserChanged?.Invoke(null);
+                NotifyUserChanged(null);
                 
                 LogAuditEvent("ALL_USERS_RESET", "System", "All users cleared from local database");
                 return (true, "All local users have been reset.");

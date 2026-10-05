@@ -11,7 +11,7 @@ namespace PinayPalBackupManager
 {
     public partial class App : Application
     {
-        public override async void Initialize()
+        public override void Initialize()
         {
             // Global crash handler: log any unhandled exception directly to disk synchronously so the app does not silently die
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -37,13 +37,7 @@ namespace PinayPalBackupManager
                 e.SetObserved();
             };
 
-            // XAML is loaded automatically by Avalonia 11
-            
-            // Initialize environment configuration
-            EnvironmentConfigService.Initialize();
-            
-            // Initialize authentication service
-            await AuthService.InitializeAsync();
+            AvaloniaXamlLoader.Load(this);
         }
 
         public override void OnFrameworkInitializationCompleted()
