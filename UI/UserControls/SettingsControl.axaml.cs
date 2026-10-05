@@ -862,32 +862,17 @@ namespace PinayPalBackupManager.UI.UserControls
                     var port = txtPort?.Text?.Trim() ?? "8080";
                     if (!string.IsNullOrWhiteSpace(ip))
                     {
-                        var p = string.IsNullOrWhiteSpace(port) ? "8080" : port;
-                        if (txtUrl != null) txtUrl.Text = $"http://{ip}:{p}";
-                    }
-                }
-                finally
-                {
-                    isSyncingUrl = false;
-                }
-            }
-
-            void SyncIpPortFromUrl()
-            {
-                if (isSyncingUrl) return;
-                isSyncingUrl = true;
-                try
-                {
-                    var url = txtUrl?.Text?.Trim() ?? "";
-                    if (!string.IsNullOrWhiteSpace(url))
-                    {
-                        if (!url.Contains("://")) url = "http://" + url;
-                        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                        // Only fill the URL while it is still empty. Once the user types
+                        // one -- a tunnel hostname, a domain, a non-standard port -- it
+                        // is theirs to keep, and the IP field must not overwrite it.
+                        // The URL no longer feeds back into IP/Port either, so the two
+                        // boxes are independent: IP identifies the machine to ping and
+                        // Wake-on-LAN, the URL is how you reach its PinayPal app.
+                        var existing = txtUrl?.Text?.Trim() ?? "";
+                        if (existing.Length == 0)
                         {
-                            if (txtIp != null && !string.IsNullOrWhiteSpace(uri.Host))
-                                txtIp.Text = uri.Host;
-                            if (txtPort != null && uri.Port > 0)
-                                txtPort.Text = uri.Port.ToString();
+                            var p = string.IsNullOrWhiteSpace(port) ? "8080" : port;
+                            if (txtUrl != null) txtUrl.Text = $"http://{ip}:{p}";
                         }
                     }
                 }
@@ -897,9 +882,32 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             }
 
+            void AutoFillUrlIfEmpty()
+            {
+                // Fires on every keystroke in the URL box. Because SyncUrlFromIpPort
+                // only writes when the field is empty, and isSyncingUrl breaks the
+                // re-entrancy, typing here can never clobber what the user is typing.
+                if (isSyncingUrl) return;
+                SyncUrlFromIpPort();
+            }
+
             if (txtIp != null) txtIp.TextChanged += (_, _) => SyncUrlFromIpPort();
             if (txtPort != null) txtPort.TextChanged += (_, _) => SyncUrlFromIpPort();
-            if (txtUrl != null) txtUrl.TextChanged += (_, _) => SyncIpPortFromUrl();
+            if (txtUrl != null)
+            {
+                // Deliberately NOT wired back to the IP/Port fields.
+                //
+                // These used to sync in both directions, which made the two boxes a
+                // single logical field: editing the Dashboard URL silently rewrote the
+                // target PC's IP (and vice versa). But they are different things --
+                // the IP is the machine to ping / Wake-on-LAN / poll telemetry on, while
+                // the Dashboard URL is how you reach that machine's PinayPal app, which
+                // is frequently something else entirely (a Cloudflare tunnel URL, a
+                // Tailscale hostname, or a different port). Typing either one now
+                // leaves the other alone; IP/Port still auto-fills the URL when the URL
+                // is still empty.
+                txtUrl.TextChanged += (_, _) => AutoFillUrlIfEmpty();
+            }
 
             if (btnRefresh != null)
             {

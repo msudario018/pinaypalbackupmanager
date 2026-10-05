@@ -25,6 +25,7 @@ namespace PinayPalBackupManager.Services
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(35) };
         private static CancellationTokenSource? _pollCts;
         private static Task? _pollTask;
+        private static int _consecutivePollFailures;
         private static long _lastUpdateId = 0;
         private static readonly object _stateLock = new();
         private static bool _isPolling = false;
@@ -898,9 +899,34 @@ namespace PinayPalBackupManager.Services
 
                     if (!response.IsSuccessStatusCode)
                     {
+                        // Previously this retried forever in total silence: an invalid
+                        // or empty bot token makes getUpdates return 401, so the loop
+                        // just spun every 4s with nothing logged and nothing shown in
+                        // the UI. Surface the status and Telegram's description instead.
+                        var status = (int)response.StatusCode;
+                        string apiError = "";
+                        try
+                        {
+                            var errBody = await response.Content.ReadAsStringAsync(ct);
+                            using var errDoc = JsonDocument.Parse(errBody);
+                            if (errDoc.RootElement.TryGetProperty("description", out var desc))
+                                apiError = desc.GetString() ?? "";
+                        }
+                        catch { /* body wasn't JSON - status alone is still useful */ }
+
+                        _consecutivePollFailures++;
+                        LogService.WriteSystemLog(
+                            $"[TELEGRAM] getUpdates failed (HTTP {status}) {apiError}. " +
+                            $"Consecutive failures: {_consecutivePollFailures}. " +
+                            "Check the Bot Token in Settings → Telegram.",
+                            _consecutivePollFailures >= 3 ? "Error" : "Warning",
+                            "SYSTEM");
+
                         await Task.Delay(4000, ct);
                         continue;
                     }
+
+                    _consecutivePollFailures = 0;
 
                     var content = await response.Content.ReadAsStringAsync(ct);
                     using var doc = JsonDocument.Parse(content);

@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.9.7 (2026-10-05)
+
+### Fixed
+- **Registered accounts no longer vanish on update — your admin account is now recovered automatically.**
+  `AppDataPaths.MigrateFile` only copied a legacy `users.db` when the destination was *absent*. A single empty `users.db` landing in the `Data\` folder therefore blocked migration **permanently**: every launch opened that empty database and it looked like your account had been deleted. Compounding it, `AuthService` skipped the Firebase recovery path on dev PCs, so there was no fallback at all — you had to recreate the administrator account.
+  `TryRecoverUsersFromLocalCopy()` now runs whenever the live database has zero users, scanning the legacy folder, the old flat folder and `users.db.bak` for a copy that *does* contain users, preserving the current file as `users.db.bak` before restoring. It only ever runs against an empty database, so it cannot overwrite real accounts.
+- **Telegram commands no longer fail in total silence.** `getUpdates` failures — most importantly HTTP 401 from an invalid or empty bot token — were retried every 4 seconds forever with nothing logged and nothing shown in the UI. The poll loop now records the HTTP status and Telegram's `description`, escalating from Warning to Error after three consecutive failures, and points you at Settings → Telegram.
+- **iOS: the PCs tab no longer fails with "The data couldn't be read because it is missing".** Every field in the Swift `ComputerSpec` model was non-optional, so a *single* key absent from the desktop payload threw `DecodingError.keyNotFound` and wiped out the **entire** computer list. An older desktop paired with a newer phone dropped the whole fleet on any field mismatch. Decoding is now lenient: missing values fall back to neutral defaults so one absent field cannot hide every computer.
+- **IP Address and Dashboard URL are now independent fields.** They were wired to sync in *both* directions, which made the two boxes behave as a single field — editing the Dashboard URL silently rewrote the target PC's IP and vice versa. They are different things: the IP identifies the machine to ping, Wake-on-LAN and poll telemetry on, while the Dashboard URL is how you reach that machine's PinayPal app (frequently a Cloudflare tunnel URL, a Tailscale hostname, or a different port). Editing either now leaves the other alone, and the IP/Port fields only auto-fill the URL while it is still empty.
+
+### Changed
+- Version synchronised across targets: `3.9.7` / iOS **Build 36**. The desktop assembly already read `3.9.6` while the Xcode project still declared `3.9.4` / build 33, so shipped iOS binaries reported a stale version.
+
 ## v3.9.6 (2026-10-05)
 
 ### Added & Improved

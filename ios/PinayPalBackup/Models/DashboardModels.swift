@@ -342,6 +342,65 @@ public struct ComputerSpec: Codable, Equatable, Identifiable {
     public let telemetry: ComputerTelemetrySpec
     public let availableActions: [String]
 
+    public init(id: String, displayName: String, role: String, macAddress: String,
+                broadcastAddress: String, wolPort: Int, apiBaseUrl: String,
+                isLocal: Bool, enabled: Bool, notes: String,
+                telemetry: ComputerTelemetrySpec, availableActions: [String]) {
+        self.id = id
+        self.displayName = displayName
+        self.role = role
+        self.macAddress = macAddress
+        self.broadcastAddress = broadcastAddress
+        self.wolPort = wolPort
+        self.apiBaseUrl = apiBaseUrl
+        self.isLocal = isLocal
+        self.enabled = enabled
+        self.notes = notes
+        self.telemetry = telemetry
+        self.availableActions = availableActions
+    }
+
+    /// Decoding is deliberately lenient.
+    ///
+    /// Every property here is non-optional, so a single field missing from the
+    /// server payload used to throw `keyNotFound` and wipe out the *entire* PCs
+    /// list ("The data couldn't be read because it is missing"). The desktop app
+    /// adds and renames fields over time, and an older desktop paired with a newer
+    /// phone would drop the whole fleet on a mismatch. Missing values now fall back
+    /// to a neutral default so one absent field cannot hide every computer.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            ((try? c.decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback
+        }
+
+        id = value(.id, "")
+        displayName = value(.displayName, "PC")
+        role = value(.role, "client")
+        macAddress = value(.macAddress, "")
+        broadcastAddress = value(.broadcastAddress, "255.255.255.255")
+        wolPort = value(.wolPort, 9)
+        apiBaseUrl = value(.apiBaseUrl, "")
+        isLocal = value(.isLocal, false)
+        enabled = value(.enabled, true)
+        notes = value(.notes, "")
+
+        // ComputerTelemetrySpec has no zero-argument init (isOnline is non-optional),
+        // so build the "no data yet" value explicitly.
+        if let decoded = (try? c.decodeIfPresent(ComputerTelemetrySpec.self, forKey: .telemetry)) ?? nil {
+            telemetry = decoded
+        } else {
+            telemetry = ComputerTelemetrySpec(
+                isOnline: false, hostname: nil, osDescription: nil, localIp: nil, version: nil,
+                latencyMs: nil, cpuUsagePercent: nil, cpuTempC: nil, cpuName: nil, gpuName: nil,
+                gpuTempC: nil, gpuUsagePercent: nil, ramUsagePercent: nil, ramFreeGB: nil,
+                ramTotalGB: nil, appRamUsageMB: nil, upTime: nil, lastSeenUtc: nil, error: nil)
+        }
+
+        availableActions = value(.availableActions, [String]())
+    }
+
     public var node: ComputerNodeSpec {
         ComputerNodeSpec(id: id, displayName: displayName, role: role, macAddress: macAddress,
                          broadcastAddress: broadcastAddress, wolPort: wolPort, apiBaseUrl: apiBaseUrl,

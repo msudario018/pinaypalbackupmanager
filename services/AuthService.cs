@@ -59,6 +59,15 @@ namespace PinayPalBackupManager.Services
             DatabaseService.Initialize(_dbPath);
             EnsureDatabase();
 
+            // An empty users.db is a trap: AppDataPaths.MigrateFile only copies a legacy
+            // database when the destination is ABSENT, so a single empty users.db created
+            // on an early run blocks migration permanently and every launch looks like the
+            // account was deleted. Recover from any surviving copy first.
+            if (!HasAnyUsers())
+            {
+                TryRecoverUsersFromLocalCopy();
+            }
+
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
 
@@ -101,6 +110,79 @@ namespace PinayPalBackupManager.Services
         }
 
         private static string ConnectionString => $"Data Source={_dbPath}";
+
+        /// <summary>
+        /// Restores users from a surviving local copy when the live database is empty.
+        ///
+        /// Only ever runs while the database has zero users, so it can never overwrite
+        /// real accounts, and the current file is preserved as users.db.bak before any
+        /// replacement so the change is reversible by hand.
+        /// </summary>
+        private static bool TryRecoverUsersFromLocalCopy()
+        {
+            var current = _dbPath;
+
+            var candidates = new List<string>();
+            try
+            {
+                candidates.Add(Path.Combine(AppDataPaths.LegacyDirectory, "users.db"));
+                candidates.Add(Path.Combine(AppDataPaths.CurrentDirectory, "users.db"));
+                candidates.Add(current + ".bak");
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[AuthService] Could not enumerate recovery paths: {ex.Message}", "Warning", "AUTH");
+                return false;
+            }
+
+            foreach (var source in candidates.Distinct())
+            {
+                if (CountUsersIn(source) <= 0) continue;
+
+                try
+                {
+                    // Preserve whatever is there now before overwriting.
+                    if (File.Exists(current))
+                        File.Copy(current, current + ".bak", true);
+
+                    File.Copy(source, current, true);
+                    DatabaseService.Initialize(current);
+                    EnsureDatabase();
+
+                    LogService.WriteSystemLog(
+                        $"[AuthService] Recovered users from '{source}' — the database in '{current}' was empty. " +
+                        "Previous file kept as users.db.bak.",
+                        "Warning", "AUTH");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[AuthService] Recovery from '{source}' failed: {ex.Message}", "Error", "AUTH");
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Counts rows in the Users table of an arbitrary database file; 0 if unreadable.</summary>
+        private static int CountUsersIn(string databasePath)
+        {
+            try
+            {
+                if (!File.Exists(databasePath)) return 0;
+
+                using var conn = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly");
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(*) FROM Users;";
+                var result = cmd.ExecuteScalar();
+                return result == null ? 0 : Convert.ToInt32(result);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
 
         private static void EnsureDatabase()
         {
