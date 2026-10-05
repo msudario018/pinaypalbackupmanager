@@ -53,9 +53,65 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.4 (Build 33)",
+            version: "v3.9.6 (Build 35)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Real-time Telegram progress bars with in-place editing, enriched backup completion reports with storage stats, auto-refreshing dashboard tabs, and enhanced network device discovery",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Live Telegram Backup Progress Updates",
+                    description: "Visual Unicode progress bar, elapsed time, and activity status sent to Telegram during backup — updates the same message in-place to avoid notification spam."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Comprehensive Backup Completion Reports",
+                    description: "Telegram completion alerts now include backup size, file count, transfer speed, SHA-256 checksum, total storage on disk, drive free space, next scheduled run, and services health overview."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Auto-Refreshing Dashboard Tabs",
+                    description: "Statistics, Health Check, Error Reports, and Performance tabs now auto-refresh via timers and event subscriptions — no more manual refresh needed."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "New Telegram Bot Commands: /stats & /errors",
+                    description: "Query backup statistics dashboard or recent error logs directly from Telegram chat."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Enhanced Network Device Discovery",
+                    description: "NetBIOS name resolution and expanded OUI vendor lookups replace 'Unknown' labels with real device names and manufacturers."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.5 (Build 34)",
+            releaseDate: "October 2026",
+            isLatest: false,
+            highlight: "Dedicated IP/Port inputs for fleet computers with automatic URL sync, Target Computer role support, and AI-powered fleet commands",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Dedicated IP & Port Inputs for Computers",
+                    description: "Separate IP Address and Port fields in Settings with two-way sync to Dashboard URL. Network scan auto-fills all fields."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Target Computer Role",
+                    description: "New 'Target Computer (Backup Destination)' role with fleet monitoring, status labels, telemetry, and AI natural-language commands."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "ICMP Ping Fallback",
+                    description: "Fleet heartbeat uses configured IP address for direct ping probes when web dashboard is inactive on remote machines."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.4 (Build 33)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "One-click auto-detect downloaded local Ollama models in Settings, plus resilient startup lifecycle and database connection pooling to eliminate launch exits",
             changes: [
                 ChangelogItem(

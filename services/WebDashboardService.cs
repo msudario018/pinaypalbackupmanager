@@ -1996,6 +1996,7 @@ namespace PinayPalBackupManager.Services
                         BroadcastAddress = el.TryGetProperty("broadcastAddress", out var b) ? b.GetString() ?? "" : "",
                         WolPort = el.TryGetProperty("wolPort", out var wp) && wp.TryGetInt32(out var wpi) ? wpi : 9,
                         ApiBaseUrl = el.TryGetProperty("apiBaseUrl", out var url) ? url.GetString() ?? "" : "",
+                        IpAddress = el.TryGetProperty("ipAddress", out var ip) ? ip.GetString() ?? "" : "",
                         Enabled = !el.TryGetProperty("enabled", out var en) || en.ValueKind != JsonValueKind.False,
                         Notes = el.TryGetProperty("notes", out var nt) ? nt.GetString() ?? "" : ""
                     };

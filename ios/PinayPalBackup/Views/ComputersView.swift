@@ -227,7 +227,7 @@ public struct ComputersView: View {
                 Circle()
                     .fill((pc.isOnline ? LiquidTheme.emerald : LiquidTheme.textSecondary(for: colorScheme)).opacity(0.16))
                     .frame(width: 38, height: 38)
-                Image(systemName: pc.roleLabel == "Dev PC" ? "hammer.fill" : "desktopcomputer")
+                Image(systemName: pc.roleLabel == "Dev PC" ? "hammer.fill" : (pc.roleLabel == "Target Computer" ? "externaldrive.fill" : "desktopcomputer"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(pc.isOnline ? LiquidTheme.emerald : LiquidTheme.textSecondary(for: colorScheme))
             }

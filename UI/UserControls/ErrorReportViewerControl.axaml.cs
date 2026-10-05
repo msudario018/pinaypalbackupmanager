@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Threading;
 using PinayPalBackupManager.Services;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class ErrorReportViewerControl : UserControl
     {
+        private DispatcherTimer? _autoRefreshTimer;
+
         public ErrorReportViewerControl()
         {
             InitializeComponent();
@@ -71,11 +74,31 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Auto-refresh when a new error report is recorded
+            ErrorReportingService.OnErrorAdded += report =>
+            {
+                Dispatcher.UIThread.Post(() => _ = LoadErrorReportsAsync());
+            };
+
+            // Periodic auto-refresh timer (every 30 seconds when visible)
+            _autoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _autoRefreshTimer.Tick += async (_, _) =>
+            {
+                if (IsVisible)
+                {
+                    await LoadErrorReportsAsync();
+                }
+            };
+            _autoRefreshTimer.Start();
+
             // Load initial data
             _ = LoadErrorReportsAsync();
         }
 
-        private async Task LoadErrorReportsAsync()
+        public async Task LoadErrorReportsAsync()
         {
             await Task.Yield();
             try

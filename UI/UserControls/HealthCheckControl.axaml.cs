@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using PinayPalBackupManager.Services;
 using System;
 using System.Collections.Generic;
@@ -12,6 +13,8 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class HealthCheckControl : UserControl
     {
+        private DispatcherTimer? _autoRefreshTimer;
+
         public HealthCheckControl()
         {
             InitializeComponent();
@@ -44,9 +47,35 @@ namespace PinayPalBackupManager.UI.UserControls
             {
                 UpdateUI(previousResult);
             }
+
+            // Auto-refresh when backups complete
+            BackupHistoryService.OnBackupCompleted += entry =>
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    if (IsVisible)
+                    {
+                        await RunHealthCheckAsync();
+                    }
+                });
+            };
+
+            // Periodic auto-refresh timer (every 45 seconds when visible)
+            _autoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(45)
+            };
+            _autoRefreshTimer.Tick += async (_, _) =>
+            {
+                if (IsVisible)
+                {
+                    await RunHealthCheckAsync();
+                }
+            };
+            _autoRefreshTimer.Start();
         }
 
-        private async Task RunHealthCheckAsync()
+        public async Task RunHealthCheckAsync()
         {
             var btnRunCheck = this.FindControl<Button>("BtnRunCheck");
             if (btnRunCheck != null) btnRunCheck.IsEnabled = false;

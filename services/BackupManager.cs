@@ -109,6 +109,7 @@ namespace PinayPalBackupManager.Services
         {
             BackupStateTracker.UpdateProgress(service, percent, status);
             OnBackupProgress?.Invoke(service, percent, status);
+            NotificationService.SendBackupProgressTelegramAlert(service, percent, status);
         }
 
         private void MainTimer_Elapsed(object? sender, ElapsedEventArgs e)

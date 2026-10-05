@@ -84,4 +84,32 @@ public class TelegramServiceTests
         Assert.Equal(string.Empty, chatId);
         Assert.Contains("token is required", message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void NotificationSettings_IncludesNotifyOnBackupProgress()
+    {
+        var settings = new NotificationSettings();
+        Assert.True(settings.NotifyOnBackupProgress, "NotifyOnBackupProgress should default to true.");
+    }
+
+    [Fact]
+    public void TelegramService_FormatBytes_FormatsSizesCorrectly()
+    {
+        Assert.Equal("0 B", TelegramService.FormatBytes(0));
+        Assert.Equal("500 B", TelegramService.FormatBytes(500));
+        Assert.Equal("1 KB", TelegramService.FormatBytes(1024));
+        Assert.Equal("1.5 KB", TelegramService.FormatBytes(1536));
+        Assert.Equal("1 MB", TelegramService.FormatBytes(1024 * 1024));
+        Assert.Equal("2.5 GB", TelegramService.FormatBytes((long)(2.5 * 1024 * 1024 * 1024)));
+    }
+
+    [Fact]
+    public async Task EditMessageTextAsync_ReturnsFalse_WhenMessageIdOrTokenInvalid()
+    {
+        var result1 = await TelegramService.EditMessageTextAsync(0, "Test");
+        Assert.False(result1);
+
+        var result2 = await TelegramService.EditMessageTextAsync(-1, "Test");
+        Assert.False(result2);
+    }
 }

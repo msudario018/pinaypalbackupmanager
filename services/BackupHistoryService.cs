@@ -211,7 +211,7 @@ namespace PinayPalBackupManager.Services
                         OnBackupCompleted?.Invoke(entry);
 
                         // Trigger automated Telegram alert on backup completion
-                        NotificationService.SendBackupTelegramAlert(entry.Service, "Completed", $"Duration: {duration.TotalSeconds:F1}s | Size: {sizeBytes / 1024 / 1024} MB ({sizeBytes:n0} bytes) | File: {Path.GetFileName(filePath)}");
+                        NotificationService.SendBackupTelegramAlert(entry, "Completed");
                     }
                 }
                 catch (Exception ex)
@@ -244,7 +244,7 @@ namespace PinayPalBackupManager.Services
                         OnBackupCompleted?.Invoke(entry);
 
                         // Trigger automated Telegram alert on backup failure
-                        NotificationService.SendBackupTelegramAlert(entry.Service, "Failed", errorMessage);
+                        NotificationService.SendBackupTelegramAlert(entry, "Failed");
                     }
                 }
                 catch (Exception ex)

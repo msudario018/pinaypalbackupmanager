@@ -841,12 +841,65 @@ namespace PinayPalBackupManager.UI.UserControls
             var cmbRole = this.FindControl<ComboBox>("CmbNewComputerRole");
             var txtMac = this.FindControl<TextBox>("TxtNewComputerMac");
             var txtBroadcast = this.FindControl<TextBox>("TxtNewComputerBroadcast");
+            var txtIp = this.FindControl<TextBox>("TxtNewComputerIp");
+            var txtPort = this.FindControl<TextBox>("TxtNewComputerPort");
             var txtUrl = this.FindControl<TextBox>("TxtNewComputerUrl");
             var txtPin = this.FindControl<TextBox>("TxtNewComputerPin");
             var txtStatus = this.FindControl<TextBlock>("TxtComputerStatus");
             var listPanel = this.FindControl<StackPanel>("ComputerListPanel");
 
             if (listPanel == null) return;
+
+            // Two-way synchronization between IP / Port and Dashboard URL
+            var isSyncingUrl = false;
+            void SyncUrlFromIpPort()
+            {
+                if (isSyncingUrl) return;
+                isSyncingUrl = true;
+                try
+                {
+                    var ip = txtIp?.Text?.Trim() ?? "";
+                    var port = txtPort?.Text?.Trim() ?? "8080";
+                    if (!string.IsNullOrWhiteSpace(ip))
+                    {
+                        var p = string.IsNullOrWhiteSpace(port) ? "8080" : port;
+                        if (txtUrl != null) txtUrl.Text = $"http://{ip}:{p}";
+                    }
+                }
+                finally
+                {
+                    isSyncingUrl = false;
+                }
+            }
+
+            void SyncIpPortFromUrl()
+            {
+                if (isSyncingUrl) return;
+                isSyncingUrl = true;
+                try
+                {
+                    var url = txtUrl?.Text?.Trim() ?? "";
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        if (!url.Contains("://")) url = "http://" + url;
+                        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                        {
+                            if (txtIp != null && !string.IsNullOrWhiteSpace(uri.Host))
+                                txtIp.Text = uri.Host;
+                            if (txtPort != null && uri.Port > 0)
+                                txtPort.Text = uri.Port.ToString();
+                        }
+                    }
+                }
+                finally
+                {
+                    isSyncingUrl = false;
+                }
+            }
+
+            if (txtIp != null) txtIp.TextChanged += (_, _) => SyncUrlFromIpPort();
+            if (txtPort != null) txtPort.TextChanged += (_, _) => SyncUrlFromIpPort();
+            if (txtUrl != null) txtUrl.TextChanged += (_, _) => SyncIpPortFromUrl();
 
             if (btnRefresh != null)
             {
@@ -887,7 +940,7 @@ namespace PinayPalBackupManager.UI.UserControls
                             foreach (var host in found.Take(30))
                             {
                                 resultsPanel.Children.Add(
-                                    BuildDiscoveredHostRow(host, txtName, cmbRole, txtMac, txtBroadcast, txtUrl, resultsPanel));
+                                    BuildDiscoveredHostRow(host, txtName, cmbRole, txtMac, txtBroadcast, txtIp, txtPort, txtUrl, resultsPanel));
                             }
                         }
                     }
@@ -946,9 +999,28 @@ namespace PinayPalBackupManager.UI.UserControls
                     var role = (cmbRole?.SelectedIndex) switch
                     {
                         0 => ComputerRole.Main,
-                        2 => ComputerRole.Aux,
-                        _ => ComputerRole.Dev
+                        1 => ComputerRole.Dev,
+                        2 => ComputerRole.Target,
+                        _ => ComputerRole.Aux
                     };
+
+                    var ip = txtIp?.Text?.Trim() ?? "";
+                    var url = txtUrl?.Text?.Trim() ?? "";
+                    if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(ip))
+                    {
+                        var port = txtPort?.Text?.Trim();
+                        var portNum = int.TryParse(port, out var p) ? p : 8080;
+                        url = $"http://{ip}:{portNum}";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(url) && string.IsNullOrWhiteSpace(ip))
+                    {
+                        try
+                        {
+                            var parsedUri = new Uri(url.Contains("://") ? url : $"http://{url}");
+                            ip = parsedUri.Host;
+                        }
+                        catch { }
+                    }
 
                     var nodes = ComputerManagementService.GetNodes();
                     nodes.Add(new ComputerNode
@@ -957,7 +1029,8 @@ namespace PinayPalBackupManager.UI.UserControls
                         Role = role,
                         MacAddress = mac,
                         BroadcastAddress = txtBroadcast?.Text?.Trim() is { Length: > 0 } b ? b : "255.255.255.255",
-                        ApiBaseUrl = txtUrl?.Text?.Trim() ?? "",
+                        IpAddress = ip,
+                        ApiBaseUrl = url,
                         Pin = txtPin?.Text?.Trim() ?? ""
                     });
 
@@ -966,11 +1039,13 @@ namespace PinayPalBackupManager.UI.UserControls
                     // Clear the form for the next entry.
                     if (txtName != null) txtName.Text = "";
                     if (txtMac != null) txtMac.Text = "";
+                    if (txtIp != null) txtIp.Text = "";
+                    if (txtPort != null) txtPort.Text = "8080";
                     if (txtUrl != null) txtUrl.Text = "";
                     if (txtPin != null) txtPin.Text = "";
 
-                    if (txtStatus != null) txtStatus.Text = $"Added {name}.";
-                    NotificationService.ShowBackupToast("My Computers", $"{name} added.", "Success");
+                    if (txtStatus != null) txtStatus.Text = $"Added {name} ({ComputerManagementService.RoleLabel(role)}).";
+                    NotificationService.ShowBackupToast("My Computers", $"{name} added as {ComputerManagementService.RoleLabel(role)}.", "Success");
 
                     _ = RefreshComputerListAsync();
                 };
@@ -981,7 +1056,7 @@ namespace PinayPalBackupManager.UI.UserControls
 
         /// <summary>
         /// One row in the scan results. Clicking it pre-fills the add-computer form with
-        /// everything we already know (name, MAC, URL) so the user only has to press Add.
+        /// everything we already know (name, MAC, IP, URL) so the user only has to press Add.
         /// </summary>
         private Border BuildDiscoveredHostRow(
             DiscoveredHost host,
@@ -989,11 +1064,14 @@ namespace PinayPalBackupManager.UI.UserControls
             ComboBox? cmbRole,
             TextBox? txtMac,
             TextBox? txtBroadcast,
+            TextBox? txtIp,
+            TextBox? txtPort,
             TextBox? txtUrl,
             StackPanel resultsPanel)
         {
-            var badge = host.IsPinayPal ? "PINAYPAL" : (host.Vendor ?? "Unknown");
-            var badgeColor = host.IsPinayPal ? "#10B981" : "#64748B";
+            var isVendorKnown = !string.IsNullOrWhiteSpace(host.Vendor) && host.Vendor != "Unknown";
+            var badge = host.IsPinayPal ? "PINAYPAL" : (isVendorKnown ? host.Vendor! : "LAN Device");
+            var badgeColor = host.IsPinayPal ? "#10B981" : (isVendorKnown ? "#3B82F6" : "#64748B");
 
             var header = new StackPanel { Spacing = 2 };
             header.Children.Add(new TextBlock
@@ -1003,9 +1081,10 @@ namespace PinayPalBackupManager.UI.UserControls
                 FontWeight = FontWeight.Bold,
                 Foreground = BrushesFor("AppText")
             });
+            var macInfo = !string.IsNullOrWhiteSpace(host.MacAddress) ? $" · {ComputerManagementService.FormatMac(host.MacAddress)}" : "";
             header.Children.Add(new TextBlock
             {
-                Text = $"{host.IpAddress} · {badge}" +
+                Text = $"{host.IpAddress} · {badge}{macInfo}" +
                        (host.DashboardPort > 0 ? $" · port {host.DashboardPort}" : "") +
                        (host.AppVersion.Length > 0 ? $" · v{host.AppVersion}" : ""),
                 FontSize = 10,
@@ -1016,19 +1095,23 @@ namespace PinayPalBackupManager.UI.UserControls
             useBtn.Click += (_, _) =>
             {
                 if (txtName != null) txtName.Text = host.SuggestedName;
-                if (txtUrl != null && host.DashboardPort > 0)
-                    txtUrl.Text = $"http://{host.IpAddress}:{host.DashboardPort}";
+                if (txtIp != null) txtIp.Text = host.IpAddress;
+                var port = host.DashboardPort > 0 ? host.DashboardPort : 8080;
+                if (txtPort != null) txtPort.Text = port.ToString();
+                if (txtUrl != null) txtUrl.Text = $"http://{host.IpAddress}:{port}";
 
                 if (txtMac != null && !string.IsNullOrWhiteSpace(host.MacAddress))
                     txtMac.Text = ComputerManagementService.FormatMac(host.MacAddress);
 
-                // Nothing here proves the machine is a "Dev PC" vs the "Main PC", so we leave
-                // the role alone rather than guessing.
+                // Default discovered peers with PinayPal to Target Computer (backup storage) if role not set
+                if (cmbRole != null && cmbRole.SelectedIndex < 0)
+                    cmbRole.SelectedIndex = 2; // Target Computer
+
                 resultsPanel.IsVisible = false;
 
                 var txtScanStatus = this.FindControl<TextBlock>("TxtScanStatus");
                 if (txtScanStatus != null)
-                    txtScanStatus.Text = $"Filled the form with {host.SuggestedName}. Choose a role, then press Add Computer.";
+                    txtScanStatus.Text = $"Filled the form with {host.SuggestedName} ({host.IpAddress}). Choose a role, then press Add Computer.";
             };
 
             var badgeText = new TextBlock
@@ -1114,8 +1197,8 @@ namespace PinayPalBackupManager.UI.UserControls
             nameStack.Children.Add(new TextBlock
             {
                 Text = isOnline
-                    ? $"{ComputerManagementService.RoleLabel(node.Role)} · {t.Hostname} · {t.LocalIp}"
-                    : (string.IsNullOrWhiteSpace(t.Error) ? ComputerManagementService.RoleLabel(node.Role) : t.Error),
+                    ? $"{ComputerManagementService.RoleLabel(node.Role)} · {(!string.IsNullOrWhiteSpace(t.Hostname) ? t.Hostname : node.DisplayName)} · {(!string.IsNullOrWhiteSpace(t.LocalIp) ? t.LocalIp : node.IpAddress)}"
+                    : $"{ComputerManagementService.RoleLabel(node.Role)} · {(string.IsNullOrWhiteSpace(t.Error) ? (!string.IsNullOrWhiteSpace(node.IpAddress) ? node.IpAddress : "No IP") : t.Error)}",
                 FontSize = 10,
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = BrushesFor("AppMuted")
@@ -1420,6 +1503,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
             var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
             var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
+            var chkProg = this.FindControl<CheckBox>("ChkNotifyBackupProgress");
             var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
             var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
             var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
@@ -1432,6 +1516,7 @@ namespace PinayPalBackupManager.UI.UserControls
             if (txtToken != null) txtToken.Text = s.TelegramBotToken;
             if (txtChatId != null) txtChatId.Text = s.TelegramChatId;
             if (chkStart != null) chkStart.IsChecked = s.NotifyOnBackupStart;
+            if (chkProg != null) chkProg.IsChecked = s.NotifyOnBackupProgress;
             if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
             if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
             if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
@@ -1448,6 +1533,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
             var btnDetect = this.FindControl<Button>("BtnDetectChatId");
             var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
+            var chkProg = this.FindControl<CheckBox>("ChkNotifyBackupProgress");
             var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
             var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
             var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
@@ -1490,6 +1576,7 @@ namespace PinayPalBackupManager.UI.UserControls
                     s.TelegramBotToken = txtToken?.Text?.Trim() ?? "";
                     s.TelegramChatId = txtChatId?.Text?.Trim() ?? "";
                     s.NotifyOnBackupStart = chkStart?.IsChecked == true;
+                    s.NotifyOnBackupProgress = chkProg?.IsChecked == true;
                     s.NotifyOnBackupSuccess = chkSucc?.IsChecked == true;
                     s.NotifyOnBackupFailure = chkFail?.IsChecked == true;
                     s.NotifyOnDisconnect = chkDisc?.IsChecked == true;

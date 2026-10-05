@@ -94,13 +94,22 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task<(bool success, string message)> SendMessageAsync(string text, string? targetChatId = null, string parseMode = "HTML")
         {
+            var res = await SendMessageDetailedAsync(text, targetChatId, parseMode);
+            return (res.success, res.message);
+        }
+
+        /// <summary>
+        /// Sends an HTML-formatted message to Telegram and returns the created message ID for in-place editing.
+        /// </summary>
+        public static async Task<(bool success, string message, int messageId)> SendMessageDetailedAsync(string text, string? targetChatId = null, string parseMode = "HTML")
+        {
             var token = BotToken;
             var chat = !string.IsNullOrWhiteSpace(targetChatId) ? targetChatId : ChatId;
 
             if (string.IsNullOrWhiteSpace(token))
-                return (false, "Telegram Bot Token is not configured.");
+                return (false, "Telegram Bot Token is not configured.", 0);
             if (string.IsNullOrWhiteSpace(chat))
-                return (false, "Telegram Chat ID is not configured.");
+                return (false, "Telegram Chat ID is not configured.", 0);
 
             try
             {
@@ -124,23 +133,81 @@ namespace PinayPalBackupManager.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return (true, "Message sent successfully.");
+                    int messageId = 0;
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(responseBody);
+                        if (doc.RootElement.TryGetProperty("result", out var resElem) &&
+                            resElem.TryGetProperty("message_id", out var midElem))
+                        {
+                            messageId = midElem.GetInt32();
+                        }
+                    }
+                    catch { }
+
+                    return (true, "Message sent successfully.", messageId);
                 }
 
                 // If HTML parse failed, retry once without parse_mode so the notification is never lost
                 if (parseMode == "HTML" && responseBody.Contains("can't parse entities", StringComparison.OrdinalIgnoreCase))
                 {
                     LogService.WriteSystemLog("[TELEGRAM] HTML formatting parse failed. Retrying in plain text mode.", "Warning", "SYSTEM");
-                    return await SendMessageAsync(StripHtmlTags(text), targetChatId, "");
+                    return await SendMessageDetailedAsync(StripHtmlTags(text), targetChatId, "");
                 }
 
                 LogService.WriteSystemLog($"[TELEGRAM] SendMessage failed: {responseBody}", "Error", "SYSTEM");
-                return (false, $"Telegram API Error: {responseBody}");
+                return (false, $"Telegram API Error: {responseBody}", 0);
             }
             catch (Exception ex)
             {
                 LogService.WriteSystemLog($"[TELEGRAM] SendMessage exception: {ex.Message}", "Error", "SYSTEM");
-                return (false, ex.Message);
+                return (false, ex.Message, 0);
+            }
+        }
+
+        /// <summary>
+        /// Edits an existing Telegram message in-place (ideal for smooth progress bar updates without notification spam).
+        /// </summary>
+        public static async Task<bool> EditMessageTextAsync(int messageId, string text, string? targetChatId = null, string parseMode = "HTML")
+        {
+            var token = BotToken;
+            var chat = !string.IsNullOrWhiteSpace(targetChatId) ? targetChatId : ChatId;
+
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(chat) || messageId <= 0)
+                return false;
+
+            try
+            {
+                var url = $"https://api.telegram.org/bot{token}/editMessageText";
+                var payload = new Dictionary<string, object>
+                {
+                    ["chat_id"] = chat,
+                    ["message_id"] = messageId,
+                    ["text"] = text,
+                    ["disable_web_page_preview"] = true
+                };
+
+                if (!string.IsNullOrEmpty(parseMode))
+                {
+                    payload["parse_mode"] = parseMode;
+                }
+
+                var json = JsonSerializer.Serialize(payload);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var response = await _httpClient.PostAsync(url, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                    return true;
+
+                if (responseBody.Contains("message is not modified", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                return false;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -289,10 +356,121 @@ namespace PinayPalBackupManager.Services
 
         #region Automated Backup Notification Alerts
 
+        private class ProgressTrackingInfo
+        {
+            public int MessageId { get; set; }
+            public int LastReportedPercent { get; set; }
+            public DateTime LastReportedTime { get; set; }
+            public DateTime StartTime { get; set; }
+        }
+
+        private static readonly Dictionary<string, ProgressTrackingInfo> _activeProgress = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _progressLock = new();
+
         /// <summary>
-        /// Sends an alert when a backup operation starts, completes, or fails.
+        /// Sends or updates a live progress update in Telegram with a visual progress bar and elapsed time.
         /// </summary>
-        public static async Task SendBackupAlertAsync(string serviceName, string status, string details)
+        public static async Task SendBackupProgressAlertAsync(string serviceName, int percent, string status)
+        {
+            var s = NotificationService.Settings;
+            if (!s.TelegramEnabled || !s.NotifyOnBackupProgress || string.IsNullOrWhiteSpace(s.TelegramBotToken) || string.IsNullOrWhiteSpace(s.TelegramChatId))
+                return;
+
+            ProgressTrackingInfo info;
+            var now = DateTime.UtcNow;
+            bool shouldSend = false;
+
+            lock (_progressLock)
+            {
+                if (!_activeProgress.TryGetValue(serviceName, out var existing))
+                {
+                    existing = new ProgressTrackingInfo
+                    {
+                        MessageId = 0,
+                        LastReportedPercent = -1,
+                        LastReportedTime = DateTime.MinValue,
+                        StartTime = now
+                    };
+                    _activeProgress[serviceName] = existing;
+                }
+                info = existing;
+
+                // Throttling criteria:
+                // 1. Initial meaningful progress (>= 5%)
+                // 2. Milestone jump >= 15% (e.g. 15, 30, 50, 75, 90)
+                // 3. Or at least 8 seconds elapsed and progress moved
+                // 4. Or complete (100%)
+                if (info.LastReportedPercent < 0 && percent >= 5)
+                {
+                    shouldSend = true;
+                }
+                else if (percent >= 100 && info.LastReportedPercent < 100)
+                {
+                    shouldSend = true;
+                }
+                else if (percent - info.LastReportedPercent >= 15)
+                {
+                    shouldSend = true;
+                }
+                else if ((now - info.LastReportedTime).TotalSeconds >= 8 && percent > info.LastReportedPercent)
+                {
+                    shouldSend = true;
+                }
+
+                if (shouldSend)
+                {
+                    info.LastReportedPercent = percent;
+                    info.LastReportedTime = now;
+                }
+            }
+
+            if (!shouldSend)
+                return;
+
+            var bar = GenerateProgressBar(percent, 16);
+            var elapsed = now - info.StartTime;
+            var elapsedStr = elapsed.TotalMinutes >= 1 ? $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s" : $"{elapsed.Seconds}s";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"⏳ <b>[BACKUP PROGRESS] — {EscapeHtml(serviceName.ToUpperInvariant())}</b>");
+            sb.AppendLine();
+            sb.AppendLine($"📊 <b>Progress:</b> <code>{bar}</code> <b>{percent}%</b>");
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                sb.AppendLine($"📝 <b>Activity:</b> {EscapeHtml(status)}");
+            }
+            sb.AppendLine($"⏱️ <b>Elapsed:</b> {elapsedStr}");
+            sb.AppendLine($"🖥️ <b>Host:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+
+            if (info.MessageId > 0)
+            {
+                var edited = await EditMessageTextAsync(info.MessageId, sb.ToString());
+                if (edited) return;
+            }
+
+            var (sent, _, newMsgId) = await SendMessageDetailedAsync(sb.ToString());
+            if (sent && newMsgId > 0)
+            {
+                lock (_progressLock)
+                {
+                    info.MessageId = newMsgId;
+                }
+            }
+        }
+
+        private static string GenerateProgressBar(int percent, int totalChars = 16)
+        {
+            var p = Math.Clamp(percent, 0, 100);
+            int filled = (int)Math.Round((p / 100.0) * totalChars);
+            filled = Math.Clamp(filled, 0, totalChars);
+            int empty = totalChars - filled;
+            return $"[{new string('█', filled)}{new string('▒', empty)}]";
+        }
+
+        /// <summary>
+        /// Sends an alert when a backup operation starts, completes, or fails with comprehensive storage, size, and system diagnostics.
+        /// </summary>
+        public static async Task SendBackupAlertAsync(string serviceName, string status, string details, BackupHistoryService.BackupHistoryEntry? entry = null)
         {
             var s = NotificationService.Settings;
             if (!s.TelegramEnabled || string.IsNullOrWhiteSpace(s.TelegramBotToken) || string.IsNullOrWhiteSpace(s.TelegramChatId))
@@ -307,6 +485,12 @@ namespace PinayPalBackupManager.Services
             if (isSuccess && !s.NotifyOnBackupSuccess) return;
             if (isFail && !s.NotifyOnBackupFailure) return;
 
+            // Clear any active progress tracking for this service
+            lock (_progressLock)
+            {
+                _activeProgress.Remove(serviceName);
+            }
+
             string headerEmoji = isStart ? "🚀" : (isSuccess ? "✅" : "🚨");
             string statusHeader = isStart ? "BACKUP STARTED" : (isSuccess ? "BACKUP COMPLETED" : "BACKUP FAILED");
 
@@ -316,7 +500,77 @@ namespace PinayPalBackupManager.Services
             sb.AppendLine($"🖥️ <b>Host:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
             sb.AppendLine($"🕒 <b>Timestamp:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss} (Local)");
 
-            if (!string.IsNullOrWhiteSpace(details))
+            if (isSuccess)
+            {
+                // Current backup size details
+                long backupSize = entry?.SizeBytes ?? 0;
+                if (backupSize > 0)
+                {
+                    sb.AppendLine($"💾 <b>Backup Size:</b> {FormatBytes(backupSize)} <code>({backupSize:n0} bytes)</code>");
+                }
+
+                // File count & archive path
+                if (entry != null && entry.FilesCount > 0)
+                {
+                    sb.AppendLine($"📄 <b>Files Archived:</b> {entry.FilesCount:n0} files");
+                }
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.FilePath))
+                {
+                    sb.AppendLine($"📁 <b>Target Archive:</b> <code>{EscapeHtml(Path.GetFileName(entry.FilePath))}</code>");
+                }
+
+                // Duration & speed
+                if (entry != null && entry.Duration.TotalSeconds > 0)
+                {
+                    var speedMbSec = (backupSize > 0 && entry.Duration.TotalSeconds > 0)
+                        ? (backupSize / (1024.0 * 1024.0)) / entry.Duration.TotalSeconds
+                        : 0;
+
+                    if (speedMbSec > 0.01)
+                    {
+                        sb.AppendLine($"⏱️ <b>Duration:</b> {entry.Duration.TotalSeconds:F1}s (⚡ <b>Speed:</b> {speedMbSec:F2} MB/s)");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"⏱️ <b>Duration:</b> {entry.Duration.TotalSeconds:F1}s");
+                    }
+                }
+
+                // SHA-256 Checksum
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.Checksum))
+                {
+                    var shortChecksum = entry.Checksum.Length > 16 ? entry.Checksum.Substring(0, 16) + "..." : entry.Checksum;
+                    sb.AppendLine($"🔒 <b>Checksum:</b> <code>{EscapeHtml(shortChecksum)}</code> (Verified)");
+                }
+
+                // Total storage across all backups on disk
+                var (totalBytes, totalCount) = GetTotalStorageStats();
+                if (totalBytes > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"📦 <b>Total Backup Storage:</b> {FormatBytes(totalBytes)} ({totalCount:n0} archives on disk)");
+                }
+
+                // Storage drive free space
+                var (freeBytes, totalDriveBytes, usedPct, driveName) = GetDriveStorageStats(entry?.FilePath);
+                if (totalDriveBytes > 0)
+                {
+                    var freeGb = freeBytes / (1024.0 * 1024.0 * 1024.0);
+                    var totalGb = totalDriveBytes / (1024.0 * 1024.0 * 1024.0);
+                    sb.AppendLine($"💽 <b>Disk Space ({driveName}):</b> {freeGb:F1} GB free / {totalGb:F1} GB ({usedPct}% used)");
+                }
+
+                // Next scheduled run
+                var nextSched = GetNextScheduledText(serviceName);
+                if (!string.IsNullOrWhiteSpace(nextSched))
+                {
+                    sb.AppendLine($"⏰ <b>Next Scheduled:</b> {EscapeHtml(nextSched)}");
+                }
+
+                // Overall service status overview
+                sb.AppendLine($"📊 <b>Services Status:</b> {GetOverallServicesStatus()}");
+            }
+            else if (!string.IsNullOrWhiteSpace(details))
             {
                 sb.AppendLine();
                 sb.AppendLine($"📋 <b>Details:</b>\n{EscapeHtml(details)}");
@@ -327,8 +581,158 @@ namespace PinayPalBackupManager.Services
                 sb.AppendLine();
                 sb.AppendLine("<i>⚠️ Check desktop app logs or type <code>/status</code> to inspect service state.</i>");
             }
+            else if (isSuccess)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<i>💡 Type <code>/status</code> for dashboard, <code>/stats</code> for metrics, or <code>/qr</code> to pair iOS app.</i>");
+            }
 
             await SendMessageAsync(sb.ToString());
+        }
+
+        public static (long totalSizeBytes, int archiveCount) GetTotalStorageStats()
+        {
+            long totalBytes = 0;
+            int count = 0;
+
+            try
+            {
+                var summary = BackupHistoryService.GetSummary();
+                if (summary.TotalSizeBytes > 0)
+                {
+                    totalBytes = summary.TotalSizeBytes;
+                    count = summary.SuccessfulBackups;
+                }
+            }
+            catch { }
+
+            try
+            {
+                var folders = new[]
+                {
+                    BackupConfig.FtpLocalFolder,
+                    BackupConfig.SqlLocalFolder,
+                    BackupConfig.MailchimpFolder,
+                    BackupConfig.NetworkDriveFolder
+                };
+
+                long physicalBytes = 0;
+                int physicalCount = 0;
+
+                foreach (var folder in folders.Where(f => !string.IsNullOrWhiteSpace(f) && Directory.Exists(f)).Distinct())
+                {
+                    var dir = new DirectoryInfo(folder);
+                    foreach (var file in dir.EnumerateFiles("*.*", SearchOption.AllDirectories))
+                    {
+                        if (file.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase) ||
+                            file.Extension.Equals(".tmp", StringComparison.OrdinalIgnoreCase) ||
+                            file.Extension.Equals(".filepart", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        physicalBytes += file.Length;
+                        physicalCount++;
+                    }
+                }
+
+                if (physicalBytes > 0)
+                {
+                    totalBytes = physicalBytes;
+                    count = physicalCount;
+                }
+            }
+            catch { }
+
+            return (totalBytes, count);
+        }
+
+        public static (long freeBytes, long totalBytes, int usedPercent, string driveName) GetDriveStorageStats(string? targetPath = null)
+        {
+            try
+            {
+                var path = targetPath;
+                if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+                {
+                    path = BackupConfig.FtpLocalFolder;
+                }
+                if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+                {
+                    path = AppDomain.CurrentDomain.BaseDirectory;
+                }
+
+                var root = Path.GetPathRoot(path);
+                if (!string.IsNullOrWhiteSpace(root))
+                {
+                    var d = new DriveInfo(root);
+                    if (d.IsReady)
+                    {
+                        var used = d.TotalSize - d.AvailableFreeSpace;
+                        var pct = d.TotalSize > 0 ? (int)Math.Round((used * 100.0) / d.TotalSize) : 0;
+                        return (d.AvailableFreeSpace, d.TotalSize, pct, d.Name);
+                    }
+                }
+            }
+            catch { }
+
+            return (0, 0, 0, "C:\\");
+        }
+
+        public static string FormatBytes(long bytes)
+        {
+            if (bytes <= 0) return "0 B";
+            string[] units = { "B", "KB", "MB", "GB", "TB" };
+            double val = bytes;
+            int i = 0;
+            while (val >= 1024 && i < units.Length - 1)
+            {
+                val /= 1024;
+                i++;
+            }
+            return $"{val:0.##} {units[i]}";
+        }
+
+        public static string GetNextScheduledText(string service)
+        {
+            try
+            {
+                var svc = service.ToLowerInvariant();
+                DateTime next;
+                if (svc.Contains("ftp"))
+                    next = BackupManager.NextFtpDailySyncMnl;
+                else if (svc.Contains("sql"))
+                    next = BackupManager.NextSqlDailySyncMnl;
+                else if (svc.Contains("mailchimp"))
+                    next = BackupManager.NextMailchimpDailySyncMnl;
+                else
+                    return "Scheduled daily";
+
+                return $"{next:yyyy-MM-dd hh:mm tt} (MNL)";
+            }
+            catch
+            {
+                return "Configured schedule";
+            }
+        }
+
+        public static string GetOverallServicesStatus()
+        {
+            try
+            {
+                var history = BackupHistoryService.GetHistory();
+                string StatusFor(string svc)
+                {
+                    var last = history.FirstOrDefault(e => e.Service.Equals(svc, StringComparison.OrdinalIgnoreCase));
+                    if (last == null) return "⚪ Idle";
+                    if (last.Status.Equals("Success", StringComparison.OrdinalIgnoreCase) || last.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)) return "🟢 OK";
+                    if (last.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)) return "🔴 Error";
+                    return "🟡 Running";
+                }
+
+                return $"FTP: {StatusFor("FTP")} | SQL: {StatusFor("SQL")} | MC: {StatusFor("Mailchimp")}";
+            }
+            catch
+            {
+                return "All services active";
+            }
         }
 
         /// <summary>
@@ -401,7 +805,7 @@ namespace PinayPalBackupManager.Services
                 tailscaleUrl = TailscaleNetworkService.GetTailscaleUrl(localPort),
                 pin = pin,
                 hostname = hostname,
-                version = "3.7.2"
+                version = "3.9.6"
             };
 
             payloadJson = JsonSerializer.Serialize(payloadObj);
@@ -649,13 +1053,24 @@ namespace PinayPalBackupManager.Services
                     await HandleBackupCommandAsync(tokens, chatId);
                     break;
 
+                case "stats":
+                case "statistics":
+                    await SendStatisticsMessageAsync(chatId);
+                    break;
+
+                case "errors":
+                case "error":
+                case "logs":
+                    await SendRecentErrorsMessageAsync(chatId);
+                    break;
+
                 case "ai":
                 case "ask":
                     await HandleAiCommandAsync(tokens, rawText, chatId);
                     break;
 
                 default:
-                    // Support natural typing without leading slash (e.g. "backup full", "qr", "status", "health")
+                    // Support natural typing without leading slash (e.g. "backup full", "qr", "status", "health", "stats")
                     if (tokens.Length >= 2 && string.Equals(tokens[0], "backup", StringComparison.OrdinalIgnoreCase))
                     {
                         await HandleBackupCommandAsync(tokens, chatId);
@@ -667,6 +1082,14 @@ namespace PinayPalBackupManager.Services
                     else if (tokens.Length >= 1 && string.Equals(tokens[0], "status", StringComparison.OrdinalIgnoreCase))
                     {
                         await SendStatusMessageAsync(chatId);
+                    }
+                    else if (tokens.Length >= 1 && (string.Equals(tokens[0], "stats", StringComparison.OrdinalIgnoreCase) || string.Equals(tokens[0], "statistics", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        await SendStatisticsMessageAsync(chatId);
+                    }
+                    else if (tokens.Length >= 1 && (string.Equals(tokens[0], "errors", StringComparison.OrdinalIgnoreCase) || string.Equals(tokens[0], "logs", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        await SendRecentErrorsMessageAsync(chatId);
                     }
                     else if (tokens.Length >= 1 && string.Equals(tokens[0], "health", StringComparison.OrdinalIgnoreCase))
                     {
@@ -946,12 +1369,14 @@ namespace PinayPalBackupManager.Services
             sb.AppendLine();
             sb.AppendLine("📊 <b>Status & System:</b>");
             sb.AppendLine("• <code>/status</code> — Current health, last syncs & tunnel URLs");
+            sb.AppendLine("• <code>/stats</code> — Overall backup statistics, total storage & success rate");
+            sb.AppendLine("• <code>/errors</code> — Recent application error logs & failed backups");
             sb.AppendLine("• <code>/health</code> — Run on-demand health check across all services");
             sb.AppendLine("• <code>/pause</code> — Pause automatic backup scheduler");
             sb.AppendLine("• <code>/resume</code> — Resume automatic backup scheduler");
             sb.AppendLine("• <code>/help</code> — Show this guide");
             sb.AppendLine();
-            sb.AppendLine("<i>Tip: You can also type commands naturally without a slash (e.g. <code>backup full</code>, <code>qr</code>, <code>status</code>).</i>");
+            sb.AppendLine("<i>Tip: You can also type commands naturally without a slash (e.g. <code>backup full</code>, <code>qr</code>, <code>status</code>, <code>stats</code>).</i>");
 
             await SendMessageAsync(sb.ToString(), chatId);
         }
@@ -994,7 +1419,7 @@ namespace PinayPalBackupManager.Services
             }
 
             sb.AppendLine();
-            sb.AppendLine("<i>Commands: <code>/backup full</code> | <code>/qr</code> | <code>/health</code></i>");
+            sb.AppendLine("<i>Commands: <code>/backup full</code> | <code>/stats</code> | <code>/health</code> | <code>/qr</code></i>");
 
             await SendMessageAsync(sb.ToString(), chatId);
         }
@@ -1022,6 +1447,89 @@ namespace PinayPalBackupManager.Services
             {
                 await SendMessageAsync("⚠️ Backup manager instance is not available.", chatId);
             }
+        }
+
+        private static async Task SendStatisticsMessageAsync(string chatId)
+        {
+            var summary = BackupHistoryService.GetSummary();
+            var (totalStorage, archiveCount) = GetTotalStorageStats();
+            var (freeBytes, totalDriveBytes, usedPct, driveName) = GetDriveStorageStats();
+            var freeGb = freeBytes / (1024.0 * 1024.0 * 1024.0);
+            var totalGb = totalDriveBytes / (1024.0 * 1024.0 * 1024.0);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("📊 <b>PinayPal Backup Manager — Enterprise Statistics</b>");
+            sb.AppendLine();
+            sb.AppendLine($"📈 <b>Total Backups:</b> {summary.TotalBackups:n0}");
+            sb.AppendLine($"✅ <b>Successful:</b> {summary.SuccessfulBackups:n0} ({summary.SuccessRate:F1}%)");
+            sb.AppendLine($"🚨 <b>Failed:</b> {summary.FailedBackups:n0}");
+            sb.AppendLine($"⏱️ <b>Avg Duration:</b> {summary.AverageDuration.TotalSeconds:F1}s");
+            sb.AppendLine($"📦 <b>Total Backup Storage:</b> {FormatBytes(totalStorage)} ({archiveCount:n0} archives)");
+            sb.AppendLine($"💽 <b>Disk Space ({driveName}):</b> {freeGb:F1} GB free / {totalGb:F1} GB ({usedPct}% used)");
+            sb.AppendLine();
+
+            if (summary.BackupsByService.Count > 0)
+            {
+                sb.AppendLine("📋 <b>Service Breakdown:</b>");
+                foreach (var (svc, count) in summary.BackupsByService)
+                {
+                    sb.AppendLine($"• <b>{EscapeHtml(svc)}:</b> {count:n0} backups");
+                }
+            }
+
+            if (summary.LastSuccessfulBackupTime > DateTime.MinValue)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"🕒 <b>Last Successful Backup:</b> {summary.LastSuccessfulBackupTime:yyyy-MM-dd HH:mm:ss} UTC");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("<i>💡 Type <code>/backup full</code> to run backup or <code>/health</code> for diagnostics.</i>");
+
+            await SendMessageAsync(sb.ToString(), chatId);
+        }
+
+        private static async Task SendRecentErrorsMessageAsync(string chatId)
+        {
+            var errors = ErrorReportingService.GetErrorReports(5);
+            var failedBackups = BackupHistoryService.GetFailedBackups(5);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("🚨 <b>PinayPal Backup Manager — Recent Error Reports</b>");
+            sb.AppendLine();
+
+            if (errors.Count == 0 && failedBackups.Count == 0)
+            {
+                sb.AppendLine("✅ <b>No errors reported! System is running cleanly.</b>");
+            }
+            else
+            {
+                if (failedBackups.Count > 0)
+                {
+                    sb.AppendLine("<b>Recent Failed Backups:</b>");
+                    foreach (var fail in failedBackups.Take(3))
+                    {
+                        sb.AppendLine($"• <b>[{EscapeHtml(fail.Service)}]</b> {fail.Timestamp:yyyy-MM-dd HH:mm} UTC");
+                        sb.AppendLine($"  <i>{EscapeHtml(fail.ErrorMessage)}</i>");
+                    }
+                    sb.AppendLine();
+                }
+
+                if (errors.Count > 0)
+                {
+                    sb.AppendLine("<b>Recent Application Errors:</b>");
+                    foreach (var err in errors.Take(3))
+                    {
+                        sb.AppendLine($"• <b>[{EscapeHtml(err.Source)}]</b> {err.Timestamp:yyyy-MM-dd HH:mm} UTC");
+                        sb.AppendLine($"  <i>{EscapeHtml(err.Message)}</i>");
+                    }
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("<i>💡 Type <code>/status</code> for system overview or <code>/health</code> for diagnostic check.</i>");
+
+            await SendMessageAsync(sb.ToString(), chatId);
         }
 
         #endregion

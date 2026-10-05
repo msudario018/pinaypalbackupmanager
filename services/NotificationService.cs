@@ -496,6 +496,36 @@ namespace PinayPalBackupManager.Services
             });
         }
 
+        public static void SendBackupTelegramAlert(BackupHistoryService.BackupHistoryEntry entry, string status)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await TelegramService.SendBackupAlertAsync(entry.Service, status, "", entry);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Failed to send backup alert: {ex.Message}", "Error", "SYSTEM");
+                }
+            });
+        }
+
+        public static void SendBackupProgressTelegramAlert(string serviceName, int percent, string status)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await TelegramService.SendBackupProgressAlertAsync(serviceName, percent, status);
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Failed to send backup progress: {ex.Message}", "Warning", "SYSTEM");
+                }
+            });
+        }
+
         public static void SendDisconnectTelegramAlert(string reason)
         {
             _ = Task.Run(async () =>
@@ -826,6 +856,7 @@ namespace PinayPalBackupManager.Services
         public string TelegramBotToken { get; set; } = string.Empty;
         public string TelegramChatId { get; set; } = string.Empty;
         public bool NotifyOnBackupStart { get; set; } = true;
+        public bool NotifyOnBackupProgress { get; set; } = true;
         public bool NotifyOnBackupSuccess { get; set; } = true;
         public bool NotifyOnBackupFailure { get; set; } = true;
         public bool NotifyOnDisconnect { get; set; } = true;

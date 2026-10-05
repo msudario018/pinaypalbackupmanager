@@ -22,6 +22,8 @@ namespace PinayPalBackupManager.UI.UserControls
         private int _dateRangeDays = 30;
         private CancellationTokenSource? _refreshCancellationToken;
 
+        private DispatcherTimer? _autoRefreshTimer;
+
         public StatisticsControl()
         {
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
@@ -29,6 +31,26 @@ namespace PinayPalBackupManager.UI.UserControls
             
             SetupEventHandlers();
             LoadInitialData();
+
+            // Auto-refresh when backups complete
+            BackupHistoryService.OnBackupCompleted += entry =>
+            {
+                Dispatcher.UIThread.Post(() => _ = RefreshStatisticsAsync());
+            };
+
+            // Periodic auto-refresh timer (every 30 seconds)
+            _autoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _autoRefreshTimer.Tick += (_, _) =>
+            {
+                if (IsVisible)
+                {
+                    _ = RefreshStatisticsAsync();
+                }
+            };
+            _autoRefreshTimer.Start();
         }
 
         private void SetupEventHandlers()
@@ -52,7 +74,7 @@ namespace PinayPalBackupManager.UI.UserControls
             await RefreshStatisticsAsync();
         }
 
-        private async Task RefreshStatisticsAsync()
+        public async Task RefreshStatisticsAsync()
         {
             // Cancel any pending refresh
             _refreshCancellationToken?.Cancel();

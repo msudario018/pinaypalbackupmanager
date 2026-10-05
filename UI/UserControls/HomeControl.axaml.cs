@@ -213,6 +213,33 @@ namespace PinayPalBackupManager.UI.UserControls
             // Update greeting when user changes
             AuthService.OnUserChanged += (_) => Dispatcher.UIThread.Post(UpdateGreeting);
 
+            // React immediately when any backup completes
+            BackupHistoryService.OnBackupCompleted += entry =>
+            {
+                if (entry != null && (entry.Status.Equals("Success", StringComparison.OrdinalIgnoreCase) || entry.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var time = entry.Timestamp > DateTime.MinValue ? entry.Timestamp.ToUniversalTime() : DateTime.UtcNow;
+                    if (entry.Service.Equals("FTP", StringComparison.OrdinalIgnoreCase)) _lastFtpBackupTime = time;
+                    else if (entry.Service.Equals("Mailchimp", StringComparison.OrdinalIgnoreCase)) _lastMailchimpBackupTime = time;
+                    else if (entry.Service.Equals("SQL", StringComparison.OrdinalIgnoreCase)) _lastSqlBackupTime = time;
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _ = UpdateTimeSinceLastBackupAsync();
+                    UpdateServicesStatusSummary(null);
+                });
+            };
+
+            // React immediately when an error report is added
+            ErrorReportingService.OnErrorAdded += report =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _ = LoadRecentErrorsAsync();
+                });
+            };
+
             // Load system logs
             FireAndForget(LoadSystemLogsAsync(), nameof(LoadSystemLogsAsync));
 
@@ -1233,6 +1260,21 @@ namespace PinayPalBackupManager.UI.UserControls
         public void IncrementActiveOperations() => _activeOperations++;
         public void DecrementActiveOperations() => _activeOperations = Math.Max(0, _activeOperations - 1);
         public void SetActiveOperations(int count) => _activeOperations = count;
+
+        public async Task RefreshDashboardAsync()
+        {
+            try
+            {
+                await UpdateSystemStatusAsync();
+                await UpdateTimeSinceLastBackupAsync();
+                await LoadRecentErrorsAsync();
+                UpdateRetryQueueStatus();
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteLiveLog($"[DASHBOARD] RefreshDashboardAsync error: {ex.Message}", "", "Warning", "SYSTEM");
+            }
+        }
 
         public void SetMaximizedLayout(bool isMaximized)
         {
@@ -2455,27 +2497,81 @@ namespace PinayPalBackupManager.UI.UserControls
             return _cachedStorageUsed;
         }
 
+        private DateTime? GetAccurateLastBackupTime(string service, string logFile, string backupFolder, DateTime? inMemoryTime)
+        {
+            var candidates = new List<DateTime>();
+
+            // 1. In-memory recorded completion time (UTC)
+            if (inMemoryTime.HasValue && inMemoryTime.Value > DateTime.MinValue)
+            {
+                candidates.Add(inMemoryTime.Value.Kind == DateTimeKind.Utc ? inMemoryTime.Value : inMemoryTime.Value.ToUniversalTime());
+            }
+
+            // 2. Canonical BackupHistoryService
+            try
+            {
+                var history = BackupHistoryService.GetHistory();
+                var latestSuccess = history
+                    .Where(e => e.Service.Equals(service, StringComparison.OrdinalIgnoreCase) && 
+                                (e.Status.Equals("Success", StringComparison.OrdinalIgnoreCase) || e.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(e => e.Timestamp)
+                    .FirstOrDefault();
+
+                if (latestSuccess != null && latestSuccess.Timestamp > DateTime.MinValue)
+                {
+                    candidates.Add(latestSuccess.Timestamp.Kind == DateTimeKind.Utc ? latestSuccess.Timestamp : latestSuccess.Timestamp.ToUniversalTime());
+                }
+            }
+            catch { }
+
+            // 3. Physical backup archive files on disk (ground truth!)
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(backupFolder) && Directory.Exists(backupFolder))
+                {
+                    var dir = new DirectoryInfo(backupFolder);
+                    var latestFile = dir.GetFiles("*.*", SearchOption.AllDirectories)
+                        .Where(f => !f.Name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) && 
+                                    !f.Name.EndsWith(".filepart", StringComparison.OrdinalIgnoreCase) &&
+                                    !f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(f => f.LastWriteTimeUtc)
+                        .FirstOrDefault();
+
+                    if (latestFile != null && latestFile.LastWriteTimeUtc > DateTime.MinValue)
+                    {
+                        candidates.Add(latestFile.LastWriteTimeUtc);
+                    }
+                }
+            }
+            catch { }
+
+            // 4. Log file parsing (up to 200 lines)
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(logFile) && File.Exists(logFile))
+                {
+                    var logs = LogService.ImportLatestLogs(logFile, 200);
+                    var logTime = GetLastBackupTime(logs);
+                    if (logTime.HasValue && logTime.Value > DateTime.MinValue)
+                    {
+                        candidates.Add(logTime.Value.ToUniversalTime());
+                    }
+                }
+            }
+            catch { }
+
+            return candidates.Count > 0 ? candidates.Max() : null;
+        }
+
         private async Task UpdateTimeSinceLastBackupAsync()
         {
             await Task.Run(() =>
             {
                 try
                 {
-                    var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 50);
-                    var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 50);
-                    var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 50);
-
-                    // Use in-memory time if newer than log-parsed time (covers backups done while app is running)
-                    var ftpLastTime = GetLastBackupTime(ftpLogs);
-                    var mcLastTime = GetLastBackupTime(mcLogs);
-                    var sqlLastTime = GetLastBackupTime(sqlLogs);
-
-                    if (_lastFtpBackupTime.HasValue && _lastFtpBackupTime.Value > (ftpLastTime ?? DateTime.MinValue))
-                        ftpLastTime = _lastFtpBackupTime;
-                    if (_lastMailchimpBackupTime.HasValue && _lastMailchimpBackupTime.Value > (mcLastTime ?? DateTime.MinValue))
-                        mcLastTime = _lastMailchimpBackupTime;
-                    if (_lastSqlBackupTime.HasValue && _lastSqlBackupTime.Value > (sqlLastTime ?? DateTime.MinValue))
-                        sqlLastTime = _lastSqlBackupTime;
+                    var ftpLastTime = GetAccurateLastBackupTime("FTP", BackupConfig.FtpLogFile, BackupConfig.FtpLocalFolder, _lastFtpBackupTime);
+                    var mcLastTime = GetAccurateLastBackupTime("Mailchimp", BackupConfig.McLogFile, BackupConfig.MailchimpFolder, _lastMailchimpBackupTime);
+                    var sqlLastTime = GetAccurateLastBackupTime("SQL", BackupConfig.SqlLogFile, BackupConfig.SqlLocalFolder, _lastSqlBackupTime);
 
                     var ftpTimeText = GetTimeAgoText(ftpLastTime);
                     var mcTimeText = GetTimeAgoText(mcLastTime);
@@ -2511,22 +2607,20 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             foreach (var log in logs)
             {
-                // Case-insensitive check for completion keywords
                 var logUpper = log.ToUpperInvariant();
                 if (logUpper.Contains("COMPLETE") || logUpper.Contains("COMPLETE:") || 
                     logUpper.Contains("SUCCESS") || logUpper.Contains("SUCCESS:") || 
                     logUpper.Contains("DOWNLOAD COMPLETE"))
                 {
-                    // Try 12-hour format first: "[2025-04-04 12:34:56 PM]"
+                    // 12-hour format: "[2025-04-04 12:34:56 PM]"
                     var match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [AP]M)\]");
                     if (!match.Success)
                     {
-                        // Fallback to 24-hour format: "[2025-04-04 12:34:56]" (for old logs)
+                        // 24-hour format: "[2025-04-04 12:34:56]"
                         match = System.Text.RegularExpressions.Regex.Match(log, @"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]");
                     }
                     if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var time))
                     {
-                        // The log timestamp is in local time, not UTC
                         return time;
                     }
                 }
@@ -2534,54 +2628,43 @@ namespace PinayPalBackupManager.UI.UserControls
             return null;
         }
 
-        private static DateTime GetManilaNow() => DateTime.UtcNow.AddHours(8);
-
-        private static DateTime ToManilaTime(DateTime localTime)
+        private string GetTimeAgoText(DateTime? timeUtc)
         {
-            // Log timestamps are in local time (UTC-7 from GetTzDate)
-            // Convert to UTC first, then to Manila (UTC+8)
-            // UTC-7 to UTC = +7, UTC to UTC+8 = +8, total = +15
-            return localTime.AddHours(15);
-        }
+            if (!timeUtc.HasValue || timeUtc.Value <= DateTime.MinValue) return "Never";
+            
+            var nowUtc = DateTime.UtcNow;
+            var val = timeUtc.Value.Kind == DateTimeKind.Utc ? timeUtc.Value : timeUtc.Value.ToUniversalTime();
+            var diff = nowUtc - val;
 
-        private string GetTimeAgoText(DateTime? time)
-        {
-            if (!time.HasValue) return "Never";
-            
-            var manilaNow = GetManilaNow();
-            var manilaBackupTime = ToManilaTime(time.Value);
-            
-            // Check if same day in Manila time
-            if (manilaBackupTime.Date == manilaNow.Date)
-                return "Today";
-            
-            // Check if yesterday
-            if (manilaBackupTime.Date == manilaNow.Date.AddDays(-1))
+            if (diff.TotalSeconds < 0) return "Just now";
+            if (diff.TotalMinutes < 1) return "Just now";
+            if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+
+            var localNow = DateTime.Now;
+            var localBackup = timeUtc.Value.ToLocalTime();
+
+            if (localBackup.Date == localNow.Date)
+                return $"Today ({(int)diff.TotalHours}h ago)";
+
+            if (localBackup.Date == localNow.Date.AddDays(-1))
                 return "Yesterday";
-            
-            var diff = manilaNow - manilaBackupTime;
-            // Use absolute value to handle any timezone/clock issues
-            var totalHours = Math.Abs(diff.TotalHours);
-            var totalDays = Math.Abs(diff.TotalDays);
-            
-            if (totalHours < 24) return $"{totalHours:F0}h ago";
-            if (totalDays < 7) return $"{totalDays:F0}d ago";
-            return $"{totalDays / 7:F0}w ago";
+
+            if (diff.TotalDays < 7)
+                return $"{(int)diff.TotalDays}d ago";
+
+            return $"{(int)(diff.TotalDays / 7)}w ago";
         }
 
-        private IBrush GetTimeAgoColor(DateTime? time)
+        private IBrush GetTimeAgoColor(DateTime? timeUtc)
         {
-            if (!time.HasValue) return Brush.Parse("#6C7086");
+            if (!timeUtc.HasValue || timeUtc.Value <= DateTime.MinValue) return Brush.Parse("#6C7086");
             
-            var manilaNow = GetManilaNow();
-            var manilaBackupTime = ToManilaTime(time.Value);
-            
-            // Green for today, warning for yesterday, red for older
-            if (manilaBackupTime.Date == manilaNow.Date)
-                return Brush.Parse("#588157"); // Green - today
-            if (manilaBackupTime.Date == manilaNow.Date.AddDays(-1))
-                return Brush.Parse("#dad7cd"); // Light gray - yesterday
-            return Brush.Parse("#F38BA8"); // Red - older
+            var diff = DateTime.UtcNow - (timeUtc.Value.Kind == DateTimeKind.Utc ? timeUtc.Value : timeUtc.Value.ToUniversalTime());
+            if (diff.TotalHours < 24)
+                return Brush.Parse("#52B788"); // Green - today / within 24h
+            if (diff.TotalHours < 48)
+                return Brush.Parse("#FCA311"); // Amber - yesterday / within 48h
+            return Brush.Parse("#F38BA8"); // Red - older than 48h
         }
 
         private int UpdateServicesStatusSummary(Dictionary<string, int>? serviceScores)
@@ -2594,14 +2677,10 @@ namespace PinayPalBackupManager.UI.UserControls
 
             int healthyCount = 0;
             
-            // Get last backup times to check freshness
-            var ftpLogs = LogService.ImportLatestLogs(BackupConfig.FtpLogFile, 50);
-            var mcLogs = LogService.ImportLatestLogs(BackupConfig.McLogFile, 50);
-            var sqlLogs = LogService.ImportLatestLogs(BackupConfig.SqlLogFile, 50);
-            
-            var ftpLastTime = GetLastBackupTime(ftpLogs);
-            var mcLastTime = GetLastBackupTime(mcLogs);
-            var sqlLastTime = GetLastBackupTime(sqlLogs);
+            // Get last backup times to check freshness using multi-source detection
+            var ftpLastTime = GetAccurateLastBackupTime("FTP", BackupConfig.FtpLogFile, BackupConfig.FtpLocalFolder, _lastFtpBackupTime);
+            var mcLastTime = GetAccurateLastBackupTime("Mailchimp", BackupConfig.McLogFile, BackupConfig.MailchimpFolder, _lastMailchimpBackupTime);
+            var sqlLastTime = GetAccurateLastBackupTime("SQL", BackupConfig.SqlLogFile, BackupConfig.SqlLocalFolder, _lastSqlBackupTime);
             
             // FTP - check both health score AND freshness
             int ftpScore = serviceScores.GetValueOrDefault("FTP", 0);
@@ -2643,12 +2722,10 @@ namespace PinayPalBackupManager.UI.UserControls
             return healthyCount;
         }
 
-        private bool IsBackupStale(DateTime? lastBackupTime, double thresholdHours = 24)
+        private bool IsBackupStale(DateTime? lastBackupTimeUtc, double thresholdHours = 24)
         {
-            if (!lastBackupTime.HasValue) return true;
-            var manilaNow = GetManilaNow();
-            var manilaBackupTime = ToManilaTime(lastBackupTime.Value);
-            var diff = manilaNow - manilaBackupTime;
+            if (!lastBackupTimeUtc.HasValue || lastBackupTimeUtc.Value <= DateTime.MinValue) return true;
+            var diff = DateTime.UtcNow - (lastBackupTimeUtc.Value.Kind == DateTimeKind.Utc ? lastBackupTimeUtc.Value : lastBackupTimeUtc.Value.ToUniversalTime());
             return diff.TotalHours > thresholdHours;
         }
 

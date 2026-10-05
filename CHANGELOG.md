@@ -1,5 +1,50 @@
 # Changelog
 
+## v3.9.6 (2026-10-05)
+
+### Added & Improved
+- **Real-Time Telegram Progress Updates & In-Place Editing**:
+  - Added live progress notifications to Telegram during backup execution (FTP, SQL, Mailchimp) featuring a visual Unicode progress bar (`[████████▒▒▒▒▒▒▒▒] 50%`), elapsed duration, current activity, and host details.
+  - Implemented `editMessageText` API support in `TelegramService` so progress updates update the existing Telegram message in-place without generating multiple notification alerts or spamming the user's device.
+  - Integrated smart milestone and time throttling (15% jumps or 8s intervals) to strictly respect Telegram Bot API rate limits.
+  - Added `NotifyOnBackupProgress` setting in `NotificationSettings` and a toggle checkbox in Settings → Telegram Bot Alerting (`ChkNotifyBackupProgress`).
+- **Comprehensive Telegram Completion Reports & Storage Statistics**:
+  - Enriched backup completion notifications with:
+    - **Backup Size**: Human-readable size (`MB`/`GB`) and exact byte count.
+    - **Total Storage on Disk**: Aggregate physical storage across all backup folders (`FtpLocalFolder`, `SqlLocalFolder`, `MailchimpFolder`) and archive count.
+    - **Volume Disk Space**: Available free space, total capacity, and percentage used on the backup storage volume.
+    - **Archive Details**: Total file count, filename, duration, average transfer speed (MB/s), and SHA-256 verification status.
+    - **Schedule & Health Summary**: Next scheduled run time (Manila Time) and overall status indicator for all services.
+- **New Interactive Telegram Bot Commands**:
+  - Added `/stats` and `/statistics`: Returns a formatted enterprise statistics dashboard with total backups, success rate, aggregate storage, disk free space, average duration, and per-service breakdown.
+  - Added `/errors` and `/logs`: Returns recent error reports and failed backup details directly to Telegram chat.
+  - Updated `/help` manual with the new commands and tips.
+- **Fixed Home Dashboard "Time Since Last Backup" (Image 3)**:
+  - Resolved stale last backup times by subscribing to `BackupHistoryService.OnBackupCompleted` and updating in-memory timestamps upon successful backup completion.
+  - Added public `RefreshDashboardAsync()` to `HomeControl` to refresh status, recent errors, and time-since-backup.
+  - Orchestrated `MainWindow.ShowControl` to trigger `RefreshDashboardAsync()` whenever navigating to the Home tab.
+- **Automatic Monitoring Refresh Across Dashboard Tabs**:
+  - Resolved issue where Statistics, Health Check, Error Reports, and Performance tabs required manually clicking "Refresh".
+  - Implemented background `DispatcherTimer` loops and event subscriptions (`BackupHistoryService.OnBackupCompleted` and `ErrorReportingService.OnErrorAdded`) so tabs auto-refresh continuously when visible and immediately upon tab navigation.
+- **AI Action Tag Clean-up & Network Scanner Device Discovery**:
+  - Filtered raw internal `[ACTION: ...]` tags in `AIAssistantService` so user chat UI only displays clean conversational responses.
+  - Extended `NetworkScannerService` with NetBIOS name resolution (UDP port 137) and expanded OUI vendor lookups to replace "Unknown" labels with actual device vendor names and hostnames.
+
+## v3.9.5 (2026-10-05)
+
+### Added & Improved
+- **Dedicated IP Address & Port Inputs for Computers**:
+  - Added dedicated `IP Address` (`TxtNewComputerIp`, e.g. `192.168.1.50`) and `Port` (`TxtNewComputerPort`, default `8080`) input fields in Settings → "My Computers".
+  - Implemented automatic two-way synchronization: typing an IP address and Port automatically populates the `Dashboard URL` (`http://<ip>:<port>`), while pasting or modifying a custom URL automatically parses the host IP and port back into the input boxes.
+  - Subnet scanner ("Scan Network") now automatically fills both the IP, Port, and Dashboard URL fields with a single click on "Use This" / "Fill Details".
+  - ICMP ping fallback uses the configured `IpAddress` to probe peer online/offline status and latency even when the built-in web dashboard isn't active on the remote computer.
+- **Target Computer Role Support**:
+  - Added the missing `Target Computer (Backup Destination / Remote Storage)` role to the fleet role selector (`CmbNewComputerRole`) and mapped to `ComputerRole.Target`.
+  - Configured fleet heartbeat monitoring, status labels, and telemetry rows to display the `Target Computer` role.
+  - Added natural language command recognition in `AIAssistantService` so requests like *"Wake up target computer"*, *"Is the target PC online?"*, or *"Restart target computer"* map directly to `ComputerRole.Target`.
+  - Added `server.rack` / `externaldrive.fill` role icon in the iOS companion app for Target Computers.
+  - Added comprehensive test coverage for Target Computer role labeling, resolution, and IP auto-reconciliation.
+
 ## v3.9.4 (2026-10-05)
 
 ### Added

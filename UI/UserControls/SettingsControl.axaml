@@ -401,7 +401,7 @@
             <!-- My Computers (Wake on LAN & Remote Power) -->
             <ui:CollapsibleCardControl x:Name="CardMyComputers"
                                        Title="My Computers"
-                                       Subtitle="Register your Dev PC and Main PC to see live telemetry, wake them over the network, and restart or shut them down remotely."
+                                       Subtitle="Register your Dev PC, Main PC, and Target Computer to see live telemetry, wake them over the network, and restart or shut them down remotely."
                                        IconData="M4,5H20V19H4V5M9,19V21H15V19M4,5V3H20V5M20,9H22V11H20M2,9H4V11H2M20,13H22V15H20M2,13H4V15H2"
                                        Accent="#A78BFA">
                 <StackPanel Spacing="10">
@@ -436,10 +436,11 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
                                     <TextBlock Text="Role" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
-                                    <ComboBox Name="CmbNewComputerRole" HorizontalAlignment="Stretch" SelectedIndex="1">
-                                        <ComboBoxItem Content="Main PC"/>
-                                        <ComboBoxItem Content="Dev PC"/>
-                                        <ComboBoxItem Content="Auxiliary"/>
+                                    <ComboBox Name="CmbNewComputerRole" HorizontalAlignment="Stretch" SelectedIndex="2">
+                                        <ComboBoxItem Content="Main PC (Primary Production / Host)"/>
+                                        <ComboBoxItem Content="Dev PC (Development Environment)"/>
+                                        <ComboBoxItem Content="Target Computer (Backup Destination / Remote Storage)"/>
+                                        <ComboBoxItem Content="Auxiliary (Secondary / Standby PC)"/>
                                     </ComboBox>
                                 </StackPanel>
                             </Grid>
@@ -453,9 +454,19 @@
                                     <TextBox Name="TxtNewComputerBroadcast" Watermark="255.255.255.255" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
                                 </StackPanel>
                             </Grid>
+                            <Grid ColumnDefinitions="3*, *" Margin="0,2,0,0">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
+                                    <TextBlock Text="IP Address (for Ping, WOL &amp; Telemetry)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtNewComputerIp" Watermark="192.168.1.50" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Port" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                    <TextBox Name="TxtNewComputerPort" Text="8080" Watermark="8080" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                </StackPanel>
+                            </Grid>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Dashboard URL (for remote restart / shutdown)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
-                                <TextBox Name="TxtNewComputerUrl" Watermark="http://192.168.1.20:8080" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                <TextBlock Text="Dashboard URL (Auto-filled from IP/Port, or enter custom URL)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                                <TextBox Name="TxtNewComputerUrl" Watermark="http://192.168.1.50:8080" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Dashboard Access PIN (stored locally, never sent back out)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
@@ -538,7 +549,8 @@
                     <StackPanel Spacing="6" Margin="0,6,0,0">
                         <TextBlock Text="NOTIFICATION TRIGGERS" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
                         <CheckBox Name="ChkNotifyBackupStart" Content="Alert on Backup Started (FTP, SQL, Mailchimp)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Completed Successfully" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupProgress" Content="Send Live Progress Updates (Milestones, Visual Bar &amp; Speed)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Completed (Size, Total Storage, Disk Space)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                         <CheckBox Name="ChkNotifyBackupFailure" Content="Alert on Backup Failure" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                         <CheckBox Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                         <CheckBox Name="ChkNotifyOutdated" Content="Alert when Backup is Outdated (&gt;24h)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
@@ -548,7 +560,7 @@
                     <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,4,0,0">
                         <StackPanel Spacing="6">
                             <TextBlock Text="SUPPORTED TELEGRAM BOT COMMANDS" Foreground="#29B6F6" FontSize="10" FontWeight="Bold"/>
-                            <TextBlock Text="• /help — Show interactive command manual&#x0a;• /qr or /connect — Receive iOS app pairing QR code instantly&#x0a;• /backup full — Run full backup across all services&#x0a;• /backup ftp | sql | mailchimp — Run individual service backup&#x0a;• /backup mailchimp members | campaigns | reports | merge_fields | tags&#x0a;• /status — Current health, last syncs, &amp; tunnel URLs" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                            <TextBlock Text="• /help — Show interactive command manual&#x0a;• /qr or /connect — Receive iOS app pairing QR code instantly&#x0a;• /backup full — Run full backup across all services&#x0a;• /backup ftp | sql | mailchimp — Run individual service backup&#x0a;• /backup mailchimp members | campaigns | reports | merge_fields | tags&#x0a;• /status — Current health, last syncs, &amp; tunnel URLs&#x0a;• /stats — Detailed backup statistics, total storage &amp; success rate&#x0a;• /errors — View recent error reports &amp; failed backups" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 

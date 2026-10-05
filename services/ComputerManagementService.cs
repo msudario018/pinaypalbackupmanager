@@ -22,7 +22,8 @@ namespace PinayPalBackupManager.Services
     {
         Main = 0,
         Dev = 1,
-        Aux = 2
+        Aux = 2,
+        Target = 3
     }
 
     /// <summary>Power/remote actions that can be dispatched to a managed computer.</summary>
@@ -53,6 +54,9 @@ namespace PinayPalBackupManager.Services
 
         /// <summary>Base URL of the peer's PinayPal dashboard, e.g. http://192.168.1.20:8080</summary>
         public string ApiBaseUrl { get; set; } = "";
+
+        /// <summary>Optional IP address of the peer machine.</summary>
+        public string IpAddress { get; set; } = "";
 
         /// <summary>Optional web access PIN for the peer. Never returned back to API clients.</summary>
         public string Pin { get; set; } = "";
@@ -186,6 +190,7 @@ namespace PinayPalBackupManager.Services
 
             return nodes.FirstOrDefault(n => n.DisplayName.ToLowerInvariant().Contains(needle))
                 ?? nodes.FirstOrDefault(n => needle.Contains(n.DisplayName.ToLowerInvariant()))
+                ?? (needle.Contains("target") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Target) : null)
                 ?? (needle.Contains("dev") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Dev) : null)
                 ?? (needle.Contains("main") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Main) : null);
         }
@@ -196,7 +201,21 @@ namespace PinayPalBackupManager.Services
             n.MacAddress = NormalizeMac(n.MacAddress);
             n.BroadcastAddress = string.IsNullOrWhiteSpace(n.BroadcastAddress) ? "255.255.255.255" : n.BroadcastAddress.Trim();
             n.WolPort = n.WolPort is < 1 or > 65535 ? 9 : n.WolPort;
+            n.IpAddress = (n.IpAddress ?? "").Trim();
             n.ApiBaseUrl = (n.ApiBaseUrl ?? "").Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(n.ApiBaseUrl) && !string.IsNullOrWhiteSpace(n.IpAddress))
+            {
+                n.ApiBaseUrl = $"http://{n.IpAddress}:8080";
+            }
+            else if (!string.IsNullOrWhiteSpace(n.ApiBaseUrl) && string.IsNullOrWhiteSpace(n.IpAddress))
+            {
+                try
+                {
+                    var uri = new Uri(n.ApiBaseUrl.Contains("://") ? n.ApiBaseUrl : $"http://{n.ApiBaseUrl}");
+                    n.IpAddress = uri.Host;
+                }
+                catch { }
+            }
             return n;
         }
         /// <summary>Registers this machine automatically so "My Computers" is never empty.</summary>
@@ -381,56 +400,108 @@ namespace PinayPalBackupManager.Services
         {
             var snap = new ComputerTelemetrySnapshot();
             var baseUrl = (node.ApiBaseUrl ?? "").TrimEnd('/');
+            var ip = !string.IsNullOrWhiteSpace(node.IpAddress) ? node.IpAddress : (!string.IsNullOrWhiteSpace(baseUrl) ? new Uri(baseUrl.Contains("://") ? baseUrl : $"http://{baseUrl}").Host : "");
 
             if (string.IsNullOrWhiteSpace(baseUrl))
             {
-                snap.Error = "No dashboard URL configured for this computer.";
+                if (!string.IsNullOrWhiteSpace(ip))
+                {
+                    try
+                    {
+                        using var ping = new System.Net.NetworkInformation.Ping();
+                        var reply = await ping.SendPingAsync(ip, 1500);
+                        if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        {
+                            snap.IsOnline = true;
+                            snap.LocalIp = ip;
+                            snap.LatencyMs = (int)reply.RoundtripTime;
+                            snap.Hostname = node.DisplayName;
+                            snap.LastSeenUtc = DateTime.UtcNow;
+                            return snap;
+                        }
+                    }
+                    catch { }
+                }
+
+                snap.Error = "No IP or dashboard URL configured for this computer.";
                 snap.LastSeenUtc = DateTime.UtcNow;
                 return snap;
             }
 
             var sw = Stopwatch.StartNew();
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/hardware/telemetry");
-            if (!string.IsNullOrWhiteSpace(node.Pin))
+            try
             {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", node.Pin);
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/hardware/telemetry");
+                if (!string.IsNullOrWhiteSpace(node.Pin))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", node.Pin);
+                }
+
+                using var cts = new CancellationTokenSource(5000);
+                using var response = await _http.SendAsync(request, cts.Token);
+                sw.Stop();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    snap.Error = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                        ? "Dashboard requires a matching access PIN."
+                        : $"Dashboard responded HTTP {(int)response.StatusCode}.";
+                    snap.LastSeenUtc = DateTime.UtcNow;
+                    return snap;
+                }
+
+                var body = await response.Content.ReadAsStringAsync(cts.Token);
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+
+                snap.IsOnline = true;
+                snap.LatencyMs = (int)sw.ElapsedMilliseconds;
+                snap.LastSeenUtc = DateTime.UtcNow;
+
+                snap.Hostname = ReadString(root, "hostname");
+                snap.OsDescription = ReadString(root, "osDescription");
+                snap.LocalIp = !string.IsNullOrWhiteSpace(ip) ? ip : ReadString(root, "localIp");
+                snap.CpuName = ReadString(root, "cpuName");
+                snap.GpuName = ReadString(root, "gpuName");
+                snap.CpuUsagePercent = ReadDouble(root, "cpuUsagePercent");
+                snap.CpuTempC = ReadDouble(root, "cpuTempC");
+                snap.GpuTempC = ReadDouble(root, "gpuTempC");
+                snap.GpuUsagePercent = ReadDouble(root, "gpuUsagePercent");
+                snap.RamUsagePercent = ReadDouble(root, "ramUsagePercent");
+                snap.RamFreeGB = ReadDouble(root, "ramFreeGB");
+                snap.RamTotalGB = ReadDouble(root, "ramTotalGB");
+                snap.AppRamUsageMB = ReadDouble(root, "appRamUsageMB");
+
+                return snap;
             }
-
-            using var cts = new CancellationTokenSource(5000);
-            using var response = await _http.SendAsync(request, cts.Token);
-            sw.Stop();
-
-            if (!response.IsSuccessStatusCode)
+            catch
             {
-                snap.Error = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Dashboard requires a matching access PIN."
-                    : $"Dashboard responded HTTP {(int)response.StatusCode}.";
+                // If HTTP API is down or not yet started, fallback to pinging the IP address
+                if (!string.IsNullOrWhiteSpace(ip))
+                {
+                    try
+                    {
+                        using var ping = new System.Net.NetworkInformation.Ping();
+                        var reply = await ping.SendPingAsync(ip, 1500);
+                        if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        {
+                            snap.IsOnline = true;
+                            snap.LocalIp = ip;
+                            snap.LatencyMs = (int)reply.RoundtripTime;
+                            snap.Hostname = node.DisplayName;
+                            snap.LastSeenUtc = DateTime.UtcNow;
+                            return snap;
+                        }
+                    }
+                    catch { }
+                }
+
+                snap.IsOnline = false;
+                snap.Error = "Machine is unreachable on the network.";
                 snap.LastSeenUtc = DateTime.UtcNow;
                 return snap;
             }
 
-            var body = await response.Content.ReadAsStringAsync(cts.Token);
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-
-            snap.IsOnline = true;
-            snap.LatencyMs = (int)sw.ElapsedMilliseconds;
-            snap.LastSeenUtc = DateTime.UtcNow;
-
-            snap.Hostname = ReadString(root, "hostname");
-            snap.OsDescription = ReadString(root, "osDescription");
-            snap.CpuName = ReadString(root, "cpuName");
-            snap.GpuName = ReadString(root, "gpuName");
-            snap.CpuUsagePercent = ReadDouble(root, "cpuUsagePercent");
-            snap.CpuTempC = ReadDouble(root, "cpuTempC");
-            snap.GpuTempC = ReadDouble(root, "gpuTempC");
-            snap.GpuUsagePercent = ReadDouble(root, "gpuUsagePercent");
-            snap.RamUsagePercent = ReadDouble(root, "ramUsagePercent");
-            snap.RamFreeGB = ReadDouble(root, "ramFreeGB");
-            snap.RamTotalGB = ReadDouble(root, "ramTotalGB");
-            snap.AppRamUsageMB = ReadDouble(root, "appRamUsageMB");
-
-            return snap;
         }
 
         private static string ReadString(JsonElement root, string name)
@@ -868,6 +939,7 @@ namespace PinayPalBackupManager.Services
         {
             ComputerRole.Main => "Main PC",
             ComputerRole.Dev => "Dev PC",
+            ComputerRole.Target => "Target Computer",
             _ => "Auxiliary"
         };
 
@@ -891,6 +963,7 @@ namespace PinayPalBackupManager.Services
             n.MacAddress,
             n.BroadcastAddress,
             n.WolPort,
+            n.IpAddress,
             n.ApiBaseUrl,
             n.IsLocal,
             n.Enabled,
@@ -906,8 +979,7 @@ namespace PinayPalBackupManager.Services
             {
                 var t = v.Telemetry;
                 var badge = t.IsOnline ? "🟢 Online" : "🔴 Offline";
-                var role = v.Node.Role == ComputerRole.Main ? "Main PC"
-                    : v.Node.Role == ComputerRole.Dev ? "Dev PC" : "Auxiliary";
+                var role = RoleLabel(v.Node.Role);
 
                 sb.AppendLine($"- **{v.Node.DisplayName}** ({role}) — {badge}");
                 if (t.IsOnline)

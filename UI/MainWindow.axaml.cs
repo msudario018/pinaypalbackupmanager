@@ -1289,6 +1289,26 @@ namespace PinayPalBackupManager.UI
                 settings.RefreshEmailAlerts();
                 settings.RefreshAiSettings();
             }
+            else if (control is HomeControl home)
+            {
+                _ = home.RefreshDashboardAsync();
+            }
+            else if (control is StatisticsControl stats)
+            {
+                _ = stats.RefreshStatisticsAsync();
+            }
+            else if (control is HealthCheckControl health)
+            {
+                _ = health.RunHealthCheckAsync();
+            }
+            else if (control is ErrorReportViewerControl errors)
+            {
+                _ = errors.LoadErrorReportsAsync();
+            }
+            else if (control is PerformanceMetricsControl perf)
+            {
+                _ = perf.RefreshMetricsAsync();
+            }
 
             _activeTabAccentBrush = GetAccentBrushForControl(control);
         }

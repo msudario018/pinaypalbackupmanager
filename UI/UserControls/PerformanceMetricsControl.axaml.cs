@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Threading;
 using PinayPalBackupManager.Services;
 using System;
 using System.Linq;
@@ -9,6 +10,8 @@ namespace PinayPalBackupManager.UI.UserControls
 {
     public partial class PerformanceMetricsControl : UserControl
     {
+        private DispatcherTimer? _autoRefreshTimer;
+
         public PerformanceMetricsControl()
         {
             InitializeComponent();
@@ -41,11 +44,31 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Auto-refresh when backups complete
+            BackupHistoryService.OnBackupCompleted += entry =>
+            {
+                Dispatcher.UIThread.Post(() => _ = RefreshMetricsAsync());
+            };
+
+            // Periodic auto-refresh timer (every 30 seconds when visible)
+            _autoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _autoRefreshTimer.Tick += async (_, _) =>
+            {
+                if (IsVisible)
+                {
+                    await RefreshMetricsAsync();
+                }
+            };
+            _autoRefreshTimer.Start();
+
             // Load initial data
             _ = RefreshMetricsAsync();
         }
 
-        private async Task RefreshMetricsAsync()
+        public async Task RefreshMetricsAsync()
         {
             await Task.Yield();
             try

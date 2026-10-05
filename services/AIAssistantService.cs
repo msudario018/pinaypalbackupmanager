@@ -631,15 +631,15 @@ namespace PinayPalBackupManager.Services
                     if (!string.IsNullOrWhiteSpace(replyText)) engineUsed = "cloud";
                 }
 
-                // If LLM returned action tags [ACTION: ...], extract it
+                // If LLM returned action tags [ACTION: ...], extract it and guarantee clean display text
                 if (!string.IsNullOrWhiteSpace(replyText))
                 {
                     var (cleanReply, extractedAction) = ExtractActionFromReply(replyText);
                     if (proposedAction == null && extractedAction != null)
                     {
                         proposedAction = extractedAction;
-                        replyText = cleanReply;
                     }
+                    replyText = cleanReply;
                 }
 
                 // 3. Fall back to the offline diagnostic engine when no LLM could answer.
@@ -870,6 +870,8 @@ namespace PinayPalBackupManager.Services
                         return (unloadOk, unloadMsg);
 
                     case "recreate_tunnel":
+                    case "check_tunnel_status":
+                    case "tunnel_status":
                         var (tunOk, _, tunMsg) = await CloudflareTunnelService.RestartQuickTunnelAsync();
                         action.ExecutionResult = tunOk ? $"Cloudflare Quick Tunnel recreated: {CloudflareTunnelService.ActiveUrl}" : $"Recreation error: {tunMsg}";
                         return (tunOk, action.ExecutionResult);
@@ -950,7 +952,8 @@ namespace PinayPalBackupManager.Services
         {
             if (lower.Contains("computer") || lower.Contains("pc") || lower.Contains("desktop")
                 || lower.Contains("laptop") || lower.Contains("machine") || lower.Contains("devpc")
-                || lower.Contains("mainpc") || lower.Contains("dev pc") || lower.Contains("main pc"))
+                || lower.Contains("mainpc") || lower.Contains("dev pc") || lower.Contains("main pc")
+                || lower.Contains("target pc") || lower.Contains("target computer"))
                 return true;
 
             // A bare registered computer name (e.g. "restart devpc") also counts.
@@ -964,9 +967,12 @@ namespace PinayPalBackupManager.Services
             var quoted = System.Text.RegularExpressions.Regex.Match(lower, @"[""']([^""']+)[""']");
             if (quoted.Success) return quoted.Groups[1].Value;
 
-            // Otherwise, look for a registered name mentioned anywhere in the sentence.
-            var node = ComputerManagementService.GetNodes()
-                .FirstOrDefault(n => lower.Contains(n.DisplayName.ToLowerInvariant()));
+            // Otherwise, look for a registered name mentioned anywhere in the sentence, or match by role.
+            var nodes = ComputerManagementService.GetNodes();
+            var node = nodes.FirstOrDefault(n => lower.Contains(n.DisplayName.ToLowerInvariant()))
+                ?? (lower.Contains("target") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Target) : null)
+                ?? (lower.Contains("dev") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Dev) : null)
+                ?? (lower.Contains("main") ? nodes.FirstOrDefault(n => n.Role == ComputerRole.Main) : null);
             return node?.DisplayName;
         }
 
@@ -1315,6 +1321,19 @@ namespace PinayPalBackupManager.Services
                         Description = "Generates a fresh public trycloudflare.com URL and restarts cloudflared."
                     };
 
+                case "check_tunnel_status":
+                case "tunnel_status":
+                    var tunActive = CloudflareTunnelService.IsRunning;
+                    var tunActiveUrl = CloudflareTunnelService.ActiveUrl ?? "Offline";
+                    return new AIProposedAction
+                    {
+                        ActionType = "recreate_tunnel",
+                        Title = tunActive ? "Cloudflare Tunnel: 🟢 Active" : "Cloudflare Tunnel: 🔴 Offline",
+                        Description = tunActive
+                            ? $"Quick Tunnel is running at {tunActiveUrl}. Tap Approve to restart or regenerate URL."
+                            : "Quick Tunnel is offline. Tap Approve to launch and reconnect Cloudflare Tunnel."
+                    };
+
                 case "run_health_check":
                     return new AIProposedAction
                     {
@@ -1389,7 +1408,8 @@ namespace PinayPalBackupManager.Services
                 }
             }
 
-            var clean = rawReply.Replace(match.Value, "").Trim();
+            // Strip ALL [ACTION: ...] tags from the text so no raw action tags ever leak into the user chat UI
+            var clean = Regex.Replace(rawReply, @"\[ACTION:\s*([a-zA-Z0-9_]+)(?:\((.*?)\))?\]", "").Trim();
             var action = CreateActionFromType(actionType, parameters);
             return (clean, action);
         }
@@ -1890,6 +1910,7 @@ When the user asks you to perform an operational task, or when an issue requires
 [ACTION: action_type(param1=""value1"")]
 Permitted action types:
 - run_backup(service=""all"" | ""ftp"" | ""sql"" | ""mailchimp"" | ""members"" | ""campaigns"" | ""reports"" | ""merge_fields"" | ""tags"")
+- check_tunnel_status(service=""cloudflare"")
 - recreate_tunnel()
 - run_health_check()
 - test_telegram()

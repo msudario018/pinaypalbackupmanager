@@ -164,5 +164,39 @@ namespace PinayPalBackupManager.Tests
             var best = AIAssistantService.SelectBestModel(empty, "default-model");
             Assert.Equal("default-model", best);
         }
+
+        [Fact]
+        public void ComputerManagement_TargetRoleAndIpReconciliation()
+        {
+            Assert.Equal("Target Computer", ComputerManagementService.RoleLabel(ComputerRole.Target));
+
+            var node = new ComputerNode
+            {
+                DisplayName = "Backup NAS",
+                Role = ComputerRole.Target,
+                IpAddress = "192.168.1.120"
+            };
+
+            var existing = ComputerManagementService.GetNodes();
+            var testNodes = new List<ComputerNode>(existing) { node };
+            ComputerManagementService.SaveNodes(testNodes);
+
+            try
+            {
+                var matched = ComputerManagementService.FindNodeByName("target");
+                Assert.NotNull(matched);
+                Assert.Equal(ComputerRole.Target, matched.Role);
+                Assert.Equal("Backup NAS", matched.DisplayName);
+
+                var reloaded = ComputerManagementService.FindNode(node.Id);
+                Assert.NotNull(reloaded);
+                Assert.Equal("192.168.1.120", reloaded.IpAddress);
+                Assert.Equal("http://192.168.1.120:8080", reloaded.ApiBaseUrl);
+            }
+            finally
+            {
+                ComputerManagementService.SaveNodes(existing);
+            }
+        }
     }
 }

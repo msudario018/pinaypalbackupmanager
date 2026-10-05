@@ -16,6 +16,7 @@ namespace PinayPalBackupManager.Services
 
         private static readonly int MaxErrorReports = 100;
         private static readonly object _lock = new object();
+        public static event Action<ErrorReport>? OnErrorAdded;
 
         public class ErrorReport
         {
@@ -176,6 +177,8 @@ namespace PinayPalBackupManager.Services
                     {
                         NotificationService.ShowBackupToast("Critical Error", report.Message, "Error");
                     }
+
+                    OnErrorAdded?.Invoke(report);
                 }
                 catch (Exception ex)
                 {
