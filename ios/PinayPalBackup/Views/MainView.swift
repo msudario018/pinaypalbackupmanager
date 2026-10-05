@@ -237,14 +237,16 @@ public struct MainView: View {
         .liquidGlassNavigationIsland()
         .padding(.horizontal, 14).padding(.top, 2)
         .background(
-            // Opaque near the top, fading out at the bottom. This scrim is what stops
-            // scrolling content from colliding with the title as it passes underneath.
+            // Opaque for the full height. The bottom stop used to fade to 0.55 alpha,
+            // which let scrolling content bleed visibly through the header as it
+            // passed underneath -- showing up as tab content "overlapping" the title.
+            // Content must be occluded, not ghosted through, so this is solid now.
             LinearGradient(
                 stops: [
                     .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.0),
-                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.62),
-                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.92), location: 0.84),
-                    .init(color: LiquidTheme.background(for: systemColorScheme).opacity(0.55), location: 1.0)
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.70),
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 0.93),
+                    .init(color: LiquidTheme.background(for: systemColorScheme), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom

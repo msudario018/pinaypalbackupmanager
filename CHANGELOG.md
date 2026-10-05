@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.9.8 (2026-10-05)
+
+### Fixed
+- **Cold-launch and post-update crashes are no longer silent, and several no longer happen at all.** `Program.cs` ran the Velopack lifecycle hooks, `AppUserModelID` setup, the single-instance check and data migration **above every `try/catch`**. Any exception there terminated the process with nothing written to `startup.log` — which is precisely the reported cold-launch-and-after-update signature, since `VelopackApp.Run()` services the install/update hooks and the post-update relaunch while migration runs on every start. Each step is now individually guarded and logged, then continues. A missing taskbar icon can no longer prevent the app booting, and the inner service-init handler's unguarded `File.AppendAllText` (which threw into the outer handler, which then tried to log again) now goes through a non-throwing helper.
+- **Cloudflare Quick Tunnel now auto-starts on launch.** The start gate required a persisted `CloudflareUrl`, so on a fresh install — or after the URL was cleared — the tunnel never came up and you had to press *Start Quick Tunnel* every single launch. It now starts whenever `AutoRestartTunnel` is enabled, and logs whether it is resuming a previous session or starting for the first time.
+- **iOS header no longer shows tab content bleeding through it.** The header scrim's bottom stop was `opacity(0.55)`, so scrolling content ghosted through instead of being occluded — the "content overlapping the header" artifact. The scrim is now opaque across its full height.
+
+### Added
+- **Pause / Resume Automatic Backups** in the tray right-click menu, with a header that reflects live state instead of a static label, and a system-log entry on every toggle.
+- **Restart PinayPal** in the same menu, for recovering a wedged tray icon or window without opening Task Manager. Validates the executable path first and logs failures.
+
+### Changed
+- Version synchronised to `3.9.8` / iOS **Build 37**.
+
+### Known limitations
+- **Taskbar jump list (right-click the pinned taskbar button) is not implemented.** It differs from the system tray menu, which Avalonia does provide. Windows builds it through `ICustomDestinationList` COM interop that Avalonia exposes no API for; hand-rolled vtables can raise an uncatchable `AccessViolation`, which was judged too risky to attempt in an app already reporting startup crashes. The tray menu remains the supported right-click surface.
+- **"Time Since Last Backup" showing *Never* for FTP/Mailchimp could not be reproduced statically.** The widget already aggregates four independent sources (in-memory, `BackupHistoryService`, physical backup files, log parsing) on a 30-second timer, and the log parser correctly handles both 12- and 24-hour formats. All four returning empty points at configuration rather than code — check `Paths.FtpLocalFolder` and `Paths.MailchimpFolder` in `%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\config.json`.
+
 ## v3.9.7 (2026-10-05)
 
 ### Fixed

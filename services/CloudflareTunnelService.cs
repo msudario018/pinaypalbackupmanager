@@ -56,9 +56,16 @@ namespace PinayPalBackupManager.Services
 
             try
             {
-                if (AutoRestartEnabled && !string.IsNullOrEmpty(ConfigService.Current?.HttpServer?.CloudflareUrl))
+                // Auto-start on launch. Previously this only fired when a persisted
+                // quick tunnel URL existed, which meant the tunnel never came up on a
+                // fresh install or after the URL had been cleared -- you had to press
+                // "Start Quick Tunnel" by hand every launch. AutoRestartEnabled is the
+                // setting that already documents this intent.
+                if (AutoRestartEnabled)
                 {
-                    // A persisted quick tunnel URL means the previous session had a tunnel up.
+                    var persistedUrl = ConfigService.Current?.HttpServer?.CloudflareUrl;
+                    var hadExistingTunnel = !string.IsNullOrEmpty(persistedUrl);
+
                     _expectedRunning = true;
                     _ = Task.Run(async () =>
                     {
@@ -67,21 +74,25 @@ namespace PinayPalBackupManager.Services
                             await Task.Delay(5000);
                             if (_expectedRunning && !IsRunning && !IsStarting)
                             {
-                                LogService.WriteSystemLog("[CloudflareTunnel] Recreating Quick Tunnel from previous session...", "Information", "SYSTEM");
+                                LogService.WriteSystemLog(
+                                    hadExistingTunnel
+                                        ? "[CloudflareTunnel] Recreating Quick Tunnel from previous session..."
+                                        : "[CloudflareTunnel] Auto-starting Quick Tunnel on app launch...",
+                                    "Information", "SYSTEM");
                                 var (ok, _, _) = await StartQuickTunnelAsync();
                                 if (!ok) ScheduleAutoRestart();
                             }
                         }
                         catch (Exception ex)
                         {
-                            LogService.WriteSystemLog($"[CloudflareTunnel] Resurrection task error: {ex.Message}", "Warning", "SYSTEM");
+                            LogService.WriteSystemLog($"[CloudflareTunnel] Launch task error: {ex.Message}", "Warning", "SYSTEM");
                         }
                     });
                 }
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[CloudflareTunnel] Launch resurrection failed: {ex.Message}", "Warning", "SYSTEM");
+                LogService.WriteSystemLog($"[CloudflareTunnel] Launch start failed: {ex.Message}", "Warning", "SYSTEM");
             }
         }
 
