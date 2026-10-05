@@ -53,9 +53,22 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.0 (Build 29)",
+            version: "v3.9.1 (Build 30)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Hotfix for FTP/SQL auto-sync: resolved WinSCP 'Unknown switch resume' error",
+            changes: [
+                ChangelogItem(
+                    type: .fix,
+                    title: "Fixed FTP & SQL Auto-Sync Failure",
+                    description: "Removed incompatible -resume switch from WinSCP directory synchronisation options which caused transfers to halt with 'Unknown switch resume'."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.0 (Build 29)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Telegram Bot remote control, instant QR code reconnection, persistent AI memory & learning, and Zero-Leak shield v2",
             changes: [
                 ChangelogItem(

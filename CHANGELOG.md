@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.9.1 (2026-10-05)
+
+### Fixed
+- **WinSCP `Unknown switch 'resume'` halted FTP and SQL Auto-Sync transfers.** In WinSCP's directory synchronisation API (`Session.SynchronizeDirectories`), the command-line equivalent does not accept a `-resume` switch. Specifying `TransferResumeSupport` and `OverwriteMode.Resume` inside `BuildTransferOptions()` caused WinSCP to inject the invalid switch, causing auto-sync and manual directory syncs to abort with `[WARNING] [AUTO-SYNC] STOPPED: Error detected - Unknown switch 'resume'`. Removed the unsupported switches from directory sync options while keeping `SpeedLimit = 0` (unthrottled) and `TransferMode.Binary`.
+
 ## v3.9.0 (2026-10-05)
 
 ### Added

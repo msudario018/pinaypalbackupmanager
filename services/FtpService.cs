@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -56,28 +56,18 @@ namespace PinayPalBackupManager.Services
         /// <summary>
         /// Builds the transfer options shared by every directory sync.
         ///
-        /// This is the real reason a sync can crawl at kilobytes-per-second:
-        ///  - <see cref="TransferOptions.SpeedLimit"/> is a KB/s cap. 0 means unlimited, and we set
-        ///    it explicitly so a previously persisted throttle can never silently throttle us.
-        ///  - <see cref="TransferOptions.ResumeSupport"/> defaults to off, so an interrupted upload
-        ///    restarts from byte zero. Smart resume lets WinSCP continue partial files instead.
-        ///  - Binary mode avoids a slow ASCII translation path for text and binary alike.
+        /// - SpeedLimit = 0 ensures no bandwidth throttling occurs.
+        /// - Binary mode avoids slow ASCII conversions.
+        /// Note: ResumeSupport and OverwriteMode.Resume must NOT be set here because WinSCP's
+        /// underlying 'synchronize' command does not accept a '-resume' switch and throws
+        /// "Unknown switch 'resume'". Resuming is handled natively by direct transfer calls.
         /// </summary>
         internal static TransferOptions BuildTransferOptions()
         {
             return new TransferOptions
             {
                 SpeedLimit = 0, // 0 = unlimited; never throttle a backup
-                TransferMode = TransferMode.Binary,
-
-                // Resume partial uploads instead of restarting from byte zero. Without this an
-                // interrupted file re-transfers in full, which is what "sync stuck in KB/s" looks like.
-                OverwriteMode = OverwriteMode.Resume,
-                ResumeSupport = new TransferResumeSupport
-                {
-                    State = TransferResumeSupportState.Smart,
-                    Threshold = 100 * 1024 // only bother resuming files >= 100 KB
-                }
+                TransferMode = TransferMode.Binary
             };
         }
 
