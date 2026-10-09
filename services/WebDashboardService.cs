@@ -379,7 +379,7 @@ namespace PinayPalBackupManager.Services
                 {
                     var refresh = request.QueryString["refresh"] == "1";
                     var fleet = await ComputerManagementService.GetFleetAsync(refresh);
-                    await SendJsonAsync(response, 200, new { success = true, computers = fleet });
+                    await SendJsonAsync(response, 200, new { success = true, computers = RedactFleet(fleet) });
                 }
                 else if (path == "/api/computers/history" && request.HttpMethod == "GET")
                 {
@@ -1306,7 +1306,8 @@ namespace PinayPalBackupManager.Services
                 dailyHealthCheckEnabled = op.DailyHealthCheckEnabled,
                 dailyHealthCheckHour = op.DailyHealthCheckHour,
                 autoStartWindows = op.AutoStartWindows,
-                notificationSound = op.NotificationSound
+                notificationSound = op.NotificationSound,
+                autoIntervalMinutes = op.AutoIntervalMinutes
             };
 
             await SendJsonAsync(response, 200, data);
@@ -1344,6 +1345,19 @@ namespace PinayPalBackupManager.Services
                 if (root.TryGetProperty("dailyHealthCheckHour", out var hH) && hH.TryGetInt32(out int hhVal)) { op.DailyHealthCheckHour = Math.Clamp(hhVal, 0, 23); opChanged = true; }
                 if (root.TryGetProperty("autoStartWindows", out var aS)) { op.AutoStartWindows = aS.GetBoolean(); opChanged = true; }
                 if (root.TryGetProperty("notificationSound", out var nS)) { op.NotificationSound = nS.GetBoolean(); opChanged = true; }
+                if (root.TryGetProperty("autoIntervalMinutes", out var aI) && aI.TryGetInt32(out int aiVal))
+                {
+                    op.AutoIntervalMinutes = Math.Clamp(aiVal, 5, 1440);
+                    sched.FtpAutoScanHours = op.AutoIntervalMinutes / 60;
+                    sched.FtpAutoScanMinutes = op.AutoIntervalMinutes % 60;
+                    sched.SqlAutoScanHours = op.AutoIntervalMinutes / 60;
+                    sched.SqlAutoScanMinutes = op.AutoIntervalMinutes % 60;
+                    sched.MailchimpAutoScanHours = op.AutoIntervalMinutes / 60;
+                    sched.MailchimpAutoScanMinutes = op.AutoIntervalMinutes % 60;
+                    schedChanged = true;
+                    opChanged = true;
+                    BackupManager.Current?.ResetAutoScanTimers();
+                }
 
                 if (schedChanged)
                 {
@@ -2041,14 +2055,29 @@ namespace PinayPalBackupManager.Services
             {
                 v.Node.Id,
                 v.Node.DisplayName,
-                role = v.Node.Role.ToString(),
+                role = v.Node.Role.ToString().ToLowerInvariant(),
                 v.Node.MacAddress,
                 v.Node.BroadcastAddress,
                 v.Node.WolPort,
                 v.Node.ApiBaseUrl,
+                ipAddress = v.Node.IpAddress,
                 v.Node.IsLocal,
                 v.Node.Enabled,
                 v.Node.Notes,
+                node = new
+                {
+                    v.Node.Id,
+                    v.Node.DisplayName,
+                    role = v.Node.Role.ToString().ToLowerInvariant(),
+                    v.Node.MacAddress,
+                    v.Node.BroadcastAddress,
+                    v.Node.WolPort,
+                    v.Node.ApiBaseUrl,
+                    ipAddress = v.Node.IpAddress,
+                    v.Node.IsLocal,
+                    v.Node.Enabled,
+                    v.Node.Notes
+                },
                 v.Telemetry,
                 v.AvailableActions
             }).ToList();

@@ -245,9 +245,10 @@ public struct ComputersView: View {
                             .background(Capsule().fill(LiquidTheme.gold.opacity(0.16)))
                     }
                 }
+                let ipDisp = (pc.telemetry.localIp?.isEmpty == false ? pc.telemetry.localIp : pc.ipAddress) ?? "no IP"
                 Text(pc.isOnline
-                     ? "\(pc.roleLabel) · \(pc.telemetry.hostname ?? "—") · \(pc.telemetry.localIp ?? "no IP")"
-                     : "\(pc.roleLabel) · \(pc.statusSummary)")
+                     ? "\(pc.roleLabel) · \(pc.telemetry.hostname ?? pc.displayName) · \(ipDisp)"
+                     : "\(pc.roleLabel) · \(ipDisp) · \(pc.statusSummary)")
                     .font(.caption2)
                     .foregroundColor(LiquidTheme.textSecondary(for: colorScheme))
                     .lineLimit(2)

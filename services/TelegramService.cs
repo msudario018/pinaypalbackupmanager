@@ -31,7 +31,7 @@ namespace PinayPalBackupManager.Services
         private static bool _isPolling = false;
         public static bool IsPolling => _isPolling;
 
-        public static bool IsEnabled => NotificationService.Settings.TelegramEnabled && !string.IsNullOrWhiteSpace(NotificationService.Settings.TelegramBotToken);
+        public static bool IsEnabled => !string.IsNullOrWhiteSpace(NotificationService.Settings.TelegramBotToken);
         public static string BotToken => NotificationService.Settings.TelegramBotToken?.Trim() ?? string.Empty;
         public static string ChatId => NotificationService.Settings.TelegramChatId?.Trim() ?? string.Empty;
 
@@ -229,9 +229,9 @@ namespace PinayPalBackupManager.Services
             {
                 var url = $"https://api.telegram.org/bot{token}/sendPhoto";
                 using var form = new MultipartFormDataContent();
-                form.Add(new StringContent(chat), "chat_id");
-                form.Add(new StringContent(caption), "caption");
-                form.Add(new StringContent("HTML"), "parse_mode");
+                form.Add(new StringContent(chat, Encoding.UTF8), "chat_id");
+                form.Add(new StringContent(caption, Encoding.UTF8), "caption");
+                form.Add(new StringContent("HTML", Encoding.UTF8), "parse_mode");
 
                 var imageContent = new ByteArrayContent(imageBytes);
                 imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
@@ -243,6 +243,26 @@ namespace PinayPalBackupManager.Services
                 if (response.IsSuccessStatusCode)
                 {
                     return (true, "Photo sent successfully.");
+                }
+
+                // If HTML parse failed on caption, retry once without parse_mode
+                if (responseBody.Contains("can't parse entities", StringComparison.OrdinalIgnoreCase))
+                {
+                    LogService.WriteSystemLog("[TELEGRAM] SendPhoto caption HTML parse failed. Retrying with plain text caption.", "Warning", "SYSTEM");
+                    using var plainForm = new MultipartFormDataContent();
+                    plainForm.Add(new StringContent(chat, Encoding.UTF8), "chat_id");
+                    plainForm.Add(new StringContent(StripHtmlTags(caption), Encoding.UTF8), "caption");
+                    var plainImageContent = new ByteArrayContent(imageBytes);
+                    plainImageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+                    plainForm.Add(plainImageContent, "photo", fileName);
+
+                    using var retryRes = await _httpClient.PostAsync(url, plainForm);
+                    var retryBody = await retryRes.Content.ReadAsStringAsync();
+                    if (retryRes.IsSuccessStatusCode)
+                    {
+                        return (true, "Photo sent successfully (plain text caption fallback).");
+                    }
+                    responseBody = retryBody;
                 }
 
                 LogService.WriteSystemLog($"[TELEGRAM] SendPhoto failed: {responseBody}", "Error", "SYSTEM");
@@ -806,7 +826,7 @@ namespace PinayPalBackupManager.Services
                 tailscaleUrl = TailscaleNetworkService.GetTailscaleUrl(localPort),
                 pin = pin,
                 hostname = hostname,
-                version = "3.9.6"
+                version = BackupConfig.AppVersion
             };
 
             payloadJson = JsonSerializer.Serialize(payloadObj);
@@ -822,9 +842,14 @@ namespace PinayPalBackupManager.Services
         /// </summary>
         public static async Task<(bool success, string message)> SendConnectionQrAsync(string? targetChatId = null)
         {
+            string localIp = "127.0.0.1";
+            int port = 8080;
+            string pin = "";
+            string cloudflare = "";
+
             try
             {
-                var bytes = GenerateConnectionQrBytes(out _, out string localIp, out int port, out string pin, out string cloudflare);
+                var bytes = GenerateConnectionQrBytes(out _, out localIp, out port, out pin, out cloudflare);
 
                 var caption = new StringBuilder();
                 caption.AppendLine("📱 <b>PinayPal iOS App Reconnection QR Code</b>");
@@ -842,12 +867,51 @@ namespace PinayPalBackupManager.Services
                 caption.AppendLine("2. Tap <b>'Scan QR Code'</b> on the pairing screen.");
                 caption.AppendLine("3. Point your camera at this QR code to restore live connection!");
 
-                return await SendPhotoAsync(bytes, "pinaypal_ios_pair_qr.png", caption.ToString(), targetChatId);
+                var photoResult = await SendPhotoAsync(bytes, "pinaypal_ios_pair_qr.png", caption.ToString(), targetChatId);
+                if (photoResult.success)
+                {
+                    return photoResult;
+                }
+
+                LogService.WriteSystemLog($"[TELEGRAM] QR photo dispatch failed: {photoResult.message}. Sending text credentials fallback.", "Warning", "SYSTEM");
             }
             catch (Exception ex)
             {
-                LogService.WriteSystemLog($"[TELEGRAM] QR dispatch failed: {ex.Message}", "Error", "SYSTEM");
-                return (false, ex.Message);
+                LogService.WriteSystemLog($"[TELEGRAM] QR dispatch exception: {ex.Message}. Sending text credentials fallback.", "Warning", "SYSTEM");
+            }
+
+            // Fallback: send text message with pairing details so user is never left hanging
+            try
+            {
+                if (localIp == "127.0.0.1")
+                {
+                    localIp = FileDownloadService.GetLocalIpAddress() ?? "127.0.0.1";
+                    port = ConfigService.Current.HttpServer?.Port ?? 8080;
+                    pin = ConfigService.Current.HttpServer?.WebPin ?? "";
+                    cloudflare = CloudflareTunnelService.ActiveUrl ?? ConfigService.Current.HttpServer?.CloudflareUrl ?? "";
+                }
+
+                var fallbackText = new StringBuilder();
+                fallbackText.AppendLine("📱 <b>PinayPal iOS App Reconnection Credentials</b>");
+                fallbackText.AppendLine();
+                fallbackText.AppendLine($"🖥️ <b>Host:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+                fallbackText.AppendLine($"🔑 <b>Web Access PIN:</b> <code>{EscapeHtml(string.IsNullOrEmpty(pin) ? "None (Open)" : pin)}</code>");
+                fallbackText.AppendLine($"🌐 <b>Local URL:</b> <code>http://{localIp}:{port}</code>");
+                if (!string.IsNullOrWhiteSpace(cloudflare))
+                {
+                    fallbackText.AppendLine($"☁️ <b>Cloudflare Tunnel:</b> <code>{EscapeHtml(cloudflare)}</code>");
+                }
+                fallbackText.AppendLine();
+                fallbackText.AppendLine("<b>Manual Reconnect in iOS App:</b>");
+                fallbackText.AppendLine("Open <i>Settings → Server URL</i> in the iOS app, paste the URL and PIN above to restore connection!");
+
+                await SendMessageAsync(fallbackText.ToString(), targetChatId);
+                return (true, "Sent connection credentials via text fallback.");
+            }
+            catch (Exception fallbackEx)
+            {
+                LogService.WriteSystemLog($"[TELEGRAM] QR text fallback failed: {fallbackEx.Message}", "Error", "SYSTEM");
+                return (false, fallbackEx.Message);
             }
         }
 
@@ -887,6 +951,15 @@ namespace PinayPalBackupManager.Services
             var token = BotToken;
             if (string.IsNullOrWhiteSpace(token)) return;
 
+            // Clear any webhook before polling starts so getUpdates does not fail with HTTP 409 Conflict
+            try
+            {
+                var delWebhookUrl = $"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=false";
+                await _httpClient.PostAsync(delWebhookUrl, null, ct);
+                LogService.WriteSystemLog("[TELEGRAM] Webhook cleared to ensure long-polling operates cleanly.", "Information", "SYSTEM");
+            }
+            catch { }
+
             // Register autocomplete command menu
             await RegisterBotCommandsAsync(token);
 
@@ -899,10 +972,6 @@ namespace PinayPalBackupManager.Services
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        // Previously this retried forever in total silence: an invalid
-                        // or empty bot token makes getUpdates return 401, so the loop
-                        // just spun every 4s with nothing logged and nothing shown in
-                        // the UI. Surface the status and Telegram's description instead.
                         var status = (int)response.StatusCode;
                         string apiError = "";
                         try
@@ -913,6 +982,18 @@ namespace PinayPalBackupManager.Services
                                 apiError = desc.GetString() ?? "";
                         }
                         catch { /* body wasn't JSON - status alone is still useful */ }
+
+                        // If Telegram returns 409 conflict, delete the conflicting webhook immediately
+                        if (status == 409)
+                        {
+                            try
+                            {
+                                var delUrl = $"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=false";
+                                await _httpClient.PostAsync(delUrl, null, ct);
+                                LogService.WriteSystemLog("[TELEGRAM] Auto-cleared conflicting webhook during polling.", "Information", "SYSTEM");
+                            }
+                            catch { }
+                        }
 
                         _consecutivePollFailures++;
                         LogService.WriteSystemLog(
@@ -944,9 +1025,17 @@ namespace PinayPalBackupManager.Services
                                 }
                             }
 
-                            if (update.TryGetProperty("message", out var message))
+                            JsonElement messageElem = default;
+                            bool hasMessage = false;
+
+                            if (update.TryGetProperty("message", out messageElem)) hasMessage = true;
+                            else if (update.TryGetProperty("channel_post", out messageElem)) hasMessage = true;
+                            else if (update.TryGetProperty("edited_message", out messageElem)) hasMessage = true;
+                            else if (update.TryGetProperty("edited_channel_post", out messageElem)) hasMessage = true;
+
+                            if (hasMessage)
                             {
-                                _ = Task.Run(() => ProcessIncomingMessageAsync(message), ct);
+                                _ = Task.Run(() => ProcessIncomingMessageAsync(messageElem), ct);
                             }
                         }
                     }
@@ -976,37 +1065,56 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(text))
                     return;
 
+                string senderUserId = "";
+                string senderUsername = "";
+                if (message.TryGetProperty("from", out var fromElem))
+                {
+                    if (fromElem.TryGetProperty("id", out var fId)) senderUserId = fId.ToString();
+                    if (fromElem.TryGetProperty("username", out var uName)) senderUsername = uName.GetString() ?? "";
+                }
+
+                LogService.WriteSystemLog($"[TELEGRAM] Incoming message from {senderChatId} (User: {senderUserId} @{senderUsername}): '{text}'", "Information", "SYSTEM");
+
                 var configuredChatId = ChatId;
 
-                // Security Authorization:
-                // If Chat ID is configured, restrict all commands to the authorized chat ID.
-                if (!string.IsNullOrWhiteSpace(configuredChatId) && !string.Equals(senderChatId, configuredChatId, StringComparison.OrdinalIgnoreCase))
-                {
-                    LogService.WriteSystemLog($"[TELEGRAM] Unauthorized command attempt from Chat ID {senderChatId}: '{text}'", "Warning", "SECURITY");
-                    var deniedMsg = "⛔ <b>Access Denied</b>\n\nThis PinayPal Backup Manager bot is linked to another user.\n" +
-                                   $"Your Chat ID: <code>{senderChatId}</code>\n" +
-                                   "If this is your desktop, update the Chat ID in desktop app Settings.";
-                    await SendMessageAsync(deniedMsg, senderChatId);
-                    return;
-                }
-
-                // If Chat ID is not configured yet, welcome the user and provide their Chat ID
+                // If Chat ID is not configured yet, auto-bind to the first active user messaging the bot
                 if (string.IsNullOrWhiteSpace(configuredChatId))
                 {
-                    var welcomeMsg = "👋 <b>Welcome to PinayPal Backup Manager Bot!</b>\n\n" +
-                                     $"Your Telegram Chat ID is: <code>{senderChatId}</code>\n\n" +
-                                     "<b>Setup Instructions:</b>\n" +
-                                     "1. Copy your Chat ID above.\n" +
-                                     "2. Open the <b>PinayPal Backup Manager</b> desktop app on your PC.\n" +
-                                     "3. Go to <b>Settings → Telegram Bot &amp; Remote Alerts</b>.\n" +
-                                     "4. Paste your Chat ID and click <b>Save Telegram Config</b>.\n\n" +
-                                     "Once saved, you will be authorized to trigger backups and receive alerts!";
-                    await SendMessageAsync(welcomeMsg, senderChatId);
-                    return;
+                    configuredChatId = senderChatId;
+                    NotificationService.Settings.TelegramChatId = senderChatId;
+                    NotificationService.Settings.TelegramEnabled = true;
+                    NotificationService.SaveSettings();
+                    LogService.WriteSystemLog($"[TELEGRAM] Auto-linked authorized Chat ID to {senderChatId} ({senderUsername})", "Information", "SYSTEM");
+                    await SendMessageAsync($"✅ <b>PinayPal Bot Linked Successfully!</b>\n\nConnected to host <code>{EscapeHtml(Environment.MachineName)}</code>.\nYour Chat ID: <code>{senderChatId}</code> has been automatically saved.", senderChatId);
+                }
+                else
+                {
+                    // Permissive security authorization: check sender chat ID, user ID (for groups), and username
+                    bool isAuthorized = string.Equals(senderChatId, configuredChatId, StringComparison.OrdinalIgnoreCase)
+                        || (!string.IsNullOrEmpty(senderUserId) && string.Equals(senderUserId, configuredChatId, StringComparison.OrdinalIgnoreCase))
+                        || (!string.IsNullOrEmpty(senderUsername) && string.Equals(configuredChatId.TrimStart('@'), senderUsername.TrimStart('@'), StringComparison.OrdinalIgnoreCase));
+
+                    if (!isAuthorized)
+                    {
+                        LogService.WriteSystemLog($"[TELEGRAM] Unauthorized command attempt from Chat ID {senderChatId} (User: {senderUserId} @{senderUsername}): '{text}'", "Warning", "SECURITY");
+                        var deniedMsg = "⛔ <b>Access Denied</b>\n\nThis PinayPal Backup Manager bot is linked to another user.\n" +
+                                       $"Your Chat ID: <code>{senderChatId}</code>\n" +
+                                       "If this is your desktop, update the Chat ID in desktop app Settings → Telegram.";
+                        await SendMessageAsync(deniedMsg, senderChatId);
+                        return;
+                    }
                 }
 
-                // Process authorized command
-                await HandleCommandAsync(text.Trim(), senderChatId);
+                // Process authorized command with protective error reply so user is NEVER left in silence
+                try
+                {
+                    await HandleCommandAsync(text.Trim(), senderChatId);
+                }
+                catch (Exception cmdEx)
+                {
+                    LogService.WriteSystemLog($"[TELEGRAM] Command '{text}' execution failed: {cmdEx.Message}", "Error", "SYSTEM");
+                    await SendMessageAsync($"⚠️ <b>Command Execution Issue:</b> {EscapeHtml(cmdEx.Message)}\n\nType <code>/help</code> for available commands.", senderChatId);
+                }
             }
             catch (Exception ex)
             {
@@ -1039,7 +1147,11 @@ namespace PinayPalBackupManager.Services
                 case "reconnect":
                 case "pair":
                     await SendMessageAsync("📱 <i>Generating iOS pairing QR code with active network & tunnel credentials...</i>", chatId);
-                    await SendConnectionQrAsync(chatId);
+                    var (qrOk, qrMsg) = await SendConnectionQrAsync(chatId);
+                    if (!qrOk)
+                    {
+                        await SendMessageAsync($"⚠️ Could not dispatch QR code: {EscapeHtml(qrMsg)}", chatId);
+                    }
                     break;
 
                 case "status":

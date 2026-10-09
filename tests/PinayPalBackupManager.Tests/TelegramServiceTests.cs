@@ -112,4 +112,25 @@ public class TelegramServiceTests
         var result2 = await TelegramService.EditMessageTextAsync(-1, "Test");
         Assert.False(result2);
     }
+
+    [Fact]
+    public void TelegramService_IsEnabled_ReflectsBotToken()
+    {
+        NotificationService.Settings.TelegramBotToken = "";
+        Assert.False(TelegramService.IsEnabled);
+
+        NotificationService.Settings.TelegramBotToken = "123456:ABC-DEF";
+        Assert.True(TelegramService.IsEnabled);
+
+        // Reset
+        NotificationService.Settings.TelegramBotToken = "";
+    }
+
+    [Fact]
+    public void OperationSettings_HasAutoIntervalMinutes()
+    {
+        var op = new OperationSettings();
+        Assert.True(op.AutoIntervalMinutes > 0);
+        Assert.Equal(60, op.AutoIntervalMinutes);
+    }
 }

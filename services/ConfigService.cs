@@ -157,6 +157,7 @@ namespace PinayPalBackupManager.Services
                 existing.Operation.AcceptAnyTlsCert = Current.Operation.AcceptAnyTlsCert;
                 existing.Operation.DailyHealthCheckEnabled = Current.Operation.DailyHealthCheckEnabled;
                 existing.Operation.DailyHealthCheckHour = Current.Operation.DailyHealthCheckHour;
+                existing.Operation.AutoIntervalMinutes = Current.Operation.AutoIntervalMinutes;
 
                 // Smart scheduling + sync safety. These are copied explicitly because this
                 // method merges into the on-disk file rather than replacing the whole object;
@@ -831,6 +832,7 @@ namespace PinayPalBackupManager.Services
             target.Operation.AcceptAnyTlsCert = source.Operation.AcceptAnyTlsCert;
             target.Operation.DailyHealthCheckEnabled = source.Operation.DailyHealthCheckEnabled;
             if (source.Operation.DailyHealthCheckHour != 0) target.Operation.DailyHealthCheckHour = source.Operation.DailyHealthCheckHour;
+            if (source.Operation.AutoIntervalMinutes > 0) target.Operation.AutoIntervalMinutes = source.Operation.AutoIntervalMinutes;
 
             if (source.HttpServer.Port != 0) target.HttpServer.Port = source.HttpServer.Port;
             target.HttpServer.Enabled = source.HttpServer.Enabled;

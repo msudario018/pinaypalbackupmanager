@@ -64,6 +64,7 @@ public struct ServerConfigSheet: View {
     @State private var healthEnabled: Bool = true
     @State private var autoStartWindows: Bool = false
     @State private var notificationSound: Bool = true
+    @State private var autoIntervalMinutes: Int = 60
     @State private var isSavingRemote: Bool = false
     @State private var remoteSaveResult: String? = nil
     @State private var showEmergencyAlert: Bool = false
@@ -664,6 +665,31 @@ public struct ServerConfigSheet: View {
                         .foregroundColor(LiquidTheme.textPrimary)
                 }
                 .tint(LiquidTheme.gold)
+
+                Divider().background(Color.white.opacity(0.08))
+
+                // Auto-Sync Interval Picker
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Periodic Sync Interval")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(LiquidTheme.textPrimary)
+                        Text("Background scan frequency for FTP, SQL & Mailchimp")
+                            .font(.system(size: 10))
+                            .foregroundColor(LiquidTheme.textSecondary)
+                    }
+                    Spacer()
+                    Picker("Interval", selection: $autoIntervalMinutes) {
+                        Text("30 min").tag(30)
+                        Text("1 hour").tag(60)
+                        Text("2 hours").tag(120)
+                        Text("4 hours").tag(240)
+                        Text("8 hours").tag(480)
+                        Text("24 hours").tag(1440)
+                    }
+                    .pickerStyle(.menu)
+                    .tint(LiquidTheme.gold)
+                }
             }
             .padding(18)
             .liquidGlassCard(cornerRadius: 18)
@@ -1668,6 +1694,9 @@ public struct ServerConfigSheet: View {
             healthEnabled = s.dailyHealthCheckEnabled
             autoStartWindows = s.autoStartWindows
             notificationSound = s.notificationSound
+            if let interval = s.autoIntervalMinutes {
+                autoIntervalMinutes = interval
+            }
         } else {
             Task {
                 await api.fetchRemoteSettings()
@@ -1683,6 +1712,9 @@ public struct ServerConfigSheet: View {
                     healthEnabled = s.dailyHealthCheckEnabled
                     autoStartWindows = s.autoStartWindows
                     notificationSound = s.notificationSound
+                    if let interval = s.autoIntervalMinutes {
+                        autoIntervalMinutes = interval
+                    }
                 }
             }
         }
@@ -1703,7 +1735,8 @@ public struct ServerConfigSheet: View {
             dailyHealthCheckEnabled: healthEnabled,
             dailyHealthCheckHour: healthHour,
             autoStartWindows: autoStartWindows,
-            notificationSound: notificationSound
+            notificationSound: notificationSound,
+            autoIntervalMinutes: autoIntervalMinutes
         )
 
         Task {

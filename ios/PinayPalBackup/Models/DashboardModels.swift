@@ -225,6 +225,7 @@ public struct RemoteSettings: Codable, Equatable {
     public var dailyHealthCheckHour: Int
     public var autoStartWindows: Bool
     public var notificationSound: Bool
+    public var autoIntervalMinutes: Int?
 
     public init(
         ftpDailySyncHourMnl: Int = 22,
@@ -237,7 +238,8 @@ public struct RemoteSettings: Codable, Equatable {
         dailyHealthCheckEnabled: Bool = true,
         dailyHealthCheckHour: Int = 8,
         autoStartWindows: Bool = false,
-        notificationSound: Bool = true
+        notificationSound: Bool = true,
+        autoIntervalMinutes: Int? = 60
     ) {
         self.ftpDailySyncHourMnl = ftpDailySyncHourMnl
         self.ftpDailySyncMinuteMnl = ftpDailySyncMinuteMnl
@@ -250,6 +252,7 @@ public struct RemoteSettings: Codable, Equatable {
         self.dailyHealthCheckHour = dailyHealthCheckHour
         self.autoStartWindows = autoStartWindows
         self.notificationSound = notificationSound
+        self.autoIntervalMinutes = autoIntervalMinutes
     }
 }
 
@@ -296,6 +299,7 @@ public struct ComputerNodeSpec: Codable, Equatable {
         switch role.lowercased() {
         case "main": return "Main PC"
         case "dev": return "Dev PC"
+        case "target": return "Target Computer"
         default: return "Auxiliary"
         }
     }
@@ -336,6 +340,7 @@ public struct ComputerSpec: Codable, Equatable, Identifiable {
     public let broadcastAddress: String
     public let wolPort: Int
     public let apiBaseUrl: String
+    public let ipAddress: String?
     public let isLocal: Bool
     public let enabled: Bool
     public let notes: String
@@ -344,6 +349,7 @@ public struct ComputerSpec: Codable, Equatable, Identifiable {
 
     public init(id: String, displayName: String, role: String, macAddress: String,
                 broadcastAddress: String, wolPort: Int, apiBaseUrl: String,
+                ipAddress: String? = nil,
                 isLocal: Bool, enabled: Bool, notes: String,
                 telemetry: ComputerTelemetrySpec, availableActions: [String]) {
         self.id = id
@@ -353,6 +359,7 @@ public struct ComputerSpec: Codable, Equatable, Identifiable {
         self.broadcastAddress = broadcastAddress
         self.wolPort = wolPort
         self.apiBaseUrl = apiBaseUrl
+        self.ipAddress = ipAddress
         self.isLocal = isLocal
         self.enabled = enabled
         self.notes = notes
@@ -382,6 +389,7 @@ public struct ComputerSpec: Codable, Equatable, Identifiable {
         broadcastAddress = value(.broadcastAddress, "255.255.255.255")
         wolPort = value(.wolPort, 9)
         apiBaseUrl = value(.apiBaseUrl, "")
+        ipAddress = value(.ipAddress, "")
         isLocal = value(.isLocal, false)
         enabled = value(.enabled, true)
         notes = value(.notes, "")

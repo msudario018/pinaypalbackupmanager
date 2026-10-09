@@ -97,11 +97,15 @@ namespace PinayPalBackupManager.Services
             if (subnet == null) return new List<DiscoveredHost>();
 
             var arp = ReadArpTable();
+            var localIps = FileDownloadService.GetAllLocalIPv4Addresses().ToHashSet(StringComparer.OrdinalIgnoreCase);
+            localIps.Add(ComputerManagementService.GetLanIPv4Address());
+            localIps.Add("127.0.0.1");
             using var throttle = new SemaphoreSlim(maxConcurrency);
 
             var tasks = EnumerateSubnet(subnet).Select(async ip =>
             {
                 if (cancellationToken.IsCancellationRequested) return;
+                if (localIps.Contains(ip)) return; // Never show the local machine in discover results
 
                 await throttle.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try

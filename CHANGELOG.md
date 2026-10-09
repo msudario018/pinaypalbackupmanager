@@ -1,5 +1,30 @@
 # Changelog
 
+## v3.9.9 (2026-10-09)
+
+### Added
+- **Configurable Periodic Backup & Sync Interval in Settings**:
+  - Exposed the periodic backup and synchronization interval (30 minutes, 1 hour, 2 hours, 4 hours, 8 hours, 24 hours) directly within the Settings tab under *System Configuration* in the Windows Desktop application.
+  - Added *Auto-Sync Interval* menu picker in the iOS app under *Retention & System Automation* (Settings / Server Config Sheet), enabling seamless mobile adjustment of remote backup frequency.
+  - Wired `/api/settings` GET and POST endpoints in `WebDashboardService` to synchronize `autoIntervalMinutes` and dynamically trigger `BackupManager.ResetAutoScanTimers()`.
+
+### Fixed
+- **Telegram Bot Command Replies & QR Code Transmission**:
+  - Uncoupled polling engine execution from the secondary `TelegramEnabled` toggle so incoming commands (`/qr`, `/stats`, `/errors`, `/help`, `/backup`) are received whenever a valid bot token is configured.
+  - Automatically detect and delete pre-existing or conflicting webhooks upon startup and HTTP 409 responses, ensuring continuous polling without bot silence.
+  - Added automatic chat binding on incoming messages if `ChatId` is not yet configured, immediately answering the command without requiring manual ID entry.
+  - Enhanced multipart form data encoding with explicit UTF-8 byte conversion in `SendPhotoAsync` to ensure pairing QR codes and emoji captions deliver reliably.
+  - Added error-catching fallbacks so any internal command dispatch errors are reported directly to the user in chat.
+- **Computer Fleet Discovery & Hostname Resolution ("Dev PC" Collision)**:
+  - Fixed an issue where adding a target computer by IP address could default to or display "Dev PC" due to placeholder watermark confusion and missing remote hostname resolution.
+  - Implemented asynchronous DNS hostname resolution (`Dns.GetHostEntryAsync`) when an IP address is entered in the PC fleet manager, falling back to clean `PC-{tail}` naming.
+  - Updated placeholder watermarks from "Dev PC" to "e.g. Target PC, Secondary Rig" to avoid user naming confusion.
+  - Filtered out the host machine's own LAN and local IPv4 addresses in `NetworkScannerService` so the local host does not appear in discovered peer lists.
+  - Added peer role mapping ("Target Computer") and IP display in iOS fleet views.
+
+### Changed
+- Version synchronized to **3.9.9** / iOS **Build 38**.
+
 ## v3.9.8 (2026-10-05)
 
 ### Fixed

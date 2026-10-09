@@ -105,7 +105,21 @@
                     <CheckBox Name="ChkAutoTls" Content="Auto-Update TLS Certificate on Renewal" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <CheckBox Name="ChkDailyHealth" Content="Run Daily Automated Health Check" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                                        <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Auto-Backup &amp; Sync Interval" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Automatic background scan &amp; backup frequency (FTP, SQL, Mailchimp)" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" Name="CmbAutoInterval" Width="140" SelectedIndex="1" VerticalAlignment="Center">
+                            <ComboBoxItem Content="30 minutes"/>
+                            <ComboBoxItem Content="1 hour"/>
+                            <ComboBoxItem Content="2 hours"/>
+                            <ComboBoxItem Content="4 hours"/>
+                            <ComboBoxItem Content="8 hours"/>
+                            <ComboBoxItem Content="24 hours"/>
+                        </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <ui:LocalizedTextBlock Key="language" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
                             <ui:LocalizedTextBlock Key="language_description" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
@@ -432,7 +446,7 @@
                             <Grid ColumnDefinitions="*, *" Margin="0,2,0,0">
                                 <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,6,0">
                                     <TextBlock Text="Display Name" Foreground="{DynamicResource AppMuted}" FontSize="10"/>
-                                    <TextBox Name="TxtNewComputerName" Watermark="Dev PC" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
+                                    <TextBox Name="TxtNewComputerName" Watermark="e.g. Target PC, Secondary Rig" Background="{DynamicResource AppCard}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6" FontSize="11"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="4">
                                     <TextBlock Text="Role" Foreground="{DynamicResource AppMuted}" FontSize="10"/>

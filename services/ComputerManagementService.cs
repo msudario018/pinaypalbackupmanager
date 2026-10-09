@@ -243,12 +243,13 @@ namespace PinayPalBackupManager.Services
                 string.Equals(n.DisplayName, Environment.MachineName, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
-                node.DisplayName = existing.DisplayName;
-                node.Role = existing.Role;
-                node.Notes = existing.Notes;
+                existing.IsLocal = true;
+                if (string.IsNullOrWhiteSpace(existing.MacAddress))
+                    existing.MacAddress = GetPrimaryMacAddress();
+                return;
             }
 
-            nodes.Add(node);
+            nodes.Insert(0, node);
         }
 
         public static string NormalizeMac(string? mac)
@@ -412,10 +413,21 @@ namespace PinayPalBackupManager.Services
                         var reply = await ping.SendPingAsync(ip, 1500);
                         if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                         {
+                            string resolvedHost = "";
+                            try
+                            {
+                                var entry = System.Net.Dns.GetHostEntry(ip);
+                                resolvedHost = entry.HostName?.Split('.').FirstOrDefault() ?? "";
+                            }
+                            catch { }
+
                             snap.IsOnline = true;
                             snap.LocalIp = ip;
                             snap.LatencyMs = (int)reply.RoundtripTime;
-                            snap.Hostname = node.DisplayName;
+                            string fallbackName = (!string.IsNullOrWhiteSpace(node.DisplayName) && !node.DisplayName.Equals("Dev PC", StringComparison.OrdinalIgnoreCase))
+                                ? node.DisplayName
+                                : (!string.IsNullOrWhiteSpace(ip) ? $"PC ({ip})" : "Remote PC");
+                            snap.Hostname = !string.IsNullOrWhiteSpace(resolvedHost) ? resolvedHost : fallbackName;
                             snap.LastSeenUtc = DateTime.UtcNow;
                             return snap;
                         }
@@ -485,10 +497,21 @@ namespace PinayPalBackupManager.Services
                         var reply = await ping.SendPingAsync(ip, 1500);
                         if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                         {
+                            string resolvedHost = "";
+                            try
+                            {
+                                var entry = System.Net.Dns.GetHostEntry(ip);
+                                resolvedHost = entry.HostName?.Split('.').FirstOrDefault() ?? "";
+                            }
+                            catch { }
+
                             snap.IsOnline = true;
                             snap.LocalIp = ip;
                             snap.LatencyMs = (int)reply.RoundtripTime;
-                            snap.Hostname = node.DisplayName;
+                            string fallbackName = (!string.IsNullOrWhiteSpace(node.DisplayName) && !node.DisplayName.Equals("Dev PC", StringComparison.OrdinalIgnoreCase))
+                                ? node.DisplayName
+                                : (!string.IsNullOrWhiteSpace(ip) ? $"PC ({ip})" : "Remote PC");
+                            snap.Hostname = !string.IsNullOrWhiteSpace(resolvedHost) ? resolvedHost : fallbackName;
                             snap.LastSeenUtc = DateTime.UtcNow;
                             return snap;
                         }

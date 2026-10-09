@@ -201,6 +201,46 @@ namespace PinayPalBackupManager.UI.UserControls
                 };
             }
 
+            // Load Auto-Backup Interval setting
+            var cmbAutoInterval = this.FindControl<ComboBox>("CmbAutoInterval");
+            if (cmbAutoInterval != null)
+            {
+                var mins = ConfigService.Current.Operation.AutoIntervalMinutes;
+                cmbAutoInterval.SelectedIndex = mins switch
+                {
+                    <= 30 => 0,
+                    <= 60 => 1,
+                    <= 120 => 2,
+                    <= 240 => 3,
+                    <= 480 => 4,
+                    _ => 5
+                };
+                cmbAutoInterval.SelectionChanged += (_, _) =>
+                {
+                    var intervalMinutes = cmbAutoInterval.SelectedIndex switch
+                    {
+                        0 => 30,
+                        1 => 60,
+                        2 => 120,
+                        3 => 240,
+                        4 => 480,
+                        5 => 1440,
+                        _ => 60
+                    };
+                    ConfigService.Current.Operation.AutoIntervalMinutes = intervalMinutes;
+                    ConfigService.Current.Schedule.FtpAutoScanHours = intervalMinutes / 60;
+                    ConfigService.Current.Schedule.FtpAutoScanMinutes = intervalMinutes % 60;
+                    ConfigService.Current.Schedule.SqlAutoScanHours = intervalMinutes / 60;
+                    ConfigService.Current.Schedule.SqlAutoScanMinutes = intervalMinutes % 60;
+                    ConfigService.Current.Schedule.MailchimpAutoScanHours = intervalMinutes / 60;
+                    ConfigService.Current.Schedule.MailchimpAutoScanMinutes = intervalMinutes % 60;
+                    ConfigService.SaveOperation();
+                    ConfigService.Save();
+                    BackupManager.Current?.ResetAutoScanTimers();
+                    NotificationService.ShowBackupToast("Settings", $"Auto-backup interval set to {intervalMinutes} min.", "Info");
+                    LogService.WriteSystemLog($"[Settings] Auto-backup interval changed to {intervalMinutes} minutes", "Information", "SETTINGS");
+                };
+            }
             
             // Load Language setting
             var cmbLanguage = this.FindControl<ComboBox>("CmbLanguage");
@@ -891,7 +931,27 @@ namespace PinayPalBackupManager.UI.UserControls
                 SyncUrlFromIpPort();
             }
 
-            if (txtIp != null) txtIp.TextChanged += (_, _) => SyncUrlFromIpPort();
+            if (txtIp != null)
+            {
+                txtIp.TextChanged += (_, _) => SyncUrlFromIpPort();
+                txtIp.LostFocus += async (_, _) =>
+                {
+                    var ipVal = txtIp?.Text?.Trim() ?? "";
+                    if (!string.IsNullOrWhiteSpace(ipVal) && (txtName != null && string.IsNullOrWhiteSpace(txtName.Text)))
+                    {
+                        try
+                        {
+                            var entry = await System.Net.Dns.GetHostEntryAsync(ipVal);
+                            var resolved = entry.HostName?.Split('.').FirstOrDefault();
+                            if (!string.IsNullOrWhiteSpace(resolved) && string.IsNullOrWhiteSpace(txtName.Text))
+                            {
+                                txtName.Text = resolved;
+                            }
+                        }
+                        catch { }
+                    }
+                };
+            }
             if (txtPort != null) txtPort.TextChanged += (_, _) => SyncUrlFromIpPort();
             if (txtUrl != null)
             {
@@ -988,13 +1048,41 @@ namespace PinayPalBackupManager.UI.UserControls
 
             if (btnAdd != null)
             {
-                btnAdd.Click += (_, _) =>
+                btnAdd.Click += async (_, _) =>
                 {
                     var name = txtName?.Text?.Trim() ?? "";
+                    var ip = txtIp?.Text?.Trim() ?? "";
+                    var localIp = ComputerManagementService.GetLanIPv4Address();
+
+                    if (!string.IsNullOrWhiteSpace(ip) && (string.Equals(ip, localIp, StringComparison.OrdinalIgnoreCase) || ip == "127.0.0.1" || ip.Equals("localhost", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (txtStatus != null) txtStatus.Text = "This IP belongs to this PC, which is already registered as 'This PC'. Enter your other computer's IP.";
+                        NotificationService.ShowBackupToast("My Computers", "This IP belongs to this PC.", "Warning");
+                        return;
+                    }
+
                     if (string.IsNullOrWhiteSpace(name))
                     {
-                        if (txtStatus != null) txtStatus.Text = "Please give the computer a name first.";
-                        return;
+                        if (!string.IsNullOrWhiteSpace(ip))
+                        {
+                            try
+                            {
+                                var entry = await System.Net.Dns.GetHostEntryAsync(ip);
+                                name = entry.HostName?.Split('.').FirstOrDefault() ?? "";
+                            }
+                            catch { }
+
+                            if (string.IsNullOrWhiteSpace(name))
+                            {
+                                var tail = ip.Split('.').LastOrDefault();
+                                name = !string.IsNullOrWhiteSpace(tail) ? $"PC-{tail}" : $"PC-{ip}";
+                            }
+                        }
+                        else
+                        {
+                            if (txtStatus != null) txtStatus.Text = "Please give the computer a name or enter an IP address.";
+                            return;
+                        }
                     }
 
                     var mac = ComputerManagementService.NormalizeMac(txtMac?.Text);
@@ -1012,7 +1100,6 @@ namespace PinayPalBackupManager.UI.UserControls
                         _ => ComputerRole.Aux
                     };
 
-                    var ip = txtIp?.Text?.Trim() ?? "";
                     var url = txtUrl?.Text?.Trim() ?? "";
                     if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(ip))
                     {

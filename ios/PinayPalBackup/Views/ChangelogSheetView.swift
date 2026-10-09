@@ -53,9 +53,37 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.6 (Build 35)",
+            version: "v3.9.9 (Build 38)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Configurable sync interval in settings, robust Telegram bot command processing, fleet peer automatic hostname resolution, and network discovery improvements",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Configurable Backup & Sync Interval",
+                    description: "Configure periodic backup frequency (30m, 1h, 2h, 4h, 8h, 24h) directly in Settings with instant remote synchronization to the desktop host."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Telegram Bot Commands & QR Code Fixes",
+                    description: "Bot polling runs whenever configured, clearing webhook conflicts, resolving chat binding, and reliably dispatching QR codes and status replies."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Computer Fleet Hostname Resolution",
+                    description: "Adding target computers by IP address resolves hostnames via DNS rather than duplicating the host PC name."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Network Scanner & Telemetry Filtering",
+                    description: "Filtered host machine IP from peer discovery scan and streamlined remote configuration synchronization."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.6 (Build 35)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Real-time Telegram progress bars with in-place editing, enriched backup completion reports with storage stats, auto-refreshing dashboard tabs, and enhanced network device discovery",
             changes: [
                 ChangelogItem(
