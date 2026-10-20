@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia.Controls;
@@ -57,21 +59,45 @@ namespace PinayPalBackupManager.Services
 
             try
             {
-                bool createdNew;
-                _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out createdNew);
+                var currentProc = Process.GetCurrentProcess();
+                var otherProcs = Process.GetProcessesByName(currentProc.ProcessName)
+                    .Where(p => p.Id != currentProc.Id)
+                    .ToList();
 
-                if (!createdNew)
+                // If no other PinayPal process is actually running, we are the only active instance!
+                if (otherProcs.Count == 0)
                 {
-                    // An instance is already running. Signal it to restore its window and exit this duplicate process.
-                    try
-                    {
-                        _restoreSignal.Set();
-                    }
-                    catch { }
-                    return false;
+                    bool createdNew;
+                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out createdNew);
+                    return true;
                 }
 
-                return true;
+                // Another instance is genuinely running. Signal it to restore its window.
+                try
+                {
+                    if (EventWaitHandle.TryOpenExisting("PinayPalBackupManager_RestoreSignal", out var signal))
+                    {
+                        signal.Set();
+                        signal.Dispose();
+                    }
+                }
+                catch { }
+
+                // Also try to bring existing process window to front directly via Win32 SetForegroundWindow
+                foreach (var other in otherProcs)
+                {
+                    try
+                    {
+                        if (other.MainWindowHandle != IntPtr.Zero)
+                        {
+                            ShowWindow(other.MainWindowHandle, SW_RESTORE);
+                            SetForegroundWindow(other.MainWindowHandle);
+                        }
+                    }
+                    catch { }
+                }
+
+                return false;
             }
             catch
             {
@@ -79,12 +105,23 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        private static Action? _onRestoreRequested;
+
         public static void StartSingleInstanceListener(Action onRestoreRequested)
         {
-            if (!OperatingSystem.IsWindows() || _restoreSignal == null) return;
+            if (!OperatingSystem.IsWindows()) return;
+
+            _onRestoreRequested = onRestoreRequested;
 
             try
             {
+                if (_restoreSignal == null)
+                {
+                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal");
+                }
+
+                if (_listenerThread != null && _listenerThread.IsAlive) return;
+
                 _listenerThread = new Thread(() =>
                 {
                     while (true)
@@ -94,7 +131,7 @@ namespace PinayPalBackupManager.Services
                             _restoreSignal.WaitOne();
                             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                             {
-                                onRestoreRequested?.Invoke();
+                                _onRestoreRequested?.Invoke();
                             });
                         }
                         catch
@@ -198,6 +235,20 @@ namespace PinayPalBackupManager.Services
             catch { }
         }
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        public static void BringToForeground(Window window) => ForceForeground(window);
+
         public static void ForceForeground(Window window)
         {
             if (!OperatingSystem.IsWindows()) return;
@@ -207,8 +258,25 @@ namespace PinayPalBackupManager.Services
                 var handle = window.TryGetPlatformHandle();
                 if (handle != null && handle.Handle != IntPtr.Zero)
                 {
-                    ShowWindow(handle.Handle, SW_RESTORE);
-                    SetForegroundWindow(handle.Handle);
+                    IntPtr hwnd = handle.Handle;
+                    ShowWindow(hwnd, SW_RESTORE);
+
+                    IntPtr fgHwnd = GetForegroundWindow();
+                    uint fgThread = GetWindowThreadProcessId(fgHwnd, IntPtr.Zero);
+                    uint curThread = (uint)Environment.CurrentManagedThreadId;
+
+                    if (fgThread != 0 && fgThread != curThread)
+                    {
+                        AttachThreadInput(curThread, fgThread, true);
+                        BringWindowToTop(hwnd);
+                        SetForegroundWindow(hwnd);
+                        AttachThreadInput(curThread, fgThread, false);
+                    }
+                    else
+                    {
+                        BringWindowToTop(hwnd);
+                        SetForegroundWindow(hwnd);
+                    }
                 }
             }
             catch { }

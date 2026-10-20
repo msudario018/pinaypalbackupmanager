@@ -21,7 +21,31 @@ namespace PinayPalBackupManager.Services
                 if (state == null || state.W < 600 || state.H < 400) return;
                 window.Width    = state.W;
                 window.Height   = state.H;
-                window.Position = new PixelPoint(Math.Max(0, state.X), Math.Max(0, state.Y));
+
+                var pt = new PixelPoint(state.X, state.Y);
+                var screens = window.Screens;
+                bool isVisibleOnAnyScreen = false;
+
+                if (screens != null && screens.All.Count > 0)
+                {
+                    foreach (var s in screens.All)
+                    {
+                        if (s.Bounds.Contains(pt))
+                        {
+                            isVisibleOnAnyScreen = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isVisibleOnAnyScreen)
+                {
+                    window.Position = pt;
+                }
+                else
+                {
+                    window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                }
             }
             catch { }
         }

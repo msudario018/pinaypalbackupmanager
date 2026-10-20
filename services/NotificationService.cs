@@ -855,6 +855,7 @@ namespace PinayPalBackupManager.Services
         public bool TelegramEnabled { get; set; } = false;
         public string TelegramBotToken { get; set; } = string.Empty;
         public string TelegramChatId { get; set; } = string.Empty;
+        public string TelegramChatTitle { get; set; } = string.Empty;
         public bool NotifyOnBackupStart { get; set; } = true;
         public bool NotifyOnBackupProgress { get; set; } = true;
         public bool NotifyOnBackupSuccess { get; set; } = true;

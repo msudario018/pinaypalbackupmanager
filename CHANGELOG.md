@@ -1,5 +1,36 @@
 # Changelog
 
+## v4.0.0 (2026-10-20)
+
+### Added
+- **Continuous Learning & Conversational AI Overhaul (PC & iOS)**:
+  - Replaced rigid, robotic canned greeting strings with an intelligent, adaptive conversational synthesis engine aware of the host machine's telemetry (CPU load, active memory), time of day, and remembered user facts.
+  - Implemented continuous autonomous learning from regular conversation: extracts user names, backup schedule habits, preferred notification channels, operational restrictions, and server notes on the fly into `AIMemoryStore` with strict Zero-Leak secret redaction.
+  - Conversational empathy & dialogue handling: thoughtful, human-like answers for gratitude ("thank you", "thanks"), compliments ("good job", "awesome"), departure check-ins, and capabilities.
+  - Added interactive tappable follow-up suggestion chips under assistant chat bubbles in both the PC app and iOS `LiquidAIAssistantSheet.swift`.
+  - Let local Ollama and Cloud LLM providers handle conversational greetings naturally when active rather than short-circuiting to static text.
+
+- **Modernized Settings Layout & Instant Category Jump Navigation**:
+  - Re-architected `SettingsControl.axaml` to convert all remaining static border sections (Web Dashboard, Telegram Bot, Configuration / Credentials, Management Tools, and System Info) into collapsible cards (`CollapsibleCardControl`) with dedicated accent palettes and vector icons.
+  - Added an ergonomic Category Navigation Strip (*All Settings*, *General & Updates*, *Health & Sync*, *AI Assistant*, *My Computers*, *Web & Remote*, *Telegram Bot*, *Credentials & Tools*) allowing instant navigation to desired settings without long vertical scrolling.
+  - Added *Add Bot to Group* guided action in Telegram settings that opens Telegram with direct bot invite deep-links.
+
+### Fixed
+- **PC App Launch & Off-Screen Window Restoration**:
+  - Fixed single-instance check in `AppIconHelper.cs`: verified active running processes by name before exiting so orphaned OS mutex/event handles no longer cause the app to silently terminate without UI.
+  - Multi-monitor boundary validation in `WindowStateService.Restore`: verifies window coordinates against currently connected monitors so windows never launch off-screen when secondary monitors are unplugged.
+  - Desktop-lifetime single-instance activation listener in `App.axaml.cs`: brings existing instances to the front even if currently sitting on the `LoginWindow` or `SetupWizardWindow`.
+  - Win32 foreground elevation using `AttachThreadInput`, `BringWindowToTop`, and `SetForegroundWindow` to guarantee focus acquisition on Windows.
+
+- **Telegram Bot Polling & Remote Command Execution**:
+  - Fixed fatal HTTP timeout bug where 35-second polling cancellation threw `OperationCanceledException` and permanently broke the polling loop.
+  - Group chat command routing: supports `/command@botname` syntax and commands sent within Telegram groups and supergroups.
+  - Added `/link`, `/unlink`, and `/group` commands for effortless binding and management of group alert destinations.
+  - Pre-login backup runner safeguards: prevents silent executor failures by sending descriptive alerts if manual backup commands are issued while the desktop app is locked or on the login screen.
+
+### Changed
+- Version synchronized to **v4.0.0** / iOS **Build 39**.
+
 ## v3.9.9 (2026-10-09)
 
 ### Added

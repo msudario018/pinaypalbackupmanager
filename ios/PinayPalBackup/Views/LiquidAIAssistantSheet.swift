@@ -199,6 +199,35 @@ public struct LiquidAIAssistantSheet: View {
                     if let action = message.proposedAction {
                         actionProposalCard(action)
                     }
+
+                    if !message.followUpSuggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(message.followUpSuggestions, id: \.self) { suggestion in
+                                    Button(action: {
+                                        sendMessage(suggestion)
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 9, weight: .bold))
+                                            Text(suggestion)
+                                                .font(.system(size: 11, weight: .medium))
+                                        }
+                                        .foregroundColor(LiquidTheme.gold)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(LiquidTheme.gold.opacity(0.12))
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(LiquidTheme.gold.opacity(0.3), lineWidth: 1)
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)

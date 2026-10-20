@@ -34,6 +34,43 @@ namespace PinayPalBackupManager.Services
         public static bool IsEnabled => !string.IsNullOrWhiteSpace(NotificationService.Settings.TelegramBotToken);
         public static string BotToken => NotificationService.Settings.TelegramBotToken?.Trim() ?? string.Empty;
         public static string ChatId => NotificationService.Settings.TelegramChatId?.Trim() ?? string.Empty;
+        public static string ChatTitle => NotificationService.Settings.TelegramChatTitle?.Trim() ?? string.Empty;
+
+        /// <summary>
+        /// Queries the Telegram Bot API (getMe) to retrieve bot username, display name, and the generated 'Add to Group' invite link.
+        /// </summary>
+        public static async Task<(bool success, string username, string firstName, string inviteLink, string error)> GetBotInfoAsync(string? customToken = null)
+        {
+            var token = !string.IsNullOrWhiteSpace(customToken) ? customToken.Trim() : BotToken;
+            if (string.IsNullOrWhiteSpace(token))
+                return (false, "", "", "", "Bot token is required.");
+
+            try
+            {
+                var url = $"https://api.telegram.org/bot{token}/getMe";
+                using var res = await _httpClient.GetAsync(url);
+                var content = await res.Content.ReadAsStringAsync();
+
+                if (!res.IsSuccessStatusCode)
+                    return (false, "", "", "", $"Telegram API Error ({res.StatusCode}): {content}");
+
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("result", out var result))
+                {
+                    var username = result.TryGetProperty("username", out var u) ? u.GetString() ?? "" : "";
+                    var firstName = result.TryGetProperty("first_name", out var fn) ? fn.GetString() ?? "" : "";
+                    var groupInviteLink = !string.IsNullOrWhiteSpace(username) ? $"https://t.me/{username}?startgroup=pinaypal" : "";
+
+                    return (true, username, firstName, groupInviteLink, "");
+                }
+
+                return (false, "", "", "", "Could not parse bot profile information.");
+            }
+            catch (Exception ex)
+            {
+                return (false, "", "", "", ex.Message);
+            }
+        }
 
         /// <summary>
         /// Initializes the Telegram service on application startup.
@@ -304,26 +341,37 @@ namespace PinayPalBackupManager.Services
                 return (false, $"Could not contact Telegram API: {ex.Message}");
             }
 
+            var isGroup = chat.StartsWith("-");
             var text = new StringBuilder();
             text.AppendLine("🤖 <b>PinayPal Backup Manager — Alert Verification</b>");
             text.AppendLine();
             text.AppendLine("✅ Telegram integration is active and operating normally!");
             text.AppendLine($"💻 <b>Host:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+            if (isGroup)
+            {
+                var groupTitle = !string.IsNullOrWhiteSpace(ChatTitle) ? ChatTitle : "Telegram Group";
+                text.AppendLine($"👥 <b>Destination:</b> <b>{EscapeHtml(groupTitle)}</b> (<code>{chat}</code>)");
+            }
+            else
+            {
+                text.AppendLine($"👤 <b>Destination:</b> Direct Chat (<code>{chat}</code>)");
+            }
             text.AppendLine($"🕒 <b>Local Time:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             text.AppendLine();
             text.AppendLine("You will receive real-time notifications for:");
             text.AppendLine("• 🚀 <b>Backup Started</b> (FTP, SQL, Mailchimp)");
+            text.AppendLine("• ⏳ <b>Live Progress</b> (milestones, visual bar & transfer speed)");
             text.AppendLine("• ✅ <b>Backup Complete</b> (with duration, size & file info)");
             text.AppendLine("• 🚨 <b>Backup Failed</b> (with immediate diagnostic details)");
             text.AppendLine("• ⚠️ <b>Disconnects & Outdated Backups</b>");
             text.AppendLine();
-            text.AppendLine("<i>Tip: Type <code>/help</code> in this chat to see available commands or type <code>/qr</code> to get your iOS reconnection code!</i>");
+            text.AppendLine("<i>Tip: Type <code>/help</code> or <code>/status</code> in this chat/group to test bot commands!</i>");
 
             return await SendMessageAsync(text.ToString(), chat, "HTML");
         }
 
         /// <summary>
-        /// Inspects the Telegram bot's recent updates to automatically discover the sender's Chat ID.
+        /// Inspects the Telegram bot's recent updates to automatically discover the sender's Chat ID (direct user, group, or channel).
         /// </summary>
         public static async Task<(bool success, string chatId, string message)> DetectChatIdAsync(string? customToken = null)
         {
@@ -333,7 +381,7 @@ namespace PinayPalBackupManager.Services
 
             try
             {
-                var url = $"https://api.telegram.org/bot{token}/getUpdates?limit=10";
+                var url = $"https://api.telegram.org/bot{token}/getUpdates?limit=25";
                 using var response = await _httpClient.GetAsync(url);
                 var content = await response.Content.ReadAsStringAsync();
 
@@ -343,29 +391,62 @@ namespace PinayPalBackupManager.Services
                 using var doc = JsonDocument.Parse(content);
                 if (doc.RootElement.TryGetProperty("result", out var resultArr) && resultArr.GetArrayLength() > 0)
                 {
-                    // Find the most recent message with a chat id
+                    // Find the most recent update with a chat id (checking messages, membership, and channels)
                     for (int i = resultArr.GetArrayLength() - 1; i >= 0; i--)
                     {
                         var update = resultArr[i];
-                        if (update.TryGetProperty("message", out var msg) &&
-                            msg.TryGetProperty("chat", out var chat) &&
-                            chat.TryGetProperty("id", out var idElem))
+                        JsonElement chatElem = default;
+                        bool foundChat = false;
+                        string senderName = "User";
+
+                        if (update.TryGetProperty("message", out var msg))
                         {
-                            var detectedId = idElem.ToString();
-                            string senderName = "User";
+                            if (msg.TryGetProperty("chat", out chatElem)) foundChat = true;
                             if (msg.TryGetProperty("from", out var from))
                             {
                                 var firstName = from.TryGetProperty("first_name", out var fn) ? fn.GetString() : "";
                                 var username = from.TryGetProperty("username", out var un) ? $"@{un.GetString()}" : "";
                                 senderName = $"{firstName} {username}".Trim();
                             }
+                        }
+                        else if (update.TryGetProperty("my_chat_member", out var mcm))
+                        {
+                            if (mcm.TryGetProperty("chat", out chatElem)) foundChat = true;
+                            if (mcm.TryGetProperty("from", out var from))
+                            {
+                                var firstName = from.TryGetProperty("first_name", out var fn) ? fn.GetString() : "";
+                                senderName = firstName ?? "Group Member";
+                            }
+                        }
+                        else if (update.TryGetProperty("channel_post", out var cp))
+                        {
+                            if (cp.TryGetProperty("chat", out chatElem)) foundChat = true;
+                            senderName = "Channel";
+                        }
+                        else if (update.TryGetProperty("edited_message", out var em))
+                        {
+                            if (em.TryGetProperty("chat", out chatElem)) foundChat = true;
+                        }
 
-                            return (true, detectedId, $"Found Chat ID for {senderName}: {detectedId}");
+                        if (foundChat && chatElem.TryGetProperty("id", out var idElem))
+                        {
+                            var detectedId = idElem.ToString();
+                            var chatType = chatElem.TryGetProperty("type", out var typeElem) ? typeElem.GetString() ?? "private" : "private";
+                            var groupTitle = chatElem.TryGetProperty("title", out var titleElem) ? titleElem.GetString() : null;
+
+                            bool isGroupTarget = chatType is "group" or "supergroup" or "channel" || detectedId.StartsWith("-");
+                            if (isGroupTarget)
+                            {
+                                var name = !string.IsNullOrWhiteSpace(groupTitle) ? groupTitle : "Group";
+                                return (true, detectedId, $"Found Telegram Group '{name}' ({chatType}, ID: {detectedId})");
+                            }
+
+                            return (true, detectedId, $"Found Direct Chat with {senderName} (ID: {detectedId})");
                         }
                     }
                 }
 
-                return (false, "", "No messages found for this bot yet. Please open your bot in Telegram, click 'Start' or send any message, then try 'Detect Chat ID' again.");
+                return (false, "", "No recent updates found. Tap 'Add to Group', invite your bot, or send /link or /start in your chat/group, then click Detect again.");
             }
             catch (Exception ex)
             {
@@ -929,11 +1010,15 @@ namespace PinayPalBackupManager.Services
                     commands = new[]
                     {
                         new { command = "help", description = "Show command guide and instructions" },
-                        new { command = "ai", description = "Chat with PinayPal AI, learn preferences, or query host" },
+                        new { command = "link", description = "Link this group/chat to receive alerts from this PC" },
+                        new { command = "group", description = "Show Telegram group invite link and setup tips" },
                         new { command = "status", description = "Current backup status, health, and tunnel URL" },
+                        new { command = "stats", description = "Backup statistics, total storage & success rate" },
                         new { command = "qr", description = "Get iOS app pairing QR code to reconnect" },
                         new { command = "backup", description = "Run backup (full, ftp, sql, mailchimp)" },
                         new { command = "health", description = "Run on-demand system health check" },
+                        new { command = "errors", description = "View recent error reports & failed backups" },
+                        new { command = "ai", description = "Chat with PinayPal AI, learn preferences, or query host" },
                         new { command = "pause", description = "Pause automatic scheduled backups" },
                         new { command = "resume", description = "Resume automatic scheduled backups" }
                     }
@@ -1032,6 +1117,10 @@ namespace PinayPalBackupManager.Services
                             else if (update.TryGetProperty("channel_post", out messageElem)) hasMessage = true;
                             else if (update.TryGetProperty("edited_message", out messageElem)) hasMessage = true;
                             else if (update.TryGetProperty("edited_channel_post", out messageElem)) hasMessage = true;
+                            else if (update.TryGetProperty("my_chat_member", out var mcmElem))
+                            {
+                                _ = Task.Run(() => HandleBotMembershipUpdateAsync(mcmElem), ct);
+                            }
 
                             if (hasMessage)
                             {
@@ -1052,6 +1141,70 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        private static async Task HandleBotMembershipUpdateAsync(JsonElement memberUpdate)
+        {
+            try
+            {
+                if (!memberUpdate.TryGetProperty("chat", out var chatElem) || !chatElem.TryGetProperty("id", out var idElem))
+                    return;
+
+                var chatId = idElem.ToString();
+                var chatType = chatElem.TryGetProperty("type", out var typeElem) ? typeElem.GetString() ?? "" : "";
+                var groupTitle = chatElem.TryGetProperty("title", out var titleElem) ? titleElem.GetString() ?? "Telegram Group" : "Telegram Group";
+
+                string status = "";
+                if (memberUpdate.TryGetProperty("new_chat_member", out var newMember) && newMember.TryGetProperty("status", out var sElem))
+                {
+                    status = sElem.GetString() ?? "";
+                }
+
+                bool isAdded = status is "member" or "administrator";
+                if (!isAdded) return;
+
+                LogService.WriteSystemLog($"[TELEGRAM] Bot added to {chatType} '{groupTitle}' (ID: {chatId})", "Information", "SYSTEM");
+
+                // If Chat ID is not configured yet, auto-bind to this new group!
+                if (string.IsNullOrWhiteSpace(NotificationService.Settings.TelegramChatId))
+                {
+                    NotificationService.Settings.TelegramChatId = chatId;
+                    NotificationService.Settings.TelegramChatTitle = groupTitle;
+                    NotificationService.Settings.TelegramEnabled = true;
+                    NotificationService.SaveSettings();
+
+                    var greeting = new StringBuilder();
+                    greeting.AppendLine("🎉 <b>PinayPal Backup Manager Connected!</b>");
+                    greeting.AppendLine();
+                    greeting.AppendLine($"👥 <b>Linked Group:</b> {EscapeHtml(groupTitle)}");
+                    greeting.AppendLine($"🆔 <b>Group ID:</b> <code>{chatId}</code>");
+                    greeting.AppendLine($"🖥️ <b>Host Computer:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+                    greeting.AppendLine();
+                    greeting.AppendLine("This group has been automatically configured to receive all backup alerts, progress bars, and completion reports from this PC.");
+                    greeting.AppendLine("<i>Send <code>/help</code> or <code>/status</code> to explore commands!</i>");
+
+                    await SendMessageAsync(greeting.ToString(), chatId);
+                }
+                else
+                {
+                    var prompt = new StringBuilder();
+                    prompt.AppendLine("👋 <b>PinayPal Backup Manager Joined!</b>");
+                    prompt.AppendLine();
+                    prompt.AppendLine($"🖥️ <b>Host Computer:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+                    prompt.AppendLine($"🆔 <b>Group ID:</b> <code>{chatId}</code>");
+                    prompt.AppendLine();
+                    prompt.AppendLine("To route all backup notifications and reports from this PC to this group, send:");
+                    prompt.AppendLine("👉 <code>/link</code>");
+                    prompt.AppendLine();
+                    prompt.AppendLine("<i>Tip: Type <code>/help</code> for available commands.</i>");
+
+                    await SendMessageAsync(prompt.ToString(), chatId);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[TELEGRAM] Error handling bot membership update: {ex.Message}", "Warning", "SYSTEM");
+            }
+        }
+
         private static async Task ProcessIncomingMessageAsync(JsonElement message)
         {
             try
@@ -1065,6 +1218,10 @@ namespace PinayPalBackupManager.Services
                 if (string.IsNullOrWhiteSpace(text))
                     return;
 
+                var chatType = chatElem.TryGetProperty("type", out var typeElem) ? typeElem.GetString() ?? "private" : "private";
+                var chatTitle = chatElem.TryGetProperty("title", out var titleElem) ? titleElem.GetString() ?? "" : "";
+                bool isGroup = chatType is "group" or "supergroup" or "channel" || senderChatId.StartsWith("-");
+
                 string senderUserId = "";
                 string senderUsername = "";
                 if (message.TryGetProperty("from", out var fromElem))
@@ -1073,19 +1230,67 @@ namespace PinayPalBackupManager.Services
                     if (fromElem.TryGetProperty("username", out var uName)) senderUsername = uName.GetString() ?? "";
                 }
 
-                LogService.WriteSystemLog($"[TELEGRAM] Incoming message from {senderChatId} (User: {senderUserId} @{senderUsername}): '{text}'", "Information", "SYSTEM");
+                LogService.WriteSystemLog($"[TELEGRAM] Incoming message from {senderChatId} ({(isGroup ? $"Group '{chatTitle}'" : $"User @{senderUsername}")}): '{text}'", "Information", "SYSTEM");
 
                 var configuredChatId = ChatId;
 
-                // If Chat ID is not configured yet, auto-bind to the first active user messaging the bot
+                // Normalize incoming command
+                var cleanTrimmed = text.Trim();
+                var lowerRoot = cleanTrimmed.Split(' ')[0].ToLowerInvariant();
+                if (lowerRoot.Contains('@')) lowerRoot = lowerRoot.Substring(0, lowerRoot.IndexOf('@'));
+                if (lowerRoot.StartsWith('/')) lowerRoot = lowerRoot.Substring(1);
+
+                bool isLinkCommand = lowerRoot == "link" || cleanTrimmed.StartsWith("/start link", StringComparison.OrdinalIgnoreCase);
+
+                // If user invokes /link explicitly, bind this chat/group directly!
+                if (isLinkCommand)
+                {
+                    NotificationService.Settings.TelegramChatId = senderChatId;
+                    NotificationService.Settings.TelegramChatTitle = !string.IsNullOrWhiteSpace(chatTitle) ? chatTitle : senderUsername;
+                    NotificationService.Settings.TelegramEnabled = true;
+                    NotificationService.SaveSettings();
+                    LogService.WriteSystemLog($"[TELEGRAM] Destination Chat ID linked to {senderChatId} ({(isGroup ? $"Group: {chatTitle}" : $"User: {senderUsername}")}) via /link", "Information", "SYSTEM");
+
+                    var linkedMsg = new StringBuilder();
+                    linkedMsg.AppendLine("✅ <b>Telegram Alert Destination Linked!</b>");
+                    linkedMsg.AppendLine();
+                    if (isGroup)
+                    {
+                        linkedMsg.AppendLine($"👥 <b>Linked Group:</b> {EscapeHtml(chatTitle)}");
+                        linkedMsg.AppendLine($"🆔 <b>Group Chat ID:</b> <code>{senderChatId}</code>");
+                    }
+                    else
+                    {
+                        linkedMsg.AppendLine($"👤 <b>Linked Recipient:</b> {EscapeHtml(senderUsername)}");
+                        linkedMsg.AppendLine($"🆔 <b>Chat ID:</b> <code>{senderChatId}</code>");
+                    }
+                    linkedMsg.AppendLine($"🖥️ <b>Host Computer:</b> <code>{EscapeHtml(Environment.MachineName)}</code>");
+                    linkedMsg.AppendLine($"🕒 <b>Linked At:</b> {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    linkedMsg.AppendLine();
+                    linkedMsg.AppendLine("All backup alerts, live progress bars, and reports from this PC will now be sent here.");
+                    linkedMsg.AppendLine("<i>Try sending <code>/status</code>, <code>/stats</code>, or <code>/qr</code>!</i>");
+
+                    await SendMessageAsync(linkedMsg.ToString(), senderChatId);
+                    return;
+                }
+
+                // If Chat ID is not configured yet, auto-bind to the first active user or group messaging the bot
                 if (string.IsNullOrWhiteSpace(configuredChatId))
                 {
                     configuredChatId = senderChatId;
                     NotificationService.Settings.TelegramChatId = senderChatId;
+                    NotificationService.Settings.TelegramChatTitle = !string.IsNullOrWhiteSpace(chatTitle) ? chatTitle : senderUsername;
                     NotificationService.Settings.TelegramEnabled = true;
                     NotificationService.SaveSettings();
-                    LogService.WriteSystemLog($"[TELEGRAM] Auto-linked authorized Chat ID to {senderChatId} ({senderUsername})", "Information", "SYSTEM");
-                    await SendMessageAsync($"✅ <b>PinayPal Bot Linked Successfully!</b>\n\nConnected to host <code>{EscapeHtml(Environment.MachineName)}</code>.\nYour Chat ID: <code>{senderChatId}</code> has been automatically saved.", senderChatId);
+                    LogService.WriteSystemLog($"[TELEGRAM] Auto-linked authorized Chat ID to {senderChatId} ({(isGroup ? $"Group: {chatTitle}" : $"User: {senderUsername}")})", "Information", "SYSTEM");
+
+                    var autoBindMsg = new StringBuilder();
+                    autoBindMsg.AppendLine("✅ <b>PinayPal Bot Linked Successfully!</b>");
+                    autoBindMsg.AppendLine();
+                    autoBindMsg.AppendLine($"Connected to host <code>{EscapeHtml(Environment.MachineName)}</code>.");
+                    if (isGroup) autoBindMsg.AppendLine($"Group: <b>{EscapeHtml(chatTitle)}</b>");
+                    autoBindMsg.AppendLine($"Your Chat ID: <code>{senderChatId}</code> has been automatically saved.");
+                    await SendMessageAsync(autoBindMsg.ToString(), senderChatId);
                 }
                 else
                 {
@@ -1097,9 +1302,9 @@ namespace PinayPalBackupManager.Services
                     if (!isAuthorized)
                     {
                         LogService.WriteSystemLog($"[TELEGRAM] Unauthorized command attempt from Chat ID {senderChatId} (User: {senderUserId} @{senderUsername}): '{text}'", "Warning", "SECURITY");
-                        var deniedMsg = "⛔ <b>Access Denied</b>\n\nThis PinayPal Backup Manager bot is linked to another user.\n" +
-                                       $"Your Chat ID: <code>{senderChatId}</code>\n" +
-                                       "If this is your desktop, update the Chat ID in desktop app Settings → Telegram.";
+                        var deniedMsg = "⛔ <b>Access Denied</b>\n\nThis PinayPal Backup Manager bot is currently linked to another chat.\n" +
+                                       $"Current Chat ID: <code>{senderChatId}</code>\n\n" +
+                                       "To switch alert destinations to this " + (isGroup ? "group" : "chat") + ", send <code>/link</code> or update Chat ID in desktop app Settings → Telegram.";
                         await SendMessageAsync(deniedMsg, senderChatId);
                         return;
                     }
@@ -1140,6 +1345,34 @@ namespace PinayPalBackupManager.Services
                 case "start":
                 case "help":
                     await SendHelpMessageAsync(chatId);
+                    break;
+
+                case "link":
+                    await SendMessageAsync($"✅ <b>Alert Destination Active</b>\n\nChat ID: <code>{chatId}</code>\nHost: <code>{EscapeHtml(Environment.MachineName)}</code>\nAll backup alerts are routed here.", chatId);
+                    break;
+
+                case "unlink":
+                    NotificationService.Settings.TelegramChatId = "";
+                    NotificationService.Settings.TelegramChatTitle = "";
+                    NotificationService.SaveSettings();
+                    await SendMessageAsync($"🔌 <b>PinayPal Alert Destination Disconnected</b>\n\nThis chat will no longer receive alerts from <code>{EscapeHtml(Environment.MachineName)}</code>.\nTo reconnect anytime, send <code>/link</code>.", chatId);
+                    break;
+
+                case "group":
+                case "invite":
+                    var (infoOk, botName, _, invUrl, _) = await GetBotInfoAsync();
+                    var groupInfo = new StringBuilder();
+                    groupInfo.AppendLine("👥 <b>Telegram Group Integration</b>");
+                    groupInfo.AppendLine();
+                    if (!string.IsNullOrEmpty(invUrl))
+                    {
+                        groupInfo.AppendLine($"🔗 <b>Add Bot to Group Link:</b>\n<a href=\"{invUrl}\">{invUrl}</a>\n");
+                    }
+                    groupInfo.AppendLine("<b>How to use with a Telegram Group:</b>");
+                    groupInfo.AppendLine("1. Open the invite link above to add this bot to your Telegram group.");
+                    groupInfo.AppendLine("2. In the group, type <code>/link</code> (or <code>/link@" + botName + "</code>).");
+                    groupInfo.AppendLine("3. The group ID will be saved automatically, and all notifications will be delivered to the group!");
+                    await SendMessageAsync(groupInfo.ToString(), chatId);
                     break;
 
                 case "qr":
@@ -1321,7 +1554,11 @@ namespace PinayPalBackupManager.Services
 
             var target = tokens[1].ToLowerInvariant();
 
-            // Full / All services backup
+            if (BackupSchedulingService.BackupExecutor == null && BackupSchedulingService.MailchimpTaskExecutor == null)
+            {
+                await SendMessageAsync("⚠️ <b>Backup Engine Offline or Pre-Login:</b> The desktop backup engine is not ready (the PC app may be closed or waiting at the login screen). Please launch and sign into PinayPal Backup Manager on the host PC.", chatId);
+                return;
+            }
             if (target is "full" or "all" or "both")
             {
                 await SendMessageAsync("⏳ <b>Starting Full Backup</b> for Website (FTP), Database (SQL), and Mailchimp in parallel...", chatId);
@@ -1502,6 +1739,11 @@ namespace PinayPalBackupManager.Services
             sb.AppendLine("• <code>/ai What do you remember?</code> — List all learned memories");
             sb.AppendLine("• <i>Or simply send any question directly to chat with the AI!</i>");
             sb.AppendLine();
+            sb.AppendLine("👥 <b>Group & Destination Management:</b>");
+            sb.AppendLine("• <code>/link</code> — Link this group or chat to receive all backup alerts from this PC");
+            sb.AppendLine("• <code>/unlink</code> — Disconnect this chat from receiving alerts");
+            sb.AppendLine("• <code>/group</code> — Show invite link to add this bot to other Telegram groups");
+            sb.AppendLine();
             sb.AppendLine("📱 <b>iOS App Connectivity:</b>");
             sb.AppendLine("• <code>/qr</code> or <code>/connect</code> — Send iOS pairing QR code image to reconnect when disconnected");
             sb.AppendLine();
@@ -1514,7 +1756,7 @@ namespace PinayPalBackupManager.Services
             sb.AppendLine("• <code>/resume</code> — Resume automatic backup scheduler");
             sb.AppendLine("• <code>/help</code> — Show this guide");
             sb.AppendLine();
-            sb.AppendLine("<i>Tip: You can also type commands naturally without a slash (e.g. <code>backup full</code>, <code>qr</code>, <code>status</code>, <code>stats</code>).</i>");
+            sb.AppendLine("<i>Tip: In Telegram Groups, you can also append the bot name (e.g. <code>/status@BotName</code>) or type commands without a slash.</i>");
 
             await SendMessageAsync(sb.ToString(), chatId);
         }

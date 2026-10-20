@@ -138,6 +138,8 @@ namespace PinayPalBackupManager.Services
             }
         }
 
+        public static HardwareTelemetry GetTelemetry() => GetTelemetrySync();
+
         public static HardwareTelemetry GetTelemetrySync()
         {
             if (_cachedTelemetry != null && (DateTime.UtcNow - _lastFetchTime) < CacheDuration)

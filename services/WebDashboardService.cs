@@ -280,6 +280,10 @@ namespace PinayPalBackupManager.Services
                 {
                     await HandleDetectTelegramChatPostAsync(context);
                 }
+                else if (path == "/api/settings/notifications/telegram-bot-info" && (request.HttpMethod == "POST" || request.HttpMethod == "GET"))
+                {
+                    await HandleGetTelegramBotInfoPostAsync(context);
+                }
                 else if (path == "/api/settings/notifications/send-qr-telegram" && request.HttpMethod == "POST")
                 {
                     await HandleSendQrTelegramPostAsync(context);
@@ -1686,6 +1690,7 @@ namespace PinayPalBackupManager.Services
                 telegramEnabled = s.TelegramEnabled,
                 telegramBotToken = s.TelegramBotToken ?? "",
                 telegramChatId = s.TelegramChatId ?? "",
+                telegramChatTitle = s.TelegramChatTitle ?? "",
                 notifyOnBackupStart = s.NotifyOnBackupStart,
                 notifyOnBackupSuccess = s.NotifyOnBackupSuccess,
                 notifyOnBackupFailure = s.NotifyOnBackupFailure,
@@ -1721,6 +1726,7 @@ namespace PinayPalBackupManager.Services
                 if (root.TryGetProperty("telegramEnabled", out var te)) s.TelegramEnabled = te.GetBoolean();
                 if (root.TryGetProperty("telegramBotToken", out var tt)) s.TelegramBotToken = tt.GetString() ?? "";
                 if (root.TryGetProperty("telegramChatId", out var tc)) s.TelegramChatId = tc.GetString() ?? "";
+                if (root.TryGetProperty("telegramChatTitle", out var tct)) s.TelegramChatTitle = tct.GetString() ?? "";
                 if (root.TryGetProperty("notifyOnBackupStart", out var nbs)) s.NotifyOnBackupStart = nbs.GetBoolean();
                 if (root.TryGetProperty("notifyOnBackupSuccess", out var ns)) s.NotifyOnBackupSuccess = ns.GetBoolean();
                 if (root.TryGetProperty("notifyOnBackupFailure", out var nf)) s.NotifyOnBackupFailure = nf.GetBoolean();
@@ -1802,6 +1808,42 @@ namespace PinayPalBackupManager.Services
 
                 var (success, chatId, msg) = await TelegramService.DetectChatIdAsync(customToken);
                 await SendJsonAsync(context.Response, success ? 200 : 400, new { success, chatId, message = msg });
+            }
+            catch (Exception ex)
+            {
+                await SendJsonAsync(context.Response, 500, new { success = false, message = ex.Message });
+            }
+        }
+
+        private static async Task HandleGetTelegramBotInfoPostAsync(HttpListenerContext context)
+        {
+            try
+            {
+                string? customToken = null;
+                if (context.Request.HasEntityBody)
+                {
+                    using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(body);
+                            if (doc.RootElement.TryGetProperty("telegramBotToken", out var tt)) customToken = tt.GetString();
+                        }
+                        catch { }
+                    }
+                }
+
+                var (success, username, firstName, inviteLink, err) = await TelegramService.GetBotInfoAsync(customToken);
+                await SendJsonAsync(context.Response, success ? 200 : 400, new
+                {
+                    success,
+                    username,
+                    firstName,
+                    inviteLink,
+                    message = err
+                });
             }
             catch (Exception ex)
             {
@@ -3219,11 +3261,15 @@ namespace PinayPalBackupManager.Services
             </div>
             <div style=""margin-bottom:12px;"">
                 <div style=""display:flex; justify-content:space-between; align-items:center;"">
-                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Telegram Chat ID</label>
-                    <button type=""button"" class=""btn-secondary"" style=""font-size:10px; padding:2px 8px;"" onclick=""detectTelegramChat()"">🔍 Detect Chat ID</button>
+                    <label style=""font-size:11px; color:var(--muted); font-weight:700;"">Telegram Chat or Group ID</label>
+                    <div style=""display:flex; gap:6px;"">
+                        <button type=""button"" class=""btn-secondary"" style=""font-size:10px; padding:2px 8px; border-color:#29b6f6; color:#29b6f6;"" onclick=""addToTelegramGroup()"">👥 Add to Group...</button>
+                        <button type=""button"" class=""btn-secondary"" style=""font-size:10px; padding:2px 8px;"" onclick=""detectTelegramChat()"">🔍 Detect Chat / Group</button>
+                    </div>
                 </div>
-                <input id=""tg-chat-id"" type=""text"" placeholder=""e.g. 123456789"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box; margin-top:4px;"" />
-                <div style=""font-size:10px; color:var(--muted); margin-top:2px;"">Tip: Send any message or /start to your bot in Telegram, then click Detect Chat ID.</div>
+                <input id=""tg-chat-id"" type=""text"" placeholder=""e.g. -1001234567890 (group) or 123456789 (private)"" style=""width:100%; background:var(--inner-bg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; color:var(--text); font-size:12px; box-sizing:border-box; margin-top:4px;"" />
+                <div id=""tg-chat-title-badge"" style=""font-size:11px; color:#29b6f6; font-weight:600; margin-top:3px; display:none;""></div>
+                <div style=""font-size:10px; color:var(--muted); margin-top:2px;"">💡 For Groups: Click '👥 Add to Group...', invite the bot, then send <code>/link</code> in the group (or click Detect). Group IDs start with a minus (e.g. -100...).</div>
             </div>
             <div style=""background:var(--inner-bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:14px; font-size:12px;"">
                 <div style=""font-weight:700; margin-bottom:6px; font-size:11px; color:var(--muted); text-transform:uppercase;"">Notification Triggers</div>
@@ -3520,6 +3566,18 @@ namespace PinayPalBackupManager.Services
                 document.getElementById('tg-enabled').checked = s.telegramEnabled ?? false;
                 document.getElementById('tg-token').value = s.telegramBotToken || '';
                 document.getElementById('tg-chat-id').value = s.telegramChatId || '';
+                const badge = document.getElementById('tg-chat-title-badge');
+                if (badge) {
+                    if (s.telegramChatTitle) {
+                        badge.textContent = '👥 Linked: ' + s.telegramChatTitle;
+                        badge.style.display = 'block';
+                    } else if (s.telegramChatId && s.telegramChatId.startsWith('-')) {
+                        badge.textContent = '👥 Linked to Telegram Group / Channel';
+                        badge.style.display = 'block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
                 document.getElementById('tg-trig-start').checked = s.notifyOnBackupStart ?? true;
                 document.getElementById('tg-trig-success').checked = s.notifyOnBackupSuccess ?? true;
                 document.getElementById('tg-trig-failure').checked = s.notifyOnBackupFailure ?? true;
@@ -3538,13 +3596,41 @@ namespace PinayPalBackupManager.Services
 
         const closeEmailModal = closeTelegramModal;
 
+        async function addToTelegramGroup() {
+            const token = document.getElementById('tg-token').value.trim();
+            if (!token) {
+                showToast('Please enter your Telegram Bot Token first');
+                return;
+            }
+            showToast('Generating Telegram group invite link...');
+            try {
+                const res = await fetch('/api/settings/notifications/telegram-bot-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramBotToken: token })
+                });
+                const d = await res.json();
+                if (d.success && d.inviteLink) {
+                    window.open(d.inviteLink, '_blank');
+                    showToast('Opening Telegram... Add @' + d.username + ' to your group, then type /link in the group!');
+                    playChime('success');
+                } else {
+                    showToast(d.message || 'Could not retrieve bot info.');
+                    playChime('error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+                playChime('error');
+            }
+        }
+
         async function detectTelegramChat() {
             const token = document.getElementById('tg-token').value.trim();
             if (!token) {
                 showToast('Please enter your Telegram Bot Token first');
                 return;
             }
-            showToast('Querying recent messages to detect Chat ID...');
+            showToast('Querying recent messages to detect Chat / Group ID...');
             try {
                 const res = await fetch('/api/settings/notifications/detect-telegram-chat', {
                     method: 'POST',
@@ -3554,7 +3640,12 @@ namespace PinayPalBackupManager.Services
                 const d = await res.json();
                 if (d.success && d.chatId) {
                     document.getElementById('tg-chat-id').value = d.chatId;
-                    showToast('Detected Chat ID: ' + d.chatId);
+                    const badge = document.getElementById('tg-chat-title-badge');
+                    if (badge) {
+                        badge.textContent = d.chatId.startsWith('-') ? '👥 Linked to Telegram Group / Channel' : '👤 Direct User Chat';
+                        badge.style.display = 'block';
+                    }
+                    showToast(d.message || ('Detected: ' + d.chatId));
                     playChime('success');
                 } else {
                     showToast(d.message || 'No messages found.');
@@ -3568,10 +3659,15 @@ namespace PinayPalBackupManager.Services
 
         async function saveTelegramSettings() {
             showToast('Saving Telegram settings...');
+            const badge = document.getElementById('tg-chat-title-badge');
+            const chatTitleText = (badge && badge.style.display !== 'none' && badge.textContent.startsWith('👥 Linked: '))
+                ? badge.textContent.replace('👥 Linked: ', '').trim()
+                : '';
             const payload = {
                 telegramEnabled: document.getElementById('tg-enabled').checked,
                 telegramBotToken: document.getElementById('tg-token').value.trim(),
                 telegramChatId: document.getElementById('tg-chat-id').value.trim(),
+                telegramChatTitle: chatTitleText,
                 notifyOnBackupStart: document.getElementById('tg-trig-start').checked,
                 notifyOnBackupSuccess: document.getElementById('tg-trig-success').checked,
                 notifyOnBackupFailure: document.getElementById('tg-trig-failure').checked,

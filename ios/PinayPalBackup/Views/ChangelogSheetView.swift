@@ -53,9 +53,42 @@ public struct ChangelogSheetView: View {
 
     private let releases: [ChangelogRelease] = [
         ChangelogRelease(
-            version: "v3.9.9 (Build 38)",
+            version: "v4.0.0 (Build 39)",
             releaseDate: "October 2026",
             isLatest: true,
+            highlight: "Conversational learning AI assistant across iOS and PC, complete Telegram bot overhaul with group command routing and resilience, modernized settings layout with instant category jumping, and single-instance launch reliability",
+            changes: [
+                ChangelogItem(
+                    type: .feature,
+                    title: "Continuous Learning & Conversational AI",
+                    description: "AI assistant now learns user preferences, schedule habits, and operating rules continuously from natural dialogue across sessions, answering with genuine human warmth rather than canned responses."
+                ),
+                ChangelogItem(
+                    type: .feature,
+                    title: "Interactive Follow-Up Suggestion Chips",
+                    description: "Tappable contextual suggestion chips now appear directly below assistant chat responses in iOS and PC for effortless one-touch guidance."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "Telegram Bot Overhaul & Group Commands",
+                    description: "Fixed polling loop HTTP timeout terminations, added group chat command routing (/command@botname), /link and /unlink destination management, and pre-login executor safeguards."
+                ),
+                ChangelogItem(
+                    type: .improvement,
+                    title: "Modernized Settings Layout & Category Jump",
+                    description: "Unified all settings cards into collapsible containers and added instant category jump pills for immediate navigation without scrolling."
+                ),
+                ChangelogItem(
+                    type: .fix,
+                    title: "PC App Launch & Multi-Monitor Restore",
+                    description: "Fixed silent exit on app launch by validating running processes in single-instance detection and ensuring restored windows never appear off-screen on disconnected displays."
+                )
+            ]
+        ),
+        ChangelogRelease(
+            version: "v3.9.9 (Build 38)",
+            releaseDate: "October 2026",
+            isLatest: false,
             highlight: "Configurable sync interval in settings, robust Telegram bot command processing, fleet peer automatic hostname resolution, and network discovery improvements",
             changes: [
                 ChangelogItem(

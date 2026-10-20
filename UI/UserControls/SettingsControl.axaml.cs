@@ -32,6 +32,7 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             _manager = manager;
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+            InitializeCategoryFilter();
             
             var chkStartup = this.FindControl<CheckBox>("ChkStartup")!;
             chkStartup.IsChecked = IsStartupEnabled();
@@ -1603,6 +1604,7 @@ namespace PinayPalBackupManager.UI.UserControls
             var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
             var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
             var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+            var txtChatTitle = this.FindControl<TextBlock>("TxtTelegramChatTitle");
 
             NotificationService.LoadSettings();
             var s = NotificationService.Settings;
@@ -1616,6 +1618,24 @@ namespace PinayPalBackupManager.UI.UserControls
             if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
             if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
             if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
+
+            if (txtChatTitle != null)
+            {
+                if (!string.IsNullOrWhiteSpace(s.TelegramChatTitle))
+                {
+                    txtChatTitle.Text = $"👥 Linked to: {s.TelegramChatTitle}";
+                    txtChatTitle.IsVisible = true;
+                }
+                else if (!string.IsNullOrWhiteSpace(s.TelegramChatId) && s.TelegramChatId.StartsWith("-"))
+                {
+                    txtChatTitle.Text = "👥 Linked to Telegram Group / Channel";
+                    txtChatTitle.IsVisible = true;
+                }
+                else
+                {
+                    txtChatTitle.IsVisible = false;
+                }
+            }
         }
 
         // Backward compatibility
@@ -1626,7 +1646,9 @@ namespace PinayPalBackupManager.UI.UserControls
             var chkTelegram = this.FindControl<CheckBox>("ChkTelegramEnabled");
             var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
             var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
+            var btnAddToGroup = this.FindControl<Button>("BtnAddToGroup");
             var btnDetect = this.FindControl<Button>("BtnDetectChatId");
+            var txtChatTitle = this.FindControl<TextBlock>("TxtTelegramChatTitle");
             var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
             var chkProg = this.FindControl<CheckBox>("ChkNotifyBackupProgress");
             var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
@@ -1640,18 +1662,62 @@ namespace PinayPalBackupManager.UI.UserControls
 
             RefreshTelegramAlerts();
 
+            // Add Bot to Group helper
+            if (btnAddToGroup != null && txtToken != null)
+            {
+                btnAddToGroup.Click += async (_, _) =>
+                {
+                    var token = txtToken.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        if (txtStatus != null) txtStatus.Text = "Please enter your Telegram Bot API Token first.";
+                        NotificationService.ShowBackupToast("Telegram Setup", "Please enter your Bot API Token first.", "Warning");
+                        return;
+                    }
+
+                    if (txtStatus != null) txtStatus.Text = "Connecting to Telegram to generate group invite link...";
+                    var (success, username, _, inviteLink, err) = await TelegramService.GetBotInfoAsync(token);
+                    if (success && !string.IsNullOrEmpty(inviteLink))
+                    {
+                        if (txtStatus != null) txtStatus.Text = $"Opening Telegram... Add @{username} to your group, then type /link in the group!";
+                        try
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = inviteLink,
+                                UseShellExecute = true
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            if (txtStatus != null) txtStatus.Text = $"Invite link: {inviteLink} ({ex.Message})";
+                        }
+                    }
+                    else
+                    {
+                        if (txtStatus != null) txtStatus.Text = $"Could not query bot info: {err}";
+                        NotificationService.ShowBackupToast("Telegram Bot", err, "Error");
+                    }
+                };
+            }
+
             // Detect Chat ID helper
             if (btnDetect != null && txtToken != null && txtChatId != null)
             {
                 btnDetect.Click += async (_, _) =>
                 {
-                    if (txtStatus != null) txtStatus.Text = "Querying recent messages to detect Chat ID...";
+                    if (txtStatus != null) txtStatus.Text = "Querying recent messages to detect Chat / Group ID...";
                     var (success, detectedChatId, msg) = await TelegramService.DetectChatIdAsync(txtToken.Text);
                     if (success && !string.IsNullOrWhiteSpace(detectedChatId))
                     {
                         txtChatId.Text = detectedChatId;
                         if (txtStatus != null) txtStatus.Text = msg;
-                        NotificationService.ShowBackupToast("Chat ID Detected", $"Found: {detectedChatId}", "Success");
+                        if (txtChatTitle != null)
+                        {
+                            txtChatTitle.Text = detectedChatId.StartsWith("-") ? "👥 Linked to Telegram Group / Channel" : "👤 Linked to Direct Chat";
+                            txtChatTitle.IsVisible = true;
+                        }
+                        NotificationService.ShowBackupToast("Chat ID Detected", msg, "Success");
                     }
                     else
                     {
@@ -2376,6 +2442,174 @@ namespace PinayPalBackupManager.UI.UserControls
             finally
             {
                 NotificationService.UnregisterDialog(dialogKey);
+            }
+        }
+
+        private void InitializeCategoryFilter()
+        {
+            var btnAll = this.FindControl<Button>("BtnCatAll");
+            var btnGeneral = this.FindControl<Button>("BtnCatGeneral");
+            var btnBackups = this.FindControl<Button>("BtnCatBackups");
+            var btnAi = this.FindControl<Button>("BtnCatAi");
+            var btnComputers = this.FindControl<Button>("BtnCatComputers");
+            var btnRemote = this.FindControl<Button>("BtnCatRemote");
+            var btnTelegram = this.FindControl<Button>("BtnCatTelegram");
+            var btnTools = this.FindControl<Button>("BtnCatTools");
+
+            var cardUpdates = this.FindControl<CollapsibleCardControl>("CardAppUpdates");
+            var cardHealth = this.FindControl<CollapsibleCardControl>("CardBackupHealth");
+            var cardSysConfig = this.FindControl<CollapsibleCardControl>("CardSystemConfig");
+            var cardAi = this.FindControl<CollapsibleCardControl>("CardAiAssistant");
+            var cardSmartSched = this.FindControl<CollapsibleCardControl>("CardSmartScheduling");
+            var cardComputers = this.FindControl<CollapsibleCardControl>("CardMyComputers");
+            var cardWeb = this.FindControl<CollapsibleCardControl>("CardWebDashboard");
+            var cardTelegram = this.FindControl<CollapsibleCardControl>("CardTelegramBot");
+            var cardSysInfo = this.FindControl<CollapsibleCardControl>("CardSystemInfo");
+            var cardCreds = this.FindControl<CollapsibleCardControl>("CardCredentials");
+            var cardTools = this.FindControl<CollapsibleCardControl>("CardManagementTools");
+
+            var allCards = new List<CollapsibleCardControl?>
+            {
+                cardUpdates, cardHealth, cardSysConfig, cardAi, cardSmartSched,
+                cardComputers, cardWeb, cardTelegram, cardSysInfo, cardCreds, cardTools
+            };
+
+            var pillButtons = new List<Button?> { btnAll, btnGeneral, btnBackups, btnAi, btnComputers, btnRemote, btnTelegram, btnTools };
+
+            void SelectPill(Button activeBtn, Action applyCards)
+            {
+                foreach (var b in pillButtons)
+                {
+                    if (b != null)
+                    {
+                        b.Classes.Remove("Active");
+                    }
+                }
+                activeBtn.Classes.Add("Active");
+                applyCards();
+            }
+
+            if (btnAll != null)
+            {
+                btnAll.Click += (_, _) => SelectPill(btnAll, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null) c.IsVisible = true;
+                    }
+                });
+            }
+
+            if (btnGeneral != null)
+            {
+                btnGeneral.Click += (_, _) => SelectPill(btnGeneral, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardUpdates || c == cardSysConfig || c == cardSysInfo;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnBackups != null)
+            {
+                btnBackups.Click += (_, _) => SelectPill(btnBackups, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardHealth || c == cardSmartSched;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnAi != null)
+            {
+                btnAi.Click += (_, _) => SelectPill(btnAi, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardAi;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnComputers != null)
+            {
+                btnComputers.Click += (_, _) => SelectPill(btnComputers, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardComputers;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnRemote != null)
+            {
+                btnRemote.Click += (_, _) => SelectPill(btnRemote, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardWeb;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnTelegram != null)
+            {
+                btnTelegram.Click += (_, _) => SelectPill(btnTelegram, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardTelegram;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            if (btnTools != null)
+            {
+                btnTools.Click += (_, _) => SelectPill(btnTools, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            bool match = c == cardCreds || c == cardTools;
+                            c.IsVisible = match;
+                            if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
             }
         }
     }

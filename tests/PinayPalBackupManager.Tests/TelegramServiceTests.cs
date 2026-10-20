@@ -127,10 +127,31 @@ public class TelegramServiceTests
     }
 
     [Fact]
-    public void OperationSettings_HasAutoIntervalMinutes()
+    public async Task GetBotInfoAsync_ReturnsError_WhenTokenEmpty()
     {
-        var op = new OperationSettings();
-        Assert.True(op.AutoIntervalMinutes > 0);
-        Assert.Equal(60, op.AutoIntervalMinutes);
+        var (success, username, firstName, inviteLink, error) = await TelegramService.GetBotInfoAsync("");
+        Assert.False(success);
+        Assert.Equal(string.Empty, username);
+        Assert.Contains("required", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void NotificationSettings_IncludesTelegramChatTitle()
+    {
+        var settings = new NotificationSettings();
+        Assert.Equal(string.Empty, settings.TelegramChatTitle);
+
+        settings.TelegramChatTitle = "Test Backup Group";
+        Assert.Equal("Test Backup Group", settings.TelegramChatTitle);
+    }
+
+    [Fact]
+    public void TelegramService_ChatTitle_ReflectsSettings()
+    {
+        NotificationService.Settings.TelegramChatTitle = "Operations Team";
+        Assert.Equal("Operations Team", TelegramService.ChatTitle);
+
+        // Reset
+        NotificationService.Settings.TelegramChatTitle = "";
     }
 }

@@ -557,6 +557,12 @@ namespace PinayPalBackupManager.Services
 
             try
             {
+                // Auto-learn facts and preferences continuously from natural conversation
+                if (_config.EnableLearningMemory)
+                {
+                    AutoLearnFromMessage(sanitizedUserMessage);
+                }
+
                 // Check for explicit memory store commands first if learning memory is enabled
                 if (_config.EnableLearningMemory)
                 {
@@ -582,27 +588,32 @@ namespace PinayPalBackupManager.Services
                     }
                 }
 
-                // Check for casual greetings (hi, hello, etc.) to respond naturally without unsolicited diagnostics or action cards
+                // Check for casual greetings (hi, hello, etc.)
                 if (IsCasualGreeting(sanitizedUserMessage))
                 {
-                    var name = string.IsNullOrWhiteSpace(_config.AssistantName) ? "PinayPal AI" : _config.AssistantName.Trim();
-                    var greeting = $"Hello! I'm {name}, ready to assist you. All automated backup schedules and system monitors are running normally on {Environment.MachineName}. How can I help you today?";
-                    assistantMsg = new ChatMessage
+                    // If an LLM provider is active and ready, let the model reply naturally!
+                    // Otherwise synthesize an intelligent, context-aware conversational response.
+                    bool hasActiveLlm = await IsAnyLlmAvailableAsync();
+                    if (!hasActiveLlm)
                     {
-                        Role = "assistant",
-                        Content = greeting,
-                        Engine = "conversational",
-                        FollowUpSuggestions = new List<string> { "How is the system health?", "Show recent backups", "Check disk space" }
-                    };
+                        var greeting = SynthesizeConversationalGreeting(sanitizedUserMessage);
+                        assistantMsg = new ChatMessage
+                        {
+                            Role = "assistant",
+                            Content = greeting,
+                            Engine = "conversational",
+                            FollowUpSuggestions = BuildFollowUpSuggestions(sanitizedUserMessage)
+                        };
 
-                    lock (_historyLock)
-                    {
-                        _sessionHistory.Add(assistantMsg);
-                        if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                        lock (_historyLock)
+                        {
+                            _sessionHistory.Add(assistantMsg);
+                            if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                        }
+
+                        OnMessageReceived?.Invoke(assistantMsg);
+                        return assistantMsg;
                     }
-
-                    OnMessageReceived?.Invoke(assistantMsg);
-                    return assistantMsg;
                 }
 
                 // 1. Detect a guarded action intent.
@@ -715,6 +726,148 @@ namespace PinayPalBackupManager.Services
                 return _lastDiscussedService ?? "all";
             }
             return "all";
+        }
+
+        private static async Task<bool> IsAnyLlmAvailableAsync()
+        {
+            try
+            {
+                if (_config.Provider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
+                    return await IsOllamaReachableAsync();
+
+                if (_config.Provider.Equals("cloud", StringComparison.OrdinalIgnoreCase))
+                    return !string.IsNullOrWhiteSpace(_config.CloudApiKey);
+
+                if (_config.Provider.Equals("hybrid", StringComparison.OrdinalIgnoreCase))
+                    return !string.IsNullOrWhiteSpace(_config.CloudApiKey) || await IsOllamaReachableAsync();
+
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Continuously extracts user preferences, schedules, operational rules, and names from regular conversation.
+        /// Strictly guarded behind Zero-Leak Sanitizer: credentials and secrets are never stored.
+        /// </summary>
+        private static void AutoLearnFromMessage(string prompt)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prompt) || prompt.Length < 3) return;
+
+                // Never learn if credentials, tokens, or connection strings are detected
+                if (prompt.Contains("[REDACTED") || Regex.IsMatch(prompt, @"(?i)\b(password|passwd|pwd|secret|token|apikey)\b"))
+                    return;
+
+                // 1. User Name: "call me Michael", "my name is Michael", "I am Michael"
+                var nameMatch = Regex.Match(prompt, @"(?i)\b(?:call me|my name is|i am|i'm)\s+([A-Z][a-zA-Z]{1,20})\b");
+                if (nameMatch.Success)
+                {
+                    var candidate = nameMatch.Groups[1].Value.Trim();
+                    var skipWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "ready", "online", "fine", "good", "busy", "here", "running", "testing",
+                        "back", "done", "waiting", "looking", "working", "sure", "happy", "ok"
+                    };
+                    if (!skipWords.Contains(candidate))
+                    {
+                        AIMemoryStore.Remember("preference", "user_name", candidate);
+                    }
+                }
+
+                // 2. Backup schedule preferences: "prefer backups at 11pm", "like backups around midnight", etc.
+                var schedMatch = Regex.Match(prompt, @"(?i)\b(?:prefer|like|want)\s+(?:to\s+run\s+)?backups?\s+(?:at|around)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|night|midnight|noon|morning|evening)\b");
+                if (schedMatch.Success)
+                {
+                    var timePref = schedMatch.Groups[1].Value.Trim();
+                    AIMemoryStore.Remember("preference", "preferred_backup_time", $"Prefers backups scheduled at {timePref}");
+                }
+
+                // 3. Notification channel preferences: "alert me on telegram", "ping me via email", etc.
+                var notifMatch = Regex.Match(prompt, @"(?i)\b(?:ping|alert|notify|message|send\s+alerts?\s+to)\s+me\s+(?:on|via|through|in)\s+(telegram|email|desktop|push)\b");
+                if (notifMatch.Success)
+                {
+                    var chan = notifMatch.Groups[1].Value.Trim().ToLowerInvariant();
+                    AIMemoryStore.Remember("preference", "preferred_alert_channel", $"Prefers notifications via {chan}");
+                }
+
+                // 4. Operational instructions / notes: "don't restart server X", "never delete database Y"
+                var opMatch = Regex.Match(prompt, @"(?i)\b(?:please\s+)?(?:do\s+not|don't|never)\s+(?:restart|touch|stop|kill|delete)\s+([a-zA-Z0-9_\-\s]{3,35})\b");
+                if (opMatch.Success)
+                {
+                    var target = opMatch.Groups[1].Value.Trim();
+                    AIMemoryStore.Remember("instruction", "operational_restriction", $"Do not restart or delete {target}");
+                }
+
+                // 5. Host or server operational notes: "note: server X has high load", "fyi database is slow on sundays"
+                var noteMatch = Regex.Match(prompt, @"(?i)\b(?:fyi|heads up|keep in mind|note that)\s+(?:that\s+)?([a-zA-Z0-9_\-\s,]{5,80})\b");
+                if (noteMatch.Success)
+                {
+                    var note = noteMatch.Groups[1].Value.Trim();
+                    AIMemoryStore.Remember("note", "operational_note", note);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Synthesizes human-like, warm, time-aware, personalized conversational greetings.
+        /// Weaves remembered facts (e.g. user name) and live host metrics into natural dialogue.
+        /// </summary>
+        private static string SynthesizeConversationalGreeting(string prompt)
+        {
+            var name = string.IsNullOrWhiteSpace(_config.AssistantName) ? "PinayPal AI" : _config.AssistantName.Trim();
+            var lower = prompt.Trim().ToLowerInvariant();
+            var hour = DateTime.Now.Hour;
+            var timeOfDay = hour switch
+            {
+                < 12 => "Good morning",
+                < 17 => "Good afternoon",
+                _ => "Good evening"
+            };
+
+            // Check if user's name is remembered in persistent memory
+            var userNameMemory = AIMemoryStore.GetAll().FirstOrDefault(m => m.Key == "user_name");
+            var userGreeting = userNameMemory != null && !string.IsNullOrWhiteSpace(userNameMemory.Content)
+                ? $", {userNameMemory.Content.Trim()}"
+                : "";
+
+            var telemetry = HardwareTelemetryService.GetTelemetry();
+            var cpu = telemetry.CpuUsagePercent > 0 ? $"{telemetry.CpuUsagePercent:F0}%" : "optimal";
+
+            if (lower.Contains("how are you") || lower.Contains("hows it going") || lower.Contains("how do you do"))
+            {
+                var variants = new[]
+                {
+                    $"Hello{userGreeting}! I'm doing well, thanks for asking. Everything on {Environment.MachineName} is running smoothly (CPU at {cpu}). How are you doing today?",
+                    $"Hello{userGreeting}! All good here. Schedulers and monitors are active and system metrics are healthy. How can I help you today?",
+                    $"Hello! Doing great{userGreeting}. Just keeping an eye on your backup pipelines and network tunnels. How's everything going with you?"
+                };
+                return variants[Random.Shared.Next(variants.Length)];
+            }
+
+            if (lower.Contains("sup") || lower.Contains("yo") || lower.Contains("what's up") || lower.Contains("whats up"))
+            {
+                var variants = new[]
+                {
+                    $"Hello{userGreeting}! Not much, just keeping your backups guarded and watchdogs running on {Environment.MachineName}. What's on your mind?",
+                    $"Hello{userGreeting}! Everything is green across the board. What are we working on?",
+                    $"Hello there! All quiet and safe on {Environment.MachineName}. Ready whenever you need to check backups or run diagnostics."
+                };
+                return variants[Random.Shared.Next(variants.Length)];
+            }
+
+            var defaultGreetings = new[]
+            {
+                $"Hello{userGreeting}! {timeOfDay}! I'm {name}, ready to assist you. All automated backup schedules and system monitors are running normally on {Environment.MachineName}. How can I help you today?",
+                $"Hello{userGreeting}! Great to hear from you. Everything is operating smoothly on {Environment.MachineName}. What would you like to check or run today?",
+                $"Hello! {timeOfDay}{userGreeting}. Ready to assist. Your system health is stable and daemons are on guard. What's on the agenda today?"
+            };
+            return defaultGreetings[Random.Shared.Next(defaultGreetings.Length)];
         }
 
         private static bool IsCasualGreeting(string prompt)
@@ -1620,11 +1773,45 @@ namespace PinayPalBackupManager.Services
             }
 
             // Greetings
-            if (lower.Contains("hello") || lower.Contains("hi") || lower.Contains("hey") || lower.Contains("good morning") || lower.Contains("good evening"))
+            if (lower.Contains("hello") || lower.Contains("hi") || lower.Contains("hey") || lower.Contains("good morning") || lower.Contains("good evening") || lower.Contains("good afternoon"))
             {
-                var memCount = AIMemoryStore.GetAll().Count;
-                var memoryNote = memCount > 0 ? $" I remember your {memCount} custom preferences." : "";
-                return $"Hello! I'm your **PinayPal AI Assistant** operating as **{_config.GetProfileTitle()}** on **{Environment.MachineName}**.{memoryNote}\n\nAll watchdogs and backup schedulers are active. You can ask me to inspect health, trigger backups, check Telegram alerts, or manage your fleet of computers.";
+                return SynthesizeConversationalGreeting(prompt);
+            }
+
+            // Gratitude & Thanks
+            if (lower.Contains("thank you") || lower.Contains("thanks") || lower.Contains("thx") || lower.Contains("appreciate it"))
+            {
+                var nameMem = AIMemoryStore.GetAll().FirstOrDefault(m => m.Key == "user_name");
+                var nameAdd = nameMem != null ? $" {nameMem.Content.Trim()}" : "";
+                var replies = new[]
+                {
+                    $"You're very welcome{nameAdd}! Always happy to help keep your backups safe and your systems running smoothly. Let me know if you need anything else!",
+                    $"Anytime{nameAdd}! PinayPal is guarding your data 24/7. Feel free to ping me whenever you have questions or want to run a sync.",
+                    $"Glad I could assist{nameAdd}! Everything is running cleanly on {Environment.MachineName}. Have a wonderful day!"
+                };
+                return replies[Random.Shared.Next(replies.Length)];
+            }
+
+            // Compliments & Positive Feedback
+            if (lower is "good job" or "great job" or "awesome" or "cool" or "nice" or "well done" or "perfect" ||
+                lower.Contains("good job") || lower.Contains("great job") || lower.Contains("you're awesome") || lower.Contains("you are awesome"))
+            {
+                var replies = new[]
+                {
+                    "Thank you! I appreciate the feedback. I'll continue keeping watch over your backups and system telemetry.",
+                    "Thanks! Always striving to make your backup management effortless. Let me know what you'd like to do next!",
+                    "Much appreciated! Everything is standing by whenever you need another backup or diagnostic check."
+                };
+                return replies[Random.Shared.Next(replies.Length)];
+            }
+
+            // Departure & Farewells
+            if (lower is "bye" or "goodbye" or "see you" or "see ya" or "cya" or "good night" or "stepping out" ||
+                lower.StartsWith("bye") || lower.StartsWith("goodbye") || lower.StartsWith("good night"))
+            {
+                var nameMem = AIMemoryStore.GetAll().FirstOrDefault(m => m.Key == "user_name");
+                var nameAdd = nameMem != null ? $", {nameMem.Content.Trim()}" : "";
+                return $"Take care{nameAdd}! I'll stay on duty monitoring your backups, disk storage, and daemons on {Environment.MachineName}. Have a great one!";
             }
 
             // Backup History & Recent Records
@@ -1757,14 +1944,15 @@ namespace PinayPalBackupManager.Services
             }
 
             // Default conversational fallback
-            return $@"I'm listening! I can help you monitor and operate **PinayPal Backup Manager v{BackupConfig.AppVersion}**.
-
-Here are some things you can ask me:
-- **""How is the system health?""** — View live CPU, memory, and daemon status.
-- **""How much disk space is left?""** — Inspect drive capacities and backup folders.
-- **""Run a backup for Website FTP""** — I will prepare the action for your approval.
-- **""Recreate the Cloudflare Tunnel""** — Generates a fresh remote access URL.
-- **""Send a test email""** — Validates executive HTML alert delivery.";
+            var nameMemory = AIMemoryStore.GetAll().FirstOrDefault(m => m.Key == "user_name");
+            var userTag = nameMemory != null ? $", {nameMemory.Content.Trim()}" : "";
+            var fallbackReplies = new[]
+            {
+                $"I'm here with you{userTag} on **{Environment.MachineName}**! All automated backup schedulers, tunnel daemons, and system monitors are running normally.\n\nWhat would you like to check or manage? You can ask me about **system health**, **disk space**, **recent backups**, **remote tunnels**, or **managed computers**.",
+                $"I'm listening{userTag}! Everything on **{Environment.MachineName}** is stable and green. If you'd like, I can inspect your **storage capacities**, run a **health diagnostic**, check **Telegram alerts**, or trigger a **service backup**.",
+                $"Standing by on **{Environment.MachineName}**{userTag}! All systems are operational. Let me know what you'd like to inspect or run."
+            };
+            return fallbackReplies[Random.Shared.Next(fallbackReplies.Length)];
         }
 
         // ==========================================

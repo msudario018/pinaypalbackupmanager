@@ -42,31 +42,60 @@ namespace PinayPalBackupManager
 
         public override void OnFrameworkInitializationCompleted()
         {
-            // Initialize security enhancements
-            InitializeSecurity();
-            
-            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            try
             {
-                // Must be OnExplicitShutdown: prevents Avalonia from terminating when MainWindow is hidden/minimized to tray or when modal/update dialogs close
-                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
+                // Initialize security enhancements
+                InitializeSecurity();
+                
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    // Must be OnExplicitShutdown: prevents Avalonia from terminating when MainWindow is hidden/minimized to tray or when modal/update dialogs close
+                    desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
 
-                // If there are no users in database, launch the Setup Wizard
-                if (!AuthService.HasAnyUsers())
-                {
-                    ShowSetupWizard(desktop);
-                }
-                else
-                {
-                    // Existing users in database: ensure setup is marked complete so first-run flags align
-                    if (ConfigService.IsFirstRun())
+                    // Wire single instance listener at desktop application level
+                    AppIconHelper.StartSingleInstanceListener(() =>
                     {
-                        ConfigService.MarkSetupComplete();
-                    }
-                    ShowLogin(desktop);
-                }
-            }
+                        var win = desktop.MainWindow;
+                        if (win is MainWindow mw)
+                        {
+                            mw.RestoreFromTray();
+                        }
+                        else if (win != null)
+                        {
+                            if (win.WindowState == Avalonia.Controls.WindowState.Minimized)
+                                win.WindowState = Avalonia.Controls.WindowState.Normal;
+                            win.Show();
+                            win.Activate();
+                            AppIconHelper.BringToForeground(win);
+                        }
+                    });
 
-            base.OnFrameworkInitializationCompleted();
+                    // If there are no users in database, launch the Setup Wizard
+                    if (!AuthService.HasAnyUsers())
+                    {
+                        ShowSetupWizard(desktop);
+                    }
+                    else
+                    {
+                        // Existing users in database: ensure setup is marked complete so first-run flags align
+                        if (ConfigService.IsFirstRun())
+                        {
+                            ConfigService.MarkSetupComplete();
+                        }
+                        ShowLogin(desktop);
+                    }
+                }
+
+                base.OnFrameworkInitializationCompleted();
+            }
+            catch (Exception ex)
+            {
+                var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [FATAL] Error in OnFrameworkInitializationCompleted: {ex}\n";
+                try { File.AppendAllText(AppDataPaths.GetLogPath("startup.log"), msg); } catch { }
+                try { File.AppendAllText(AppDataPaths.SystemLogPath, msg); } catch { }
+                LogService.WriteSystemLog($"Application initialization failed: {ex.Message}", "Critical", "SYSTEM");
+                throw;
+            }
         }
 
         private void InitializeSecurity()

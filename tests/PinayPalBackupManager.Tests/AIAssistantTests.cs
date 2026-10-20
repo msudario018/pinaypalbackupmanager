@@ -142,6 +142,38 @@ namespace PinayPalBackupManager.Tests
         }
 
         [Fact]
+        public async Task ProcessUserMessage_AutoLearnsUserNameAndPreferencesContinuously()
+        {
+            AIMemoryStore.ClearAll();
+            AIAssistantService.Config.EnableLearningMemory = true;
+
+            var msg = await AIAssistantService.ProcessUserMessageAsync("Hi, call me Gabriel and please alert me on telegram");
+            
+            var all = AIMemoryStore.GetAll();
+            var nameItem = all.FirstOrDefault(i => i.Key == "user_name");
+            Assert.NotNull(nameItem);
+            Assert.Equal("Gabriel", nameItem.Content);
+
+            var channelItem = all.FirstOrDefault(i => i.Key == "preferred_alert_channel");
+            Assert.NotNull(channelItem);
+            Assert.Contains("telegram", channelItem.Content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task ProcessUserMessage_ConversationalGratitudeAndPraise()
+        {
+            var msg1 = await AIAssistantService.ProcessUserMessageAsync("Thank you so much!");
+            Assert.True(msg1.Content.Contains("welcome", StringComparison.OrdinalIgnoreCase) ||
+                        msg1.Content.Contains("anytime", StringComparison.OrdinalIgnoreCase) ||
+                        msg1.Content.Contains("glad", StringComparison.OrdinalIgnoreCase) ||
+                        msg1.Content.Contains("assist", StringComparison.OrdinalIgnoreCase));
+
+            var msg2 = await AIAssistantService.ProcessUserMessageAsync("Good job, that was fast");
+            Assert.True(msg2.Content.Contains("thank", StringComparison.OrdinalIgnoreCase) ||
+                        msg2.Content.Contains("appreciated", StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Fact]
         public void SelectBestModel_PreservesCurrentModel_WhenInstalled()
         {
             var models = new List<string> { "llama3.2:3b", "qwen2.5:3b-instruct-q4_K_M", "deepseek-r1:1.5b" };
