@@ -2495,7 +2495,11 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     foreach (var c in allCards)
                     {
-                        if (c != null) c.IsVisible = true;
+                        if (c != null)
+                        {
+                            c.IsVisible = true;
+                            c.IsExpanded = true;
+                        }
                     }
                 });
             }
@@ -2607,6 +2611,22 @@ namespace PinayPalBackupManager.UI.UserControls
                             bool match = c == cardCreds || c == cardTools;
                             c.IsVisible = match;
                             if (match) c.IsExpanded = true;
+                        }
+                    }
+                });
+            }
+
+            // Initialize view with All Settings active and all cards visible and expanded
+            if (btnAll != null)
+            {
+                SelectPill(btnAll, () =>
+                {
+                    foreach (var c in allCards)
+                    {
+                        if (c != null)
+                        {
+                            c.IsVisible = true;
+                            c.IsExpanded = true;
                         }
                     }
                 });

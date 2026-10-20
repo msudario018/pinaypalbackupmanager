@@ -1,5 +1,22 @@
 # Changelog
 
+## v4.0.1 (2026-10-21)
+
+### Fixed
+- **Action Card Approval & Execution Rail**:
+  - Removed self-blocking guard condition in `AIAssistantService.ExecuteActionAsync` where `!action.IsApproved` prevented execution when `userApproved` was true, which previously reported `Blocked: this action requires explicit confirmation.` upon clicking **Approve**.
+  - Awaited parallel backup dispatch for all services (`BackupExecutor("all", "AI Assistant")`) to guarantee execution reporting and lifecycle tracking.
+  - Added seamless conversational approvals: typing "approve", "confirm", "proceed", "yes", "do it", "run it", "go ahead", or "ok" in the chat immediately executes pending action proposals; typing "no", "cancel", "stop", or "abort" cancels them cleanly.
+
+- **Settings Control Blank Viewport & Content Rehosting**:
+  - Moved the floating save bar in `SettingsControl.axaml` from `Grid.Row="2"` to `Grid.Row="3"`, resolving layout collision where the opaque bottom bar completely overlaid and occluded the settings cards in the `*` row.
+  - Implemented automatic child control rehosting in `CollapsibleCardControl.axaml.cs` so nested controls in XAML are placed into `ContentHostPanel` while preserving the card visual tree, headers, icons, and collapse animation.
+  - Set `IsExpanded` to `true` by default and initialized the Settings view with *All Settings* selected and all sections expanded.
+
+- **AI Assistant Intent Recognition & Natural Queries (PC & iOS)**:
+  - Upgraded intent parsing with robust token matching for natural backup variations (`run all backups`, `backup database`, `backup sql`, `backup website`, `backup ftp`, `backup mailchimp`, `backup now`, `backup all`, `backup everything`), resolving silent misses on iOS quick chips and PC prompts.
+  - Synchronized conversational approval flow across PC chat and the iOS Liquid AI Assistant Sheet.
+
 ## v4.0.0 (2026-10-20)
 
 ### Added

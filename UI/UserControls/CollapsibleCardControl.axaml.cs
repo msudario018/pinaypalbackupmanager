@@ -28,7 +28,7 @@ namespace PinayPalBackupManager.UI.UserControls
             AvaloniaProperty.Register<CollapsibleCardControl, string>(nameof(Badge), string.Empty);
 
         public static readonly StyledProperty<bool> IsExpandedProperty =
-            AvaloniaProperty.Register<CollapsibleCardControl, bool>(nameof(IsExpanded), false);
+            AvaloniaProperty.Register<CollapsibleCardControl, bool>(nameof(IsExpanded), true);
 
         public string Title { get => GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
         public string Subtitle { get => GetValue(SubtitleProperty); set => SetValue(SubtitleProperty, value); }
@@ -49,6 +49,7 @@ namespace PinayPalBackupManager.UI.UserControls
         private Border? _cardRoot;
         private Button? _headerButton;
         private Border? _contentHost;
+        private StackPanel? _contentHostPanel;
         private TextBlock? _titleText;
         private TextBlock? _subtitleText;
         private TextBlock? _badgeText;
@@ -56,6 +57,8 @@ namespace PinayPalBackupManager.UI.UserControls
         private PathIcon? _headerIcon;
         private PathIcon? _chevron;
         private Border? _accentStripe;
+        private bool _isRehostingContent = false;
+
         public CollapsibleCardControl()
         {
             AvaloniaXamlLoader.Load(this);
@@ -63,6 +66,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _cardRoot = this.FindControl<Border>("CardRoot");
             _headerButton = this.FindControl<Button>("HeaderButton");
             _contentHost = this.FindControl<Border>("ContentHost");
+            _contentHostPanel = this.FindControl<StackPanel>("ContentHostPanel");
             _titleText = this.FindControl<TextBlock>("HeaderTitleText");
             _subtitleText = this.FindControl<TextBlock>("HeaderSubtitleText");
             _badgeText = this.FindControl<TextBlock>("HeaderBadgeText");
@@ -85,6 +89,33 @@ namespace PinayPalBackupManager.UI.UserControls
 
             ApplyHeader();
             ApplyExpansion();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == ContentProperty && !_isRehostingContent)
+            {
+                var newContent = change.NewValue;
+                if (newContent != null && newContent != _cardRoot && _cardRoot != null && _contentHostPanel != null)
+                {
+                    _isRehostingContent = true;
+                    try
+                    {
+                        if (newContent is Control ctrl)
+                        {
+                            _contentHostPanel.Children.Clear();
+                            _contentHostPanel.Children.Add(ctrl);
+                        }
+                        Content = _cardRoot;
+                    }
+                    finally
+                    {
+                        _isRehostingContent = false;
+                    }
+                }
+            }
         }
 
         /// <summary>Flips the open/closed state.</summary>

@@ -691,7 +691,7 @@
         </ScrollViewer>
 
             <!-- Floating save bar: always visible, so Save is reachable from anywhere in Settings -->
-            <Border Grid.Row="2"
+            <Border Grid.Row="3"
                     Background="{DynamicResource AppCard}"
                     BorderBrush="{DynamicResource AppBorder}"
                     BorderThickness="1,1,1,0"

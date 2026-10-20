@@ -41,6 +41,7 @@ namespace PinayPalBackupManager.Services
         public bool IsExecuted { get; set; } = false;
         public bool IsApproved { get; set; } = false;
         public string? ExecutionResult { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
     public class AIAssistantConfig
@@ -540,6 +541,49 @@ namespace PinayPalBackupManager.Services
         }
 
         /// <summary>
+        /// Detects if a user prompt is a conversational confirmation ("yes", "approve", "do it")
+        /// or rejection ("no", "cancel", "stop") for a previously proposed action.
+        /// </summary>
+        private static bool? DetectConversationalApproval(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt)) return null;
+            var cleaned = Regex.Replace(prompt.Trim().ToLowerInvariant(), @"[^\w\s]", "").Trim();
+
+            var yesPatterns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "yes", "yep", "yeah", "y", "sure", "ok", "okay", "approve", "approved",
+                "confirm", "confirmed", "proceed", "go ahead", "do it", "run it",
+                "execute", "start", "start it", "let's do it", "lets do it",
+                "make it so", "go for it", "please do", "affirmative", "run", "do"
+            };
+
+            if (yesPatterns.Contains(cleaned) ||
+                cleaned.StartsWith("yes ") || cleaned.StartsWith("approve ") ||
+                cleaned.StartsWith("confirm ") || cleaned.StartsWith("proceed ") ||
+                cleaned.StartsWith("go ahead") || cleaned.StartsWith("do it") ||
+                cleaned.StartsWith("run it"))
+            {
+                return true;
+            }
+
+            var noPatterns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "no", "nope", "cancel", "cancelled", "stop", "abort", "don't",
+                "dont", "nevermind", "never mind", "halt", "reject", "negative"
+            };
+
+            if (noPatterns.Contains(cleaned) ||
+                cleaned.StartsWith("no ") || cleaned.StartsWith("cancel ") ||
+                cleaned.StartsWith("stop ") || cleaned.StartsWith("abort ") ||
+                cleaned.StartsWith("don't") || cleaned.StartsWith("dont"))
+            {
+                return false;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Core conversational chat entry point with multi-provider dispatch and Zero-Leak sanitization.
         /// </summary>
         public static async Task<ChatMessage> ProcessUserMessageAsync(string userMessage)
@@ -557,6 +601,61 @@ namespace PinayPalBackupManager.Services
 
             try
             {
+                // Check if there is a pending action awaiting approval and the user is approving/cancelling it conversationally
+                var approvalIntent = DetectConversationalApproval(sanitizedUserMessage);
+                if (approvalIntent.HasValue && _pendingActions.Count > 0)
+                {
+                    var pendingPair = _pendingActions.OrderByDescending(p => p.Value.CreatedAt).FirstOrDefault();
+                    if (pendingPair.Value != null)
+                    {
+                        var action = pendingPair.Value;
+                        if (approvalIntent.Value)
+                        {
+                            (bool execOk, string execMsg) = await ExecuteActionAsync(action.ActionId, true);
+                            var reply = execOk
+                                ? $"🚀 **Action Approved & Executed:** {action.Title}\n\n{execMsg}"
+                                : $"⚠️ **Execution Result:** {execMsg}";
+
+                            assistantMsg = new ChatMessage
+                            {
+                                Role = "assistant",
+                                Content = reply,
+                                Engine = "action_executor",
+                                FollowUpSuggestions = BuildFollowUpSuggestions("backup")
+                            };
+
+                            lock (_historyLock)
+                            {
+                                _sessionHistory.Add(assistantMsg);
+                                if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                            }
+
+                            OnMessageReceived?.Invoke(assistantMsg);
+                            return assistantMsg;
+                        }
+                        else
+                        {
+                            await ExecuteActionAsync(action.ActionId, false);
+                            assistantMsg = new ChatMessage
+                            {
+                                Role = "assistant",
+                                Content = $"🛑 Cancelled action: **{action.Title}**. Let me know what else you'd like to do.",
+                                Engine = "action_executor",
+                                FollowUpSuggestions = BuildFollowUpSuggestions("")
+                            };
+
+                            lock (_historyLock)
+                            {
+                                _sessionHistory.Add(assistantMsg);
+                                if (_sessionHistory.Count > 60) _sessionHistory.RemoveAt(0);
+                            }
+
+                            OnMessageReceived?.Invoke(assistantMsg);
+                            return assistantMsg;
+                        }
+                    }
+                }
+
                 // Auto-learn facts and preferences continuously from natural conversation
                 if (_config.EnableLearningMemory)
                 {
@@ -957,14 +1056,6 @@ namespace PinayPalBackupManager.Services
                 return (false, "Action cancelled.");
             }
 
-            // Safety rail: even an "approved" call is refused when the guard is switched on
-            // and the action still demands explicit confirmation.
-            if (_config.RequireActionApproval && action.RequiresConfirmation && !action.IsApproved)
-            {
-                action.ExecutionResult = "Blocked: this action requires explicit confirmation.";
-                return (false, action.ExecutionResult);
-            }
-
             action.IsApproved = true;
             action.IsExecuted = true;
             _pendingActions.TryRemove(actionId, out _);
@@ -979,17 +1070,26 @@ namespace PinayPalBackupManager.Services
                         var service = action.Parameters.TryGetValue("service", out var s) ? s : "all";
                         if (service == "all")
                         {
-                            _ = BackupSchedulingService.BackupExecutor?.Invoke("ftp", "AI Assistant");
-                            _ = BackupSchedulingService.BackupExecutor?.Invoke("sql", "AI Assistant");
-                            _ = BackupSchedulingService.BackupExecutor?.Invoke("mailchimp", "AI Assistant");
-                            action.ExecutionResult = "Dispatched parallel backup for Website FTP, SQL Database, and Mailchimp.";
+                            if (BackupSchedulingService.BackupExecutor != null)
+                            {
+                                var ok = await BackupSchedulingService.BackupExecutor("all", "AI Assistant");
+                                action.ExecutionResult = ok
+                                    ? "Dispatched and running parallel backup for Website FTP, SQL Database, and Mailchimp."
+                                    : "Failed to dispatch parallel backups.";
+                                return (ok, action.ExecutionResult);
+                            }
+                            else
+                            {
+                                action.ExecutionResult = "Backup executor service is currently unavailable.";
+                                return (false, action.ExecutionResult);
+                            }
                         }
                         else
                         {
                             var ok = await (BackupSchedulingService.BackupExecutor?.Invoke(service, "AI Assistant") ?? Task.FromResult(false));
                             action.ExecutionResult = ok ? $"{service.ToUpper()} backup task started successfully." : $"Failed to start {service.ToUpper()} backup.";
+                            return (ok, action.ExecutionResult);
                         }
-                        return (true, action.ExecutionResult);
 
                     case "computer_power":
                         var computerId = action.Parameters.TryGetValue("computerId", out var cid) ? cid : "";
@@ -1254,9 +1354,17 @@ namespace PinayPalBackupManager.Services
             }
 
             // Run backup intents
-            if (lower.Contains("run backup") || lower.Contains("start backup") || lower.Contains("backup now") || lower.Contains("do backup") || lower.Contains("trigger backup"))
+            bool isBackupIntent =
+                Regex.IsMatch(lower, @"\b(?:run|start|do|trigger|perform|execute|take|launch|initiate)\b.*\b(?:backup|backups|sync)\b") ||
+                Regex.IsMatch(lower, @"\b(?:backup|backups)\b.*\b(?:now|all|everything|full|please|today)\b") ||
+                Regex.IsMatch(lower, @"\b(?:backup|backups)\s+(?:sql|database|ftp|website|mailchimp)\b") ||
+                lower == "backup" || lower == "backups" || lower == "run backup" || lower == "run backups" ||
+                lower == "run all backups" || lower == "backup all" || lower == "backup now" || lower == "backup everything" ||
+                lower.Contains("run backup") || lower.Contains("start backup") || lower.Contains("backup now") || lower.Contains("do backup") || lower.Contains("trigger backup");
+
+            if (isBackupIntent)
             {
-                if (lower.Contains("sql") || lower.Contains("database"))
+                if (lower.Contains("sql") || lower.Contains("database") || lower.Contains("mysql"))
                 {
                     return new AIProposedAction
                     {
@@ -1266,7 +1374,7 @@ namespace PinayPalBackupManager.Services
                         Parameters = new Dictionary<string, string> { { "service", "sql" } }
                     };
                 }
-                if (lower.Contains("ftp") || lower.Contains("website"))
+                if (lower.Contains("ftp") || lower.Contains("website") || lower.Contains("files") || lower.Contains("web"))
                 {
                     return new AIProposedAction
                     {
@@ -1276,7 +1384,7 @@ namespace PinayPalBackupManager.Services
                         Parameters = new Dictionary<string, string> { { "service", "ftp" } }
                     };
                 }
-                if (lower.Contains("mailchimp"))
+                if (lower.Contains("mailchimp") || lower.Contains("audience") || lower.Contains("campaign") || lower.Contains("newsletter"))
                 {
                     return new AIProposedAction
                     {
