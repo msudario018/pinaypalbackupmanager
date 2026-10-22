@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.1.1 (2026-10-23)
+
+### Fixed
+- **Settings Control Navigation Crash Resolution**:
+  - Eliminated null-forgiving operator dereferences on `ChkStartup` and `TxtHealthStatus` within `SettingsControl.axaml.cs`.
+  - Re-synchronized the local installation via Velopack silent upgrade to ensure all previous runtime crash protections from v4.1.0 (`TryBrush` dictionary fallback, `RefreshAiSettings` try-catch, `RefreshTelegramAlerts` try-catch) take full effect.
+  - Hardened tab-switching and service health refresh against unhandled exceptions during background telemetry scans.
+
+- **Velopack Installer & Admin Account Persistence**:
+  - Confirmed persistent admin account retention across updates via Roaming AppData mirror (`%APPDATA%\PinayPalBackupManager\Data\users.db`).
+  - Ensured automated upgrade completes cleanly without triggering the first-time setup wizard (`SetupWizardWindow`).
+
+### Cross-Platform
+- Version bumped to **v4.1.1** / iOS **Build 42** across PC application and iOS client.
+
 ## v4.1.0 (2026-10-22)
 
 ### Fixed

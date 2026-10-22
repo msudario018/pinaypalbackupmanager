@@ -34,9 +34,12 @@ namespace PinayPalBackupManager.UI.UserControls
             Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
             InitializeCategoryFilter();
             
-            var chkStartup = this.FindControl<CheckBox>("ChkStartup")!;
-            chkStartup.IsChecked = IsStartupEnabled();
-            chkStartup.IsCheckedChanged += ToggleStartup;
+            var chkStartup = this.FindControl<CheckBox>("ChkStartup");
+            if (chkStartup != null)
+            {
+                chkStartup.IsChecked = IsStartupEnabled();
+                chkStartup.IsCheckedChanged += ToggleStartup;
+            }
 
             // Load Start Minimized setting
             var chkStartMinimized = this.FindControl<CheckBox>("ChkStartMinimized");
@@ -357,8 +360,8 @@ namespace PinayPalBackupManager.UI.UserControls
             if (btnDiagnostics != null)
             {
                 btnDiagnostics.Click += async (s, e) => {
-                var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus")!;
-                txtStatus.Text = "Status: Running System Scan...";
+                var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus");
+                if (txtStatus != null) txtStatus.Text = "Status: Running System Scan...";
                 NotificationService.ShowBackupToast("Diagnostics", "Running system scan...", "Info");
                 
                 if (_manager != null)
@@ -379,11 +382,12 @@ namespace PinayPalBackupManager.UI.UserControls
                         .Select(r => r.Service)
                         .ToArray();
 
-                    txtStatus.Text = outdated.Length == 0
+                    var statusMessage = outdated.Length == 0
                         ? "Status: OK (Website, Mailchimp, SQL)"
                         : $"Status: OUTDATED ({string.Join(", ", outdated)})";
 
-                    NotificationService.ShowBackupToast("Diagnostics", txtStatus.Text.Replace("Status: ", ""), outdated.Length == 0 ? "Info" : "Warning");
+                    if (txtStatus != null) txtStatus.Text = statusMessage;
+                    NotificationService.ShowBackupToast("Diagnostics", statusMessage.Replace("Status: ", ""), outdated.Length == 0 ? "Info" : "Warning");
                     RefreshServiceHealthCards();
                 }
             };
