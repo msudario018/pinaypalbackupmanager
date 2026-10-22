@@ -480,91 +480,100 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public void RefreshAiSettings()
         {
-            var chkWidget = this.FindControl<CheckBox>("ChkAiFloatingWidget");
-            var chkGreeting = this.FindControl<CheckBox>("ChkAiLoginGreeting");
-            var chkChimes = this.FindControl<CheckBox>("ChkAiSoundChimes");
-            var cmbProvider = this.FindControl<ComboBox>("CmbAiProvider");
-            var txtOllamaEp = this.FindControl<TextBox>("TxtOllamaEndpoint");
-            var txtOllamaModel = this.FindControl<TextBox>("TxtOllamaModel");
-            var txtCloudEp = this.FindControl<TextBox>("TxtCloudEndpoint");
-            var txtCloudModel = this.FindControl<TextBox>("TxtCloudModel");
-            var txtCloudKey = this.FindControl<TextBox>("TxtCloudApiKey");
-
-            AIAssistantService.LoadConfig();
-            var cfg = AIAssistantService.Config;
-
-            if (chkWidget != null) chkWidget.IsChecked = cfg.EnableFloatingWidget;
-            if (chkGreeting != null) chkGreeting.IsChecked = cfg.EnableLoginGreeting;
-            if (chkChimes != null) chkChimes.IsChecked = cfg.EnableSoundChimes;
-
-            if (cmbProvider != null)
+            try
             {
-                var p = cfg.Provider?.ToLowerInvariant() ?? "hybrid";
-                cmbProvider.SelectedIndex = p switch
+                var chkWidget = this.FindControl<CheckBox>("ChkAiFloatingWidget");
+                var chkGreeting = this.FindControl<CheckBox>("ChkAiLoginGreeting");
+                var chkChimes = this.FindControl<CheckBox>("ChkAiSoundChimes");
+                var cmbProvider = this.FindControl<ComboBox>("CmbAiProvider");
+                var txtOllamaEp = this.FindControl<TextBox>("TxtOllamaEndpoint");
+                var txtOllamaModel = this.FindControl<TextBox>("TxtOllamaModel");
+                var txtCloudEp = this.FindControl<TextBox>("TxtCloudEndpoint");
+                var txtCloudModel = this.FindControl<TextBox>("TxtCloudModel");
+                var txtCloudKey = this.FindControl<TextBox>("TxtCloudApiKey");
+
+                AIAssistantService.LoadConfig();
+                var cfg = AIAssistantService.Config;
+
+                if (chkWidget != null) chkWidget.IsChecked = cfg.EnableFloatingWidget;
+                if (chkGreeting != null) chkGreeting.IsChecked = cfg.EnableLoginGreeting;
+                if (chkChimes != null) chkChimes.IsChecked = cfg.EnableSoundChimes;
+
+                if (cmbProvider != null)
                 {
-                    "ollama" => 1,
-                    "cloud" => 2,
-                    "heuristics" => 3,
-                    _ => 0
-                };
-            }
+                    var p = cfg.Provider?.ToLowerInvariant() ?? "hybrid";
+                    cmbProvider.SelectedIndex = p switch
+                    {
+                        "ollama" => 1,
+                        "cloud" => 2,
+                        "heuristics" => 3,
+                        _ => 0
+                    };
+                }
 
-            if (txtOllamaEp != null) txtOllamaEp.Text = cfg.OllamaEndpoint;
-            if (txtOllamaModel != null) txtOllamaModel.Text = cfg.OllamaModel;
+                if (txtOllamaEp != null) txtOllamaEp.Text = cfg.OllamaEndpoint;
+                if (txtOllamaModel != null) txtOllamaModel.Text = cfg.OllamaModel;
 
-            var cmbDetectedModels = this.FindControl<ComboBox>("CmbDetectedOllamaModels");
-            if (cmbDetectedModels != null && cmbDetectedModels.ItemsSource != null)
-            {
-                cmbDetectedModels.SelectedItem = cfg.OllamaModel;
-            }
-            if (txtCloudEp != null) txtCloudEp.Text = cfg.CloudEndpoint;
-            if (txtCloudModel != null) txtCloudModel.Text = cfg.CloudModel;
-            if (txtCloudKey != null) txtCloudKey.Text = cfg.CloudApiKey;
-
-            // Personality & safety
-            var txtName = this.FindControl<TextBox>("TxtAiAssistantName");
-            var sldTalk = this.FindControl<Slider>("SldAiTalkativeness");
-            var sldCreativity = this.FindControl<Slider>("SldAiCreativity");
-            var sldMemory = this.FindControl<Slider>("SldAiMemoryDepth");
-            var sldProactive = this.FindControl<Slider>("SldAiProactiveMinutes");
-            var chkFollowUp = this.FindControl<CheckBox>("ChkAiFollowUpSuggestions");
-            var chkProactive = this.FindControl<CheckBox>("ChkAiProactiveUpdates");
-            var chkRequireApproval = this.FindControl<CheckBox>("ChkAiRequireApproval");
-            var chkZeroLeak = this.FindControl<CheckBox>("ChkAiZeroLeak");
-
-            if (txtName != null) txtName.Text = cfg.AssistantName;
-            if (sldTalk != null) sldTalk.Value = Math.Clamp(cfg.Talkativeness, 0, 100);
-            if (sldCreativity != null) sldCreativity.Value = Math.Clamp(cfg.Creativity, 0.0, 1.5);
-            if (sldMemory != null) sldMemory.Value = Math.Clamp(cfg.ConversationMemoryDepth, 0, 40);
-            if (sldProactive != null) sldProactive.Value = Math.Clamp(cfg.ProactiveIntervalMinutes, 0, 240);
-
-            if (chkFollowUp != null) chkFollowUp.IsChecked = cfg.EnableFollowUpSuggestions;
-            if (chkProactive != null) chkProactive.IsChecked = cfg.EnableProactiveUpdates;
-            if (chkRequireApproval != null) chkRequireApproval.IsChecked = cfg.RequireActionApproval;
-            if (chkZeroLeak != null) chkZeroLeak.IsChecked = cfg.EnableZeroLeakSanitizer;
-
-            var chkCloudRedact = this.FindControl<CheckBox>("ChkAiCloudRedact");
-            var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
-            var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
-
-            var cmbAgentProfile = this.FindControl<ComboBox>("CmbAiAgentProfile");
-            var chkLearningMemory = this.FindControl<CheckBox>("ChkAiLearningMemory");
-
-            if (cmbAgentProfile != null)
-            {
-                cmbAgentProfile.SelectedIndex = (cfg.AgentProfile ?? "guardian").ToLowerInvariant() switch
+                var cmbDetectedModels = this.FindControl<ComboBox>("CmbDetectedOllamaModels");
+                if (cmbDetectedModels != null && cmbDetectedModels.ItemsSource != null)
                 {
-                    "specialist" => 1,
-                    "speedy" => 2,
-                    _ => 0
-                };
-            }
-            if (chkLearningMemory != null) chkLearningMemory.IsChecked = cfg.EnableLearningMemory;
+                    cmbDetectedModels.SelectedItem = cfg.OllamaModel;
+                }
+                if (txtCloudEp != null) txtCloudEp.Text = cfg.CloudEndpoint;
+                if (txtCloudModel != null) txtCloudModel.Text = cfg.CloudModel;
+                if (txtCloudKey != null) txtCloudKey.Text = cfg.CloudApiKey;
 
-            if (chkCloudRedact != null) chkCloudRedact.IsChecked = cfg.CloudRedactsContext;
-            if (chkKeepModel != null) chkKeepModel.IsChecked = cfg.EnableLocalModelDuringBackups;
-            if (txtThreads != null && int.TryParse(txtThreads.Text, out var parsedThreads))
-            txtThreads.Text = Math.Clamp(parsedThreads, 0, 64).ToString();
+                // Personality & safety
+                var txtName = this.FindControl<TextBox>("TxtAiAssistantName");
+                var sldTalk = this.FindControl<Slider>("SldAiTalkativeness");
+                var sldCreativity = this.FindControl<Slider>("SldAiCreativity");
+                var sldMemory = this.FindControl<Slider>("SldAiMemoryDepth");
+                var sldProactive = this.FindControl<Slider>("SldAiProactiveMinutes");
+                var chkFollowUp = this.FindControl<CheckBox>("ChkAiFollowUpSuggestions");
+                var chkProactive = this.FindControl<CheckBox>("ChkAiProactiveUpdates");
+                var chkRequireApproval = this.FindControl<CheckBox>("ChkAiRequireApproval");
+                var chkZeroLeak = this.FindControl<CheckBox>("ChkAiZeroLeak");
+
+                if (txtName != null) txtName.Text = cfg.AssistantName;
+                if (sldTalk != null) sldTalk.Value = Math.Clamp(cfg.Talkativeness, 0, 100);
+                if (sldCreativity != null) sldCreativity.Value = Math.Clamp(cfg.Creativity, 0.0, 1.5);
+                if (sldMemory != null) sldMemory.Value = Math.Clamp(cfg.ConversationMemoryDepth, 0, 40);
+                if (sldProactive != null) sldProactive.Value = Math.Clamp(cfg.ProactiveIntervalMinutes, 0, 240);
+
+                if (chkFollowUp != null) chkFollowUp.IsChecked = cfg.EnableFollowUpSuggestions;
+                if (chkProactive != null) chkProactive.IsChecked = cfg.EnableProactiveUpdates;
+                if (chkRequireApproval != null) chkRequireApproval.IsChecked = cfg.RequireActionApproval;
+                if (chkZeroLeak != null) chkZeroLeak.IsChecked = cfg.EnableZeroLeakSanitizer;
+
+                var chkCloudRedact = this.FindControl<CheckBox>("ChkAiCloudRedact");
+                var chkKeepModel = this.FindControl<CheckBox>("ChkAiKeepModelDuringBackups");
+                var txtThreads = this.FindControl<TextBox>("TxtAiThreads");
+
+                var cmbAgentProfile = this.FindControl<ComboBox>("CmbAiAgentProfile");
+                var chkLearningMemory = this.FindControl<CheckBox>("ChkAiLearningMemory");
+
+                if (cmbAgentProfile != null)
+                {
+                    cmbAgentProfile.SelectedIndex = (cfg.AgentProfile ?? "guardian").ToLowerInvariant() switch
+                    {
+                        "specialist" => 1,
+                        "speedy" => 2,
+                        _ => 0
+                    };
+                }
+                if (chkLearningMemory != null) chkLearningMemory.IsChecked = cfg.EnableLearningMemory;
+
+                if (chkCloudRedact != null) chkCloudRedact.IsChecked = cfg.CloudRedactsContext;
+                if (chkKeepModel != null) chkKeepModel.IsChecked = cfg.EnableLocalModelDuringBackups;
+                if (txtThreads != null)
+                {
+                    txtThreads.Text = cfg.OllamaThreads > 0 ? Math.Clamp(cfg.OllamaThreads, 1, 64).ToString() : "4";
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SettingsControl] RefreshAiSettings warning: {ex.Message}", "Warning", "AI");
+            }
         }
 
         private void InitializeAiAssistantSettings()
@@ -1595,46 +1604,53 @@ namespace PinayPalBackupManager.UI.UserControls
 
         public void RefreshTelegramAlerts()
         {
-            var chkTelegram = this.FindControl<CheckBox>("ChkTelegramEnabled");
-            var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
-            var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
-            var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
-            var chkProg = this.FindControl<CheckBox>("ChkNotifyBackupProgress");
-            var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
-            var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
-            var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
-            var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
-            var txtChatTitle = this.FindControl<TextBlock>("TxtTelegramChatTitle");
-
-            NotificationService.LoadSettings();
-            var s = NotificationService.Settings;
-
-            if (chkTelegram != null) chkTelegram.IsChecked = s.TelegramEnabled;
-            if (txtToken != null) txtToken.Text = s.TelegramBotToken;
-            if (txtChatId != null) txtChatId.Text = s.TelegramChatId;
-            if (chkStart != null) chkStart.IsChecked = s.NotifyOnBackupStart;
-            if (chkProg != null) chkProg.IsChecked = s.NotifyOnBackupProgress;
-            if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
-            if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
-            if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
-            if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
-
-            if (txtChatTitle != null)
+            try
             {
-                if (!string.IsNullOrWhiteSpace(s.TelegramChatTitle))
+                var chkTelegram = this.FindControl<CheckBox>("ChkTelegramEnabled");
+                var txtToken = this.FindControl<TextBox>("TxtTelegramToken");
+                var txtChatId = this.FindControl<TextBox>("TxtTelegramChatId");
+                var chkStart = this.FindControl<CheckBox>("ChkNotifyBackupStart");
+                var chkProg = this.FindControl<CheckBox>("ChkNotifyBackupProgress");
+                var chkSucc = this.FindControl<CheckBox>("ChkNotifyBackupSuccess");
+                var chkFail = this.FindControl<CheckBox>("ChkNotifyBackupFailure");
+                var chkDisc = this.FindControl<CheckBox>("ChkNotifyDisconnect");
+                var chkOut = this.FindControl<CheckBox>("ChkNotifyOutdated");
+                var txtChatTitle = this.FindControl<TextBlock>("TxtTelegramChatTitle");
+
+                NotificationService.LoadSettings();
+                var s = NotificationService.Settings;
+
+                if (chkTelegram != null) chkTelegram.IsChecked = s.TelegramEnabled;
+                if (txtToken != null) txtToken.Text = s.TelegramBotToken;
+                if (txtChatId != null) txtChatId.Text = s.TelegramChatId;
+                if (chkStart != null) chkStart.IsChecked = s.NotifyOnBackupStart;
+                if (chkProg != null) chkProg.IsChecked = s.NotifyOnBackupProgress;
+                if (chkSucc != null) chkSucc.IsChecked = s.NotifyOnBackupSuccess;
+                if (chkFail != null) chkFail.IsChecked = s.NotifyOnBackupFailure;
+                if (chkDisc != null) chkDisc.IsChecked = s.NotifyOnDisconnect;
+                if (chkOut != null) chkOut.IsChecked = s.NotifyOnOutdated;
+
+                if (txtChatTitle != null)
                 {
-                    txtChatTitle.Text = $"👥 Linked to: {s.TelegramChatTitle}";
-                    txtChatTitle.IsVisible = true;
+                    if (!string.IsNullOrWhiteSpace(s.TelegramChatTitle))
+                    {
+                        txtChatTitle.Text = $"👥 Linked to: {s.TelegramChatTitle}";
+                        txtChatTitle.IsVisible = true;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(s.TelegramChatId) && s.TelegramChatId.StartsWith("-"))
+                    {
+                        txtChatTitle.Text = "👥 Linked to Telegram Group / Channel";
+                        txtChatTitle.IsVisible = true;
+                    }
+                    else
+                    {
+                        txtChatTitle.IsVisible = false;
+                    }
                 }
-                else if (!string.IsNullOrWhiteSpace(s.TelegramChatId) && s.TelegramChatId.StartsWith("-"))
-                {
-                    txtChatTitle.Text = "👥 Linked to Telegram Group / Channel";
-                    txtChatTitle.IsVisible = true;
-                }
-                else
-                {
-                    txtChatTitle.IsVisible = false;
-                }
+            }
+            catch (Exception ex)
+            {
+                LogService.WriteSystemLog($"[SettingsControl] RefreshTelegramAlerts warning: {ex.Message}", "Warning", "TELEGRAM");
             }
         }
 
@@ -1799,14 +1815,18 @@ namespace PinayPalBackupManager.UI.UserControls
         {
             Dispatcher.UIThread.Post(() =>
             {
-                var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus");
-                if (txtStatus != null)
+                try
                 {
-                    txtStatus.Text = $"Status: {status}";
-                    txtStatus.Foreground = isError 
-                        ? Avalonia.Media.Brush.Parse("#F38BA8") 
-                        : Avalonia.Application.Current?.FindResource("AppSubtext") as Avalonia.Media.Brush;
+                    var txtStatus = this.FindControl<TextBlock>("TxtHealthStatus");
+                    if (txtStatus != null)
+                    {
+                        txtStatus.Text = $"Status: {status}";
+                        txtStatus.Foreground = isError 
+                            ? Avalonia.Media.Brush.Parse("#F38BA8") 
+                            : (TryBrush("AppSubtext") ?? Avalonia.Media.Brush.Parse("#A6ADC8"));
+                    }
                 }
+                catch { }
             });
         }
 

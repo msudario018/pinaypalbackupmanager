@@ -121,19 +121,19 @@ namespace PinayPalBackupManager.UI
             {
                 try
                 {
-                    if (Application.Current?.FindResource("AppBg") is IBrush appBg)
+                    if (this.TryFindResource("AppBg", out var appBgObj) && appBgObj is IBrush appBg)
                         this.Background = appBg;
 
                     var sidebar = this.FindControl<Border>("SidebarBorder");
-                    if (sidebar != null && Application.Current?.FindResource("AppSidebar") is IBrush sidebarBg)
+                    if (sidebar != null && this.TryFindResource("AppSidebar", out var sidebarBgObj) && sidebarBgObj is IBrush sidebarBg)
                         sidebar.Background = sidebarBg;
 
                     var topBar = this.FindControl<Border>("TopBarBorder");
-                    if (topBar != null && Application.Current?.FindResource("AppTopBar") is IBrush topBarBg)
+                    if (topBar != null && this.TryFindResource("AppTopBar", out var topBarBgObj) && topBarBgObj is IBrush topBarBg)
                         topBar.Background = topBarBg;
 
                     var statusBar = this.FindControl<Border>("StatusBar");
-                    if (statusBar != null && Application.Current?.FindResource("AppSidebar") is IBrush statusBg)
+                    if (statusBar != null && this.TryFindResource("AppSidebar", out var statusBgObj) && statusBgObj is IBrush statusBg)
                         statusBar.Background = statusBg;
                 }
                 catch (Exception ex)
@@ -1286,8 +1286,15 @@ namespace PinayPalBackupManager.UI
 
             if (control is SettingsControl settings)
             {
-                settings.RefreshEmailAlerts();
-                settings.RefreshAiSettings();
+                try
+                {
+                    settings.RefreshEmailAlerts();
+                    settings.RefreshAiSettings();
+                }
+                catch (Exception ex)
+                {
+                    LogService.WriteSystemLog($"[MainWindow] Settings refresh warning: {ex.Message}", "Warning", "SETTINGS");
+                }
             }
             else if (control is HomeControl home)
             {

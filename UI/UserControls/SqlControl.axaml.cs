@@ -169,6 +169,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     if (_abortRequested) throw new OperationCanceledException();
+
+                    if (string.IsNullOrWhiteSpace(BackupConfig.SqlLocalFolder))
+                    {
+                        throw new InvalidOperationException("Local SQL backup folder is not configured. Please set the folder path in Settings.");
+                    }
+
+                    if (!Directory.Exists(BackupConfig.SqlLocalFolder))
+                    {
+                        Directory.CreateDirectory(BackupConfig.SqlLocalFolder);
+                    }
+
                     LogService.WriteLiveLog("INIT: Accessing staged sync folder...", BackupConfig.SqlLogFile, "Information", trigger);
 
                     string decryptedPass = SecurityService.GetDecryptedSqlPassword();
@@ -436,6 +447,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "SYNC ERROR";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        var tf = this.FindControl<TextBlock>("TxtFile");
+                        if (tf != null) tf.Text = $"Status: Error - {taskError}";
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("SQL", 0, "SYNC ERROR");
@@ -496,7 +509,7 @@ namespace PinayPalBackupManager.UI.UserControls
             });
 
             BackupStateTracker.SetIdle("SQL");
-            SetBusy(false);
+            SetBusy(false, taskError);
         }
 
         private async Task<bool> SyncCheckAsync(bool allowAutoSync = true)
@@ -885,7 +898,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         private bool _isBusy;
-        private void SetBusy(bool busy)
+        private void SetBusy(bool busy, string? failureMessage = null)
         {
             _isBusy = busy;
             this.FindControl<Button>("BtnStart")!.IsEnabled = !busy;
@@ -893,7 +906,39 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnTest")!.IsEnabled = !busy;
             this.FindControl<Button>("BtnCancel")!.IsEnabled = busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
-            if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle";
+
+            var txtFile = this.FindControl<TextBlock>("TxtFile");
+            var border = this.FindControl<Border>("StatusCardBorder");
+
+            if (!busy)
+            {
+                if (!string.IsNullOrEmpty(failureMessage))
+                {
+                    if (txtFile != null) txtFile.Text = $"Status: Failed - {failureMessage}";
+                    if (border != null)
+                    {
+                        border.BorderBrush = Avalonia.Media.Brush.Parse("#F38BA8");
+                        border.Background = Avalonia.Media.Brush.Parse("#2D161F");
+                    }
+                }
+                else
+                {
+                    if (txtFile != null && (txtFile.Text == null || !txtFile.Text.StartsWith("Status: Failed", StringComparison.OrdinalIgnoreCase)))
+                        txtFile.Text = "Status: Idle";
+                    if (border != null && this.TryFindResource("AccentSqlBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                        border.Background = bBrush;
+                    if (border != null && this.TryFindResource("AccentSql", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                        border.BorderBrush = cBrush;
+                }
+            }
+            else
+            {
+                // Starting task: restore normal card colors
+                if (border != null && this.TryFindResource("AccentSqlBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                    border.Background = bBrush;
+                if (border != null && this.TryFindResource("AccentSql", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                    border.BorderBrush = cBrush;
+            }
         }
 
         public void PerformSyncCheck()

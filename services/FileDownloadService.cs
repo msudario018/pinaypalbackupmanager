@@ -273,9 +273,11 @@ namespace PinayPalBackupManager.Services
                 // Add headers for download
                 response.AddHeader("Content-Disposition", $"attachment; filename=\"{filename}\"");
                 
-                // Stream the file
-                using var fileStream = File.OpenRead(filePath);
-                await fileStream.CopyToAsync(response.OutputStream);
+                // Stream the file with optimized 64KB buffer for high throughput
+                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 65536, useAsync: true))
+                {
+                    await fileStream.CopyToAsync(response.OutputStream, 65536);
+                }
                 
                 LogService.WriteSystemLog($"[FileDownloadService] File downloaded: {filename} ({response.ContentLength64} bytes)", "Information", "SYSTEM");
             }
@@ -305,10 +307,13 @@ namespace PinayPalBackupManager.Services
             {
                 if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
                 {
+                    var fullDir = Path.GetFullPath(dir);
                     var filePath = Path.Combine(dir, filename);
                     if (File.Exists(filePath))
                     {
-                        return filePath;
+                        var fullPath = Path.GetFullPath(filePath);
+                        if (fullPath.StartsWith(fullDir, StringComparison.OrdinalIgnoreCase))
+                            return fullPath;
                     }
                     
                     // Also search subdirectories (one level deep)
@@ -316,10 +321,13 @@ namespace PinayPalBackupManager.Services
                     {
                         foreach (var subDir in Directory.GetDirectories(dir))
                         {
+                            var fullSubDir = Path.GetFullPath(subDir);
                             var subPath = Path.Combine(subDir, filename);
                             if (File.Exists(subPath))
                             {
-                                return subPath;
+                                var fullPath = Path.GetFullPath(subPath);
+                                if (fullPath.StartsWith(fullSubDir, StringComparison.OrdinalIgnoreCase))
+                                    return fullPath;
                             }
                         }
                     }

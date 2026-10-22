@@ -1,5 +1,40 @@
 # Changelog
 
+## v4.1.0 (2026-10-22)
+
+### Fixed
+- **Status Banner & Sync Error State Synchronization ("SYNC ERROR" with "Status: Idle / Sync Finished")**:
+  - Resolved UI inconsistency where an error during backup initialization left the status card green with "Status: Idle / Sync Finished" beneath a red "SYNC ERROR" title.
+  - Added proactive directory existence verification and creation across `FtpControl`, `SqlControl`, and `MailchimpControl` before invoking WinSCP or file transfers.
+  - Enhanced `SetBusy(bool busy, string? failureMessage = null)` in all three backup controls: failure states now dynamically tint the card background to `#2D161F` and border to `#F38BA8`, preserving the descriptive failure message (`Status: Failed - {message}`) rather than prematurely reverting to the idle state.
+
+- **Settings Control Crash on Navigation**:
+  - Replaced unguarded `Avalonia.Application.Current?.FindResource("AppSubtext")` in `UpdateHealthStatus` with safe dictionary lookup `TryBrush("AppSubtext")` and `this.TryFindResource`. Avalonia's `FindResource` throws a fatal `KeyNotFoundException` when keys are housed within `ThemeDictionaries`, crashing the UI thread.
+  - Wrapped `RefreshAiSettings`, `RefreshTelegramAlerts`, and `RefreshEmailAlerts` in defensive try-catch handlers to guard against null references during tab transitions.
+  - Fixed Ollama thread count assignment where `txtThreads.Text` was reading from its own uninitialized UI text instead of `cfg.OllamaThreads`.
+
+- **Installer & Setup Update Admin Account Persistence**:
+  - Resolved issue where updating the PC app via the Velopack setup installer forced users to re-create an admin account via `SetupWizardWindow`.
+  - Added Roaming AppData mirroring (`%APPDATA%\PinayPalBackupManager\Data\users.db`) which persists outside the versioned Velopack install folders (`%LOCALAPPDATA%\PinayPal.PinayPalBackupManager\app-x.x.x`).
+  - Added two-way database synchronization in `AppDataPaths.MigrateFile`, automated roaming backups on user registration/updates, and prioritized roaming database recovery in `AuthService.TryRecoverUsersFromLocalCopy`.
+  - Removed `!IsDevPC()` restriction from `AuthService.InitializeAsync()`, enabling automatic administrative recovery from Firebase regardless of host device name.
+
+### Added
+- **Out-of-Home Remote Fallback & Tunnel Recovery (Telegram & Tailscale)**:
+  - Added `/tunnel` and `/restart_tunnel` commands to `TelegramService.cs`, enabling users away from home to inspect Cloudflare tunnel health, view status reports, and trigger an instant remote tunnel restart directly via Telegram.
+  - Telegram bot automatically replies with the newly allocated public URL and updated iOS pairing details upon remote tunnel restart.
+  - Multi-tier remote access architecture:
+    1. **Tailscale WireGuard Mesh**: Static peer-to-peer connectivity between PC and iOS app with zero port forwarding, completely independent of Cloudflare tunnels.
+    2. **Interactive Telegram Bot**: Outbound HTTPS polling that functions 100% behind firewalls and CGNAT without incoming tunnels.
+    3. **Cloudflare Quick Tunnel**: Auto-managed public edge tunnel with watchdog auto-recovery.
+
+### Security & Performance
+- **Path Traversal & Canonical Boundary Hardening**:
+  - Hardened `FileDownloadService` against directory traversal and symlink breakout attacks by enforcing canonical path boundary validation (`Path.GetFullPath(filePath).StartsWith(fullDir)`).
+  - Upgraded file streaming to use asynchronous 64KB buffers (`FileStream(..., bufferSize: 65536, useAsync: true)`), significantly increasing throughput for large .zip and .sql backup downloads.
+- **Cross-Platform Synchronization**:
+  - Version bumped to **v4.1.0** / iOS **Build 41** across PC application, iOS client, and widget extension.
+
 ## v4.0.1 (2026-10-21)
 
 ### Fixed

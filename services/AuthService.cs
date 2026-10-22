@@ -71,17 +71,23 @@ namespace PinayPalBackupManager.Services
             // Set connection string for FirebaseUserService
             FirebaseUserService.ConnectionString = ConnectionString;
 
-            // On non-dev PCs with an empty local database, check Firebase for an existing admin account created on the dev PC
-            if (!HasAnyUsers() && !IsDevPC())
+            // If local database has no users (e.g. after fresh setup/update wipe), check Firebase for existing admin account
+            if (!HasAnyUsers())
             {
                 try
                 {
+                    LogService.WriteSystemLog("[AuthService] Local users.db is empty. Checking Firebase for existing admin account...", "Info", "AUTH");
                     var pullTask = FirebaseUserService.PullUsersFromFirebaseToLocalAsync();
-                    await Task.WhenAny(pullTask, Task.Delay(3000));
+                    await Task.WhenAny(pullTask, Task.Delay(4000));
+                    if (HasAnyUsers())
+                    {
+                        AppDataPaths.MirrorToRoaming("users.db");
+                        LogService.WriteSystemLog("[AuthService] Successfully restored admin account from Firebase and mirrored to Roaming.", "Information", "AUTH");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    LogService.WriteSystemLog($"[AuthService] Non-dev PC initial Firebase user pull skipped: {ex.Message}", "Info", "AUTH");
+                    LogService.WriteSystemLog($"[AuthService] Initial Firebase user pull skipped: {ex.Message}", "Info", "AUTH");
                 }
             }
 
@@ -125,6 +131,9 @@ namespace PinayPalBackupManager.Services
             var candidates = new List<string>();
             try
             {
+                candidates.Add(AppDataPaths.RoamingUsersDatabasePath);
+                candidates.Add(Path.Combine(AppDataPaths.RoamingDirectory, "users.db"));
+                candidates.Add(AppDataPaths.RoamingUsersDatabasePath + ".bak");
                 candidates.Add(Path.Combine(AppDataPaths.LegacyDirectory, "users.db"));
                 candidates.Add(Path.Combine(AppDataPaths.CurrentDirectory, "users.db"));
                 candidates.Add(current + ".bak");
@@ -148,10 +157,11 @@ namespace PinayPalBackupManager.Services
                     File.Copy(source, current, true);
                     DatabaseService.Initialize(current);
                     EnsureDatabase();
+                    AppDataPaths.MirrorToRoaming("users.db");
 
                     LogService.WriteSystemLog(
                         $"[AuthService] Recovered users from '{source}' — the database in '{current}' was empty. " +
-                        "Previous file kept as users.db.bak.",
+                        "Previous file kept as users.db.bak and mirrored to Roaming.",
                         "Warning", "AUTH");
                     return true;
                 }
@@ -331,6 +341,7 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@e", (object?)email?.Trim() ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@b", (object?)birthDate?.Trim() ?? DBNull.Value);
                 cmd.ExecuteNonQuery();
+                AppDataPaths.MirrorToRoaming("users.db");
 
                 // Log user creation
                 LogAuditEvent("USER_CREATED", usernameValidation.sanitized, $"Role: {(isPrivileged ? "Admin" : "User")}, Status: {(isPrivileged ? "Active" : "Pending")}");
@@ -1445,6 +1456,7 @@ namespace PinayPalBackupManager.Services
                 cmd.Parameters.AddWithValue("@st", "Active");
                 cmd.Parameters.AddWithValue("@ca", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
+                AppDataPaths.MirrorToRoaming("users.db");
 
                 LogAuditEvent("EMERGENCY_ADMIN_CREATED", usernameValidation.sanitized, "Emergency admin account created");
                 return (true, $"Emergency admin '{usernameValidation.sanitized}' created.");

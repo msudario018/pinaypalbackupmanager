@@ -182,6 +182,7 @@ namespace PinayPalBackupManager.UI.UserControls
             _abortRequested = false;
             BackupStateTracker.SetRunning("Mailchimp", "EXPORTING FULL...");
             bool mcError = false;
+            string? taskError = null;
             var txtStatus = this.FindControl<TextBlock>("TxtStatus")!;
             txtStatus.Text = "EXPORTING FULL...";
             txtStatus.Foreground = Avalonia.Media.Brush.Parse("#48a9c9");
@@ -203,6 +204,17 @@ namespace PinayPalBackupManager.UI.UserControls
                 try
                 {
                     if (_abortRequested) throw new OperationCanceledException();
+
+                    if (string.IsNullOrWhiteSpace(BackupConfig.MailchimpFolder))
+                    {
+                        throw new InvalidOperationException("Mailchimp backup folder is not configured. Please set the folder path in Settings.");
+                    }
+
+                    if (!Directory.Exists(BackupConfig.MailchimpFolder))
+                    {
+                        Directory.CreateDirectory(BackupConfig.MailchimpFolder);
+                    }
+
                     // Cleanup old files based on retention setting
                     var retentionDays = ConfigService.Current.Operation.RetentionDays;
                     LogService.WriteLiveLog($"CLEANUP: Checking for Mailchimp files older than {retentionDays} days...", BackupConfig.McLogFile, "Information", trigger);
@@ -338,10 +350,13 @@ namespace PinayPalBackupManager.UI.UserControls
                 catch (Exception ex)
                 {
                     mcError = true;
+                    taskError = ex.Message;
                     LogService.WriteLiveLog($"ERROR: Full export failed - {ex.Message}", BackupConfig.McLogFile, "Error", trigger);
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "EXPORT ERROR";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        var tf = this.FindControl<TextBlock>("TxtFile");
+                        if (tf != null) tf.Text = $"Status: Error - {ex.Message}";
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("Mailchimp", 0, "EXPORT ERROR");
@@ -377,7 +392,7 @@ namespace PinayPalBackupManager.UI.UserControls
                 }
             });
             BackupStateTracker.SetIdle("Mailchimp");
-            SetBusy(false);
+            SetBusy(false, taskError);
         }
 
         private async Task StartSpecificTaskAsync(string type)
@@ -618,7 +633,7 @@ namespace PinayPalBackupManager.UI.UserControls
             }
         }
 
-        private void SetBusy(bool busy)
+        private void SetBusy(bool busy, string? failureMessage = null)
         {
             _isBusy = busy;
             this.FindControl<Button>("BtnRunFull")!.IsEnabled = !busy;
@@ -630,7 +645,38 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnMergeFields")!.IsEnabled = !busy;
             this.FindControl<Button>("BtnTags")!.IsEnabled = !busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
-            if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle";
+
+            var txtFile = this.FindControl<TextBlock>("TxtFile");
+            var border = this.FindControl<Border>("StatusCardBorder");
+
+            if (!busy)
+            {
+                if (!string.IsNullOrEmpty(failureMessage))
+                {
+                    if (txtFile != null) txtFile.Text = $"Status: Failed - {failureMessage}";
+                    if (border != null)
+                    {
+                        border.BorderBrush = Avalonia.Media.Brush.Parse("#F38BA8");
+                        border.Background = Avalonia.Media.Brush.Parse("#2D161F");
+                    }
+                }
+                else
+                {
+                    if (txtFile != null && (txtFile.Text == null || !txtFile.Text.StartsWith("Status: Failed", StringComparison.OrdinalIgnoreCase)))
+                        txtFile.Text = "Status: Idle";
+                    if (border != null && this.TryFindResource("AccentMailchimpBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                        border.Background = bBrush;
+                    if (border != null && this.TryFindResource("AccentMailchimp", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                        border.BorderBrush = cBrush;
+                }
+            }
+            else
+            {
+                if (border != null && this.TryFindResource("AccentMailchimpBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                    border.Background = bBrush;
+                if (border != null && this.TryFindResource("AccentMailchimp", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                    border.BorderBrush = cBrush;
+            }
         }
 
         public void PerformSyncCheck()

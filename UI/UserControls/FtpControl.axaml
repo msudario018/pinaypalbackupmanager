@@ -35,7 +35,7 @@
 
                 <!-- Status Bar -->
 
-                <Border Grid.Row="0" Background="{DynamicResource AccentFtpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
+                <Border Grid.Row="0" Name="StatusCardBorder" Background="{DynamicResource AccentFtpBg}" Padding="20" CornerRadius="16" Margin="0,0,0,15" ClipToBounds="True" BorderBrush="{DynamicResource AccentFtp}" BorderThickness="1">
 
             <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
 

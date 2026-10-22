@@ -1440,6 +1440,11 @@ namespace PinayPalBackupManager.Services
                     await HandleAiCommandAsync(tokens, rawText, chatId);
                     break;
 
+                case "tunnel":
+                case "restart_tunnel":
+                    await HandleTunnelCommandAsync(tokens, chatId);
+                    break;
+
                 default:
                     // Support natural typing without leading slash (e.g. "backup full", "qr", "status", "health", "stats")
                     if (tokens.Length >= 2 && string.Equals(tokens[0], "backup", StringComparison.OrdinalIgnoreCase))
@@ -1465,6 +1470,10 @@ namespace PinayPalBackupManager.Services
                     else if (tokens.Length >= 1 && string.Equals(tokens[0], "health", StringComparison.OrdinalIgnoreCase))
                     {
                         await RunHealthCheckAndReportAsync(chatId);
+                    }
+                    else if (tokens.Length >= 1 && (string.Equals(tokens[0], "tunnel", StringComparison.OrdinalIgnoreCase) || string.Equals(tokens[0], "restart_tunnel", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        await HandleTunnelCommandAsync(tokens, chatId);
                     }
                     else
                     {
@@ -1752,6 +1761,8 @@ namespace PinayPalBackupManager.Services
             sb.AppendLine("• <code>/stats</code> — Overall backup statistics, total storage & success rate");
             sb.AppendLine("• <code>/errors</code> — Recent application error logs & failed backups");
             sb.AppendLine("• <code>/health</code> — Run on-demand health check across all services");
+            sb.AppendLine("• <code>/tunnel</code> — Check Cloudflare tunnel status or remote fallback instructions");
+            sb.AppendLine("• <code>/restart_tunnel</code> — Force restart the Cloudflare Quick Tunnel & receive new URL");
             sb.AppendLine("• <code>/pause</code> — Pause automatic backup scheduler");
             sb.AppendLine("• <code>/resume</code> — Resume automatic backup scheduler");
             sb.AppendLine("• <code>/help</code> — Show this guide");
@@ -1827,6 +1838,59 @@ namespace PinayPalBackupManager.Services
             {
                 await SendMessageAsync("⚠️ Backup manager instance is not available.", chatId);
             }
+        }
+
+        private static async Task HandleTunnelCommandAsync(string[] tokens, string chatId)
+        {
+            bool requestRestart = tokens.Length > 0 && (
+                string.Equals(tokens[0], "restart_tunnel", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(tokens[0], "/restart_tunnel", StringComparison.OrdinalIgnoreCase) ||
+                (tokens.Length >= 2 && string.Equals(tokens[1], "restart", StringComparison.OrdinalIgnoreCase))
+            );
+
+            if (requestRestart)
+            {
+                await SendMessageAsync("🔄 <i>Restarting Cloudflare Quick Tunnel... please wait.</i>", chatId);
+                var (ok, newUrl, msg) = await CloudflareTunnelService.RestartQuickTunnelAsync();
+                if (ok && !string.IsNullOrWhiteSpace(newUrl))
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("☁️ <b>Cloudflare Quick Tunnel Reconnected!</b>");
+                    sb.AppendLine();
+                    sb.AppendLine($"🔗 <b>New Public URL:</b>\n<code>{EscapeHtml(newUrl)}</code>");
+                    sb.AppendLine();
+                    sb.AppendLine("<i>Tip: Send <code>/qr</code> to get an updated iOS pairing QR code!</i>");
+                    await SendMessageAsync(sb.ToString(), chatId);
+                }
+                else
+                {
+                    await SendMessageAsync($"❌ <b>Tunnel Restart Issue:</b> {EscapeHtml(msg ?? "Unknown error")}\n\n<i>Fallback: You can continue monitoring via this Telegram bot or via Tailscale VPN.</i>", chatId);
+                }
+                return;
+            }
+
+            var isRunning = CloudflareTunnelService.IsRunning;
+            var activeUrl = CloudflareTunnelService.ActiveUrl;
+            var status = CloudflareTunnelService.Status;
+            var lastError = CloudflareTunnelService.LastError;
+
+            var report = new StringBuilder();
+            report.AppendLine("☁️ <b>Cloudflare Tunnel Status:</b>");
+            report.AppendLine();
+            report.AppendLine($"• <b>Status:</b> {(isRunning ? "🟢 Online" : "🔴 Offline / Disconnected")} (<code>{EscapeHtml(status)}</code>)");
+            report.AppendLine($"• <b>Public URL:</b> <code>{(isRunning && !string.IsNullOrEmpty(activeUrl) ? EscapeHtml(activeUrl) : "None")}</code>");
+            if (!string.IsNullOrEmpty(lastError))
+            {
+                report.AppendLine($"• <b>Last Notice:</b> <code>{EscapeHtml(lastError)}</code>");
+            }
+            report.AppendLine();
+            report.AppendLine("🛡️ <b>Remote Fallback Options When Disconnected:</b>");
+            report.AppendLine("1. <b>Telegram Remote Control:</b> You are connected right now! Send <code>/status</code>, <code>/backup full</code>, <code>/health</code> anytime.");
+            report.AppendLine("2. <b>Remote Tunnel Restart:</b> Send <code>/restart_tunnel</code> to generate a brand new public tunnel on demand.");
+            report.AppendLine("3. <b>Tailscale WireGuard Mesh:</b> Configure Tailscale on your PC & iPhone for 100% resilient peer-to-peer connection without tunnels.");
+            report.AppendLine("4. <b>Pairing Code:</b> Send <code>/qr</code> to retrieve the connection credentials.");
+
+            await SendMessageAsync(report.ToString(), chatId);
         }
 
         private static async Task SendStatisticsMessageAsync(string chatId)

@@ -156,6 +156,16 @@ namespace PinayPalBackupManager.UI.UserControls
                 {
                     if (_abortRequested) throw new OperationCanceledException();
 
+                    if (string.IsNullOrWhiteSpace(BackupConfig.FtpLocalFolder))
+                    {
+                        throw new InvalidOperationException("Local FTP backup folder is not configured. Please set the folder path in Settings.");
+                    }
+
+                    if (!Directory.Exists(BackupConfig.FtpLocalFolder))
+                    {
+                        Directory.CreateDirectory(BackupConfig.FtpLocalFolder);
+                    }
+
                     // --- WinSCP Cleanup (.filepart) ---
                     if (Directory.Exists(BackupConfig.FtpLocalFolder))
                     {
@@ -305,12 +315,14 @@ namespace PinayPalBackupManager.UI.UserControls
                     }
                     else
                     {
-                        taskError = "Authentication Error. Check credentials.";
+                        taskError = "Authentication Error. Check credentials and TLS settings.";
                         LogService.WriteLiveLog($"LOGIN FAILED: {taskError}", BackupConfig.FtpLogFile, "Error", trigger);
                         NotificationService.ShowBackupToast("FTP Sync Failed", $"Error: {taskError}", "Error");
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                             txtStatus.Text = "LOGIN FAILED";
                             txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                            var tf = this.FindControl<TextBlock>("TxtFile");
+                            if (tf != null) tf.Text = $"Status: Failed - {taskError}";
                         });
                         // Report global backup progress failed
                         _manager?.ReportBackupProgress("FTP", 0, "LOGIN FAILED");
@@ -326,6 +338,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         txtStatus.Text = "CANCELLED";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
+                        var tf = this.FindControl<TextBlock>("TxtFile");
+                        if (tf != null) tf.Text = "Status: Cancelled by user";
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -340,6 +354,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     {
                         txtStatus.Text = "CANCELLED";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#dad7cd");
+                        var tf = this.FindControl<TextBlock>("TxtFile");
+                        if (tf != null) tf.Text = "Status: Cancelled by user";
                     });
                     // Report global backup progress cancelled
                     _manager?.ReportBackupProgress("FTP", 0, "CANCELLED");
@@ -353,6 +369,8 @@ namespace PinayPalBackupManager.UI.UserControls
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         txtStatus.Text = "SYNC ERROR";
                         txtStatus.Foreground = Avalonia.Media.Brush.Parse("#F38BA8");
+                        var tf = this.FindControl<TextBlock>("TxtFile");
+                        if (tf != null) tf.Text = $"Status: Error - {taskError}";
                     });
                     // Report global backup progress error
                     _manager?.ReportBackupProgress("FTP", 0, "SYNC ERROR");
@@ -414,7 +432,7 @@ namespace PinayPalBackupManager.UI.UserControls
             });
 
             BackupStateTracker.SetIdle("FTP");
-            SetBusy(false);
+            SetBusy(false, taskError);
         }
 
         private async Task<bool> SyncCheckAsync(bool allowAutoSync = true)
@@ -762,7 +780,7 @@ namespace PinayPalBackupManager.UI.UserControls
         }
 
         private bool _isBusy;
-        private void SetBusy(bool busy)
+        private void SetBusy(bool busy, string? failureMessage = null)
         {
             _isBusy = busy;
             this.FindControl<Button>("BtnStart")!.IsEnabled = !busy;
@@ -770,7 +788,39 @@ namespace PinayPalBackupManager.UI.UserControls
             this.FindControl<Button>("BtnTest")!.IsEnabled = !busy;
             this.FindControl<Button>("BtnCancel")!.IsEnabled = busy;
             this.FindControl<ProgressBar>("ProgressBar")!.Value = 0;
-            if (!busy) this.FindControl<TextBlock>("TxtFile")!.Text = "Status: Idle / Sync Finished";
+
+            var txtFile = this.FindControl<TextBlock>("TxtFile");
+            var border = this.FindControl<Border>("StatusCardBorder");
+
+            if (!busy)
+            {
+                if (!string.IsNullOrEmpty(failureMessage))
+                {
+                    if (txtFile != null) txtFile.Text = $"Status: Failed - {failureMessage}";
+                    if (border != null)
+                    {
+                        border.BorderBrush = Avalonia.Media.Brush.Parse("#F38BA8");
+                        border.Background = Avalonia.Media.Brush.Parse("#2D161F");
+                    }
+                }
+                else
+                {
+                    if (txtFile != null && (txtFile.Text == null || !txtFile.Text.StartsWith("Status: Failed", StringComparison.OrdinalIgnoreCase)))
+                        txtFile.Text = "Status: Idle / Sync Finished";
+                    if (border != null && this.TryFindResource("AccentFtpBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                        border.Background = bBrush;
+                    if (border != null && this.TryFindResource("AccentFtp", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                        border.BorderBrush = cBrush;
+                }
+            }
+            else
+            {
+                // Starting task: restore normal card colors
+                if (border != null && this.TryFindResource("AccentFtpBg", out var bg) && bg is Avalonia.Media.IBrush bBrush)
+                    border.Background = bBrush;
+                if (border != null && this.TryFindResource("AccentFtp", out var bc) && bc is Avalonia.Media.IBrush cBrush)
+                    border.BorderBrush = cBrush;
+            }
         }
 
         public void PerformSyncCheck()

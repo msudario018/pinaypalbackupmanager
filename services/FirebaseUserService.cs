@@ -364,7 +364,10 @@ namespace PinayPalBackupManager.Services
                 }
 
                 if (pulledCount > 0)
-                    Console.WriteLine($"[FirebaseUser] Pulled {pulledCount} users from Firebase to local DB");
+                {
+                    AppDataPaths.MirrorToRoaming("users.db");
+                    Console.WriteLine($"[FirebaseUser] Pulled {pulledCount} users from Firebase to local DB and mirrored to Roaming");
+                }
             }
             catch (Exception ex)
             {
