@@ -72,8 +72,8 @@ namespace PinayPalBackupManager.UI.UserControls
 
             // Service accent colors for active state
             string accent = prefix == "Ftp" ? "#52B788" : prefix == "Mc" ? "#f0a500" : "#fad643";
-            var surface   = this.FindResource("AppSurface") as Brush ?? Brush.Parse("#1e1e2e");
-            var subtext   = this.FindResource("AppSubtext") as Brush ?? Brush.Parse("#a6adc8");
+            var surface = this.TryFindResource("AppSurface", out var surfObj) && surfObj is IBrush surfBrush ? surfBrush : Brush.Parse("#1e1e2e");
+            var subtext = this.TryFindResource("AppSubtext", out var subObj) && subObj is IBrush subBrush ? subBrush : Brush.Parse("#a6adc8");
 
             if (amBtn  != null) amBtn.Background  = isPm ? surface : Brush.Parse(accent);
             if (pmBtn  != null) pmBtn.Background  = isPm ? Brush.Parse(accent) : surface;

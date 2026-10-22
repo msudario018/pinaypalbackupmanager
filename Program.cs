@@ -76,6 +76,7 @@ namespace PinayPalBackupManager
             {
                 if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
                 {
+                    AppendStartupLog(logPathEarly, "Existing active instance found and signaled. Terminating duplicate launcher process.");
                     return;
                 }
             }

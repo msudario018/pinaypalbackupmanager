@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -60,43 +61,92 @@ namespace PinayPalBackupManager.Services
             try
             {
                 var currentProc = Process.GetCurrentProcess();
-                var otherProcs = Process.GetProcessesByName(currentProc.ProcessName)
+                var candidateProcs = Process.GetProcessesByName(currentProc.ProcessName)
                     .Where(p => p.Id != currentProc.Id)
                     .ToList();
 
-                // If no other PinayPal process is actually running, we are the only active instance!
-                if (otherProcs.Count == 0)
+                // Filter candidates by session ID, exit status, and responsiveness
+                var validOthers = new List<Process>();
+                foreach (var other in candidateProcs)
                 {
-                    bool createdNew;
-                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out createdNew);
+                    try
+                    {
+                        if (other.HasExited) continue;
+                        if (other.SessionId != currentProc.SessionId) continue;
+
+                        // If the process is in the middle of shutting down (e.g. update restart handoff),
+                        // give it a brief moment to finish exiting.
+                        if (other.WaitForExit(600))
+                        {
+                            continue; // Process exited cleanly
+                        }
+
+                        // If the process is hung and not responding, kill the zombie so it doesn't block the user
+                        if (!other.Responding)
+                        {
+                            try { other.Kill(); } catch { }
+                            continue;
+                        }
+
+                        validOthers.Add(other);
+                    }
+                    catch
+                    {
+                        // Process access denied or already dead
+                    }
+                }
+
+                // If no other valid PinayPal process is running, this instance is primary!
+                if (validOthers.Count == 0)
+                {
+                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out _);
                     return true;
                 }
 
-                // Another instance is genuinely running. Signal it to restore its window.
+                // Try to signal existing running instance to restore its window
+                bool signaled = false;
                 try
                 {
                     if (EventWaitHandle.TryOpenExisting("PinayPalBackupManager_RestoreSignal", out var signal))
                     {
                         signal.Set();
                         signal.Dispose();
+                        signaled = true;
                     }
                 }
                 catch { }
 
                 // Also try to bring existing process window to front directly via Win32 SetForegroundWindow
-                foreach (var other in otherProcs)
+                bool restoredWindow = false;
+                foreach (var other in validOthers)
                 {
                     try
                     {
+                        other.Refresh();
                         if (other.MainWindowHandle != IntPtr.Zero)
                         {
                             ShowWindow(other.MainWindowHandle, SW_RESTORE);
                             SetForegroundWindow(other.MainWindowHandle);
+                            restoredWindow = true;
                         }
                     }
                     catch { }
                 }
 
+                // If neither the event wait handle could be signaled nor any window handle was found,
+                // the existing process is an orphaned background zombie without any UI or listener.
+                // Terminate orphaned ghosts so the user's launch action succeeds.
+                if (!signaled && !restoredWindow)
+                {
+                    foreach (var other in validOthers)
+                    {
+                        try { other.Kill(); } catch { }
+                    }
+                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out _);
+                    return true;
+                }
+
+                // An active, responsive instance was found and signaled to restore
                 return false;
             }
             catch

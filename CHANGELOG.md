@@ -1,5 +1,24 @@
 # Changelog
 
+## v4.1.2 (2026-10-23)
+
+### Fixed
+- **Resolved "Not Launching" & "After Updating Nothing Happens" Single-Instance Trap**:
+  - Re-architected `CheckSingleInstanceAndSignalExisting()` in `AppIconHelper.cs`:
+    - Candidate processes are now filtered by interactive Windows Session ID and active status.
+    - Added process shutdown grace period (`WaitForExit(600)`) so when Velopack updater or a previous instance restarts, the terminating process is not mistaken for a blocking duplicate.
+    - Hung / unresponsive processes (`!p.Responding`) are automatically terminated instead of causing silent app termination.
+    - Ghost / orphaned background processes with neither an active window handle nor an active single-instance restore event listener are cleanly purged, ensuring user clicks reliably launch the application.
+  - Added logging in `Program.cs` when an existing active instance is signaled and duplicate launcher exits.
+- **Schedule Dialog Theme Resource Safety**:
+  - Replaced unguarded `this.FindResource("AppSurface")` and `this.FindResource("AppSubtext")` in `ScheduleDialog.axaml.cs` with safe `TryFindResource` lookups to prevent Avalonia 11 `KeyNotFoundException` UI crashes.
+- **Enhanced Data & Account Persistence across Reinstalls**:
+  - Upgraded `MigrateFile()` in `AppDataPaths.cs` with bidirectional timestamp synchronization and zero-byte corruption protection between local `%LOCALAPPDATA%` and persistent `%APPDATA%\PinayPalBackupManager\Data`.
+  - Guarantees `users.db` and user sessions are never overwritten by 0-byte or blank installer files.
+
+### Cross-Platform
+- Version bumped to **v4.1.2** / iOS **Build 43** across PC desktop application and iOS client.
+
 ## v4.1.1 (2026-10-23)
 
 ### Fixed

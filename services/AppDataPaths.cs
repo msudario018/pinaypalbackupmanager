@@ -128,7 +128,7 @@ namespace PinayPalBackupManager.Services
             var dataPath = GetDataPath(fileName);
             var roamingDataPath = Path.Combine(RoamingDataDirectory, fileName);
 
-            // Copy from legacy if exists and not yet in current/data
+            // Copy from legacy if exists and not yet in current/data/roaming
             if (File.Exists(legacyPath) && !File.Exists(currentPath) && !File.Exists(dataPath) && !File.Exists(roamingDataPath))
             {
                 try { File.Copy(legacyPath, currentPath, true); } catch { }
@@ -140,17 +140,36 @@ namespace PinayPalBackupManager.Services
                 try { File.Copy(currentPath, dataPath, true); } catch { }
             }
 
-            // Recover from Roaming if local Data copy was lost or cleared by setup installer
-            if (File.Exists(roamingDataPath) && !File.Exists(dataPath))
+            // Smart sync between local Data and Roaming Data with 0-byte corruption guard
+            try
             {
-                try { File.Copy(roamingDataPath, dataPath, true); } catch { }
-            }
+                var dataInfo = File.Exists(dataPath) ? new FileInfo(dataPath) : null;
+                var roamingInfo = File.Exists(roamingDataPath) ? new FileInfo(roamingDataPath) : null;
 
-            // Mirror to Roaming so future setup runs/updates will always find it
-            if (File.Exists(dataPath) && !File.Exists(roamingDataPath))
-            {
-                try { File.Copy(dataPath, roamingDataPath, true); } catch { }
+                // If local Data is missing or 0 bytes, but Roaming has valid data, recover from Roaming
+                if ((dataInfo == null || dataInfo.Length == 0) && roamingInfo != null && roamingInfo.Length > 0)
+                {
+                    File.Copy(roamingDataPath, dataPath, true);
+                }
+                // If Roaming is missing or 0 bytes, but local Data has valid data, mirror to Roaming
+                else if ((roamingInfo == null || roamingInfo.Length == 0) && dataInfo != null && dataInfo.Length > 0)
+                {
+                    File.Copy(dataPath, roamingDataPath, true);
+                }
+                // If both exist and have content, sync whichever has the newer write time
+                else if (dataInfo != null && roamingInfo != null && dataInfo.Length > 0 && roamingInfo.Length > 0)
+                {
+                    if (roamingInfo.LastWriteTimeUtc > dataInfo.LastWriteTimeUtc.AddSeconds(1))
+                    {
+                        File.Copy(roamingDataPath, dataPath, true);
+                    }
+                    else if (dataInfo.LastWriteTimeUtc > roamingInfo.LastWriteTimeUtc.AddSeconds(1))
+                    {
+                        File.Copy(dataPath, roamingDataPath, true);
+                    }
+                }
             }
+            catch { }
         }
 
         public static void MirrorToRoaming(string fileName)
