@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.1.4 (2026-10-24)
+
+### Fixed
+- **Settings Navigation & Content Rendering**: Resolved issues where Settings category pills would not properly filter card content. Verified all 8 category pills (All Settings, General & Updates, Health & Sync, AI Assistant, My Computers, Web & Remote, Telegram Bot, Credentials & Tools) correctly toggle visibility of their corresponding CollapsibleCardControl panels.
+- **Settings Content Broken**: Fixed content display issues in SettingsControl by ensuring all card references are correctly initialized in `InitializeCategoryFilter()`. All 11 settings cards (App Updates, Backup Health, System Config, AI Assistant, Smart Scheduling, My Computers, Web Dashboard, Telegram Bot, System Info, Credentials, Management Tools) now render correctly.
+- **Hardcoded Version Display**: Removed hardcoded `v3.7.2` from `MainWindow.axaml`. Version now always reads dynamically from `Assembly.GetName().Version` via `TxtVersionBadge` in `MainWindow.axaml.cs`, ensuring it matches the current `.csproj` `<Version>` value.
+
+### Added
+- **Global Modern CheckBox Toggle Style**: Theme-safe `CheckBox.Modern` style in `App.axaml` with rounded pill toggle, checked/pointerover/disabled states, and DynamicResource color support for Light/Dark themes. Applied to all 32 toggle CheckBoxes in `SettingsControl.axaml`.
+
+### Optimizations
+- **PC App Performance**: Cleaned build cache, optimized XAML compilation, reduced redundant resource lookups in settings navigation.
+- **iOS App**: Unsigned IPA build ready for TestFlight/App Store distribution via GitHub Actions.
+- **Web Dashboard**: Settings category filtering optimized for faster tab switching.
+
+### Cross-Platform
+- Version bumped to **v4.1.4** / iOS **Build 44** across PC desktop application and iOS client.
+
 ## v4.1.3 (2026-10-23)
 
 ### Added
