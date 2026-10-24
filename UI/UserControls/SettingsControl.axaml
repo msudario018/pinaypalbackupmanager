@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:PinayPalBackupManager.UI.UserControls"
              x:Class="PinayPalBackupManager.UI.UserControls.SettingsControl">
@@ -69,7 +69,7 @@
                                        IconData="M12,4L12,1L8,5L12,9L12,6C15.31,6 18,8.69 18,12C18,13.01 17.75,13.97 17.31,14.8L18.77,16.26C19.54,15.03 20,13.57 20,12A8,8 0 0,0 12,4M12,18C8.69,18 6,15.31 6,12C6,10.99 6.25,10.03 6.69,9.2L5.23,7.74C4.46,8.97 4,10.43 4,12A8,8 0 0,0 12,20L12,23L16,19L12,15L12,18Z"
                                        Accent="#F59E0B">
                 <StackPanel Spacing="10">
-                    <CheckBox Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}" Margin="0,0,0,8"/>
+                    <CheckBox Classes="Modern" Name="ChkAutoUpdate" Content="Check for updates on startup" Foreground="{DynamicResource AppText}" Margin="0,0,0,8"/>
                     <Button Name="BtnCheckUpdates" Classes="Primary Settings" Content="CHECK FOR UPDATES" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                 </StackPanel>
             </ui:CollapsibleCardControl>
@@ -89,8 +89,8 @@
                                     <Ellipse Name="DiagFtpDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                     <TextBlock Text="FTP" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentFtp}"/>
                                 </StackPanel>
-                                <TextBlock Name="DiagFtpStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
-                                <TextBlock Name="DiagFtpTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Name="DiagFtpStatus" Text="â€”" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagFtpTime" Text="â€”" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                                 <Button Name="BtnRunFtp" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
                                         BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
@@ -103,8 +103,8 @@
                                     <Ellipse Name="DiagMcDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                     <TextBlock Text="Mailchimp" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentMailchimp}"/>
                                 </StackPanel>
-                                <TextBlock Name="DiagMcStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
-                                <TextBlock Name="DiagMcTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Name="DiagMcStatus" Text="â€”" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagMcTime" Text="â€”" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                                 <Button Name="BtnRunMailchimp" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
                                         BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
@@ -117,8 +117,8 @@
                                     <Ellipse Name="DiagSqlDot" Width="8" Height="8" Fill="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                                     <TextBlock Text="SQL" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentSql}"/>
                                 </StackPanel>
-                                <TextBlock Name="DiagSqlStatus" Text="—" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
-                                <TextBlock Name="DiagSqlTime" Text="—" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
+                                <TextBlock Name="DiagSqlStatus" Text="â€”" FontSize="10" Foreground="{DynamicResource AppSubtext}" TextWrapping="Wrap"/>
+                                <TextBlock Name="DiagSqlTime" Text="â€”" FontSize="9" Foreground="{DynamicResource AppMuted}"/>
                                 <Button Name="BtnRunSql" Content="Run Now" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}"
                                         BorderThickness="0" CornerRadius="6" Padding="6,4" FontSize="10" Cursor="Hand"/>
@@ -138,13 +138,13 @@
                                        IconData="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.48,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.52,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.72,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.52,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.48,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.28,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"
                                        Accent="#38BDF8">
                     <StackPanel Spacing="4">
-                    <CheckBox Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
-                    <CheckBox Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkMinimizeToTray" Content="Minimize to System Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkCloseToTray" Content="Close Button (X) Minimizes to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkAutoTls" Content="Auto-Update TLS Certificate on Renewal" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkDailyHealth" Content="Run Daily Automated Health Check" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                    <CheckBox Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkStartup" Content="Run Backup on Windows Start Up" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Classes="Modern" Name="ChkStartMinimized" Content="Start Minimized to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkMinimizeToTray" Content="Minimize to System Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkCloseToTray" Content="Close Button (X) Minimizes to Tray" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkAutoTls" Content="Auto-Update TLS Certificate on Renewal" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkDailyHealth" Content="Run Daily Automated Health Check" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkNotificationSound" Content="Play Sound on Backup Complete" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="Auto-Backup &amp; Sync Interval" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
@@ -191,9 +191,9 @@
                                        Accent="#38BDF8">
                     <StackPanel Spacing="14">
                     <!-- Master Toggles -->
-                    <CheckBox Name="ChkAiFloatingWidget" Content="Show Floating AI Assistant Avatar &amp; Chat Drawer" Foreground="{DynamicResource AppText}"/>
-                    <CheckBox Name="ChkAiLoginGreeting" Content="Enable Proactive Voice &amp; Speech Bubble Greetings on Login" Foreground="{DynamicResource AppText}"/>
-                    <CheckBox Name="ChkAiSoundChimes" Content="Play Subtle Audio Chimes on AI Responses &amp; Action Proposals" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Classes="Modern" Name="ChkAiFloatingWidget" Content="Show Floating AI Assistant Avatar &amp; Chat Drawer" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Classes="Modern" Name="ChkAiLoginGreeting" Content="Enable Proactive Voice &amp; Speech Bubble Greetings on Login" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Classes="Modern" Name="ChkAiSoundChimes" Content="Play Subtle Audio Chimes on AI Responses &amp; Action Proposals" Foreground="{DynamicResource AppText}"/>
                     <!-- Personality & Conversation -->
                     <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
                         <StackPanel Spacing="10">
@@ -204,9 +204,9 @@
                                     <TextBlock Text="Choose specialization: SRE Guardian (Health &amp; Recovery), Specialist (Backups), or Speedy." Foreground="{DynamicResource AppMuted}" FontSize="10"/>
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" Name="CmbAiAgentProfile" Width="170" SelectedIndex="0" VerticalAlignment="Center" FontSize="11">
-                                    <ComboBoxItem Content="🛡️ SRE Guardian"/>
-                                    <ComboBoxItem Content="💾 Backup Specialist"/>
-                                    <ComboBoxItem Content="⚡ Speedy Assistant"/>
+                                    <ComboBoxItem Content="ðŸ›¡ï¸ SRE Guardian"/>
+                                    <ComboBoxItem Content="ðŸ’¾ Backup Specialist"/>
+                                    <ComboBoxItem Content="âš¡ Speedy Assistant"/>
                                 </ComboBox>
                             </Grid>
                             <Grid ColumnDefinitions="*, Auto">
@@ -246,10 +246,10 @@
                                     <TextBlock Name="TxtAiMemoryDepthValue" Text="12" Width="30" FontWeight="Bold" Foreground="{DynamicResource AccentWebsite}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
-                            <CheckBox Name="ChkAiFollowUpSuggestions" Content="Suggest tappable next questions after each reply" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
-                            <CheckBox Name="ChkAiProactiveUpdates" Content="Let the AI proactively message me when something needs attention" Foreground="{DynamicResource AppText}"/>
+                            <CheckBox Classes="Modern" Name="ChkAiFollowUpSuggestions" Content="Suggest tappable next questions after each reply" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                            <CheckBox Classes="Modern" Name="ChkAiProactiveUpdates" Content="Let the AI proactively message me when something needs attention" Foreground="{DynamicResource AppText}"/>
                             <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
-                                <CheckBox Grid.Column="0" Name="ChkAiLearningMemory" Content="Enable AI Learning &amp; Persistent Memory (learns preferences &amp; notes)" Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                                <CheckBox Classes="Modern" Grid.Column="0" Name="ChkAiLearningMemory" Content="Enable AI Learning &amp; Persistent Memory (learns preferences &amp; notes)" Foreground="{DynamicResource AppText}" IsChecked="True"/>
                                 <Button Grid.Column="1" Name="BtnClearAiMemories" Content="Clear Memory" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
                             </Grid>
                             <Grid ColumnDefinitions="*, Auto">
@@ -269,12 +269,12 @@
                     <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="10" Padding="14">
                         <StackPanel Spacing="8">
                             <TextBlock Text="SAFETY &amp; PRIVACY" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
-                            <CheckBox Name="ChkAiRequireApproval" Content="Always require my tap on Approve before any action runs" Foreground="{DynamicResource AppText}"/>
-                            <CheckBox Name="ChkAiZeroLeak" Content="Zero-Leak Sanitizer (strips passwords, keys and connection strings)" Foreground="{DynamicResource AppText}" IsChecked="True"/>
-                            <CheckBox Name="ChkAiCloudRedact" Content="Redact identifying details before any online (cloud) request" Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                            <CheckBox Classes="Modern" Name="ChkAiRequireApproval" Content="Always require my tap on Approve before any action runs" Foreground="{DynamicResource AppText}"/>
+                            <CheckBox Classes="Modern" Name="ChkAiZeroLeak" Content="Zero-Leak Sanitizer (strips passwords, keys and connection strings)" Foreground="{DynamicResource AppText}" IsChecked="True"/>
+                            <CheckBox Classes="Modern" Name="ChkAiCloudRedact" Content="Redact identifying details before any online (cloud) request" Foreground="{DynamicResource AppText}" IsChecked="True"/>
                             <TextBlock Text="Recommended: keep this ON. Hostnames, IPs, URLs, file paths and computer names are replaced with placeholders before anything leaves this PC. Only aggregate numbers (CPU %, disk free, backup status) are sent."
                                        Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap" Margin="4,0,0,4"/>
-                            <CheckBox Name="ChkAiKeepModelDuringBackups" Content="Keep the local AI model in RAM during backups (faster chat, less free memory)" Foreground="{DynamicResource AppText}"/>
+                            <CheckBox Classes="Modern" Name="ChkAiKeepModelDuringBackups" Content="Keep the local AI model in RAM during backups (faster chat, less free memory)" Foreground="{DynamicResource AppText}"/>
                             <TextBlock Text="Recommended for a 16 GB PC: leave OFF so the model is released automatically before each backup runs."
                                        Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap" Margin="4,0,0,4"/>
                             <StackPanel Orientation="Horizontal" Spacing="10">
@@ -315,7 +315,7 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*, Auto, Auto">
                                 <TextBlock Grid.Column="0" Text="LOCAL OLLAMA INFERENCE" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-                                <Button Grid.Column="1" Name="BtnAutoDetectAiModels" Content="🔍 Auto-Detect Models" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                                <Button Grid.Column="1" Name="BtnAutoDetectAiModels" Content="ðŸ” Auto-Detect Models" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand" Margin="0,0,8,0" FontWeight="SemiBold"/>
                                 <Button Grid.Column="2" Name="BtnTestOllamaConnection" Content="Test Connection" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="10,4" FontSize="10.5" Cursor="Hand"/>
                             </Grid>
                             <Grid ColumnDefinitions="3*, 2*">
@@ -376,13 +376,13 @@
                                        IconData="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,6V11L15,13"
                                        Accent="#34D399">
                 <StackPanel Spacing="12">
-                    <CheckBox Name="ChkEvictAiBeforeBackup"
+                    <CheckBox Classes="Modern" Name="ChkEvictAiBeforeBackup"
                               Content="Release the local AI model from RAM before each scheduled backup"
                               Foreground="{DynamicResource AppText}" IsChecked="True"/>
-                    <CheckBox Name="ChkEnableSyncRollback"
+                    <CheckBox Classes="Modern" Name="ChkEnableSyncRollback"
                               Content="Keep a copy of remote files before overwriting them, so a sync can be undone"
                               Foreground="{DynamicResource AppText}" IsChecked="True"/>
-                    <CheckBox Name="ChkFleetHeartbeat"
+                    <CheckBox Classes="Modern" Name="ChkFleetHeartbeat"
                               Content="Alert me when one of my computers goes offline unexpectedly"
                               Foreground="{DynamicResource AppText}" IsChecked="True"/>
 
@@ -390,7 +390,7 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Grid.Column="0" Text="Per-Service Sync Windows" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-                                <CheckBox Grid.Column="1" Name="ChkSyncWindowsEnabled" IsChecked="False"/>
+                                <CheckBox Classes="Modern" Grid.Column="1" Name="ChkSyncWindowsEnabled" IsChecked="False"/>
                             </Grid>
                             <TextBlock Text="Minutes from midnight. Windows crossing midnight are supported. 0 to 1440 means all day."
                                        Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
@@ -426,7 +426,7 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Grid.Column="0" Text="Bandwidth-Aware Pausing" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-                                <CheckBox Grid.Column="1" Name="ChkBandwidthGuard" IsChecked="False"/>
+                                <CheckBox Classes="Modern" Grid.Column="1" Name="ChkBandwidthGuard" IsChecked="False"/>
                             </Grid>
                             <TextBlock Text="Hold scheduled backups while your upload is busy, so gaming and streaming stay smooth."
                                        Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
@@ -546,7 +546,7 @@
                                        IconData="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18V19.93M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39Z"
                                        Accent="#6366F1">
                 <StackPanel Spacing="12">
-                    <CheckBox Name="ChkEnableWebDashboard" Content="Enable Built-in Web Dashboard" Foreground="{DynamicResource AppText}"/>
+                    <CheckBox Classes="Modern" Name="ChkEnableWebDashboard" Content="Enable Built-in Web Dashboard" Foreground="{DynamicResource AppText}"/>
                     <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,8,0,0">
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="Web Server Port" Foreground="{DynamicResource AppText}" FontWeight="SemiBold" FontSize="12"/>
@@ -555,7 +555,7 @@
                         <TextBox Grid.Column="1" Name="TxtWebPort" Width="70" TextAlignment="Center" FontSize="13" FontWeight="Bold" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AccentWebsite}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,5" Margin="10,0,6,0"/>
                         <TextBlock Grid.Column="2" Text="port" FontSize="11" Foreground="{DynamicResource AppMuted}" VerticalAlignment="Center"/>
                     </Grid>
-                    <CheckBox Name="ChkRequireWebAuth" Content="Require Access PIN for Web Dashboard" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
+                    <CheckBox Classes="Modern" Name="ChkRequireWebAuth" Content="Require Access PIN for Web Dashboard" Foreground="{DynamicResource AppText}" Margin="0,4,0,0"/>
                     <TextBox Name="TxtWebPin" Watermark="Optional Web Access PIN" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="10,6" Margin="0,4,0,0"/>
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                         <Button Name="BtnSaveWebSettings" Content="Save Web Settings" Background="{DynamicResource AccentWebsite}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
@@ -571,7 +571,7 @@
                                        IconData="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M17.64,8.44L15.46,18.72C15.3,19.46 14.86,19.64 14.24,19.29L10.92,16.84L9.32,18.38C9.14,18.56 9,18.71 8.64,18.71L8.88,15.31L15.06,9.73C15.33,9.49 15,9.35 14.64,9.59L7,14.41L3.71,13.38C3,13.16 2.98,12.67 3.86,12.33L16.71,7.38C17.31,7.16 17.83,7.52 17.64,8.44Z"
                                        Accent="#29B6F6">
                 <StackPanel Spacing="12">
-                    <CheckBox Name="ChkTelegramEnabled" Content="Enable Telegram Bot &amp; Notifications" Foreground="{DynamicResource AppText}" FontWeight="SemiBold"/>
+                    <CheckBox Classes="Modern" Name="ChkTelegramEnabled" Content="Enable Telegram Bot &amp; Notifications" Foreground="{DynamicResource AppText}" FontWeight="SemiBold"/>
 
                     <!-- Token -->
                     <StackPanel Spacing="4" Margin="0,4,0,0">
@@ -586,38 +586,38 @@
                     <StackPanel Spacing="4" Margin="0,4,0,0">
                         <Grid ColumnDefinitions="*, Auto, Auto">
                             <TextBlock Text="Telegram Chat / Group ID" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Name="BtnAddToGroup" Content="👥 Add Bot to Group..." Background="#1A29B6F6" Foreground="#29B6F6" BorderBrush="#3329B6F6" BorderThickness="1" CornerRadius="6" Padding="8,3" FontSize="10" Cursor="Hand" Margin="0,0,6,0"/>
-                            <Button Grid.Column="2" Name="BtnDetectChatId" Content="🔍 Detect Chat / Group ID" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,3" FontSize="10" Cursor="Hand"/>
+                            <Button Grid.Column="1" Name="BtnAddToGroup" Content="ðŸ‘¥ Add Bot to Group..." Background="#1A29B6F6" Foreground="#29B6F6" BorderBrush="#3329B6F6" BorderThickness="1" CornerRadius="6" Padding="8,3" FontSize="10" Cursor="Hand" Margin="0,0,6,0"/>
+                            <Button Grid.Column="2" Name="BtnDetectChatId" Content="ðŸ” Detect Chat / Group ID" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="6" Padding="8,3" FontSize="10" Cursor="Hand"/>
                         </Grid>
                         <TextBox Name="TxtTelegramChatId" Watermark="e.g. -1001234567890 (group/channel) or 123456789 (private)" Background="{DynamicResource AppSurface}" Foreground="{DynamicResource AppText}" BorderBrush="{DynamicResource AppBorder}" CornerRadius="6" Padding="8,6"/>
                         <TextBlock Name="TxtTelegramChatTitle" Text="" Foreground="#29B6F6" FontSize="10" FontWeight="SemiBold" IsVisible="False"/>
-                        <TextBlock Text="💡 For Groups: Click '👥 Add Bot to Group...' above, add the bot to your Telegram group, then type /link in the group (or click Detect). Group IDs start with a minus (e.g. -100...)." Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                        <TextBlock Text="ðŸ’¡ For Groups: Click 'ðŸ‘¥ Add Bot to Group...' above, add the bot to your Telegram group, then type /link in the group (or click Detect). Group IDs start with a minus (e.g. -100...)." Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <!-- Notification Triggers -->
                     <StackPanel Spacing="6" Margin="0,6,0,0">
                         <TextBlock Text="NOTIFICATION TRIGGERS" Foreground="{DynamicResource AppSubtext}" FontSize="11" FontWeight="Bold"/>
-                        <CheckBox Name="ChkNotifyBackupStart" Content="Alert on Backup Started (FTP, SQL, Mailchimp)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyBackupProgress" Content="Send Live Progress Updates (Milestones, Visual Bar &amp; Speed)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyBackupSuccess" Content="Alert on Backup Completed (Size, Total Storage, Disk Space)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyBackupFailure" Content="Alert on Backup Failure" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
-                        <CheckBox Name="ChkNotifyOutdated" Content="Alert when Backup is Outdated (&gt;24h)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyBackupStart" Content="Alert on Backup Started (FTP, SQL, Mailchimp)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyBackupProgress" Content="Send Live Progress Updates (Milestones, Visual Bar &amp; Speed)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyBackupSuccess" Content="Alert on Backup Completed (Size, Total Storage, Disk Space)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyBackupFailure" Content="Alert on Backup Failure" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyDisconnect" Content="Alert on Local / Cloudflare Disconnect" IsChecked="True" Foreground="{DynamicResource AppText}"/>
+                        <CheckBox Classes="Modern" Name="ChkNotifyOutdated" Content="Alert when Backup is Outdated (&gt;24h)" IsChecked="True" Foreground="{DynamicResource AppText}"/>
                     </StackPanel>
 
                     <!-- Telegram Interactive Bot Commands Guide -->
                     <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,4,0,0">
                         <StackPanel Spacing="6">
                             <TextBlock Text="SUPPORTED TELEGRAM BOT COMMANDS" Foreground="#29B6F6" FontSize="10" FontWeight="Bold"/>
-                            <TextBlock Text="• /help — Show interactive command manual&#x0a;• /qr or /connect — Receive iOS app pairing QR code instantly&#x0a;• /backup full — Run full backup across all services&#x0a;• /backup ftp | sql | mailchimp — Run individual service backup&#x0a;• /backup mailchimp members | campaigns | reports | merge_fields | tags&#x0a;• /status — Current health, last syncs, &amp; tunnel URLs&#x0a;• /stats — Detailed backup statistics, total storage &amp; success rate&#x0a;• /errors — View recent error reports &amp; failed backups" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
+                            <TextBlock Text="â€¢ /help â€” Show interactive command manual&#x0a;â€¢ /qr or /connect â€” Receive iOS app pairing QR code instantly&#x0a;â€¢ /backup full â€” Run full backup across all services&#x0a;â€¢ /backup ftp | sql | mailchimp â€” Run individual service backup&#x0a;â€¢ /backup mailchimp members | campaigns | reports | merge_fields | tags&#x0a;â€¢ /status â€” Current health, last syncs, &amp; tunnel URLs&#x0a;â€¢ /stats â€” Detailed backup statistics, total storage &amp; success rate&#x0a;â€¢ /errors â€” View recent error reports &amp; failed backups" Foreground="{DynamicResource AppMuted}" FontSize="10" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Actions -->
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                         <Button Name="BtnSaveTelegramSettings" Content="Save Telegram Config" Background="#29B6F6" Foreground="#000000" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand" FontWeight="Bold"/>
-                        <Button Name="BtnSendTestTelegram" Content="✉️ Send Test Alert" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
-                        <Button Name="BtnSendQrTelegram" Content="📱 Send iOS QR Code" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnSendTestTelegram" Content="âœ‰ï¸ Send Test Alert" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
+                        <Button Name="BtnSendQrTelegram" Content="ðŸ“± Send iOS QR Code" Background="{DynamicResource AppBorder}" Foreground="{DynamicResource AppText}" BorderThickness="0" CornerRadius="8" Padding="14,8" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
                     <TextBlock Name="TxtTelegramStatus" Text="" Foreground="{DynamicResource AppSubtext}" FontStyle="Italic" TextWrapping="Wrap"/>
                 </StackPanel>
