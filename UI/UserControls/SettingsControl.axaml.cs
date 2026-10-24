@@ -400,11 +400,19 @@ namespace PinayPalBackupManager.UI.UserControls
                 btnResetAllUsers.Click += async (_, _) => await ShowResetAllUsersConfirmationAsync();
             }
 
-            InitializeTelegramAlerts();
-            InitializeAiAssistantSettings();
-            InitializeMyComputers();
-            InitializeSmartScheduling();
-            InitializeSettingsSaveBar();
+            try
+            {
+                InitializeTelegramAlerts();
+                InitializeAiAssistantSettings();
+                InitializeMyComputers();
+                InitializeSmartScheduling();
+                InitializeSettingsSaveBar();
+            }
+            catch (Exception ex)
+            {
+                // Settings must never crash the app: degrade gracefully to a partial settings panel.
+                try { LogService.WriteSystemLog($"[Settings] Settings initialization degraded: {ex.Message}", "Warning", "SETTINGS"); } catch { }
+            }
         }
 
         /// <summary>

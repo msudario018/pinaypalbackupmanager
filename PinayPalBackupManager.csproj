@@ -72,4 +72,19 @@
     </Content>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Opt-in post-build launch smoke check. Disabled by default so it never hangs
+         headless/CI builds. Enable on a machine with a display via:
+         dotnet build -c Release /p:LaunchSmokeTest=true -->
+    <LaunchSmokeTest Condition="'$(LaunchSmokeTest)'==''">false</LaunchSmokeTest>
+    <LaunchSmokeTestTimeoutSeconds Condition="'$(LaunchSmokeTestTimeoutSeconds)'==''">12</LaunchSmokeTestTimeoutSeconds>
+  </PropertyGroup>
+
+  <!-- Launches the built executable after a Release build and fails the build if the
+       app crashes (exits non-zero) within the timeout. If it stays running, the launch
+       succeeded and the process is killed. Catches launch/regression breaks before release. -->
+  <Target Name="LaunchSmokeTest" AfterTargets="Build" Condition="'$(LaunchSmokeTest)'=='true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$p = Start-Process '$(TargetDir)$(TargetName).exe' -PassThru; Start-Sleep -Seconds $(LaunchSmokeTestTimeoutSeconds); if (-not $p.HasExited) { $p.Kill(); Write-Host 'SMOKE TEST PASSED: app stayed running for $(LaunchSmokeTestTimeoutSeconds)s (launched OK)'; exit 0 } else { $c = $p.ExitCode; Write-Host 'SMOKE TEST FAILED: app exited after $(LaunchSmokeTestTimeoutSeconds)s with code ' + $c; exit $c }&quot;" />
+  </Target>
 </Project>

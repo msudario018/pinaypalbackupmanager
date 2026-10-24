@@ -54,105 +54,120 @@ namespace PinayPalBackupManager.Services
             }
         }
 
-        public static bool CheckSingleInstanceAndSignalExisting()
+        // Single-instance enforcement using a named Mutex. The OS releases a Mutex
+        // automatically when its owning process exits (crash or clean), so a dead
+        // process can never block a subsequent launch - unlike process-name scanning
+        // + WaitForExit + window-handle checks. If the existing instance is hung
+        // (not responding), it is terminated so the user's launch always succeeds.
+        private static Mutex? _singleInstanceMutex;
+
+        public enum SingleInstanceResult
         {
-            if (!OperatingSystem.IsWindows()) return true;
+            Primary,           // This process is primary; continue launching.
+            ExistingSignaled   // Another instance owns it; signaled to restore; caller exits.
+        }
+
+        /// <summary>
+        /// Attempts to become the primary (single) instance.
+        /// </summary>
+        public static SingleInstanceResult TryAcquireSingleInstance()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return SingleInstanceResult.Primary;
+            }
 
             try
             {
-                var currentProc = Process.GetCurrentProcess();
-                var candidateProcs = Process.GetProcessesByName(currentProc.ProcessName)
-                    .Where(p => p.Id != currentProc.Id)
-                    .ToList();
+                // false = initially not owned; out createdNew tells us whether we won the Mutex.
+                _singleInstanceMutex = new Mutex(false, "PinayPalBackupManager_SingleInstance", out bool createdNew);
 
-                // Filter candidates by session ID, exit status, and responsiveness
-                var validOthers = new List<Process>();
-                foreach (var other in candidateProcs)
+                if (createdNew)
                 {
-                    try
+                    // We are the primary instance. The OS releases the Mutex automatically
+                    // when we exit (crash or clean).
+                    return SingleInstanceResult.Primary;
+                }
+
+                // Another instance holds the Mutex.
+                // If it is unresponsive (hung), terminate it so the launch is not blocked.
+                if (!ExistingInstanceIsResponsive())
+                {
+                    KillExistingInstance();
+                    // The OS releases the Mutex when the terminated process exits; acquire it.
+                    try { _singleInstanceMutex?.Dispose(); } catch { }
+                    _singleInstanceMutex = new Mutex(false, "PinayPalBackupManager_SingleInstance", out bool createdNew2);
+                    if (createdNew2)
                     {
-                        if (other.HasExited) continue;
-                        if (other.SessionId != currentProc.SessionId) continue;
-
-                        // If the process is in the middle of shutting down (e.g. update restart handoff),
-                        // give it a brief moment to finish exiting.
-                        if (other.WaitForExit(600))
-                        {
-                            continue; // Process exited cleanly
-                        }
-
-                        // If the process is hung and not responding, kill the zombie so it doesn't block the user
-                        if (!other.Responding)
-                        {
-                            try { other.Kill(); } catch { }
-                            continue;
-                        }
-
-                        validOthers.Add(other);
+                        return SingleInstanceResult.Primary;
                     }
-                    catch
+                    // Wait briefly for the terminated process to fully release the Mutex.
+                    if (_singleInstanceMutex.WaitOne(TimeSpan.FromSeconds(2)))
                     {
-                        // Process access denied or already dead
+                        return SingleInstanceResult.Primary;
                     }
                 }
 
-                // If no other valid PinayPal process is running, this instance is primary!
-                if (validOthers.Count == 0)
-                {
-                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out _);
-                    return true;
-                }
-
-                // Try to signal existing running instance to restore its window
-                bool signaled = false;
-                try
-                {
-                    if (EventWaitHandle.TryOpenExisting("PinayPalBackupManager_RestoreSignal", out var signal))
-                    {
-                        signal.Set();
-                        signal.Dispose();
-                        signaled = true;
-                    }
-                }
-                catch { }
-
-                // Also try to bring existing process window to front directly via Win32 SetForegroundWindow
-                bool restoredWindow = false;
-                foreach (var other in validOthers)
-                {
-                    try
-                    {
-                        other.Refresh();
-                        if (other.MainWindowHandle != IntPtr.Zero)
-                        {
-                            ShowWindow(other.MainWindowHandle, SW_RESTORE);
-                            SetForegroundWindow(other.MainWindowHandle);
-                            restoredWindow = true;
-                        }
-                    }
-                    catch { }
-                }
-
-                // If neither the event wait handle could be signaled nor any window handle was found,
-                // the existing process is an orphaned background zombie without any UI or listener.
-                // Terminate orphaned ghosts so the user's launch action succeeds.
-                if (!signaled && !restoredWindow)
-                {
-                    foreach (var other in validOthers)
-                    {
-                        try { other.Kill(); } catch { }
-                    }
-                    _restoreSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "PinayPalBackupManager_RestoreSignal", out _);
-                    return true;
-                }
-
-                // An active, responsive instance was found and signaled to restore
-                return false;
+                // Existing instance is responsive and still owns the Mutex: signal it to
+                // restore its window, then let this duplicate exit.
+                SignalExistingInstance();
+                return SingleInstanceResult.ExistingSignaled;
             }
-            catch
+            catch (Exception ex)
             {
-                return true;
+                // Fail-open: a single-instance problem must never prevent the app from launching.
+                try { LogService.WriteSystemLog($"[AppIconHelper] Single-instance acquisition failed (fail-open, launching): {ex.Message}", "Warning", "SYSTEM"); } catch { }
+                return SingleInstanceResult.Primary;
             }
+        }
+
+        /// <summary>
+        /// Signals the primary instance (via the named restore event) to bring its window to
+        /// the foreground. Called by a duplicate launcher just before it exits.
+        /// </summary>
+        public static void SignalExistingInstance()
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                if (EventWaitHandle.TryOpenExisting("PinayPalBackupManager_RestoreSignal", out var signal))
+                {
+                    signal.Set();
+                    signal.Dispose();
+                }
+            }
+            catch { }
+        }
+
+        private static bool ExistingInstanceIsResponsive()
+        {
+            try
+            {
+                var current = Process.GetCurrentProcess();
+                foreach (var other in Process.GetProcessesByName(current.ProcessName))
+                {
+                    if (other.Id == current.Id || other.SessionId != current.SessionId) continue;
+                    if (other.HasExited) continue;
+                    return other.Responding;
+                }
+            }
+            catch { }
+            return true; // fail-open: treat as responsive rather than killing a process we can't inspect
+        }
+
+        private static void KillExistingInstance()
+        {
+            try
+            {
+                var current = Process.GetCurrentProcess();
+                foreach (var other in Process.GetProcessesByName(current.ProcessName))
+                {
+                    if (other.Id == current.Id || other.SessionId != current.SessionId) continue;
+                    if (other.HasExited) continue;
+                    try { other.Kill(); } catch { }
+                }
+            }
+            catch { }
         }
 
         private static Action? _onRestoreRequested;

@@ -37,7 +37,18 @@ namespace PinayPalBackupManager
                 e.SetObserved();
             };
 
-            AvaloniaXamlLoader.Load(this);
+            try
+            {
+                AvaloniaXamlLoader.Load(this);
+            }
+            catch (Exception ex)
+            {
+                var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [FATAL] Avalonia XAML load failed: {ex}\n{ex.StackTrace}\n";
+                try { File.AppendAllText(AppDataPaths.SystemLogPath, msg); } catch { }
+                try { File.AppendAllText(AppDataPaths.GetLogPath("startup.log"), msg); } catch { }
+                LogService.WriteSystemLog($"Avalonia XAML load failed: {ex.Message}", "Critical", "SYSTEM");
+                throw; // XAML/resources are required for any UI; fail loud but logged
+            }
         }
 
         public override void OnFrameworkInitializationCompleted()
@@ -93,8 +104,17 @@ namespace PinayPalBackupManager
                 var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [FATAL] Error in OnFrameworkInitializationCompleted: {ex}\n";
                 try { File.AppendAllText(AppDataPaths.GetLogPath("startup.log"), msg); } catch { }
                 try { File.AppendAllText(AppDataPaths.SystemLogPath, msg); } catch { }
-                LogService.WriteSystemLog($"Application initialization failed: {ex.Message}", "Critical", "SYSTEM");
-                throw;
+                try { LogService.WriteSystemLog($"Application initialization failed: {ex.Message}", "Critical", "SYSTEM"); } catch { }
+                // Do NOT rethrow: a failure in the auth/window-startup decision must not prevent
+                // the app from launching. Fall back to the login screen so the user still gets a UI.
+                try
+                {
+                    if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopFallback)
+                    {
+                        ShowLogin(desktopFallback);
+                    }
+                }
+                catch { }
             }
         }
 

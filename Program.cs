@@ -74,11 +74,14 @@ namespace PinayPalBackupManager
 
             try
             {
-                if (!AppIconHelper.CheckSingleInstanceAndSignalExisting())
+                var singleInstance = AppIconHelper.TryAcquireSingleInstance();
+                if (singleInstance == AppIconHelper.SingleInstanceResult.ExistingSignaled)
                 {
-                    AppendStartupLog(logPathEarly, "Existing active instance found and signaled. Terminating duplicate launcher process.");
+                    // Restore was already signaled inside TryAcquireSingleInstance; exit this duplicate.
+                    AppendStartupLog(logPathEarly, "Existing active instance detected. Restore signaled; exiting duplicate launcher process.");
                     return;
                 }
+                // SingleInstanceResult.Primary: continue launching this instance.
             }
             catch (Exception ex)
             {
