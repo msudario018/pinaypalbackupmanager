@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.1.3 (2026-10-23)
+
+### Added
+- **Global Modern CheckBox Toggle Style**: Added theme-safe `CheckBox.Modern` style in `App.axaml` with rounded pill toggle, checked/pointerover/disabled states, and DynamicResource color support for Light/Dark themes. Applied `Classes="Modern"` to all 32 toggle CheckBoxes in `SettingsControl.axaml`.
+
+### Cross-Platform
+- Version bumped to **v4.1.3** across PC desktop application.
+
 ## v4.1.2 (2026-10-23)
 
 ### Fixed
